@@ -180,7 +180,7 @@ const (
 	// Calculations:
 	// Minimum size of a Wormhole PostedMessage / PostedMessageUnreliable.
 	// Layout:
-	//   discriminator          [u8; 3]   =  3  ("msg" / "msu" / "vaa")
+	//   discriminator          [u8; 3]   =  3  ("msg" / "msu")
 	//   vaa_version            u8        =  1
 	//   consistency_level      u8        =  1
 	//   vaa_time               u32       =  4
@@ -256,7 +256,11 @@ func NewMessageAccountData(data []byte) *MessageAccountData {
 	if !bytes.HasPrefix(data, []byte(accountPrefixReliable)) && !bytes.HasPrefix(data, []byte(accountPrefixUnreliable)) {
 		return nil
 	}
-	return &MessageAccountData{data: data}
+
+	// SECURITY: Create a copy to ensure the data is not modified by the caller.
+	owned := make([]byte, len(data))
+	copy(owned, data)
+	return &MessageAccountData{data: owned}
 }
 
 // IsReliable returns true if the account data is reliable (has the prefix "msg").
@@ -474,7 +478,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case msg := <-s.pumpData:
-				err := s.processAccountSubscriptionData(ctx, logger, msg, false)
+				err := s.processAccountSubscriptionData(ctx, msg, false)
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_subscription_data").Inc()
@@ -1000,7 +1004,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 // processAccountSubscriptionData processes the data received from the account subscription.
 // This function is primarily used for Pythnet as its caller relies on a WebSocket subscription to receive data,
 // and this is allow-listed only for Pythnet's ChainID.
-func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte, isReobservation bool) error {
+func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data []byte, isReobservation bool) error {
 	// SECURITY: json.Unmarshal returns an error for empty inputs, but nil if the input is `{}` (valid-but-empty JSON).
 	// Both cases need to be handled before we try to parse data.
 	// The structs into which we unmarshal the data use a mix of pointers and non-pointers, so be mindful of error-handling
@@ -1010,7 +1014,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	var e EventSubscriptionError
 	err := json.Unmarshal(data, &e)
 	if err != nil {
-		logger.Error("failed to unmarshal account subscription error report", zap.Error(err))
+		s.logger.Error("failed to unmarshal account subscription error report", zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
@@ -1022,7 +1026,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	var res EventSubscriptionData
 	err = json.Unmarshal(data, &res)
 	if err != nil {
-		logger.Error("failed to unmarshal account subscription data", zap.Error(err))
+		s.logger.Error("failed to unmarshal account subscription data", zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
@@ -1042,6 +1046,8 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	// SECURITY: Bounds check the Data slice to ensure it's not empty.
 	var accountDataBase64 string
 	if len(value.Account.Data) == 0 {
+		s.logger.Warn("websocket Solana account has no data", zap.String("account", value.Pubkey))
+		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return nil
 	} else {
 		// The data is received as an array of base64 strings, but we only care about the first one.
@@ -1050,7 +1056,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 
 	dataBase64Decoded, err := base64.StdEncoding.DecodeString(accountDataBase64)
 	if err != nil {
-		logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(err))
+		s.logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
@@ -1062,7 +1068,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	}
 
 	acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
-	s.processMessageAccount(logger, messageAccountData, acc, isReobservation, solana.Signature{})
+	s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, solana.Signature{})
 
 	return nil
 }
