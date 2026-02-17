@@ -223,11 +223,12 @@ func parseCoverageOutput() (map[string]float64, error) {
 	// Parse coverage from output. go test -cover produces several formats:
 	//   "ok  	<package>	<time>	coverage: <percent>% of statements"
 	//   "FAIL	<package>	<time>	coverage: <percent>% of statements"
-	//   "	<package>		coverage: <percent>% of statements"   (no test files, dependency coverage)
 	//   "ok  	<package>	<time>	[no statements]"
+	//
+	// Intentionally NOT matched (packages with no test files, not actionable):
+	//   "	<package>		coverage: 0.0% of statements"
 	coverage := make(map[string]float64)
 	coverageRe := regexp.MustCompile(`^(?:ok|FAIL)\s+(\S+)\s+\S+\s+coverage:\s+([0-9.]+)%`)
-	depCoverageRe := regexp.MustCompile(`^\s+(\S+)\s+coverage:\s+([0-9.]+)%`)
 	noStmtRe := regexp.MustCompile(`^(?:ok|FAIL)\s+(\S+)\s+\S+\s+\[no statements\]`)
 
 	scanner := bufio.NewScanner(file)
@@ -243,16 +244,6 @@ func parseCoverageOutput() (map[string]float64, error) {
 				continue
 			}
 			coverage[pkg] = percent
-			continue
-		}
-
-		// Check for dependency-only coverage (no test files, tab-indented)
-		if matches := depCoverageRe.FindStringSubmatch(line); len(matches) >= 3 {
-			pkg := matches[1]
-			percent, err := strconv.ParseFloat(matches[2], 64)
-			if err == nil {
-				coverage[pkg] = percent
-			}
 			continue
 		}
 
