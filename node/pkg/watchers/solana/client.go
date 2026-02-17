@@ -997,7 +997,15 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 	return s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, signature), false
 }
 
+// processAccountSubscriptionData processes the data received from the account subscription.
+// This function is primarily used for Pythnet as its caller relies on a WebSocket subscription to receive data,
+// and this is allow-listed only for Pythnet's ChainID.
 func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte, isReobservation bool) error {
+	// SECURITY: json.Unmarshal returns an error for empty inputs, but nil if the input is `{}` (valid-but-empty JSON).
+	// Both cases need to be handled before we try to parse data.
+	// The structs into which we unmarshal the data use a mix of pointers and non-pointers, so be mindful of error-handling
+	// and potential nil-dereferences when modifying this function.
+
 	// Do we have an error on the subscription?
 	var e EventSubscriptionError
 	err := json.Unmarshal(data, &e)
@@ -1048,7 +1056,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	}
 
 	// SECURITY: Parse the message account data to ensure it's valid.
-	messageAccountData := NewMessageAccountData([]byte(dataBase64Decoded))
+	messageAccountData := NewMessageAccountData(dataBase64Decoded)
 	if messageAccountData == nil {
 		return nil
 	}
