@@ -242,7 +242,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		},
 		{
 			name:               "failure -- truncated data (msu)",
-			messageAccountData: &MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
+			messageAccountData: &MessageAccountData{validMessageAccountDataUnreliable[:len(validMessageAccountDataUnreliable)-1]},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringBorsh,
 		},
