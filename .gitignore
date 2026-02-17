@@ -33,3 +33,4 @@ sui/examples/wrapped_coin
 # Only used for internal testing
 *.testnet.yaml
 coverage.txt
+/coverage-check

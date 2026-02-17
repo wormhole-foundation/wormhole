@@ -39,7 +39,26 @@ type improvement struct {
 var (
 	verbose        bool
 	updateBaseline bool
+
+	// Pre-compiled exclude patterns for shouldExclude
+	excludePatterns []*regexp.Regexp
 )
+
+func init() {
+	patterns := []string{
+		"/cmd/",
+		"/cmd$",
+		"/hack/",
+		"/tools$",
+		"/proto/",
+		"/mock/",
+		"/mock$",
+		"/[^/]*abi$",
+	}
+	for _, p := range patterns {
+		excludePatterns = append(excludePatterns, regexp.MustCompile(p))
+	}
+}
 
 func main() {
 	flag.BoolVar(&verbose, "v", false, "verbose output (show all checks)")
@@ -184,17 +203,17 @@ func parseCoverageOutput() (map[string]float64, error) {
 
 	// Parse coverage from output
 	// Format: "ok  	<package>	<time>	coverage: <percent>% of statements"
-	//     or: "	<package>		coverage: <percent>% of statements" (packages with no tests but coverage reported)
+	//     or: "FAIL	<package>	<time>	coverage: <percent>% of statements"
 	coverage := make(map[string]float64)
-	coverageRe := regexp.MustCompile(`^\s*(ok\s+)?([^\s]+)\s+.*coverage:\s+([0-9.]+)%`)
+	coverageRe := regexp.MustCompile(`^(?:ok|FAIL)\s+(\S+)\s+\S+\s+coverage:\s+([0-9.]+)%`)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
 		matches := coverageRe.FindStringSubmatch(line)
-		if len(matches) >= 4 {
-			pkg := matches[2]
-			percentStr := matches[3]
+		if len(matches) >= 3 {
+			pkg := matches[1]
+			percentStr := matches[2]
 			percent, err := strconv.ParseFloat(percentStr, 64)
 			if err != nil {
 				continue
@@ -214,7 +233,7 @@ func parseCoverageOutput() (map[string]float64, error) {
 func loadBaseline() (map[string]float64, error) {
 	file, err := os.Open(baselineFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open baseline file %s: %w", baselineFile, err)
 	}
 	defer file.Close()
 
@@ -247,7 +266,11 @@ func loadBaseline() (map[string]float64, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading baseline file %s: %w", baselineFile, err)
+	}
+
+	if len(baseline) == 0 {
+		return nil, fmt.Errorf("baseline file %s is empty or contains no valid entries; refusing to run", baselineFile)
 	}
 
 	return baseline, nil
@@ -365,26 +388,14 @@ func checkNewPackages(baseline, current map[string]float64) (passed, failed int,
 
 // shouldExclude determines if a package should be excluded from new package checks
 func shouldExclude(pkg string) bool {
-	// Exclude cmd/, hack/, tools, proto/, mock/, *abi packages (generated code), root node package
-	excludePatterns := []string{
-		"/cmd/",
-		"/cmd$",
-		"/hack/",
-		"/tools$",
-		"/proto/",
-		"/mock/",
-		"/mock$",
-		"abi$",
-	}
-
 	// Special case: root node package
 	if pkg == "github.com/certusone/wormhole/node" {
 		return true
 	}
 
-	for _, pattern := range excludePatterns {
-		matched, _ := regexp.MatchString(pattern, pkg)
-		if matched {
+	// Use pre-compiled patterns (cmd/, hack/, tools, proto/, mock/, *abi)
+	for _, re := range excludePatterns {
+		if re.MatchString(pkg) {
 			return true
 		}
 	}
@@ -411,9 +422,6 @@ func writeUpdatedBaseline(baseline, current map[string]float64, newPackages []pa
 	writer := bufio.NewWriter(tempFile)
 	scanner := bufio.NewScanner(originalFile)
 
-	// Track which packages we've updated
-	updated := make(map[string]bool)
-
 	// Process existing baseline file, updating coverage values
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -437,7 +445,6 @@ func writeUpdatedBaseline(baseline, current map[string]float64, newPackages []pa
 		if currentCov, exists := current[pkg]; exists {
 			// Update with current coverage
 			fmt.Fprintf(writer, "%s %.1f\n", pkg, currentCov)
-			updated[pkg] = true
 		} else {
 			// Package not found in current run, keep baseline value (might be removed/renamed)
 			fmt.Fprintln(writer, line)
@@ -454,11 +461,15 @@ func writeUpdatedBaseline(baseline, current map[string]float64, newPackages []pa
 		fmt.Fprintln(writer, "# Newly added packages")
 		for _, pkg := range newPackages {
 			fmt.Fprintf(writer, "%s %.1f\n", pkg.name, pkg.coverage)
-			updated[pkg.name] = true
 		}
 	}
 
 	if err := writer.Flush(); err != nil {
+		return err
+	}
+
+	// Set standard permissions before rename (CreateTemp uses restrictive 0600)
+	if err := tempFile.Chmod(0644); err != nil {
 		return err
 	}
 	tempFile.Close()
