@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -39,6 +41,7 @@ type improvement struct {
 var (
 	verbose        bool
 	updateBaseline bool
+	initBaseline   bool
 
 	// Pre-compiled exclude patterns for shouldExclude
 	excludePatterns []*regexp.Regexp
@@ -65,6 +68,7 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "verbose output (show all checks)")
 	flag.BoolVar(&updateBaseline, "u", false, "update baseline with current coverage")
 	flag.BoolVar(&updateBaseline, "update", false, "update baseline with current coverage")
+	flag.BoolVar(&initBaseline, "init", false, "create baseline from current coverage (first-time setup)")
 	flag.Parse()
 
 	if err := run(); err != nil {
@@ -93,6 +97,11 @@ func run() error {
 		fmt.Println()
 	}
 
+	// Handle init flag — create baseline from scratch
+	if initBaseline {
+		return writeInitialBaseline(currentCoverage)
+	}
+
 	// Load baseline
 	baseline, err := loadBaseline()
 	if err != nil {
@@ -100,14 +109,14 @@ func run() error {
 	}
 
 	// Check baseline packages for regression and track improvements
-	passed, regressions, improvements, improvementList := checkBaseline(baseline, currentCoverage)
+	passed, regressions, missingPkgs, improvements, improvementList := checkBaseline(baseline, currentCoverage)
 
 	// Check new packages
 	newPassed, newFailed, newPackages := checkNewPackages(baseline, currentCoverage)
 
 	// Handle update flag
 	if updateBaseline {
-		if err := writeUpdatedBaseline(baseline, currentCoverage, newPackages); err != nil {
+		if err := writeUpdatedBaseline(currentCoverage, newPackages); err != nil {
 			return fmt.Errorf("failed to update baseline: %w", err)
 		}
 		fmt.Printf("%s✅ Baseline updated successfully%s\n", colorGreen, colorReset)
@@ -126,9 +135,12 @@ func run() error {
 		fmt.Println("========================================")
 		fmt.Println("Summary")
 		fmt.Println("========================================")
-		fmt.Printf("Baseline packages checked: %d\n", passed+regressions)
+		fmt.Printf("Baseline packages checked: %d\n", passed+regressions+missingPkgs)
 		fmt.Printf("  - Passed: %d\n", passed)
 		fmt.Printf("  - Regressions: %d\n", regressions)
+		if missingPkgs > 0 {
+			fmt.Printf("  - Missing: %d (removed or renamed?)\n", missingPkgs)
+		}
 		if improvements > 0 {
 			fmt.Printf("  - Improvements: %d\n", improvements)
 		}
@@ -141,6 +153,7 @@ func run() error {
 	}
 
 	// Check for failures (regressions or new packages below threshold)
+	// Missing packages are warnings, not failures — they may have been intentionally removed
 	if regressions > 0 || newFailed > 0 {
 		if !verbose {
 			fmt.Printf("%s❌ Coverage check FAILED%s\n", colorRed, colorReset)
@@ -150,6 +163,9 @@ func run() error {
 			if newFailed > 0 {
 				fmt.Printf("  %d new package(s) below minimum coverage (%.1f%%)\n", newFailed, minNewPkgCoverage)
 			}
+			if missingPkgs > 0 {
+				fmt.Printf("  %d package(s) missing from test output (run with -v for details)\n", missingPkgs)
+			}
 			fmt.Println()
 			fmt.Println("Run with -v flag for details")
 		} else {
@@ -158,8 +174,11 @@ func run() error {
 			fmt.Println("To fix:")
 			fmt.Println("  1. Add tests to improve coverage for failing packages")
 			fmt.Println("  2. If coverage drop is intentional, update baseline:")
-			fmt.Println("     - Run: make update-coverage-baseline")
+			fmt.Println("     - Run: make coverage-update")
 			fmt.Println("     - Or: ./coverage-check -u")
+			if missingPkgs > 0 {
+				fmt.Println("  3. If packages were removed/renamed, update baseline to remove stale entries")
+			}
 		}
 		return fmt.Errorf("coverage check failed")
 	}
@@ -181,7 +200,7 @@ func run() error {
 		}
 		fmt.Println()
 		fmt.Printf("%sPlease update the baseline to lock in these improvements:%s\n", colorYellow, colorReset)
-		fmt.Println("  Run: make update-coverage-baseline")
+		fmt.Println("  Run: make coverage-update")
 		fmt.Println("  Or:  ./coverage-check -u")
 		return fmt.Errorf("baseline update required")
 	}
@@ -204,14 +223,17 @@ func parseCoverageOutput() (map[string]float64, error) {
 	// Parse coverage from output
 	// Format: "ok  	<package>	<time>	coverage: <percent>% of statements"
 	//     or: "FAIL	<package>	<time>	coverage: <percent>% of statements"
+	//     or: "ok  	<package>	<time>	[no statements]"
 	coverage := make(map[string]float64)
 	coverageRe := regexp.MustCompile(`^(?:ok|FAIL)\s+(\S+)\s+\S+\s+coverage:\s+([0-9.]+)%`)
+	noStmtRe := regexp.MustCompile(`^(?:ok|FAIL)\s+(\S+)\s+\S+\s+\[no statements\]`)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		matches := coverageRe.FindStringSubmatch(line)
-		if len(matches) >= 3 {
+
+		// Check for coverage percentage
+		if matches := coverageRe.FindStringSubmatch(line); len(matches) >= 3 {
 			pkg := matches[1]
 			percentStr := matches[2]
 			percent, err := strconv.ParseFloat(percentStr, 64)
@@ -219,11 +241,21 @@ func parseCoverageOutput() (map[string]float64, error) {
 				continue
 			}
 			coverage[pkg] = percent
+			continue
+		}
+
+		// Check for [no statements] — package has no coverable code, treat as 0%
+		if matches := noStmtRe.FindStringSubmatch(line); len(matches) >= 2 {
+			coverage[matches[1]] = 0.0
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading coverage output: %w", err)
+	}
+
+	if len(coverage) == 0 {
+		return nil, fmt.Errorf("no coverage data found in %s; is the file empty or malformed?", coverageOutputFile)
 	}
 
 	return coverage, nil
@@ -277,7 +309,7 @@ func loadBaseline() (map[string]float64, error) {
 }
 
 // checkBaseline compares current coverage against baseline
-func checkBaseline(baseline, current map[string]float64) (passed, regressions, improvements int, improvementList []improvement) {
+func checkBaseline(baseline, current map[string]float64) (passed, regressions, missing, improvements int, improvementList []improvement) {
 	if verbose {
 		fmt.Println("Checking baseline packages for regression...")
 		fmt.Println("--------------------------------------------")
@@ -287,13 +319,16 @@ func checkBaseline(baseline, current map[string]float64) (passed, regressions, i
 		currentCov, exists := current[pkg]
 
 		if !exists {
+			// Package in baseline but absent from test output — likely deleted/renamed
 			if verbose {
-				fmt.Printf("%s⚠️  %s: No coverage data found (baseline: %.1f%%)%s\n",
+				fmt.Printf("%s⚠️  MISSING: %s (baseline: %.1f%%)%s\n",
 					colorYellow, pkg, baselineCov, colorReset)
 				fmt.Printf("%s   Package may have been removed or renamed%s\n",
 					colorYellow, colorReset)
+			} else {
+				fmt.Printf("%s⚠️  MISSING: %s%s\n", colorYellow, pkg, colorReset)
 			}
-			regressions++
+			missing++
 			continue
 		}
 
@@ -328,6 +363,9 @@ func checkBaseline(baseline, current map[string]float64) (passed, regressions, i
 	if verbose {
 		fmt.Println()
 		fmt.Printf("Baseline check: %d passed, %d regressions", passed, regressions)
+		if missing > 0 {
+			fmt.Printf(", %d missing", missing)
+		}
 		if improvements > 0 {
 			fmt.Printf(", %d improvements", improvements)
 		}
@@ -335,7 +373,7 @@ func checkBaseline(baseline, current map[string]float64) (passed, regressions, i
 		fmt.Println()
 	}
 
-	return passed, regressions, improvements, improvementList
+	return passed, regressions, missing, improvements, improvementList
 }
 
 // checkNewPackages checks that new packages meet minimum coverage requirements
@@ -404,7 +442,7 @@ func shouldExclude(pkg string) bool {
 }
 
 // writeUpdatedBaseline writes an updated baseline file with current coverage
-func writeUpdatedBaseline(baseline, current map[string]float64, newPackages []packageCoverage) error {
+func writeUpdatedBaseline(current map[string]float64, newPackages []packageCoverage) error {
 	// Read the original baseline to preserve comments and structure
 	originalFile, err := os.Open(baselineFile)
 	if err != nil {
@@ -417,7 +455,13 @@ func writeUpdatedBaseline(baseline, current map[string]float64, newPackages []pa
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tempFile.Name())
+	tempPath := tempFile.Name()
+	success := false
+	defer func() {
+		if !success {
+			os.Remove(tempPath)
+		}
+	}()
 
 	writer := bufio.NewWriter(tempFile)
 	scanner := bufio.NewScanner(originalFile)
@@ -472,12 +516,91 @@ func writeUpdatedBaseline(baseline, current map[string]float64, newPackages []pa
 	if err := tempFile.Chmod(0644); err != nil {
 		return err
 	}
-	tempFile.Close()
-
-	// Replace original file with updated file
-	if err := os.Rename(tempFile.Name(), baselineFile); err != nil {
+	if err := tempFile.Close(); err != nil {
 		return err
 	}
+
+	// Replace original file with updated file
+	if err := os.Rename(tempPath, baselineFile); err != nil {
+		return err
+	}
+
+	success = true
+	return nil
+}
+
+// writeInitialBaseline creates a new baseline file from current coverage data.
+// Used for first-time setup when no baseline file exists yet.
+func writeInitialBaseline(current map[string]float64) error {
+	if len(current) == 0 {
+		return fmt.Errorf("no coverage data found; cannot create baseline")
+	}
+
+	// O_EXCL ensures atomic create-or-fail — no TOCTOU race
+	file, err := os.OpenFile(baselineFile, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("baseline file %s already exists; use -u to update it instead", baselineFile)
+		}
+		return fmt.Errorf("failed to create baseline file: %w", err)
+	}
+	defer file.Close()
+
+	// Sort packages for deterministic output
+	sorted := make([]string, 0, len(current))
+	for pkg := range current {
+		sorted = append(sorted, pkg)
+	}
+	sort.Strings(sorted)
+
+	writer := bufio.NewWriter(file)
+
+	fmt.Fprintln(writer, "# Wormhole Go Coverage Baseline")
+	fmt.Fprintln(writer, "# Auto-generated by: coverage-check -init")
+	fmt.Fprintln(writer, "# Format: <package> <coverage-percentage>")
+	fmt.Fprintln(writer, "#")
+	fmt.Fprintln(writer, "# Coverage must not regress below these values.")
+	fmt.Fprintln(writer, "# Update with: make coverage-update")
+	fmt.Fprintln(writer, "")
+
+	// Group by directory prefix
+	var nodePkgs, sdkPkgs, otherPkgs []string
+	for _, pkg := range sorted {
+		switch {
+		case strings.Contains(pkg, "/node/") || strings.HasSuffix(pkg, "/node"):
+			nodePkgs = append(nodePkgs, pkg)
+		case strings.Contains(pkg, "/sdk/") || strings.HasSuffix(pkg, "/sdk"):
+			sdkPkgs = append(sdkPkgs, pkg)
+		default:
+			otherPkgs = append(otherPkgs, pkg)
+		}
+	}
+
+	writeGroup := func(label string, pkgs []string) {
+		if len(pkgs) == 0 {
+			return
+		}
+		fmt.Fprintf(writer, "# %s packages\n", label)
+		for _, pkg := range pkgs {
+			fmt.Fprintf(writer, "%s %.1f\n", pkg, current[pkg])
+		}
+		fmt.Fprintln(writer, "")
+	}
+
+	writeGroup("node/", nodePkgs)
+	writeGroup("sdk/", sdkPkgs)
+	writeGroup("other", otherPkgs)
+
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+
+	fmt.Printf("%s✅ Baseline created: %s%s\n", colorGreen, baselineFile, colorReset)
+	fmt.Printf("   %d package(s) recorded\n", len(current))
+	fmt.Println()
+	fmt.Println("Next steps:")
+	fmt.Println("  1. Review the baseline: cat .coverage-baseline")
+	fmt.Println("  2. Commit it: git add .coverage-baseline && git commit -m 'coverage: add initial baseline'")
 
 	return nil
 }
