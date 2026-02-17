@@ -42,6 +42,7 @@ var (
 	verbose        bool
 	updateBaseline bool
 	initBaseline   bool
+	ciMode         bool
 
 	// Pre-compiled exclude patterns for shouldExclude
 	excludePatterns []*regexp.Regexp
@@ -69,7 +70,15 @@ func main() {
 	flag.BoolVar(&updateBaseline, "u", false, "update baseline with current coverage")
 	flag.BoolVar(&updateBaseline, "update", false, "update baseline with current coverage")
 	flag.BoolVar(&initBaseline, "init", false, "create baseline from current coverage (first-time setup)")
+	flag.BoolVar(&ciMode, "ci", false, "CI mode: improvements are warnings, not failures")
 	flag.Parse()
+
+	// Auto-detect CI if not explicitly set
+	if !ciMode {
+		if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+			ciMode = true
+		}
+	}
 
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s❌ %v%s\n", colorRed, err, colorReset)
@@ -183,7 +192,7 @@ func run() error {
 		return fmt.Errorf("coverage check failed")
 	}
 
-	// Check for improvements - exit with code 1 to force baseline update
+	// Check for improvements
 	if improvements > 0 || len(newPackages) > 0 {
 		fmt.Printf("%s💡 Coverage improved!%s\n", colorYellow, colorReset)
 		if improvements > 0 {
@@ -199,10 +208,17 @@ func run() error {
 			}
 		}
 		fmt.Println()
-		fmt.Printf("%sPlease update the baseline to lock in these improvements:%s\n", colorYellow, colorReset)
-		fmt.Println("  Run: make coverage-update")
-		fmt.Println("  Or:  ./coverage-check -u")
-		return fmt.Errorf("baseline update required")
+
+		if ciMode {
+			// In CI, improvements are informational — don't block the build
+			fmt.Printf("%s💡 Run 'make coverage-update' locally to lock in these improvements%s\n", colorYellow, colorReset)
+		} else {
+			// Locally, force the developer to update the baseline
+			fmt.Printf("%sPlease update the baseline to lock in these improvements:%s\n", colorYellow, colorReset)
+			fmt.Println("  Run: make coverage-update")
+			fmt.Println("  Or:  ./coverage-check -u")
+			return fmt.Errorf("baseline update required")
+		}
 	}
 
 	// All checks passed, no improvements
