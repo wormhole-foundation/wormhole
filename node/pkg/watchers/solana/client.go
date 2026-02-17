@@ -268,6 +268,17 @@ func (m *MessageAccountData) IsReliable() bool {
 	return bytes.HasPrefix(m.data, []byte(accountPrefixReliable))
 }
 
+// Bytes returns the underlying byte array. This method should be preferred over accessing the data field directly,
+// even within this package, as it ensures that the data is not modified by the caller.
+func (m *MessageAccountData) Bytes() []byte {
+	return m.data
+}
+
+func (m *MessageAccountData) String() string {
+	return string(m.Bytes())
+}
+
+
 func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 	switch c {
 	case consistencyLevelConfirmed:
@@ -995,7 +1006,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		s.logger.Debug("found valid VAA account",
 			zap.Uint64("slot", slot),
 			zap.Stringer("account", acc),
-			zap.Binary("data", messageAccountData.data))
+			zap.String("data", messageAccountData.String()))
 	}
 
 	return s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, signature), false
