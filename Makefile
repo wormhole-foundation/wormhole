@@ -76,5 +76,5 @@ build-coverage-check:
 
 .PHONY: update-coverage-baseline
 ## Update coverage baseline with current coverage
-update-coverage-baseline: test-coverage
+update-coverage-baseline: build-coverage-check test-coverage
 	@./coverage-check -u
