@@ -249,18 +249,19 @@ const (
 // 1. Data must be non-empty.
 // 2. Data must begin with b"msg" for regular message accounts or b"msu" for unreliable accounts (used by the shim contract).
 // The program must never parse account data as a message account if it is does not meet these requirements.
-func NewMessageAccountData(data []byte) *MessageAccountData {
+func NewMessageAccountData(data []byte) (MessageAccountData, error) {
+	msgAcctData := MessageAccountData{}
 	if len(data) < MessageAccountDataMinLength {
-		return nil
+		return msgAcctData, nil
 	}
 	if !bytes.HasPrefix(data, []byte(accountPrefixReliable)) && !bytes.HasPrefix(data, []byte(accountPrefixUnreliable)) {
-		return nil
+		return msgAcctData, nil
 	}
 
 	// SECURITY: Create a copy to ensure the data is not modified by the caller.
 	owned := make([]byte, len(data))
 	copy(owned, data)
-	return &MessageAccountData{data: owned}
+	return MessageAccountData{data: owned}, nil
 }
 
 // IsReliable returns true if the account data is reliable (has the prefix "msg").
@@ -271,11 +272,14 @@ func (m *MessageAccountData) IsReliable() bool {
 // Bytes returns the underlying byte array. This method should be preferred over accessing the data field directly,
 // even within this package, as it ensures that the data is not modified by the caller.
 func (m *MessageAccountData) Bytes() []byte {
-	return m.data
+	// SECURITY: Create a copy to ensure the data is not modified by the caller.
+	ret := make([]byte, len(m.data))
+	copy(ret, m.data)
+	return ret
 }
 
 func (m *MessageAccountData) String() string {
-	return string(m.Bytes())
+	return fmt.Sprintf("MessageAccountData{%x}", m.Bytes())
 }
 
 func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
@@ -991,13 +995,15 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 
 	// SECURITY: Parse the message account data to ensure it is a valid message account.
 	data := info.Value.Data.GetBinary()
-	messageAccountData := NewMessageAccountData(data)
-	if messageAccountData == nil {
+	messageAccountData, dataErr := NewMessageAccountData(data)
+	if dataErr != nil {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "bad_account_data").Inc()
 		s.logger.Error("account is not a message account",
 			zap.Uint64("slot", slot),
-			zap.Stringer("account", acc))
+			zap.Stringer("account", acc),
+			zap.Error(dataErr),
+		)
 		return 0, false
 	}
 
@@ -1072,18 +1078,22 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 	}
 
 	// SECURITY: Parse the message account data to ensure it's valid.
-	messageAccountData := NewMessageAccountData(dataBase64Decoded)
-	if messageAccountData == nil {
-		return nil
+	messageAccountData, dataErr := NewMessageAccountData(dataBase64Decoded)
+	if dataErr != nil {
+		s.logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(dataErr))
+		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+		return err
 	}
 
 	acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
+	// NOTE: We don't care about the number of observations here so the return value is ignored.
+	// The called function will still publish observations if it is successful.
 	s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, solana.Signature{})
 
 	return nil
 }
 
-func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccountData *MessageAccountData, acc solana.PublicKey, isReobservation bool, signature solana.Signature) (numObservations uint32) {
+func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccountData MessageAccountData, acc solana.PublicKey, isReobservation bool, signature solana.Signature) (numObservations uint32) {
 	proposal, err := ParseMessagePublicationAccount(messageAccountData)
 	if err != nil {
 		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
@@ -1207,19 +1217,15 @@ func (s *SolanaWatcher) getLatestFinalizedBlockNumber() uint64 {
 // The MessageAccountData type ensures that the data is at least 3 bytes long.
 func ParseMessagePublicationAccount(
 	// SECURITY: This value must be initialized by the NewMessageAccountData function.
-	messageAccountData *MessageAccountData,
+	messageAccountData MessageAccountData,
 ) (*MessagePublicationAccount, error) {
-	if messageAccountData == nil {
-		return nil, errors.New("message account data is too short")
-	}
-
 	// Skip the prefix and deserialize the rest of the data.
 	const prefixLength = 3
-	if len(messageAccountData.data) < 3 {
+	if len(messageAccountData.Bytes()) < prefixLength {
 		return nil, errors.New("message account data is too short")
 	}
 	prop := &MessagePublicationAccount{}
-	if err := borsh.Deserialize(prop, messageAccountData.data[prefixLength:]); err != nil {
+	if err := borsh.Deserialize(prop, messageAccountData.Bytes()[prefixLength:]); err != nil {
 		return nil, err
 	}
 

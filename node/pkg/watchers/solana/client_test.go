@@ -169,14 +169,14 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		messageAccountData *MessageAccountData
+		messageAccountData MessageAccountData
 		want               *MessagePublicationAccount
 		errStr             string
 	}{
 		{
 			name: "success -- reliable message",
 
-			messageAccountData: &MessageAccountData{validMessageAccountDataReliable},
+			messageAccountData: MessageAccountData{validMessageAccountDataReliable},
 			want: &MessagePublicationAccount{
 				VaaVersion:       0,
 				ConsistencyLevel: 32,
@@ -194,7 +194,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		},
 		{
 			name:               "success -- unreliable message",
-			messageAccountData: &MessageAccountData{validMessageAccountDataUnreliable},
+			messageAccountData: MessageAccountData{validMessageAccountDataUnreliable},
 			want: &MessagePublicationAccount{
 				VaaVersion:       0,
 				ConsistencyLevel: 1,
@@ -212,37 +212,37 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		},
 		{
 			name:               "failure -- nil argument",
-			messageAccountData: nil,
+			messageAccountData: MessageAccountData{},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringPrefix,
 		},
 		{
 			name:               "failure -- data too short",
-			messageAccountData: &MessageAccountData{[]byte("ms")},
+			messageAccountData: MessageAccountData{[]byte("ms")},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringPrefix,
 		},
 		{
 			name:               "failure -- no data following prefix (msg)",
-			messageAccountData: &MessageAccountData{[]byte("msg")},
+			messageAccountData: MessageAccountData{[]byte("msg")},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringBorsh,
 		},
 		{
 			name:               "failure -- no data following prefix (msu)",
-			messageAccountData: &MessageAccountData{[]byte("msu")},
+			messageAccountData: MessageAccountData{[]byte("msu")},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringBorsh,
 		},
 		{
 			name:               "failure -- truncated data (msg)",
-			messageAccountData: &MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
+			messageAccountData: MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringBorsh,
 		},
 		{
 			name:               "failure -- truncated data (msu)",
-			messageAccountData: &MessageAccountData{validMessageAccountDataUnreliable[:len(validMessageAccountDataUnreliable)-1]},
+			messageAccountData: MessageAccountData{validMessageAccountDataUnreliable[:len(validMessageAccountDataUnreliable)-1]},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringBorsh,
 		},
