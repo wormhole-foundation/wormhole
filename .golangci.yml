@@ -219,6 +219,7 @@ linters:
           - dupWord
           - exhaustruct
           - nolintlint
+          - prealloc
         path: _test\.go
       - linters:
           - exhaustruct

@@ -149,7 +149,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	if !exists {
 		gov.logger.Error("reloaded transfer for unsupported chain, dropping it",
 			zap.Stringer("Timestamp", xfer.Timestamp),
-			zap.Uint64("Value", xfer.Value),
+			zap.Uint64("ScaledValue", xfer.ScaledValue),
 			zap.Stringer("EmitterChain", xfer.EmitterChain),
 			zap.Stringer("EmitterAddress", xfer.EmitterAddress),
 			zap.String("MsgID", xfer.MsgID),
@@ -160,7 +160,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	if xfer.EmitterAddress != ce.emitterAddr {
 		gov.logger.Error("reloaded transfer for unsupported emitter address, dropping it",
 			zap.Stringer("Timestamp", xfer.Timestamp),
-			zap.Uint64("Value", xfer.Value),
+			zap.Uint64("ScaledValue", xfer.ScaledValue),
 			zap.Stringer("OriginChain", xfer.OriginChain),
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
@@ -173,7 +173,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	if !exists {
 		gov.logger.Error("reloaded transfer for unsupported token, dropping it",
 			zap.Stringer("Timestamp", xfer.Timestamp),
-			zap.Uint64("Value", xfer.Value),
+			zap.Uint64("ScaledValue", xfer.ScaledValue),
 			zap.Stringer("OriginChain", xfer.OriginChain),
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
@@ -184,7 +184,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	if _, alreadyExists := gov.msgsSeen[xfer.Hash]; alreadyExists {
 		gov.logger.Info("not reloading transfer because it is a duplicate",
 			zap.Stringer("Timestamp", xfer.Timestamp),
-			zap.Uint64("Value", xfer.Value),
+			zap.Uint64("ScaledValue", xfer.ScaledValue),
 			zap.Stringer("OriginChain", xfer.OriginChain),
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
@@ -196,7 +196,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	if xfer.Hash != "" {
 		gov.logger.Info("reloaded transfer",
 			zap.Stringer("Timestamp", xfer.Timestamp),
-			zap.Uint64("Value", xfer.Value),
+			zap.Uint64("ScaledValue", xfer.ScaledValue),
 			zap.Stringer("OriginChain", xfer.OriginChain),
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
@@ -207,7 +207,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	} else {
 		gov.logger.Error("reloaded transfer that does not have a hash, will not be able to detect a duplicate",
 			zap.Stringer("Timestamp", xfer.Timestamp),
-			zap.Uint64("Value", xfer.Value),
+			zap.Uint64("ScaledValue", xfer.ScaledValue),
 			zap.Stringer("OriginChain", xfer.OriginChain),
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
