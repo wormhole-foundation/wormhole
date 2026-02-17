@@ -331,7 +331,7 @@ jobs:
       - name: Run golang tests with coverage (node)
         run: cd node && go test -v -timeout 5m -race -cover ./... 2>&1 | tee ../coverage-node.tmp
       - name: Run golang tests with coverage (sdk)
-        run: cd sdk && go test -v -timeout 5m -cover ./... 2>&1 | tee ../coverage-sdk.tmp
+        run: cd sdk && go test -v -timeout 5m -race -cover ./... 2>&1 | tee ../coverage-sdk.tmp
       - name: Combine coverage output
         run: cat coverage-node.tmp coverage-sdk.tmp > coverage.txt && rm coverage-node.tmp coverage-sdk.tmp
       - name: Build coverage check tool
