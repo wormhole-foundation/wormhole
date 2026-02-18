@@ -258,6 +258,7 @@ func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.
 	if out.Meta == nil {
 		return nil, 0, fmt.Errorf("transaction metadata is nil for signature: %s", sig)
 	}
+	// SECURITY: Ensure the transaction succeeded on-chain.
 	if out.Meta.Err != nil {
 		return nil, 0, fmt.Errorf("transaction failed for signature %s: %v", sig, out.Meta.Err)
 	}

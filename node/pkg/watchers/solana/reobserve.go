@@ -39,12 +39,12 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 			return 0, fmt.Errorf("failed to get transaction for observation request: %v", err)
 		}
 
-		if err := validateTransactionMeta(result.Meta, fmt.Sprintf(" for observation request: %s", signature)); err != nil {
+		if metadataErr := validateTransactionMeta(result.Meta); metadataErr != nil {
 			s.logger.Error("skipping observation request",
 				zap.Stringer("signature", signature),
-				zap.String("reason", err.Error()),
+				zap.String("reason", metadataErr.Error()),
 			)
-			return 0, err
+			return 0, metadataErr
 		}
 
 		tx, err := result.Transaction.GetTransaction()
