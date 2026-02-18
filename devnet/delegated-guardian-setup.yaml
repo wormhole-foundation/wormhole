@@ -48,13 +48,6 @@ spec:
 
               echo "Setup completed successfully"
               touch /tmp/success
-          env:
-            - name: DELEGATED_CONFIG
-              value: ""  # will be set by Tiltfile
-            - name: WEB_HOST
-              value: "guardian-0.guardian"
-            - name: NAMESPACE
-              value: "wormhole"
           readinessProbe:
             exec:
               command:

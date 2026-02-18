@@ -18,6 +18,14 @@ RUN curl -L https://foundry.paradigm.xyz | bash && \
 # Add foundry to PATH
 ENV PATH="/root/.foundry/bin:$PATH"
 
+# Configuration values baked in at build time via Tiltfile build_args
+ARG DELEGATED_CONFIG=""
+ARG WEB_HOST="guardian-0.guardian"
+ARG NAMESPACE="wormhole"
+ENV DELEGATED_CONFIG=$DELEGATED_CONFIG
+ENV WEB_HOST=$WEB_HOST
+ENV NAMESPACE=$NAMESPACE
+
 # Copy setup script
 COPY scripts/delegated-guardian-set-preset.sh /scripts/delegated-guardian-set-preset.sh
 RUN chmod +x /scripts/delegated-guardian-set-preset.sh
