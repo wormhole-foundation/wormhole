@@ -4,11 +4,18 @@
 #[cfg(feature = "borsh")]
 pub mod borsh;
 pub mod env;
+pub mod fogo;
 pub mod solana;
 pub mod zero_copy;
 
 #[cfg(all(feature = "from-env", feature = "solana"))]
 compile_error!("Features 'from-env' and 'solana' are mutually exclusive.");
+
+#[cfg(all(feature = "from-env", feature = "fogo"))]
+compile_error!("Features 'from-env' and 'fogo' are mutually exclusive.");
+
+#[cfg(all(feature = "solana", feature = "fogo"))]
+compile_error!("Features 'solana' and 'fogo' are mutually exclusive.");
 
 // We define the constants (chain id + addresses) here.
 // - For 'solana', we just re-export the definitions in the solana module.
@@ -20,11 +27,13 @@ mod defs {
     cfg_if::cfg_if! {
         if #[cfg(feature = "solana")] {
             pub use crate::solana::*;
+        } else if #[cfg(feature = "fogo")] {
+            pub use crate::fogo::*;
         } else if #[cfg(feature = "from-env")] {
             #[cfg(any(feature = "testnet"))]
-            panic!("The 'testnet' feature is meaningless without the 'solana' feature.");
+            panic!("The 'testnet' feature is meaningless without the 'solana' or 'fogo' feature.");
             #[cfg(any(feature = "localnet"))]
-            panic!("The 'localnet' feature is meaningless without the 'solana' feature.");
+            panic!("The 'localnet' feature is meaningless without the 'solana' or 'fogo' feature.");
 
             use super::*;
 
@@ -400,7 +409,10 @@ fn available_ids() {
     let _ = crate::solana::localnet::CORE_BRIDGE_PROGRAM_ID;
     // defaults to mainnet (for backwards compatibility)
     let _ = crate::solana::CORE_BRIDGE_PROGRAM_ID;
-    #[cfg(all(any(feature = "solana", feature = "from-env"), feature = "core"))]
+    let _ = crate::fogo::mainnet::CORE_BRIDGE_PROGRAM_ID;
+    let _ = crate::fogo::testnet::CORE_BRIDGE_PROGRAM_ID;
+    let _ = crate::fogo::CORE_BRIDGE_PROGRAM_ID;
+    #[cfg(all(any(feature = "solana", feature = "fogo", feature = "from-env"), feature = "core"))]
     let _ = crate::CORE_BRIDGE_PROGRAM_ID;
 }
 
