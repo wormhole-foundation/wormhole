@@ -1099,7 +1099,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 		logger.Error(
 			"failed to parse transfer proposal",
 			zap.Stringer("account", acc),
-			zap.Binary("data", messageAccountData.data),
+			zap.String("data", messageAccountData.String()),
 			zap.Error(err))
 		return
 	}
@@ -1133,7 +1133,8 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 			logger.Error(
 				"account is not finalized",
 				zap.Stringer("account", acc),
-				zap.Binary("data", messageAccountData.data))
+				zap.String("data", messageAccountData.String()),
+			)
 			return
 		}
 	}
@@ -1218,10 +1219,11 @@ func ParseMessagePublicationAccount(
 	// SECURITY: This value must be initialized by the NewMessageAccountData function.
 	messageAccountData MessageAccountData,
 ) (*MessagePublicationAccount, error) {
-	// Bytes() makes a copy of the underlying byte array, so store it.
+	// Bytes() makes a copy of the underlying byte array. Store it since we use it multiple times.
 	data := messageAccountData.Bytes()
 
 	// Skip the prefix and deserialize the rest of the data.
+	// NOTE: Defense-in-depth check: MessageAccountData should already guarantee the length is valid.
 	const prefixLength = 3
 	if len(data) < prefixLength {
 		return nil, errors.New("message account data is too short")
