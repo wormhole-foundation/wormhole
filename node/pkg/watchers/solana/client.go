@@ -1080,9 +1080,8 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 	// SECURITY: Parse the message account data to ensure it's valid.
 	messageAccountData, dataErr := NewMessageAccountData(dataBase64Decoded)
 	if dataErr != nil {
-		s.logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(dataErr))
-		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-		return dataErr
+		s.logger.Debug("skipping non-message account", zap.String("account", value.Pubkey), zap.Error(dataErr))
+		return nil
 	}
 
 	acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))

@@ -1,6 +1,7 @@
 package solana
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -262,6 +263,48 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				require.ErrorContains(t, gotErr, tt.errStr, "ParseMessagePublicationAccount() succeeded unexpectedly")
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestNewMessageAccountData(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		data    []byte
+		want    MessageAccountData
+		wantErr bool
+	}{
+		// Happy path
+		{"just msg", []byte("msg"), MessageAccountData{data: []byte("msg")}, false},
+		{"just msu", []byte("msu"), MessageAccountData{data: []byte("msu")}, false},
+		{"msg with data", []byte("msg1234abcd"), MessageAccountData{[]byte("msg1234abcd")}, false},
+		{"msu with data", []byte("msu1234abcd"), MessageAccountData{[]byte("msu1234abcd")}, false},
+		// Error cases
+		{"empty", []byte{}, MessageAccountData{}, true},
+		{"too short", []byte("ms"), MessageAccountData{}, true},
+		// The core bridge has a special case where accounts with the prefix "vaa" get deserialized with the
+		// same implementation as "msg" accounts. For clarity, this is not supported by the watcher. We
+		// actually want a message account when processing an account's data with this type.
+		{"bad prefix - vaa", []byte("vaa"), MessageAccountData{}, true},
+		{"bad prefix - abc", []byte("vaa"), MessageAccountData{}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := NewMessageAccountData(tt.data)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("NewMessageAccountData() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("NewMessageAccountData() succeeded unexpectedly")
+			}
+
+			if !bytes.Equal(got.Bytes(), tt.want.Bytes()) {
+				t.Errorf("Wrong NewMessageAccountData() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
