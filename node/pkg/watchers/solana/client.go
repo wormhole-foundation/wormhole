@@ -38,6 +38,19 @@ import (
 	"nhooyr.io/websocket"
 )
 
+// validateTransactionMeta checks if transaction metadata is present and the transaction succeeded.
+// Returns specific errors for nil metadata or failed transactions.
+// SECURITY: This function should be used to validate every transaction to ensure that they did not fail on-chain.
+func validateTransactionMeta(meta *rpc.TransactionMeta) error {
+	if meta == nil {
+		return fmt.Errorf("transaction metadata is nil")
+	}
+	if meta.Err != nil {
+		return fmt.Errorf("transaction failed on-chain: %v", meta.Err)
+	}
+	return nil
+}
+
 type (
 	SolanaWatcher struct {
 		ctx         context.Context
@@ -612,12 +625,13 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	s.updateLatestBlock(slot)
 
 	for txNum, txRpc := range out.Transactions {
-		if txRpc.Meta.Err != nil {
+		// SECURITY: Validate transaction metadata before accessing fields
+		if metaErr := validateTransactionMeta(txRpc.Meta); metaErr != nil {
 			if logger.Level().Enabled(zapcore.DebugLevel) {
-				logger.Debug("Transaction failed, skipping it",
+				logger.Debug("skipping transaction",
 					zap.Uint64("slot", slot),
 					zap.Int("txNum", txNum),
-					zap.String("err", fmt.Sprint(txRpc.Meta.Err)),
+					zap.String("reason", metaErr.Error()),
 				)
 			}
 			continue
@@ -655,11 +669,12 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 // processTransaction processes a transaction and publishes any Wormhole events.
 func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.Client, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) (numObservations uint32) {
-	if meta.Err != nil {
+	// SECURITY: Validate transaction metadata before accessing fields
+	if metadataErr := validateTransactionMeta(meta); metadataErr != nil {
 		if s.logger.Level().Enabled(zapcore.DebugLevel) {
-			s.logger.Debug("Transaction failed, skipping it",
+			s.logger.Debug("skipping transaction",
 				zap.Uint64("slot", slot),
-				zap.String("err", fmt.Sprint(meta.Err)),
+				zap.String("reason", metadataErr.Error()),
 			)
 		}
 		return

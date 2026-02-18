@@ -67,6 +67,9 @@ func main() {
 	if err != nil {
 		log.Fatal("getTransaction errored", err)
 	}
+	if tx.Meta != nil && tx.Meta.Err != nil {
+		log.Fatalf("Transaction failed on-chain: %v", tx.Meta.Err)
+	}
 	realTx, err := tx.Transaction.GetTransaction()
 	if err != nil {
 		log.Fatal("GetTransaction errored", err)
