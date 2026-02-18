@@ -106,9 +106,8 @@ func (dc *DelegatedGuardianChainConfig) KeyIndex(addr common.Address) (int, bool
 }
 
 type DelegatedGuardianConfig struct {
-	mu              sync.RWMutex
-	Chains          map[vaa.ChainID]*DelegatedGuardianChainConfig
-	contractAddress string
+	mu     sync.RWMutex
+	Chains map[vaa.ChainID]*DelegatedGuardianChainConfig
 }
 
 // NewDelegatedGuardianConfig returns a new DelegatedGuardianConfig.
@@ -157,24 +156,4 @@ func (d *DelegatedGuardianConfig) GetAll() map[vaa.ChainID]*DelegatedGuardianCha
 	}
 
 	return ret
-}
-
-// SetContractAddress sets the delegated guardians contract address being monitored.
-func (d *DelegatedGuardianConfig) SetContractAddress(addr string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.contractAddress = addr
-}
-
-// GetFeatures returns the delegated guardian feature string for heartbeat messages.
-// Returns "dgset:<contract_address>" if a contract is configured, or "" otherwise.
-func (d *DelegatedGuardianConfig) GetFeatures() string {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	if d.contractAddress != "" {
-		return "dgset:" + d.contractAddress
-	}
-
-	return ""
 }

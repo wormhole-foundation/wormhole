@@ -1,7 +1,6 @@
 package processor
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -160,10 +159,8 @@ func TestKeyIndex(t *testing.T) {
 func TestNewDelegatedGuardianConfig(t *testing.T) {
 	dgc := NewDelegatedGuardianConfig()
 	assert.NotNil(t, dgc)
-	assert.Empty(t, dgc.contractAddress)
 	assert.Empty(t, dgc.Chains)
 	assert.Empty(t, dgc.GetAll())
-	assert.Empty(t, dgc.GetFeatures())
 }
 
 func TestSet(t *testing.T) {
@@ -268,20 +265,3 @@ func TestGetAll(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(chains, dgc.GetAll()))
 }
 
-func TestSetContractAddress(t *testing.T) {
-	contractAddress := "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaec"
-
-	dgc := NewDelegatedGuardianConfig()
-	assert.Empty(t, dgc.contractAddress)
-	dgc.SetContractAddress(contractAddress)
-	assert.Equal(t, fmt.Sprintf("dgset:%s", contractAddress), dgc.GetFeatures())
-}
-
-func TestGetFeatures(t *testing.T) {
-	contractAddress := "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaec"
-
-	dgc := NewDelegatedGuardianConfig()
-	assert.Empty(t, dgc.GetFeatures())
-	dgc.SetContractAddress(contractAddress)
-	assert.Equal(t, fmt.Sprintf("dgset:%s", contractAddress), dgc.GetFeatures())
-}
