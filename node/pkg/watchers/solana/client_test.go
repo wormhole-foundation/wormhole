@@ -308,3 +308,11 @@ func TestNewMessageAccountData(t *testing.T) {
 		})
 	}
 }
+
+func TestNewMessageAccountDataIsolation(t *testing.T) {
+	input := []byte("msg" + "payload")
+	mad, err := NewMessageAccountData(input)
+	require.NoError(t, err)
+	input[0] = 'x'                             // mutate original
+	assert.Equal(t, byte('m'), mad.Bytes()[0]) // must be unaffected
+}
