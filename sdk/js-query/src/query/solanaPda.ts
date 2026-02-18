@@ -97,7 +97,7 @@ export class SolanaPdaQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): SolanaPdaQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 
@@ -193,7 +193,7 @@ export class SolanaPdaQueryResponse implements ChainSpecificResponse {
   }
 
   static from(bytes: string | Uint8Array): SolanaPdaQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 

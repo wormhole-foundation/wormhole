@@ -50,7 +50,7 @@ export class QueryResponse {
   }
 
   static from(bytes: string | Uint8Array): QueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 
@@ -96,7 +96,7 @@ export class PerChainQueryResponse {
   }
 
   static from(bytes: string | Uint8Array): PerChainQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 

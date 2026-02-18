@@ -73,7 +73,7 @@ export class QueryRequest {
   }
 
   static from(bytes: string | Uint8Array): QueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 
@@ -124,7 +124,7 @@ export class PerChainQueryRequest {
   }
 
   static from(bytes: string | Uint8Array): PerChainQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 
