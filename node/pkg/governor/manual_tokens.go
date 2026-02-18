@@ -3,7 +3,6 @@ package governor
 // manualTokenList() returns a list of mainnet tokens that are added manually because they cannot be auto generated.
 func manualTokenList() []TokenConfigEntry {
 	return []TokenConfigEntry{
-		{Chain: 1, Addr: "26759f460ee5f743ed66d27c8f2a5623bf39d53ed575955320661e6e13e0e3da", Symbol: "PRIME", CoinGeckoId: "hastra-prime", Decimals: 6, Price: 1.02}, // https://www.coingecko.com/en/coins/hastra-prime
 		{Chain: 2, Addr: "0000000000000000000000006c3ea9036406852006290770bedfcaba0e23a0e8", Symbol: "PYUSD", CoinGeckoId: "paypal-usd", Decimals: 6, Price: 1.00},
 		{Chain: 2, Addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34}, // Near on ethereum
 		{Chain: 2, Addr: "000000000000000000000000a3931d71877C0E7a3148CB7Eb4463524FEc27fbD", Symbol: "sUSDS", CoinGeckoId: "susds", Decimals: 18, Price: 1.07},
