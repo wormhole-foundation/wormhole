@@ -1156,12 +1156,7 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 		return
 	}
 
-	var delegatedGuardiansAddr *eth_common.Address
-	if w.dgContractAddr != nil && w.dgConfigC != nil {
-		delegatedGuardiansAddr = w.dgContractAddr
-	}
-
-	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, delegatedGuardiansAddr, w.logger)
+	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.dgContractAddr, w.logger)
 	if err != nil {
 		err = fmt.Errorf("dialing eth client failed: %w", err)
 		return
