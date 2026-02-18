@@ -45,7 +45,7 @@ export class EthCallByTimestampQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): EthCallByTimestampQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 
@@ -124,7 +124,7 @@ export class EthCallByTimestampQueryResponse implements ChainSpecificResponse {
   }
 
   static from(bytes: string | Uint8Array): EthCallByTimestampQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 

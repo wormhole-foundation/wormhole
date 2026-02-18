@@ -61,7 +61,7 @@ export class SolanaAccountQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): SolanaAccountQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 
@@ -144,7 +144,7 @@ export class SolanaAccountQueryResponse implements ChainSpecificResponse {
   }
 
   static from(bytes: string | Uint8Array): SolanaAccountQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
+    const reader = new BinaryReader(coalesceUint8Array(bytes));
     return this.fromReader(reader);
   }
 
