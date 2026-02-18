@@ -307,9 +307,8 @@ var (
 	txVerifierChains []vaa.ChainID
 
 	// featureFlags are additional static flags that should be published in P2P heartbeats.
-	featureFlags              []string
-	notaryEnabled             *bool
-	delegatedGuardiansEnabled *bool
+	featureFlags  []string
+	notaryEnabled *bool
 )
 
 func init() {
@@ -556,7 +555,6 @@ func init() {
 	transferVerifierEnabledChainIDs = NodeCmd.Flags().UintSlice("transferVerifierEnabledChainIDs", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 
 	notaryEnabled = NodeCmd.Flags().Bool("notaryEnabled", false, "Run the notary")
-	delegatedGuardiansEnabled = NodeCmd.Flags().Bool("delegatedGuardiansEnabled", false, "Enable the delegated guardians protocol")
 }
 
 var (
@@ -1988,7 +1986,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
-		node.GuardianOptionProcessor(*p2pNetworkID, *delegatedGuardiansEnabled),
+		node.GuardianOptionProcessor(*p2pNetworkID, *ethDelegatedGuardiansContract != ""),
 
 		// Keep this last so that all of its dependencies are met.
 		node.GuardianOptionP2P(
