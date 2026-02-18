@@ -412,7 +412,10 @@ fn available_ids() {
     let _ = crate::fogo::mainnet::CORE_BRIDGE_PROGRAM_ID;
     let _ = crate::fogo::testnet::CORE_BRIDGE_PROGRAM_ID;
     let _ = crate::fogo::CORE_BRIDGE_PROGRAM_ID;
-    #[cfg(all(any(feature = "solana", feature = "fogo", feature = "from-env"), feature = "core"))]
+    #[cfg(all(
+        any(feature = "solana", feature = "fogo", feature = "from-env"),
+        feature = "core"
+    ))]
     let _ = crate::CORE_BRIDGE_PROGRAM_ID;
 }
 
