@@ -425,7 +425,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.delegateObsvRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
+			if params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
 				logger.Info("subscribing to the control topic", zap.String("topic", controlTopic))
 				controlSubscription, err = controlPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
