@@ -777,7 +777,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 	}
 
 	msm := time.Now()
-	logger.Info("fetching delegated guardian config from contract")
+	logger.Debug("fetching delegated guardian config from contract")
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
@@ -789,7 +789,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 		return err
 	}
 
-	logger.Info("successfully fetched delegated guardian config",
+	logger.Debug("successfully fetched delegated guardian config",
 		zap.Int("numChains", len(configs)),
 		zap.Duration("latency", time.Since(msm)))
 	queryLatency.WithLabelValues(w.networkName, "get_delegated_guardian_config").Observe(time.Since(msm).Seconds())
