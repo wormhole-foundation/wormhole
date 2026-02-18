@@ -39,12 +39,19 @@ import (
 )
 
 // validateTransactionMeta checks if transaction metadata is present and the transaction succeeded.
-// Returns specific errors for nil metadata or failed transactions.
+// Returns specific errors for nil metadata or transactions that failed on-chain.
+// This function does not validate the transaction itself or check if it's relevant to the watcher.
+//
 // SECURITY: This function should be used to validate every transaction to ensure that they did not fail on-chain.
 func validateTransactionMeta(meta *rpc.TransactionMeta) error {
+	// See: [https://solana.com/docs/rpc/http/gettransaction]. The metadata field may be `null` so solana-go
+	// may correctly give a nil result in this case. A possible reason for this is that SVM validators
+	// may prune metadata over time. Ideally, Guardians should keep metadata for as long as possible in order
+	// to facilitate reobservations. However, we must avoid processing nil metadata or failed transactions.
 	if meta == nil {
 		return fmt.Errorf("transaction metadata is nil")
 	}
+
 	if meta.Err != nil {
 		return fmt.Errorf("transaction failed on-chain: %v", meta.Err)
 	}

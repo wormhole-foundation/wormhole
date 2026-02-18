@@ -179,10 +179,10 @@ func (s *SolanaWatcher) processTransactionWithRetry(signature solana.Signature) 
 			return
 		}
 
-		if err := validateTransactionMeta(result.Meta, ""); err != nil {
+		if metadataErr := validateTransactionMeta(result.Meta); metadataErr != nil {
 			s.logger.Error("skipping transaction",
 				zap.Stringer("signature", signature),
-				zap.String("reason", err.Error()),
+				zap.String("reason", metadataErr.Error()),
 			)
 			return
 		}

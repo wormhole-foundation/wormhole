@@ -67,6 +67,7 @@ func main() {
 	if err != nil {
 		log.Fatal("getTransaction errored", err)
 	}
+	// SECURITY: Ensure transaction succeeded on-chain.
 	if tx.Meta != nil && tx.Meta.Err != nil {
 		log.Fatalf("Transaction failed on-chain: %v", tx.Meta.Err)
 	}
