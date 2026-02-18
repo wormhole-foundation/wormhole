@@ -51,10 +51,11 @@ func (wc *WatcherConfig) Create(
 	// only actually use the delegated guardians config channel if a delegated guardians contract is configured
 	// Note: DgConfigC is set by GuardianOptionWatchers in options.go
 	var dgConfigWriteC chan<- *processor.DelegatedGuardianConfig = nil
-	var dgContractAddr string
+	var dgContractAddr *eth_common.Address
 	if wc.DelegatedGuardiansContract != "" {
 		dgConfigWriteC = wc.DgConfigC
-		dgContractAddr = wc.DelegatedGuardiansContract
+		addr := eth_common.HexToAddress(wc.DelegatedGuardiansContract)
+		dgContractAddr = &addr
 	}
 
 	watcher := NewEthWatcher(

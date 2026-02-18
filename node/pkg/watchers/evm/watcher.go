@@ -140,7 +140,7 @@ type (
 
 		// Delegated guardians config
 		dgConfigC                               chan<- *processor.DelegatedGuardianConfig
-		dgContractAddr                          string
+		dgContractAddr                          *eth_common.Address
 		currentDelegatedGuardianConfigTimestamp uint32
 
 		ccqConfig          query.PerChainConfig
@@ -195,7 +195,7 @@ func NewEthWatcher(
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	dgConfigC chan<- *processor.DelegatedGuardianConfig,
-	dgContractAddr string,
+	dgContractAddr *eth_common.Address,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
@@ -390,14 +390,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	// Fetch initial delegated guardian config if configured.
-	if w.dgContractAddr != "" && w.dgConfigC != nil {
+	if w.dgContractAddr != nil && w.dgConfigC != nil {
 		if err := w.fetchAndUpdateDelegatedGuardianConfig(logger, ctx); err != nil {
 			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(err))
 		}
 	}
 
 	// Poll for delegated guardian config.
-	if w.dgContractAddr != "" && w.dgConfigC != nil {
+	if w.dgContractAddr != nil && w.dgConfigC != nil {
 		// Keep this outer gate even though fetchAndUpdateDelegatedGuardianConfig() also checks
 		common.RunWithScissors(ctx, errC, "evm_fetch_delegated_guardian_config", func(ctx context.Context) error {
 			t := time.NewTicker(15 * time.Second)
@@ -772,7 +772,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 	ctx context.Context,
 ) error {
 	// defensive check in case this function is called from another path in the future.
-	if w.dgContractAddr == "" || w.dgConfigC == nil {
+	if w.dgContractAddr == nil || w.dgConfigC == nil {
 		return nil
 	}
 
@@ -1157,9 +1157,8 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 	}
 
 	var delegatedGuardiansAddr *eth_common.Address
-	if w.dgContractAddr != "" && w.dgConfigC != nil {
-		addr := eth_common.HexToAddress(w.dgContractAddr)
-		delegatedGuardiansAddr = &addr
+	if w.dgContractAddr != nil && w.dgConfigC != nil {
+		delegatedGuardiansAddr = w.dgContractAddr
 	}
 
 	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, delegatedGuardiansAddr, w.logger)
