@@ -264,4 +264,3 @@ func TestGetAll(t *testing.T) {
 	dgc.Set(chains)
 	assert.True(t, reflect.DeepEqual(chains, dgc.GetAll()))
 }
-
