@@ -18,8 +18,12 @@ RUN curl -L https://foundry.paradigm.xyz | bash && \
 # Add foundry to PATH
 ENV PATH="/root/.foundry/bin:$PATH"
 
+# Copy setup script
+COPY scripts/delegated-guardian-set-preset.sh /scripts/delegated-guardian-set-preset.sh
+RUN chmod +x /scripts/delegated-guardian-set-preset.sh
+
 # Create a simple health check
-HealthCheck CMD echo "setup-ready"
+HEALTHCHECK CMD echo "setup-ready"
 
 # Default command
 CMD ["/bin/bash"]

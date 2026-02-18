@@ -499,22 +499,18 @@ if num_guardians >= 2 and ci == False:
 
 # delegated guardian sets
 if require_per_guardian_config:
-    script_content = str(read_file("scripts/delegated-guardian-set-preset.sh"))
-    
     delegated_setup_yaml = read_yaml_stream("devnet/delegated-guardian-setup.yaml")
 
     docker_build(
         ref = "delegated-guardian-setup",
-        context = "./devnet/delegated-guardian-setup/",
+        context = ".",
         dockerfile = "./devnet/delegated-guardian-setup/Dockerfile",
+        only = ["scripts/delegated-guardian-set-preset.sh", "devnet/delegated-guardian-setup/"],
     )
-    
+
     job_web_host = "guardian-0.guardian"
-    
+
     for obj in delegated_setup_yaml:
-        if obj["kind"] == "ConfigMap" and obj["metadata"]["name"] == "delegated-guardian-script":
-            obj["data"]["delegated-guardian-set-preset.sh"] = script_content
-        
         if obj["kind"] == "Job":
             for container in obj["spec"]["template"]["spec"]["containers"]:
                 if container["name"] == "setup":

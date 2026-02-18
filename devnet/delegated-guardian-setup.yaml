@@ -1,11 +1,3 @@
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: delegated-guardian-script
-data:
-  delegated-guardian-set-preset.sh: |
-    PLACEHOLDER
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -50,10 +42,10 @@ spec:
             - -c
             - |
               set -e
-              
+
               echo "Running delegated guardian setup..."
               bash /scripts/delegated-guardian-set-preset.sh "$DELEGATED_CONFIG" "$WEB_HOST" "$NAMESPACE"
-              
+
               echo "Setup completed successfully"
               touch /tmp/success
           env:
@@ -63,10 +55,6 @@ spec:
               value: "guardian-0.guardian"
             - name: NAMESPACE
               value: "wormhole"
-          volumeMounts:
-            - name: script
-              mountPath: /scripts
-              readOnly: true
           readinessProbe:
             exec:
               command:
@@ -75,8 +63,3 @@ spec:
                 - /tmp/success
             initialDelaySeconds: 5
             periodSeconds: 5
-      volumes:
-        - name: script
-          configMap:
-            name: delegated-guardian-script
-            defaultMode: 0755
