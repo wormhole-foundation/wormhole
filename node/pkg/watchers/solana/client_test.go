@@ -116,12 +116,12 @@ func Test_validateTransactionMeta(t *testing.T) {
 		wantErr bool
 		errMsg  string
 	}{
-		
+
 		// Happy path
 		{"non-nil meta", &rpc.TransactionMeta{}, false, ""},
 		// Error cases
 		{"metadata is nil", nil, true, "metadata is nil"},
-		{"non-nil meta, failed tx", &rpc.TransactionMeta{Err:"err"}, true, "transaction failed"},
+		{"non-nil meta, failed tx", &rpc.TransactionMeta{Err: "err"}, true, "transaction failed"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -134,9 +134,8 @@ func Test_validateTransactionMeta(t *testing.T) {
 			}
 			if tt.wantErr {
 				require.ErrorContains(t, gotErr, tt.errMsg)
-				
+
 			}
 		})
 	}
 }
-
