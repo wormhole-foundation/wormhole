@@ -17,6 +17,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
+	"github.com/certusone/wormhole/node/pkg/watchers/stacks"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
@@ -251,6 +252,11 @@ var (
 	monadTestnetRPC      *string
 	monadTestnetContract *string
 
+	stacksRPC                      *string
+	stacksRPCAuthToken             *string
+	stacksStateContract            *string
+	stacksBitcoinBlockPollInterval *string
+
 	logLevel                *string
 	publicRpcLogDetailStr   *string
 	publicRpcLogToTelemetry *bool
@@ -304,7 +310,6 @@ var (
 	// Global variable used to store enabled Chain IDs for Transfer Verification. Contents are parsed from
 	// transferVerifierEnabledChainIDs.
 	txVerifierChains []vaa.ChainID
-
 	// featureFlags are additional static flags that should be published in P2P heartbeats.
 	featureFlags  []string
 	notaryEnabled *bool
@@ -553,6 +558,11 @@ func init() {
 	transferVerifierEnabledChainIDs = NodeCmd.Flags().UintSlice("transferVerifierEnabledChainIDs", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 
 	notaryEnabled = NodeCmd.Flags().Bool("notaryEnabled", false, "Run the notary")
+
+	stacksRPC = NodeCmd.Flags().String("stacksRPC", "", "Stacks Node/API URL")
+	stacksRPCAuthToken = NodeCmd.Flags().String("stacksRPCAuthToken", "", "Stacks RPC Authorization Token")
+	stacksStateContract = NodeCmd.Flags().String("stacksStateContract", "", "Stacks contract address for the Wormhole core contract")
+	stacksBitcoinBlockPollInterval = NodeCmd.Flags().String("stacksBitcoinBlockPollInterval", "2s", "Stacks Bitcoin block poll interval")
 }
 
 var (
@@ -1944,7 +1954,34 @@ func runNode(cmd *cobra.Command, args []string) {
 
 			watcherConfigs = append(watcherConfigs, wc)
 		}
+	}
 
+	if shouldStart(stacksStateContract) && shouldStart(stacksRPC) {
+		logger.Info("Configuring Stacks watcher",
+			zap.String("contract", *stacksStateContract),
+			zap.String("rpc_url", *stacksRPC))
+
+		rpcURL := *stacksRPC
+		if rpcURL == "" {
+			// Default to stacks service name with API port if not specified
+			rpcURL = "http://stacks-node:3999"
+		}
+
+		bitcoinBlockPollInterval, err := time.ParseDuration(*stacksBitcoinBlockPollInterval)
+		if err != nil {
+			logger.Fatal("Invalid stacksBitcoinBlockPollInterval", zap.String("value", *stacksBitcoinBlockPollInterval), zap.Error(err))
+		}
+
+		wc := &stacks.WatcherConfig{
+			NetworkID:                "stacks",
+			ChainID:                  vaa.ChainIDStacks,
+			StateContract:            *stacksStateContract,
+			RPCURL:                   rpcURL,
+			RPCAuthToken:             *stacksRPCAuthToken,
+			BitcoinBlockPollInterval: bitcoinBlockPollInterval,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
 	}
 
 	var ibcWatcherConfig *node.IbcWatcherConfig = nil
