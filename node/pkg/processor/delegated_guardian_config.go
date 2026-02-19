@@ -41,6 +41,7 @@ type DelegatedGuardianChainConfig struct {
 	Keys []common.Address
 
 	// quorum value for this set of keys
+	// NOTE: This must be a positive integer in practice and should be guaranteed via the EVM ABI bindings in the EVM watcher
 	quorum int
 
 	// A map from address to index. Testing showed that, on average, a map is almost three times faster than a sequential search of the key slice.
