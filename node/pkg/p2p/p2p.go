@@ -106,10 +106,12 @@ var (
 var heartbeatMessagePrefix = []byte("heartbeat|")
 
 var signedObservationRequestPrefix = []byte("signed_observation_request|")
+var signedManagerTransactionPrefix = []byte("signed_manager_transaction_0000000|")
 
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 var observationRequestMaxTimeDifference = time.Minute * 15
+var managerTransactionMaxTimeDifference = time.Minute * 15
 
 func heartbeatDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
@@ -117,6 +119,10 @@ func heartbeatDigest(b []byte) eth_common.Hash {
 
 func signedObservationRequestDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
+}
+
+func signedManagerTransactionDigest(b []byte) eth_common.Hash {
+	return ethcrypto.Keccak256Hash(append(signedManagerTransactionPrefix, b...))
 }
 
 type Components struct {
@@ -398,8 +404,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// These will only be non-nil if the application plans to listen for or publish to that topic.
-		var controlPubsubTopic, attestationPubsubTopic, vaaPubsubTopic *pubsub.Topic
-		var controlSubscription, attestationSubscription, vaaSubscription *pubsub.Subscription
+		var controlPubsubTopic, attestationPubsubTopic, vaaPubsubTopic, managerPubsubTopic *pubsub.Topic
+		var controlSubscription, attestationSubscription, vaaSubscription, managerSubscription *pubsub.Subscription
 
 		// Set up the control channel. ////////////////////////////////////////////////////////////////////
 		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
@@ -473,6 +479,31 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					return fmt.Errorf("failed to subscribe to the vaa topic: %w", err)
 				}
 				defer vaaSubscription.Cancel()
+			}
+		}
+
+		// Set up the manager channel. ////////////////////////////////////////////////////////////////////
+		if params.managerTxSendC != nil || params.managerTxRecvC != nil {
+			managerTopic := fmt.Sprintf("%s/%s", params.networkID, "manager")
+			logger.Info("joining the manager topic", zap.String("topic", managerTopic))
+			managerPubsubTopic, err = ps.Join(managerTopic)
+			if err != nil {
+				return fmt.Errorf("failed to join the manager topic: %w", err)
+			}
+
+			defer func() {
+				if err := managerPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("Error closing the manager topic", zap.Error(err))
+				}
+			}()
+
+			if params.managerTxRecvC != nil {
+				logger.Info("subscribing to the manager topic", zap.String("topic", managerTopic))
+				managerSubscription, err = managerPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
+				if err != nil {
+					return fmt.Errorf("failed to subscribe to the manager topic: %w", err)
+				}
+				defer managerSubscription.Cancel()
 			}
 		}
 
@@ -658,6 +689,51 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					p2pMessagesSent.WithLabelValues("vaa").Inc()
 					if err != nil {
 						logger.Error("failed to publish message from vaa queue", zap.Error(err))
+					}
+				case msg := <-params.managerTxSendC:
+					if managerPubsubTopic == nil {
+						panic("managerPubsubTopic should not be nil when managerTxSendC is set")
+					}
+
+					// Serialize the ManagerTransaction
+					txBytes, err := proto.Marshal(msg)
+					if err != nil {
+						logger.Error("failed to marshal manager transaction", zap.Error(err))
+						continue
+					}
+
+					// Sign the serialized transaction using our node's guardian key
+					digest := signedManagerTransactionDigest(txBytes)
+					sig, err := params.guardianSigner.Sign(ctx, digest.Bytes())
+					if err != nil {
+						logger.Error("failed to sign manager transaction", zap.Error(err))
+						continue
+					}
+
+					// Create the signed wrapper
+					signedTx := &gossipv1.SignedManagerTransaction{
+						ManagerTransaction: txBytes,
+						Signature:          sig,
+						GuardianAddr:       ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx)).Bytes(),
+					}
+
+					// Wrap in gossip envelope
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_SignedManagerTransaction{
+							SignedManagerTransaction: signedTx,
+						},
+					}
+
+					b, err := proto.Marshal(envelope)
+					if err != nil {
+						logger.Error("failed to marshal signed manager transaction envelope", zap.Error(err))
+						continue
+					}
+
+					err = managerPubsubTopic.Publish(ctx, b)
+					p2pMessagesSent.WithLabelValues("manager").Inc()
+					if err != nil {
+						logger.Error("failed to publish message from manager queue", zap.Error(err))
 					}
 				case msg := <-params.obsvReqSendC:
 					b, err := proto.Marshal(msg)
@@ -1011,6 +1087,81 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}()
 		}
 
+		// This routine processes signed manager transaction messages received from gossip. //////////////////////////////////////////////
+		if managerSubscription != nil {
+			go func() {
+				for {
+					envelope, err := managerSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
+					if err != nil {
+						errC <- fmt.Errorf("failed to receive pubsub message on manager topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+						return
+					}
+
+					var msg gossipv1.GossipMessage
+					err = proto.Unmarshal(envelope.Data, &msg)
+					if err != nil {
+						logger.Info("received invalid message on manager topic",
+							zap.Binary("data", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+						p2pMessagesReceived.WithLabelValues("invalid").Inc()
+						continue
+					}
+
+					if envelope.GetFrom() == h.ID() {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("received message from ourselves on manager topic, ignoring", zap.Any("payload", msg.Message))
+						}
+						p2pMessagesReceived.WithLabelValues("loopback").Inc()
+						continue
+					}
+
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("received message on manager topic",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+
+					switch m := msg.Message.(type) {
+					case *gossipv1.GossipMessage_SignedManagerTransaction:
+						if params.managerTxRecvC != nil {
+							// Verify the guardian signature
+							gs := params.gst.Get()
+							if gs == nil {
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("dropping SignedManagerTransaction - no guardian set",
+										zap.String("from", envelope.GetFrom().String()))
+								}
+								break
+							}
+							managerTx, err := processSignedManagerTransaction(m.SignedManagerTransaction, gs)
+							if err != nil {
+								p2pMessagesReceived.WithLabelValues("invalid_signed_manager_transaction").Inc()
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("invalid signed manager transaction received",
+										zap.Error(err),
+										zap.String("from", envelope.GetFrom().String()))
+								}
+								break
+							}
+							select {
+							case params.managerTxRecvC <- managerTx:
+								p2pMessagesReceived.WithLabelValues("signed_manager_transaction").Inc()
+							default:
+								p2pReceiveChannelOverflow.WithLabelValues("signed_manager_transaction").Inc()
+							}
+						}
+					default:
+						p2pMessagesReceived.WithLabelValues("unknown").Inc()
+						logger.Warn("received unknown message type on manager topic (running outdated software?)",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+				}
+			}()
+		}
+
 		// Wait for either a shutdown or a fatal error from a pubsub subscription.
 		select {
 		case <-ctx.Done():
@@ -1194,4 +1345,45 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *c
 	}
 
 	return &h, nil
+}
+
+func processSignedManagerTransaction(s *gossipv1.SignedManagerTransaction, gs *common.GuardianSet) (*gossipv1.ManagerTransaction, error) {
+	envelopeAddr := eth_common.BytesToAddress(s.GuardianAddr)
+	idx, ok := gs.KeyIndex(envelopeAddr)
+	var pk eth_common.Address
+	if !ok {
+		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+	} else {
+		pk = gs.Keys[idx]
+	}
+
+	// SECURITY: see whitepapers/0009_guardian_signer.md
+	if len(signedManagerTransactionPrefix)+len(s.ManagerTransaction) < 34 {
+		return nil, fmt.Errorf("invalid manager transaction: too short")
+	}
+
+	digest := signedManagerTransactionDigest(s.ManagerTransaction)
+
+	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
+	if err != nil {
+		return nil, errors.New("failed to recover public key")
+	}
+
+	signerAddr := eth_common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	if pk != signerAddr {
+		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
+	}
+
+	var tx gossipv1.ManagerTransaction
+	err = proto.Unmarshal(s.ManagerTransaction, &tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal manager transaction: %w", err)
+	}
+
+	// Perform timestamp validation to prevent replay attacks
+	if time.Until(time.Unix(tx.SentTimestamp, 0)).Abs() > managerTransactionMaxTimeDifference {
+		return nil, fmt.Errorf("manager transaction is too old or too far into the future")
+	}
+
+	return &tx, nil
 }

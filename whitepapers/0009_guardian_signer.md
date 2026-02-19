@@ -14,22 +14,22 @@ The Guardian signer is responsible for signing payloads, and can be configured t
 
 The Guardian signer is used to sign numerous messages within the Wormhole ecosystem:
 
-* Gossip Messages - Messages that are sent between Guardians, such as heartbeats, governor configs, governor status updates and observation requests.
-* On-Chain Observations - Events that occur on-chain that need to be attested to and delivered to different chains, bundled in VAAs (Version 1).
-* Guardian Identification - Wormchain account registration.
-* Accountant Observations - Sign observations relevant to token bridge and NTT. 
-* Cross-Chain Query Responses - Attest to states on other chains.
+- Gossip Messages - Messages that are sent between Guardians, such as heartbeats, governor configs, governor status updates and observation requests.
+- On-Chain Observations - Events that occur on-chain that need to be attested to and delivered to different chains, bundled in VAAs (Version 1).
+- Guardian Identification - Wormchain account registration.
+- Accountant Observations - Sign observations relevant to token bridge and NTT.
+- Cross-Chain Query Responses - Attest to states on other chains.
 
 ## Detailed Design
 
 The process for signing gossip messages are as follows:
 
 1. Prepend the message type prefix to the payload.
-    - This is to ensure uniqueness of the message, and prevent two gossip messages from being used interchangeably for different operations.
+   - This is to ensure uniqueness of the message, and prevent two gossip messages from being used interchangeably for different operations.
 2. Compute the `keccak256` hash of the payload.
 3. Compute a signature of the hash using `ethcrypto.Sign()`.
 
-On-chain observations are signed by performing a double-`keccak256` hashing operation on the observation and signing the result. The resulting data structure, which primarily contains information about the observation and the signature, is called a VAA (Verifiable Action Approval). 
+On-chain observations are signed by performing a double-`keccak256` hashing operation on the observation and signing the result. The resulting data structure, which primarily contains information about the observation and the signature, is called a VAA (Verifiable Action Approval).
 
 ## Prefixes Used
 
@@ -42,6 +42,7 @@ governor_config_000000000000000000| // gossip governor config
 governor_status_000000000000000000| // gossip governor status
 heartbeat|                          // gossip heartbeat
 signed_observation_request|         // gossip signed observation request
+signed_manager_transaction_0000000| // gossip signed manager transaction
 mainnet_query_request_000000000000| // query request (mainnet, not signed by guardian)
 testnet_query_request_000000000000| // query request (testnet, not signed by guardian)
 devnet_query_request_0000000000000| // query request (devnet, not signed by guardian)

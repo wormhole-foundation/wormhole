@@ -203,6 +203,8 @@ export async function execute_solana(
       break;
     case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Solana");
+    case "DelegatedManager":
+      throw Error("DelegatedManager governance VAAs are not yet supported");
     default:
       ix = impossible(v.payload);
   }

@@ -159,6 +159,9 @@ type Processor struct {
 
 	// batchObsvPubC is the internal channel used to publish observations to the batch processor for publishing.
 	batchObsvPubC chan *gossipv1.Observation
+
+	// managerC is the channel used to send signed VAAs to the manager service (nil if manager service is disabled)
+	managerC chan<- *vaa.VAA
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -238,6 +241,7 @@ func NewProcessor(
 	gatewayRelayer *gwrelayer.GatewayRelayer,
 	networkID string,
 	alternatePublisher *altpub.AlternatePublisher,
+	managerC chan<- *vaa.VAA,
 ) *Processor {
 
 	return &Processor{
@@ -265,6 +269,7 @@ func NewProcessor(
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
 		networkID:      networkID,
+		managerC:       managerC,
 	}
 }
 
@@ -478,6 +483,17 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) {
 	p.updateVAALock.Lock()
 	p.updatedVAAs[key] = &updateVaaEntry{v: v, dirty: true}
 	p.updateVAALock.Unlock()
+
+	// Send to manager service if enabled
+	if p.managerC != nil {
+		select {
+		case p.managerC <- v:
+		default:
+			p.logger.Warn("manager channel full, dropping VAA",
+				zap.String("message_id", v.MessageID()),
+			)
+		}
+	}
 }
 
 // haveSignedVAA returns true if we already have a VAA for the given VAAID

@@ -74,6 +74,7 @@ config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chai
 config.define_bool("redis", False, "Enable a redis instance")
 config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
 config.define_bool("query_server", False, "Enable cross-chain query server")
+config.define_bool("manager_service", False, "Enable manager service for UTXO chains (Dogecoin)")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -100,6 +101,7 @@ btc = cfg.get("btc", False)
 redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
+manager_service = cfg.get("manager_service", False)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -348,6 +350,13 @@ def build_node_yaml():
                     "ws://wormchain:26657/websocket",
                     "--gatewayLCD",
                     "http://wormchain:1317"
+                ]
+
+            if manager_service:
+                container["command"] += [
+                    "--managerServiceEnabled",
+                    "--dogecoinManagerSignerUri",
+                    "file:///tmp/bridge.key"
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
