@@ -36,7 +36,7 @@ pub use constants::*;
 pub use error::WormholeError;
 pub use types::*;
 
-use soroban_sdk::{Address, Bytes, BytesN, Env};
+use soroban_sdk::{Address, Bytes, BytesN, Env, contractclient};
 
 /// Complete public interface for the Wormhole Core contract.
 ///
@@ -55,6 +55,7 @@ use soroban_sdk::{Address, Bytes, BytesN, Env};
 /// The contract is initialized via `__constructor` at deployment time.
 /// Constructor arguments (initial guardians and governance emitter) are passed
 /// during the `stellar contract deploy` command after `--`.
+#[contractclient(name = "WormholeClient")]
 pub trait WormholeCoreInterface {
     // ========== VAA Verification ==========
 
