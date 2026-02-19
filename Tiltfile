@@ -71,8 +71,6 @@ config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guard
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
-config.define_bool("redis", False, "Enable a redis instance")
-config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
 config.define_bool("query_server", False, "Enable cross-chain query server")
 
 cfg = config.parse()
@@ -97,8 +95,6 @@ node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
-redis = cfg.get('redis', ci)
-generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
 
 if ci:
@@ -140,7 +136,7 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js", "./relayer"]
+    ignore=["./sdk/js"]
 )
 
 def command_with_dlv(argv):
@@ -499,11 +495,11 @@ if solana or pythnet:
 docker_build(
     ref = "eth-node",
     context = ".",
-    only = ["./ethereum", "./relayer/ethereum"],
+    only = ["./ethereum"],
     dockerfile = "./ethereum/Dockerfile",
 
     # ignore local node_modules (in case they're present)
-    ignore = ["./ethereum/node_modules","./relayer/ethereum/node_modules"],
+    ignore = ["./ethereum/node_modules"],
     build_args = {"num_guardians": str(num_guardians), "dev": str(not ci)},
 
     # sync external scripts for incremental development
@@ -515,59 +511,6 @@ docker_build(
         sync("./ethereum/src", "/home/node/app/src"),
     ],
 )
-
-if redis or generic_relayer:
-    docker_build(
-        ref = "redis",
-        context = ".",
-        only = ["./third_party"],
-        dockerfile = "third_party/redis/Dockerfile",
-    )
-
-if redis:
-    k8s_resource(
-        "redis",
-        port_forwards = [
-            port_forward(6379, name = "Redis Default [:6379]", host = webHost),
-        ],
-        labels = ["redis"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_yaml_with_ns("devnet/redis.yaml")
-
-if generic_relayer:
-    k8s_resource(
-        "redis-relayer",
-        port_forwards = [
-            port_forward(6378, name = "Generic Relayer Redis [:6378]", host = webHost),
-        ],
-        labels = ["redis-relayer"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_yaml_with_ns("devnet/redis-relayer.yaml")
-
-
-
-if generic_relayer:
-    k8s_resource(
-        "relayer-engine",
-        resource_deps = ["guardian", "redis-relayer", "spy"],
-        port_forwards = [
-            port_forward(3003, container_port=3000, name = "Bullmq UI [:3003]", host = webHost),
-        ],
-        labels = ["relayer-engine"],
-        trigger_mode = trigger_mode,
-    )
-    docker_build(
-        ref = "relayer-engine",
-        context = ".",
-        only = ["./relayer/generic_relayer", "./relayer/ethereum/ts-scripts/relayer/config"],
-        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
-        build_args = {"dev": str(not ci)}
-    )
-    k8s_yaml_with_ns("devnet/relayer-engine.yaml")
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
@@ -696,7 +639,7 @@ if ci_tests:
         "custom-consistency-level-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = [], # uses devnet-consts.json, but testing/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
     )
 
     if sui:
