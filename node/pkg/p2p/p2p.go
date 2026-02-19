@@ -1072,7 +1072,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							if err != nil {
 								p2pMessagesReceived.WithLabelValues("invalid_signed_delegate_observation").Inc()
 								if logger.Level().Enabled(zapcore.DebugLevel) {
-									logger.Debug("invalid signed delegate observation received",
+									logger.Error("invalid signed delegate observation received",
 										zap.Error(err),
 										zap.Any("payload", msg.Message),
 										zap.Any("value", d),
