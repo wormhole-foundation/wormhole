@@ -713,12 +713,17 @@ func delegatedGuardiansConfigToVaa(req *nodev1.DelegatedGuardiansConfig, timesta
 
 	configs := make(map[vaa.ChainID]vaa.DelegatedGuardianConfig)
 	for chainIDStr, cfg := range rawConfig {
-		chainID, err := strconv.ParseUint(chainIDStr, 10, 16)
+		chainIDNum, err := strconv.ParseUint(chainIDStr, 10, 16)
 		if err != nil {
 			return nil, fmt.Errorf("invalid chain ID %s: %w", chainIDStr, err)
 		}
 
-		if _, exists := configs[vaa.ChainID(chainID)]; exists {
+		chainID, err := vaa.KnownChainIDFromNumber(chainIDNum)
+		if err != nil {
+			return nil, fmt.Errorf("invalid chain ID %d: %w", chainIDNum, err)
+		}
+
+		if _, exists := configs[chainID]; exists {
 			return nil, fmt.Errorf("duplicate chain ID %d", chainID)
 		}
 
@@ -727,7 +732,7 @@ func delegatedGuardiansConfigToVaa(req *nodev1.DelegatedGuardiansConfig, timesta
 			keys[i] = ethcommon.HexToAddress(keyStr)
 		}
 
-		configs[vaa.ChainID(chainID)] = vaa.DelegatedGuardianConfig{
+		configs[chainID] = vaa.DelegatedGuardianConfig{
 			Threshold: cfg.Threshold,
 			Keys:      keys,
 		}
