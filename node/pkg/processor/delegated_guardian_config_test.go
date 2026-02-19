@@ -234,7 +234,8 @@ func TestGetChainConfig(t *testing.T) {
 		}
 	})
 
-	dgc.Set(chains)
+	err = dgc.Set(chains)
+	assert.NoError(t, err)
 
 	t.Run("AfterSet", func(t *testing.T) {
 		for _, testCase := range tests {
@@ -270,6 +271,7 @@ func TestGetAll(t *testing.T) {
 
 	dgc := NewDelegatedGuardianConfig()
 	assert.Empty(t, dgc.GetAll())
-	dgc.Set(chains)
+	err = dgc.Set(chains)
+	assert.NoError(t, err)
 	assert.True(t, reflect.DeepEqual(chains, dgc.GetAll()))
 }
