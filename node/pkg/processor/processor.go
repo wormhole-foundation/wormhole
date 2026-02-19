@@ -486,7 +486,9 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 			}
 
-			p.dgc.Set(chains)
+			if err := p.dgc.Set(chains); err != nil {
+				p.logger.Error("delegate guardian config update failed", zap.Error(err))
+			}
 		case k := <-p.msgC:
 			if k == nil {
 				p.logger.Error("received nil MessagePublication from msgC channel")

@@ -174,14 +174,23 @@ func TestSet(t *testing.T) {
 	assert.NoError(t, err)
 	cfg2, err := NewDelegatedGuardianChainConfig(keys, 3)
 	assert.NoError(t, err)
+
+	dgc := NewDelegatedGuardianConfig()
+	assert.Empty(t, dgc.Chains)
+
+	err = dgc.Set(map[vaa.ChainID]*DelegatedGuardianChainConfig{
+		vaa.ChainIDAlgorand:    cfg1,
+		vaa.ChainIDBaseSepolia: nil,
+	})
+	assert.Error(t, err)
+	assert.Empty(t, dgc.Chains)
+
 	chains := map[vaa.ChainID]*DelegatedGuardianChainConfig{
 		vaa.ChainIDArbitrumSepolia: cfg1,
 		vaa.ChainIDBaseSepolia:     cfg2,
 	}
-
-	dgc := NewDelegatedGuardianConfig()
-	assert.Empty(t, dgc.Chains)
-	dgc.Set(chains)
+	err = dgc.Set(chains)
+	assert.NoError(t, err)
 	assert.Equal(t, chains, dgc.Chains)
 }
 

@@ -120,8 +120,15 @@ func NewDelegatedGuardianConfig() *DelegatedGuardianConfig {
 }
 
 // Set sets the chains map
-func (d *DelegatedGuardianConfig) Set(chains map[vaa.ChainID]*DelegatedGuardianChainConfig) {
+func (d *DelegatedGuardianConfig) Set(chains map[vaa.ChainID]*DelegatedGuardianChainConfig) error {
 	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	for chain, cfg := range chains {
+		if cfg == nil {
+			return fmt.Errorf("received nil config for chain %d", chain)
+		}
+	}
 	for chain, cfg := range chains {
 		label := chain.String()
 		dgSigners.WithLabelValues(label).Set(float64(len(cfg.Keys)))
@@ -134,9 +141,9 @@ func (d *DelegatedGuardianConfig) Set(chains map[vaa.ChainID]*DelegatedGuardianC
 			dgQuorum.DeleteLabelValues(label)
 		}
 	}
-	defer d.mu.Unlock()
-
 	d.Chains = chains
+
+	return nil
 }
 
 // GetChainConfig returns the delegated guardian chain config for a specific chain, or nil if none.
