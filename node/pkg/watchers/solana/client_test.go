@@ -122,6 +122,45 @@ func TestIsPossibleWormholeMessageFail(t *testing.T) {
 	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
 }
 
+func TestIsPossibleWormholeMessageSequenceBeforePrefixFail(t *testing.T) {
+	logs := []string{
+		"Program ComputeBudget111111111111111111111111111111 invoke [1]",
+		"Program log: Sequence: 100",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth invoke [1]",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth consumed 92816 of 154700 compute units",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth success",
+	}
+
+	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
+}
+
+func TestIsPossibleWormholeMessageMultiplePrefixesNoSequenceFail(t *testing.T) {
+	logs := []string{
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth invoke [1]",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth consumed 50000 of 100000 compute units",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth success",
+		"Program BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY invoke [1]",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth invoke [2]",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth consumed 27143 of 33713 compute units",
+		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth success",
+		"Program BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY success",
+	}
+
+	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
+}
+
+func TestIsPossibleWormholeMessageMissingPrefixFail(t *testing.T) {
+	logs := []string{
+		"Program ComputeBudget111111111111111111111111111111 invoke [1]",
+		"Program ComputeBudget111111111111111111111111111111 success",
+		"Program BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY invoke [1]",
+		"Program log: Sequence: 149587",
+		"Program BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY success",
+	}
+
+	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
+}
+
 func TestConsistencyLevelCommitment(t *testing.T) {
 	// Scenario: mapping of consistency levels to commitments, including invalid value.
 	tests := []struct {
@@ -392,7 +431,7 @@ func TestProcessAccountSubscriptionData(t *testing.T) {
 		},
 		{
 			name:    "owner_mismatch",
-			data:    buildSubscriptionPayload(t, "other", pubkey, []byte("msg")),
+			data:    buildSubscriptionPayload(t, "other", "ABCDEFGHabcdefgh0123456789ABCDEF", []byte("msg")),
 			wantErr: true,
 		},
 		{
@@ -418,6 +457,10 @@ func TestProcessAccountSubscriptionData(t *testing.T) {
 				},
 			}),
 			wantErr: true,
+		},
+		{
+			name: "empty_data",
+			data: buildSubscriptionPayload(t, rawContract, pubkey, []byte{}),
 		},
 		{
 			name: "truncated_data",
@@ -454,7 +497,7 @@ func TestProcessAccountSubscriptionData(t *testing.T) {
 
 func TestProcessInstructionEarlyReturns(t *testing.T) {
 	// Scenario: instruction filtering should return early for non-matching cases.
-	commitmentMismatchData := encodePostMessageData(t, 7, []byte("hi"), consistencyLevelConfirmed)
+	commitmentMismatchData := encodePostMessageData(t, 42, []byte("hi"), consistencyLevelConfirmed)
 
 	tests := []struct {
 		name    string
@@ -481,6 +524,11 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 		{
 			name:    "borsh_error",
 			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{postMessageInstructionID}, Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			wantErr: true,
+		},
+		{
+			name:    "unsupported_consistency_level",
+			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, encodePostMessageData(t, 7, []byte("test"), ConsistencyLevel(9))...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
 			wantErr: true,
 		},
 		{
@@ -650,6 +698,13 @@ func TestProcessTransaction(t *testing.T) {
 			instructions: []solana.CompiledInstruction{matchingInstruction},
 		},
 		{
+			name:        "contract_at_index_zero",
+			accountKeys: []solana.PublicKey{contract, messageAccount},
+			instructions: []solana.CompiledInstruction{
+				{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, postMsgData...), Accounts: []uint16{0, 1, 0, 0, 0, 0, 0, 0}},
+			},
+		},
+		{
 			name:        "contract_not_in_accounts",
 			accountKeys: []solana.PublicKey{otherKey, messageAccount},
 			instructions: []solana.CompiledInstruction{
@@ -698,6 +753,16 @@ func TestProcessTransaction(t *testing.T) {
 			wantObservations: 2,
 		},
 		// Shim cases.
+		{
+			name:         "shim_failed_transaction",
+			shimEnabled:  true,
+			metaErr:      "some error",
+			accountKeys:  shimKeys,
+			instructions: []solana.CompiledInstruction{shimTopLevelInst},
+			innerInstructions: []rpc.InnerInstruction{
+				{Index: 0, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
+			},
+		},
 		{
 			name:         "shim_top_level_direct",
 			shimEnabled:  true,
