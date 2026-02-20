@@ -127,12 +127,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 
 			// Aptos's TxID is a uint64. Historically, all TxIDs used a fixed 32-byte hash type.
-			// This parsing is leftover from that time period. It should be possible to this
+			// This parsing is leftover from that time period. It should be possible to refactor
 			// this code such that the TxID received from p2p is exactly 8 bytes, which would
 			// obviate the need for the below bounds check and parsing.
 			//
 			// SECURITY: This acts as a bounds check for the BigEndian.Unint64 call below.
-			const AptosTxIDExpectedLen
+			const AptosTxIDExpectedLen = 32
 			if len(r.TxHash) < AptosTxIDExpectedLen {
 				logger.Error("invalid TxID: too short")
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
