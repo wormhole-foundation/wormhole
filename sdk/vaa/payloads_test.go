@@ -466,3 +466,30 @@ func TestBodyCoreBridgeSetMessageFeeSerialize(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expected, hex.EncodeToString(buf))
 }
+
+func TestBodyDelegatedGuardianSetConfig(t *testing.T) {
+	expected := "000000000000000000000000000044656c656761746564477561726469616e73010000000000000000000000000000000000000000000000000000000000000000000102000302031111111111111111111111111111111111111111222222222222222222222222222222222222222233333333333333333333333333333333333333330004010244444444444444444444444444444444444444445555555555555555555555555555555555555555"
+	bodyDelegatedGuardianSetConfig := BodyDelegatedGuardiansSetConfig{
+		ConfigIndex: uint256.NewInt(1),
+		Config: map[ChainID]DelegatedGuardianConfig{
+			3: {
+				Threshold: 2,
+				Keys: []common.Address{
+					common.HexToAddress("0x1111111111111111111111111111111111111111"),
+					common.HexToAddress("0x2222222222222222222222222222222222222222"),
+					common.HexToAddress("0x3333333333333333333333333333333333333333"),
+				},
+			},
+			4: {
+				Threshold: 1,
+				Keys: []common.Address{
+					common.HexToAddress("0x4444444444444444444444444444444444444444"),
+					common.HexToAddress("0x5555555555555555555555555555555555555555"),
+				},
+			},
+		},
+	}
+	buf, err := bodyDelegatedGuardianSetConfig.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}

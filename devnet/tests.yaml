@@ -148,4 +148,29 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
 ---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: delegated-guardian-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: delegated-guardian-ci-tests
+          image: guardiand-image
+          command:
+            - /bin/sh
+            - -c
+            - "cd /app/node && go test -v ./pkg/processor -tags delegated_guardian_ci && touch /tmp/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/tmp/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
 

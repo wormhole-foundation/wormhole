@@ -72,8 +72,9 @@ var (
 	guardianKeyPath   *string
 	guardianSignerUri *string
 
-	ethRPC      *string
-	ethContract *string
+	ethRPC                        *string
+	ethContract                   *string
+	ethDelegatedGuardiansContract *string
 
 	bscRPC      *string
 	bscContract *string
@@ -335,6 +336,7 @@ func init() {
 
 	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
+	ethDelegatedGuardiansContract = NodeCmd.Flags().String("ethDelegatedGuardiansContract", "", "Ethereum delegated guardians contract address")
 
 	bscRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "bscRPC", "Binance Smart Chain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	bscContract = NodeCmd.Flags().String("bscContract", "", "Binance Smart Chain contract address")
@@ -1273,14 +1275,20 @@ func runNode(cmd *cobra.Command, args []string) {
 	watcherConfigs := []watchers.WatcherConfig{}
 
 	if shouldStart(ethRPC) {
+		dgContract := *ethDelegatedGuardiansContract
+		if dgContract != "" {
+			logger.Info("Ethereum delegated guardians contract configured", zap.String("address", dgContract))
+			featureFlags = append(featureFlags, fmt.Sprintf("dgset:%s", dgContract))
+		}
 		wc := &evm.WatcherConfig{
-			NetworkID:              "eth",
-			ChainID:                vaa.ChainIDEthereum,
-			Rpc:                    *ethRPC,
-			Contract:               *ethContract,
-			GuardianSetUpdateChain: true,
-			CcqBackfillCache:       *ccqBackfillCache,
-			TxVerifierEnabled:      slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
+			NetworkID:                  "eth",
+			ChainID:                    vaa.ChainIDEthereum,
+			Rpc:                        *ethRPC,
+			Contract:                   *ethContract,
+			GuardianSetUpdateChain:     true,
+			DelegatedGuardiansContract: dgContract,
+			CcqBackfillCache:           *ccqBackfillCache,
+			TxVerifierEnabled:          slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1978,7 +1986,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
-		node.GuardianOptionProcessor(*p2pNetworkID),
+		node.GuardianOptionProcessor(*p2pNetworkID, *ethDelegatedGuardiansContract != ""),
 
 		// Keep this last so that all of its dependencies are met.
 		node.GuardianOptionP2P(

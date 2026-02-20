@@ -30,6 +30,10 @@ const (
 	// If not, the limit can be increased.
 	PayloadLenMax = 1024 * 1024 * 1024 * 10 // 10 GB
 
+	// Default max message size in libp2p before fragmentation is 1MB. Delegated guardians send the entire payload
+	// over p2p, so delegated message payloads are effectively capped at 1MB.
+	DelegatedPayloadLenMax = 1024 * 1024 // 1 MB
+
 	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
 	// the fields plus length information for fields with variable lengths (TxID and Payload).
 	marshaledMsgLenMin = 1 + // TxID length (uint8)
@@ -170,6 +174,8 @@ type MessagePublication struct {
 	// NOTE: there is no upper bound on the size of the payload. Wormhole supports arbitrary payloads
 	// due to the variance in transaction and block sizes between chains. However, during deserialization,
 	// payload lengths are bounds-checked against [PayloadLenMax] to prevent makeslice panics from malformed input.
+	// Similarly, for delegated chains, the entire payload needs to be sent over p2p and thus payload lengths are
+	// bounds-checked against [DelegatedPayloadLenMax] to avoid exceeding the p2p message size limit.
 	Payload         []byte
 	IsReobservation bool
 

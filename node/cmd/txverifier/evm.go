@@ -129,7 +129,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	defer ctxCancel()
 
 	var evmConnector connectors.Connector
-	evmConnector, connectErr := connectors.NewEthereumBaseConnector(ctx, "eth", *evmRpc, common.HexToAddress(*evmCoreContract), logger)
+	evmConnector, connectErr := connectors.NewEthereumBaseConnector(ctx, "eth", *evmRpc, common.HexToAddress(*evmCoreContract), nil, logger)
 	if connectErr != nil {
 		logger.Fatal("could not create new evm base connector",
 			zap.Error(connectErr))

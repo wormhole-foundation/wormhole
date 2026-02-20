@@ -2,8 +2,10 @@ package connectors
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	dgAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/delegated_guardians"
 	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
@@ -28,9 +30,11 @@ type EthereumBaseConnector struct {
 	rawClient   *ethRpc.Client
 	filterer    *ethAbi.AbiFilterer
 	caller      *ethAbi.AbiCaller
+	dgCaller    *dgAbi.DelegatedguardiansCaller
+	dgAddress   ethCommon.Address
 }
 
-func NewEthereumBaseConnector(ctx context.Context, networkName, rawUrl string, address ethCommon.Address, logger *zap.Logger) (*EthereumBaseConnector, error) {
+func NewEthereumBaseConnector(ctx context.Context, networkName, rawUrl string, address ethCommon.Address, delegatedGuardiansAddr *ethCommon.Address, logger *zap.Logger) (*EthereumBaseConnector, error) {
 	rawClient, err := ethRpc.DialContext(ctx, rawUrl)
 	if err != nil {
 		return nil, err
@@ -47,6 +51,16 @@ func NewEthereumBaseConnector(ctx context.Context, networkName, rawUrl string, a
 		panic(err)
 	}
 
+	var dgCaller *dgAbi.DelegatedguardiansCaller
+	var dgAddress ethCommon.Address
+	if delegatedGuardiansAddr != nil {
+		dgAddress = *delegatedGuardiansAddr
+		dgCaller, err = dgAbi.NewDelegatedguardiansCaller(dgAddress, client)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create delegated guardians caller: %w", err)
+		}
+	}
+
 	return &EthereumBaseConnector{
 		networkName: networkName,
 		address:     address,
@@ -55,6 +69,8 @@ func NewEthereumBaseConnector(ctx context.Context, networkName, rawUrl string, a
 		filterer:    filterer,
 		caller:      caller,
 		rawClient:   rawClient,
+		dgCaller:    dgCaller,
+		dgAddress:   dgAddress,
 	}, nil
 }
 
@@ -72,6 +88,14 @@ func (e *EthereumBaseConnector) GetCurrentGuardianSetIndex(ctx context.Context) 
 
 func (e *EthereumBaseConnector) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
 	return e.caller.GetGuardianSet(&ethBind.CallOpts{Context: ctx}, index)
+}
+
+func (e *EthereumBaseConnector) GetDelegatedGuardianConfig(ctx context.Context) ([]dgAbi.WormholeDelegatedGuardiansDelegatedGuardianSet, error) {
+	if e.dgCaller == nil {
+		return nil, fmt.Errorf("delegated guardians contract caller is not configured")
+	}
+
+	return e.dgCaller.GetConfig0(&ethBind.CallOpts{Context: ctx})
 }
 
 func (e *EthereumBaseConnector) WatchLogMessagePublished(ctx context.Context, _ chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
