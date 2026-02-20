@@ -255,6 +255,13 @@ func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.
 	if err != nil {
 		return nil, 0, fmt.Errorf("GetConfirmedTransaction: %v", err)
 	}
+	if out.Meta == nil {
+		return nil, 0, fmt.Errorf("transaction metadata is nil for signature: %s", sig)
+	}
+	// SECURITY: Ensure the transaction succeeded on-chain.
+	if out.Meta.Err != nil {
+		return nil, 0, fmt.Errorf("transaction failed for signature %s: %v", sig, out.Meta.Err)
+	}
 	for _, msg := range out.Meta.LogMessages {
 		if strings.HasPrefix(msg, "Program log: Sequence:") {
 			seq := msg[23:]
@@ -279,6 +286,11 @@ func process(out *rpc.GetTransactionResult) *solana.PublicKey {
 	tx, err := out.Transaction.GetTransaction()
 	if err != nil {
 		log.Fatalf("Failed to unmarshal transaction: %v", err)
+		return nil
+	}
+
+	if out.Meta == nil {
+		log.Fatalf("Transaction metadata is nil")
 		return nil
 	}
 
