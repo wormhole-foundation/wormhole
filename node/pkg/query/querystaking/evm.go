@@ -89,7 +89,7 @@ func ParseBoolResult(data []byte) (bool, error) {
 		return false, fmt.Errorf("invalid bool data: leading bytes not zero")
 	}
 	if data[31] > 1 {
-		return false, fmt.Errorf("invalid bool data: expected 0 or 1, got %d", data[32])
+		return false, fmt.Errorf("invalid bool data: expected 0 or 1, got %d", data[31])
 	}
 	// The last byte of the 32-byte result contains the boolean value
 	return data[31] == 1, nil
