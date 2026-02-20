@@ -110,21 +110,8 @@ EVM2_ARGS = [
     "--bscRPC",
     "ws://eth-devnet2:8545"
 ]
-ALGORAND_ARGS = [
-    "--algorandAppID",
-    "1004",
-    "--algorandIndexerRPC",
-    "http://algorand:8980",
-    "--algorandIndexerToken",
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "--algorandAlgodRPC",
-    "http://algorand:4001",
-    "--algorandAlgodToken",
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-]
 chain_to_args = {
     "evm2": EVM2_ARGS,
-    "algorand": ALGORAND_ARGS
 }
 
 # We're creating delegated guardian set presets with the following configurations:
@@ -315,10 +302,6 @@ def build_node_yaml():
                         "ws://eth-devnet:8545",
                     ]
 
-            # Algorand is not a delegated chain - all guardians should watch it
-            if algorand:
-                container["command"] += chain_to_args["algorand"]
-
             if solana_watcher:
                 container["command"] += [
                     "--solanaRPC",
@@ -349,6 +332,20 @@ def build_node_yaml():
                     "http://terra2-terrad:1317",
                     "--terra2Contract",
                     "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+                ]
+
+            if algorand:
+                container["command"] += [
+                    "--algorandAppID",
+                    "1004",
+                    "--algorandIndexerRPC",
+                    "http://algorand:8980",
+                    "--algorandIndexerToken",
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "--algorandAlgodRPC",
+                    "http://algorand:4001",
+                    "--algorandAlgodToken",
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 ]
 
             if guardiand_governor:
