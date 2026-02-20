@@ -17,19 +17,16 @@ func CreateStakingPolicyProvider(ethClient *ethclient.Client, logger *zap.Logger
 
 	stakingClient := NewStakingClient(ethClient, logger, factoryAddress, poolAddresses, ipfsClient, cacheDuration)
 
-	// Create the fetcher function that queries staking contracts
-	// This supports both self-staking and delegated signing:
-	// - signerAddr: The address that signed the query request
-	// - stakerAddr: The address that holds the stake
-	// For self-staking, both addresses are the same.
-	// For delegated signing, the signer is authorized by the staker.
-	fetcher := func(ctx context.Context, signerAddr, stakerAddr common.Address) (*queryratelimit.Policy, error) {
-		return stakingClient.FetchStakingPolicy(ctx, stakerAddr, signerAddr)
+	// Fetcher computes rate limit policy from the staker's on-chain stake.
+	// Signer authorization is handled separately via AuthorizeSigner.
+	fetcher := func(ctx context.Context, stakerAddr common.Address) (*queryratelimit.Policy, error) {
+		return stakingClient.FetchStakingPolicy(ctx, stakerAddr)
 	}
 
-	// Create PolicyProvider with staking fetcher
+	// Create PolicyProvider with staking fetcher and authorizer
 	return queryratelimit.NewPolicyProvider(
 		queryratelimit.WithPolicyProviderFetcher(fetcher),
+		queryratelimit.WithPolicyProviderAuthorizer(stakingClient.AuthorizeSigner),
 		queryratelimit.WithPolicyProviderLogger(logger.With(zap.String("component", "staking-policy-provider"))),
 		queryratelimit.WithPolicyProviderParentContext(parentContext),
 		queryratelimit.WithPolicyProviderOptimistic(true), // Enable background cache refresh

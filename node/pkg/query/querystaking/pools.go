@@ -266,9 +266,9 @@ func (sc *StakingClient) GetSignerAddress(ctx context.Context, poolAddress, stak
 	return signerAddress, nil
 }
 
-// IsSignerAuthorizedForStaker checks if signerAddress is the designated signer for stakerAddress
+// isSignerAuthorizedForStaker checks if signerAddress is the designated signer for stakerAddress
 // by querying the stakerSigners forward mapping.
-func (sc *StakingClient) IsSignerAuthorizedForStaker(ctx context.Context, poolAddress, signerAddress, stakerAddress common.Address, poolName string) (bool, error) {
+func (sc *StakingClient) isSignerAuthorizedForStaker(ctx context.Context, poolAddress, signerAddress, stakerAddress common.Address, poolName string) (bool, error) {
 	// Query the forward mapping: stakerSigners[staker] => address
 	registeredSigner, err := sc.GetSignerAddress(ctx, poolAddress, stakerAddress, poolName)
 	if err != nil {
@@ -306,6 +306,53 @@ func (sc *StakingClient) IsSignerAuthorizedForStaker(ctx context.Context, poolAd
 	return isAuthorized, nil
 }
 
+// AuthorizeSigner checks whether signerAddr is permitted to act on behalf of stakerAddr.
+// For self-staking (signer == staker) this is a no-op.
+// For delegation, the signer must be registered and not blocklisted in at least one pool.
+func (sc *StakingClient) AuthorizeSigner(ctx context.Context, signerAddr, stakerAddr common.Address) error {
+	if signerAddr == stakerAddr {
+		return nil
+	}
+
+	var poolsToCheck []struct {
+		address common.Address
+		name    string
+	}
+
+	if sc.useDirectPoolConfig {
+		for _, poolAddr := range sc.configuredPools {
+			poolsToCheck = append(poolsToCheck, struct {
+				address common.Address
+				name    string
+			}{address: poolAddr, name: poolAddr.Hex()})
+		}
+	} else {
+		for poolName, pool := range SupportedQueryPools {
+			poolAddress, err := sc.GetCachedPoolAddress(ctx, pool.queryTypeBits(), poolName)
+			if err != nil || poolAddress == (common.Address{}) {
+				continue
+			}
+			poolsToCheck = append(poolsToCheck, struct {
+				address common.Address
+				name    string
+			}{address: poolAddress, name: poolName})
+		}
+	}
+
+	for _, pool := range poolsToCheck {
+		if err := sc.VerifySignerAuthorization(ctx, pool.address, stakerAddr, signerAddr, pool.name); err != nil {
+			continue
+		}
+		blocked, err := sc.IsBlocklisted(ctx, pool.address, signerAddr, pool.name)
+		if err != nil || blocked {
+			continue
+		}
+		return nil
+	}
+
+	return fmt.Errorf("signer %s is not authorized to act on behalf of staker %s", signerAddr.Hex(), stakerAddr.Hex())
+}
+
 // VerifySignerAuthorization verifies that signerAddr is authorized to act on behalf of stakerAddr
 // Returns nil if authorized, error otherwise
 // This function supports both self-staking (signer == staker) and delegated signing.
@@ -318,7 +365,7 @@ func (sc *StakingClient) VerifySignerAuthorization(ctx context.Context, poolAddr
 	}
 
 	// Check if the registered signer for the staker matches the provided signer
-	isAuthorized, err := sc.IsSignerAuthorizedForStaker(ctx, poolAddress, signerAddr, stakerAddr, poolName)
+	isAuthorized, err := sc.isSignerAuthorizedForStaker(ctx, poolAddress, signerAddr, stakerAddr, poolName)
 	if err != nil {
 		return fmt.Errorf("failed to check signer authorization for staker %s: %w", stakerAddr.Hex(), err)
 	}
@@ -704,22 +751,13 @@ func CalculateRates(stakeAmount *uint256.Int, tranches []ConversionTranche, deci
 	}
 }
 
-// FetchStakingPolicy creates a policy based on staking contract state using factory discovery
-// stakerAddr is the address that holds the stake, signerAddr is the address that signed the request
-// For self-staking, both addresses will be the same
-func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, signerAddr common.Address) (*queryratelimit.Policy, error) {
+// FetchStakingPolicy creates a policy based on staking contract state.
+// stakerAddr is the address that holds the stake.
+// Signer authorization is handled separately via AuthorizeSigner before calling this.
+func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr common.Address) (*queryratelimit.Policy, error) {
 	start := time.Now()
 
-	// Log whether this is self-staking or delegated query
-	isDelegated := stakerAddr != signerAddr
-	if isDelegated {
-		sc.logger.Info("fetching staking policy for delegated query",
-			zap.String("staker", stakerAddr.Hex()),
-			zap.String("signer", signerAddr.Hex()))
-	} else {
-		sc.logger.Info("fetching staking policy for self-staking query",
-			zap.String("address", stakerAddr.Hex()))
-	}
+	sc.logger.Info("fetching staking policy", zap.String("staker", stakerAddr.Hex()))
 
 	policy := &queryratelimit.Policy{
 		Limits: queryratelimit.Limits{
@@ -796,20 +834,6 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 		poolName := poolInfo.name
 		poolsChecked++
 
-		// Verify signer is authorized to act on behalf of staker
-		if err := sc.VerifySignerAuthorization(ctx, poolAddress, stakerAddr, signerAddr, poolName); err != nil {
-			totalErrors++
-			failureReasons["unauthorized_signer"]++
-			stakingPolicyFetches.WithLabelValues("unauthorized_signer", poolName).Inc()
-			sc.logger.Warn("signer not authorized for staker",
-				zap.String("poolName", poolName),
-				zap.String("poolAddress", poolAddress.Hex()),
-				zap.String("staker", stakerAddr.Hex()),
-				zap.String("signer", signerAddr.Hex()),
-				zap.Error(err))
-			continue
-		}
-
 		stakeInfo, err := sc.GetStakeInfo(ctx, poolAddress, stakerAddr, poolName)
 		if err != nil {
 			totalErrors++
@@ -857,32 +881,6 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 				zap.String("poolAddress", poolAddress.Hex()),
 				zap.String("staker", stakerAddr.Hex()))
 			continue
-		}
-
-		// Check if the signer is blocklisted (if different from staker)
-		// SECURITY: Fail closed - deny access if we cannot verify blocklist status
-		if stakerAddr != signerAddr {
-			signerBlocked, err := sc.IsBlocklisted(ctx, poolAddress, signerAddr, poolName)
-			if err != nil {
-				totalErrors++
-				failureReasons["blocklist_check_error"]++
-				stakingPolicyFetches.WithLabelValues("blocklist_error", poolName).Inc()
-				sc.logger.Warn("failed to check signer blocklist status, denying access (fail-closed)",
-					zap.String("queryType", poolName),
-					zap.String("poolAddress", poolAddress.Hex()),
-					zap.String("signer", signerAddr.Hex()),
-					zap.Error(err))
-				continue
-			}
-			if signerBlocked {
-				failureReasons["signer_blocklisted"]++
-				stakingPolicyFetches.WithLabelValues("blocklisted", poolName).Inc()
-				sc.logger.Info("signer is blocklisted in pool",
-					zap.String("queryType", poolName),
-					zap.String("poolAddress", poolAddress.Hex()),
-					zap.String("signer", signerAddr.Hex()))
-				continue
-			}
 		}
 
 		cacheDurationSeconds := uint64(sc.cacheDuration.Seconds()) // #nosec G115 -- cache duration is always positive
@@ -1034,7 +1032,6 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 				zap.String("poolName", poolName),
 				zap.String("chainName", chainName),
 				zap.String("poolAddress", poolAddress.Hex()),
-				zap.String("signer", signerAddr.Hex()),
 				zap.String("tier", tier),
 				zap.Uint64("maxPerSecond", rates.MaxPerSecond),
 				zap.Uint64("maxPerMinute", rates.MaxPerMinute),
@@ -1088,8 +1085,6 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 	// Build detailed failure reason summary
 	failureReasonFields := []zap.Field{
 		zap.String("staker", stakerAddr.Hex()),
-		zap.String("signer", signerAddr.Hex()),
-		zap.Bool("isDelegated", isDelegated),
 		zap.Int("queryTypesChecked", poolsChecked),
 		zap.Int("poolsSkipped", poolsSkipped),
 		zap.Int("poolsWithStakes", poolsWithStakes),
@@ -1113,14 +1108,7 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 		sc.logger.Warn("completed staking policy fetch - NO ACCESS GRANTED", failureReasonFields...)
 
 		// Log specific diagnostic message based on failure reasons
-		if failureReasons["unauthorized_signer"] > 0 {
-			if isDelegated {
-				sc.logger.Warn("delegation failure: signer not authorized by staker",
-					zap.String("staker", stakerAddr.Hex()),
-					zap.String("signer", signerAddr.Hex()),
-					zap.String("hint", "staker must call setSigner() to authorize this signer"))
-			}
-		} else if failureReasons["no_stake"] > 0 {
+		if failureReasons["no_stake"] > 0 {
 			sc.logger.Warn("no access: staker has no stake in any pools",
 				zap.String("staker", stakerAddr.Hex()),
 				zap.String("hint", "staker must stake tokens to gain CCQ access"))
@@ -1128,10 +1116,9 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 			sc.logger.Warn("no access: all stakes have expired",
 				zap.String("staker", stakerAddr.Hex()),
 				zap.String("hint", "staker needs to renew stakes"))
-		} else if failureReasons["staker_blocklisted"] > 0 || failureReasons["signer_blocklisted"] > 0 {
-			sc.logger.Warn("no access: address is blocklisted",
-				zap.String("staker", stakerAddr.Hex()),
-				zap.String("signer", signerAddr.Hex()))
+		} else if failureReasons["staker_blocklisted"] > 0 {
+			sc.logger.Warn("no access: staker is blocklisted",
+				zap.String("staker", stakerAddr.Hex()))
 		}
 
 		stakingPolicyFetches.WithLabelValues("no_access", "all").Inc()

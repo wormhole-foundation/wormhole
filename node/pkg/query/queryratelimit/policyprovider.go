@@ -13,7 +13,8 @@ import (
 
 // TODO(elee): this should really be an interface where the seprate parts are split out, ala, one for fetching, one for ttl cache.
 type PolicyProvider struct {
-	fetcher       func(ctx context.Context, signerAddr, stakerAddr common.Address) (*Policy, error)
+	fetcher       func(ctx context.Context, stakerAddr common.Address) (*Policy, error)
+	authorizer    func(ctx context.Context, signerAddr, stakerAddr common.Address) error
 	fetchTimeout  time.Duration
 	cacheDuration time.Duration
 	optimistic    bool
@@ -33,9 +34,15 @@ func WithPolicyProviderLogger(logger *zap.Logger) PolicyProviderOption {
 	}
 }
 
-func WithPolicyProviderFetcher(fetcher func(ctx context.Context, signerAddr, stakerAddr common.Address) (*Policy, error)) PolicyProviderOption {
+func WithPolicyProviderFetcher(fetcher func(ctx context.Context, stakerAddr common.Address) (*Policy, error)) PolicyProviderOption {
 	return func(p *PolicyProvider) {
 		p.fetcher = fetcher
+	}
+}
+
+func WithPolicyProviderAuthorizer(authorizer func(ctx context.Context, signerAddr, stakerAddr common.Address) error) PolicyProviderOption {
+	return func(p *PolicyProvider) {
+		p.authorizer = authorizer
 	}
 }
 
@@ -62,6 +69,7 @@ func WithPolicyProviderParentContext(ctx context.Context) PolicyProviderOption {
 		p.parentContext = ctx
 	}
 }
+
 func WithPolicyProviderFetchTimeout(timeout time.Duration) PolicyProviderOption {
 	return func(p *PolicyProvider) {
 		p.fetchTimeout = timeout
@@ -96,8 +104,8 @@ func NewPolicyProvider(ops ...PolicyProviderOption) (*PolicyProvider, error) {
 	return o, nil
 }
 
-func (r *PolicyProvider) GetPolicy(ctx context.Context, signerAddr, stakerAddr common.Address) (*Policy, error) {
-	cacheKey := signerAddr.Hex() + ":" + stakerAddr.Hex()
+func (r *PolicyProvider) GetPolicy(ctx context.Context, stakerAddr common.Address) (*Policy, error) {
+	cacheKey := stakerAddr.Hex()
 	ival, hit := r.cache.Get(cacheKey)
 	if hit {
 		val, ok := ival.(withExpiry[*Policy])
@@ -105,7 +113,7 @@ func (r *PolicyProvider) GetPolicy(ctx context.Context, signerAddr, stakerAddr c
 			// Cache corruption - remove and treat as miss
 			r.cache.Remove(cacheKey)
 			StakingPolicyCacheResults.WithLabelValues("miss_invalid").Inc()
-			return r.fetchAndFill(ctx, cacheKey, signerAddr, stakerAddr)
+			return r.fetchAndFill(ctx, stakerAddr)
 		}
 		// Check expiry atomically - if expired, treat as cache miss
 		isExpired := time.Now().After(val.expiresAt)
@@ -122,7 +130,7 @@ func (r *PolicyProvider) GetPolicy(ctx context.Context, signerAddr, stakerAddr c
 				go func() { //nolint:contextcheck // Background refresh uses parentContext to continue even if request context is cancelled
 					bgCtx, cn := context.WithTimeout(r.parentContext, r.fetchTimeout)
 					defer cn()
-					if _, err := r.fetchAndFill(bgCtx, cacheKey, signerAddr, stakerAddr); err != nil {
+					if _, err := r.fetchAndFill(bgCtx, stakerAddr); err != nil {
 						if r.logger != nil {
 							r.logger.Error("failed to fetch rate limit policy in background", zap.Error(err))
 						}
@@ -136,13 +144,23 @@ func (r *PolicyProvider) GetPolicy(ctx context.Context, signerAddr, stakerAddr c
 	if !hit {
 		StakingPolicyCacheResults.WithLabelValues("miss").Inc()
 	}
-	return r.fetchAndFill(ctx, cacheKey, signerAddr, stakerAddr)
+	return r.fetchAndFill(ctx, stakerAddr)
 }
 
-func (r *PolicyProvider) fetchAndFill(ctx context.Context, cacheKey string, signerAddr, stakerAddr common.Address) (*Policy, error) {
+// Authorize checks whether signerAddr is permitted to act on behalf of stakerAddr.
+// For self-staking (signer == staker) this is a no-op. Returns nil if authorized.
+func (r *PolicyProvider) Authorize(ctx context.Context, signerAddr, stakerAddr common.Address) error {
+	if r.authorizer == nil {
+		return nil
+	}
+	return r.authorizer(ctx, signerAddr, stakerAddr)
+}
+
+func (r *PolicyProvider) fetchAndFill(ctx context.Context, stakerAddr common.Address) (*Policy, error) {
+	cacheKey := stakerAddr.Hex()
 	res, err, _ := r.sf.Do(cacheKey, func() (any, error) {
 		start := time.Now()
-		policy, err := r.fetcher(ctx, signerAddr, stakerAddr)
+		policy, err := r.fetcher(ctx, stakerAddr)
 		StakingPolicyFetchDuration.Observe(time.Since(start).Seconds())
 		if err != nil {
 			return nil, err

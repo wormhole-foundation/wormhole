@@ -23,8 +23,8 @@ import (
 
 // MAX_BODY_SIZE caps request body size to prevent DoS attacks.
 // Realistic queries are ~1-50KB raw (~2-125KB encoded).
-// 512KB provides comfortable headroom while preventing abuse.
-const MAX_BODY_SIZE = 512 * 1024
+// 256KB provides comfortable headroom while preventing abuse.
+const MAX_BODY_SIZE = 256 * 1024
 
 const (
 	SignatureFormatRaw    = "raw"
@@ -174,16 +174,25 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		selfStakingQueriesReceived.Inc()
 	}
 
-	// Track total requests by user
-	totalRequestsByUser.WithLabelValues(userIdentifier).Inc()
-
 	// If staking-based rate limiting is enabled, enforce it here
 	if s.policyProvider != nil && s.limitEnforcer != nil {
 		// Determine staker address (same as rateLimitKey above)
 		stakerAddr := rateLimitKey
 
-		// Fetch staking policy
-		policy, err := s.policyProvider.GetPolicy(r.Context(), signerAddr, stakerAddr)
+		// Verify signer is authorized to act on behalf of staker (per-request, uncached)
+		if err := s.policyProvider.Authorize(r.Context(), signerAddr, stakerAddr); err != nil {
+			s.logger.Info("signer not authorized for staker",
+				zap.String("signer", signerAddr.Hex()),
+				zap.String("staker", stakerAddr.Hex()),
+				zap.Error(err))
+			http.Error(w, err.Error(), http.StatusForbidden)
+			invalidQueryRequestReceived.WithLabelValues("unauthorized_signer").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("unauthorized_signer").Inc()
+			return
+		}
+
+		// Fetch staking policy (cached by staker address)
+		policy, err := s.policyProvider.GetPolicy(r.Context(), stakerAddr)
 		if err != nil {
 			s.logger.Error("failed to fetch staking policy",
 				zap.String("signer", signerAddr.Hex()),
@@ -192,7 +201,6 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to verify staking eligibility", http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_fetch_policy").Inc()
 			queryratelimit.StakingPolicyRejections.WithLabelValues("failed_to_fetch_policy").Inc()
-			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			return
 		}
 
@@ -201,20 +209,9 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			s.logger.Info("requestor has insufficient stake",
 				zap.String("signer", signerAddr.Hex()),
 				zap.String("staker", stakerAddr.Hex()))
-
-			// Provide more specific error message for delegation scenarios
-			var errorMsg string
-			if signerAddr != stakerAddr {
-				errorMsg = fmt.Sprintf("insufficient stake for CCQ access: signer %s is not authorized to use staker %s's rate limits (or staker has no stake)",
-					signerAddr.Hex(), stakerAddr.Hex())
-			} else {
-				errorMsg = fmt.Sprintf("insufficient stake for CCQ access: address %s has no stake or is below minimum threshold", signerAddr.Hex())
-			}
-
-			http.Error(w, errorMsg, http.StatusForbidden)
+			http.Error(w, fmt.Sprintf("insufficient stake for CCQ access: address %s has no stake or is below minimum threshold", stakerAddr.Hex()), http.StatusForbidden)
 			invalidQueryRequestReceived.WithLabelValues("insufficient_stake").Inc()
 			queryratelimit.StakingPolicyRejections.WithLabelValues("insufficient_stake").Inc()
-			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			return
 		}
 
@@ -260,6 +257,9 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			zap.String("signer", signerAddr.Hex()),
 			zap.String("staker", stakerAddr.Hex()))
 	}
+
+	// Track total requests by user
+	totalRequestsByUser.WithLabelValues(userIdentifier).Inc()
 
 	queryReq = &qr
 

@@ -513,7 +513,9 @@ describe("eth call v2", () => {
       nameCallData,
     ]);
     const ethQuery = new PerChainQueryRequest(2, ethCall);
-    const request = new QueryRequest(3, Math.floor(Date.now() / 1000), [ethQuery], address);
+    // No staker address: server will use the recovered signer as the rate limit key.
+    // Wrong recovery (raw mode on EIP-191 sig) yields a random address with no stake.
+    const request = new QueryRequest(3, Math.floor(Date.now() / 1000), [ethQuery]);
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
     // Sign with personal_sign (EIP-191 prefixed)

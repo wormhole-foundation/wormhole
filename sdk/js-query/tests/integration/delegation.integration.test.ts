@@ -43,8 +43,10 @@ const signerWallets: Array<{
   address: Address;
 }> = [];
 
-// Create 3 delegator wallets (stake holders) - reduced from 4 for faster setup
-for (let i = 0; i < 3; i++) {
+// Create 4 delegator wallets (stake holders).
+// 4 wallets prevent wallet reuse between "Delegated query succeeds" (uses delegator[1])
+// and "Rate limits are based on delegator's stake" (uses delegator[4%4=0], a fresh wallet).
+for (let i = 0; i < 4; i++) {
   const privateKey = generatePrivateKey();
   const account = privateKeyToAccount(privateKey);
   delegatorWallets.push({ privateKey, address: account.address });
