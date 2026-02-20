@@ -273,7 +273,7 @@ interface IWormhole {
     /// @notice Returns the Wormhole chain ID of this chain.
     /// @dev This is NOT the EVM chain ID (`block.chainid`). Wormhole maintains its own chain ID registry.
     ///      Example: Ethereum mainnet = 2, BSC = 4, Polygon = 5.
-    ///      See https://docs.wormhole.com/wormhole/reference/environments/evm
+    ///      See https://wormhole.com/docs/products/reference/chain-ids/
     ///      Use `evmChainId()` for the native EVM chain ID.
     /// @return The Wormhole chain ID for this deployment.
     function chainId() external view returns (uint16);

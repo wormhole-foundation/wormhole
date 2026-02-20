@@ -61,7 +61,7 @@ contract Getters is State {
     /// @dev IMPORTANT: This is the Wormhole-specific chain ID, NOT the EVM chain ID (`block.chainid`).
     ///      Wormhole maintains its own chain ID registry across all supported networks.
     ///      For example, Ethereum mainnet has Wormhole chain ID 2, BSC has 4, Polygon has 5.
-    ///      See https://docs.wormhole.com/wormhole/reference/environments/evm for the full registry.
+    ///      See https://wormhole.com/docs/products/reference/chain-ids/ for the full registry.
     ///      To get the native EVM chain ID, use `evmChainId()`.
     /// @return The Wormhole chain ID for this chain.
     function chainId() public view returns (uint16) {

@@ -11,7 +11,7 @@ interface Structs {
     struct Provider {
         /// @notice The Wormhole chain ID of this chain.
         /// @dev This is NOT the same as the EVM chain ID (block.chainid). Wormhole maintains its own
-        ///      chain ID registry. See https://docs.wormhole.com/products/reference/chain-ids/
+        ///      chain ID registry. See https://wormhole.com/docs/products/reference/chain-ids/
         ///      for the full list of Wormhole chain IDs.
         uint16 chainId;
         /// @notice The Wormhole chain ID of the chain that hosts the governance contract.
