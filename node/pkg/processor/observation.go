@@ -556,6 +556,8 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 // handleSignedDelegateObservation processes a signed delegate observation
 //
 // SECURITY: This function assumes the p2p layer has already verified the SignedDelegateObservation signature and hence does not re-verify it.
+// This method must only proceed to process observations if the current Guardian is a canonical Guardian for this chain. Otherwise, the Guardian
+// must process messages using its own watcher.
 //
 // WARNING: This returns error if the Accountant fails to process the message and propagates it to the `processor` which in turn interprets
 // this as a signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
@@ -678,6 +680,7 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 		return nil
 	}
 
+	// SECURITY: Delegated Guardians must not process delegate observations from other Guardians.
 	_, ok := cfg.KeyIndex(p.ourAddr)
 	if ok {
 		p.logger.Debug("ignoring delegate observation since we are a delegated guardian for this chain",
@@ -710,6 +713,8 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
 // This function assumes cfg corresponds to m.EmitterChain
+//
+// SECURITY: This function must only be called if the current Guardian is a canonical Guardian for this chain.
 //
 // WARNING: This returns error if the Accountant fails to process the message and propagates it
 // to the `processor` which in turn interprets this as a signal to RESTART THE PROCESSOR.
