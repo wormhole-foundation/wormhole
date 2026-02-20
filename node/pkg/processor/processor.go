@@ -418,6 +418,10 @@ func (p *Processor) Run(ctx context.Context) error {
 			if oldDgc != nil {
 				oldChains = oldDgc.GetAll()
 			}
+
+			dgConfig.mu.Lock()
+			defer dgConfig.mu.Unlock()
+
 			chains := dgConfig.Chains
 
 			// Log details for removed chain configs
