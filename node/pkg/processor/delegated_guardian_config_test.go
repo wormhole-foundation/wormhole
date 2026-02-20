@@ -160,7 +160,7 @@ func TestNewDelegatedGuardianConfig(t *testing.T) {
 	dgc := NewDelegatedGuardianConfig()
 	assert.NotNil(t, dgc)
 	assert.Empty(t, dgc.Chains)
-	assert.Empty(t, dgc.GetAll())
+	assert.Empty(t, dgc.ReadAll())
 }
 
 func TestSet(t *testing.T) {
@@ -194,7 +194,7 @@ func TestSet(t *testing.T) {
 	assert.Equal(t, chains, dgc.Chains)
 }
 
-func TestGetChainConfig(t *testing.T) {
+func TestReadChainConfig(t *testing.T) {
 	type test struct {
 		chain     vaa.ChainID
 		keys      []common.Address
@@ -228,8 +228,8 @@ func TestGetChainConfig(t *testing.T) {
 	t.Run("BeforeSet", func(t *testing.T) {
 		for _, testCase := range tests {
 			t.Run(testCase.chain.String(), func(t *testing.T) {
-				cfg := dgc.GetChainConfig(testCase.chain)
-				assert.Nil(t, cfg)
+				_, ok := dgc.ReadChainConfig(testCase.chain)
+				assert.False(t, ok)
 			})
 		}
 	})
@@ -240,20 +240,20 @@ func TestGetChainConfig(t *testing.T) {
 	t.Run("AfterSet", func(t *testing.T) {
 		for _, testCase := range tests {
 			t.Run(testCase.chain.String(), func(t *testing.T) {
-				cfg := dgc.GetChainConfig(testCase.chain)
+				cfg, ok := dgc.ReadChainConfig(testCase.chain)
 				if testCase.exists {
-					assert.NotNil(t, cfg)
+					assert.True(t, ok)
 					assert.Equal(t, testCase.threshold, cfg.Quorum())
 					assert.True(t, reflect.DeepEqual(testCase.keys, cfg.Keys))
 				} else {
-					assert.Nil(t, cfg)
+					assert.False(t, ok)
 				}
 			})
 		}
 	})
 }
 
-func TestGetAll(t *testing.T) {
+func TestReadAll(t *testing.T) {
 	keys := []common.Address{
 		common.HexToAddress("0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaec"),
 		common.HexToAddress("0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed"),
@@ -270,8 +270,29 @@ func TestGetAll(t *testing.T) {
 	}
 
 	dgc := NewDelegatedGuardianConfig()
-	assert.Empty(t, dgc.GetAll())
+	assert.Empty(t, dgc.ReadAll())
+
 	err = dgc.Set(chains)
 	assert.NoError(t, err)
-	assert.True(t, reflect.DeepEqual(chains, dgc.GetAll()))
+
+	// Ensure immutable
+	expected := make(map[vaa.ChainID]DelegatedGuardianChainConfig, len(chains))
+	for chain, cfg := range chains {
+		expected[chain] = cfg.deepCopy()
+	}
+	readChains := dgc.ReadAll()
+	assert.True(t, reflect.DeepEqual(expected, readChains))
+
+	arbCfg := readChains[vaa.ChainIDArbitrumSepolia]
+	arbCfg.Keys[0] = keys[3]
+	readChains[vaa.ChainIDArbitrumSepolia] = arbCfg
+	assert.False(t, reflect.DeepEqual(expected, readChains))
+	assert.True(t, reflect.DeepEqual(expected, dgc.ReadAll()))
+
+	readChains = dgc.ReadAll()
+	arbCfg = readChains[vaa.ChainIDArbitrumSepolia]
+	arbCfg.keyMap[keys[0]] = 999
+	readChains[vaa.ChainIDArbitrumSepolia] = arbCfg
+	assert.False(t, reflect.DeepEqual(expected, readChains))
+	assert.True(t, reflect.DeepEqual(expected, dgc.ReadAll()))
 }

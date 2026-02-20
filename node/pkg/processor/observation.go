@@ -662,8 +662,8 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 	var cfg *DelegatedGuardianChainConfig
 	if s != nil && s.cfg != nil {
 		cfg = s.cfg
-	} else {
-		cfg = p.dgc.GetChainConfig(c)
+	} else if cfgCopy, ok := p.dgc.ReadChainConfig(c); ok {
+		cfg = &cfgCopy
 	}
 
 	// We haven't yet observed the trusted delegated guardian set for this chain on Ethereum. Therefore,

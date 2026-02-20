@@ -413,10 +413,10 @@ func (p *Processor) Run(ctx context.Context) error {
 				continue
 			}
 
-			var oldChains map[vaa.ChainID]*DelegatedGuardianChainConfig
+			var oldChains map[vaa.ChainID]DelegatedGuardianChainConfig
 			oldDgc := p.dgc
 			if oldDgc != nil {
-				oldChains = oldDgc.GetAll()
+				oldChains = oldDgc.ReadAll()
 			}
 
 			dgConfig.mu.Lock()
@@ -454,8 +454,8 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 
 				oldSize, oldQuorum := 0, 0
-				oldCfg := oldChains[chain]
-				if oldCfg != nil {
+				oldCfg, oldCfgExists := oldChains[chain]
+				if oldCfgExists {
 					oldSize = len(oldCfg.Keys)
 					oldQuorum = oldCfg.Quorum()
 				}
@@ -463,7 +463,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				newQuorum := cfg.Quorum()
 
 				switch {
-				case oldCfg == nil:
+				case !oldCfgExists:
 					p.logger.Warn("delegated guardian config chain added",
 						zap.Stringer("chainID", chain),
 						zap.Strings("set", cfg.KeysAsHexStrings()),
@@ -520,14 +520,14 @@ func (p *Processor) Run(ctx context.Context) error {
 				continue
 			}
 
-			cfg := p.dgc.GetChainConfig(k.EmitterChain)
+			cfg, cfgExists := p.dgc.ReadChainConfig(k.EmitterChain)
 			p.logger.Info("processor: checking delegation config for chain",
 				zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
-				zap.Bool("has_config", cfg != nil),
+				zap.Bool("has_config", cfgExists),
 				zap.String("our_addr", p.ourAddr.Hex()),
 			)
 			// len(cfg.Keys) > 0 is redundant, kept for extra safety
-			if cfg != nil && len(cfg.Keys) > 0 {
+			if cfgExists && len(cfg.Keys) > 0 {
 				_, ok := cfg.KeyIndex(p.ourAddr)
 				p.logger.Info("processor: delegation check result",
 					zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
@@ -636,9 +636,9 @@ func (p *Processor) Run(ctx context.Context) error {
 					// enabled.
 
 					// Publish DelegateObservation if we are a delegated guardian for the chain
-					cfg := p.dgc.GetChainConfig(msg.EmitterChain)
+					cfg, cfgExists := p.dgc.ReadChainConfig(msg.EmitterChain)
 					// len(cfg.Keys) > 0 is redundant, kept for extra safety
-					if cfg != nil && len(cfg.Keys) > 0 {
+					if cfgExists && len(cfg.Keys) > 0 {
 						_, ok := cfg.KeyIndex(p.ourAddr)
 						if ok {
 							p.logger.Info("processor: sending delegate observation as delegated guardian", msg.ZapFields()...)

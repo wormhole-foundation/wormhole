@@ -79,6 +79,31 @@ func NewDelegatedGuardianChainConfig(keys []common.Address, threshold int) (*Del
 	}, nil
 }
 
+// deepCopy returns a deep copy of the delegated guardian chain config
+func (dc *DelegatedGuardianChainConfig) deepCopy() DelegatedGuardianChainConfig {
+	if dc == nil {
+		return DelegatedGuardianChainConfig{}
+	}
+
+	ret := DelegatedGuardianChainConfig{
+		quorum: dc.quorum,
+	}
+
+	if dc.Keys != nil {
+		ret.Keys = make([]common.Address, len(dc.Keys))
+		copy(ret.Keys, dc.Keys)
+	}
+
+	if dc.keyMap != nil {
+		ret.keyMap = make(map[common.Address]int, len(dc.keyMap))
+		for k, v := range dc.keyMap {
+			ret.keyMap[k] = v
+		}
+	}
+
+	return ret
+}
+
 func (dc *DelegatedGuardianChainConfig) KeysAsHexStrings() []string {
 	r := make([]string, len(dc.Keys))
 
@@ -146,22 +171,30 @@ func (d *DelegatedGuardianConfig) Set(chains map[vaa.ChainID]*DelegatedGuardianC
 	return nil
 }
 
-// GetChainConfig returns the delegated guardian chain config for a specific chain, or nil if none.
-func (d *DelegatedGuardianConfig) GetChainConfig(chain vaa.ChainID) *DelegatedGuardianChainConfig {
+// ReadChainConfig returns the deep copy of the delegated guardian chain config for a specific chain.
+// Returns (DelegatedGuardianChainConfig{}, false) if it doesn't exist and (cfg.deepCopy(), true) otherwise.
+func (d *DelegatedGuardianConfig) ReadChainConfig(chain vaa.ChainID) (DelegatedGuardianChainConfig, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	return d.Chains[chain]
+	cfg := d.Chains[chain]
+	if cfg == nil {
+		return DelegatedGuardianChainConfig{}, false
+	}
+	return cfg.deepCopy(), true
 }
 
-// GetAll returns all delegated guardian chain configs.
-func (d *DelegatedGuardianConfig) GetAll() map[vaa.ChainID]*DelegatedGuardianChainConfig {
+// ReadAll returns the map of deep copies of all delegated guardian chain configs.
+func (d *DelegatedGuardianConfig) ReadAll() map[vaa.ChainID]DelegatedGuardianChainConfig {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	ret := make(map[vaa.ChainID]*DelegatedGuardianChainConfig, len(d.Chains))
+	ret := make(map[vaa.ChainID]DelegatedGuardianChainConfig, len(d.Chains))
 	for chain, cfg := range d.Chains {
-		ret[chain] = cfg
+		if cfg == nil {
+			continue
+		}
+		ret[chain] = cfg.deepCopy()
 	}
 
 	return ret
