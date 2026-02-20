@@ -133,7 +133,8 @@ func (dc *DelegatedGuardianChainConfig) KeyIndex(addr common.Address) (int, bool
 }
 
 type DelegatedGuardianConfig struct {
-	mu     sync.RWMutex
+	mu sync.RWMutex
+	// TODO: Make it private to limit mutability by callers
 	Chains map[vaa.ChainID]*DelegatedGuardianChainConfig
 }
 
