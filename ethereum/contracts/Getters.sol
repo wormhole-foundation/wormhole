@@ -53,7 +53,9 @@ contract Getters is State {
     ///      This flag prevents double-initialization if `initialize()` is called multiple times.
     /// @param impl The address of the implementation contract to check.
     /// @return True if the implementation has been initialized, false otherwise.
-    function isInitialized(address impl) public view returns (bool) {
+    function isInitialized(
+        address impl
+    ) public view returns (bool) {
         return _state.initializedImplementations[impl];
     }
 
@@ -120,7 +122,9 @@ contract Getters is State {
     ///      a VAA. Integrators on the destination chain use this for replay protection.
     /// @param emitter The address of the message emitter to query.
     /// @return The next sequence number that `publishMessage` will assign to this emitter.
-    function nextSequence(address emitter) public view returns (uint64) {
+    function nextSequence(
+        address emitter
+    ) public view returns (uint64) {
         return _state.sequences[emitter];
     }
 }

@@ -14,21 +14,12 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
  * @dev `Governance` defines a means to enacting changes to the core bridge contract,
  * guardianSets, message fees, and transfer fees
  */
-abstract contract Governance is
-    GovernanceStructs,
-    Messages,
-    Setters,
-    ERC1967Upgrade
-{
-    event ContractUpgraded(
-        address indexed oldContract,
-        address indexed newContract
-    );
+abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
+    event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event GuardianSetAdded(uint32 indexed index);
 
     // "Core" (left padded)
-    bytes32 constant module =
-        0x00000000000000000000000000000000000000000000000000000000436f7265;
+    bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
 
     /**
      * @notice Upgrades the Wormhole core bridge implementation contract via a governance VAA.
@@ -38,7 +29,9 @@ abstract contract Governance is
      *      Reverts if called on a forked chain — use `submitRecoverChainId` first on forks.
      * @param _vm The raw binary governance VAA authorizing the upgrade.
      */
-    function submitContractUpgrade(bytes memory _vm) public {
+    function submitContractUpgrade(
+        bytes memory _vm
+    ) public {
         require(!isFork(), "invalid fork");
 
         Structs.VM memory vm = parseVM(_vm);
@@ -47,9 +40,7 @@ abstract contract Governance is
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.ContractUpgrade memory upgrade = parseContractUpgrade(
-            vm.payload
-        );
+        GovernanceStructs.ContractUpgrade memory upgrade = parseContractUpgrade(vm.payload);
 
         // Verify the VAA is for this module
         require(upgrade.module == module, "Invalid Module");
@@ -72,16 +63,16 @@ abstract contract Governance is
      *      Reverts on forked chains (to prevent replay of fee-change VAAs from the original chain).
      * @param _vm The raw binary governance VAA authorizing the fee change.
      */
-    function submitSetMessageFee(bytes memory _vm) public {
+    function submitSetMessageFee(
+        bytes memory _vm
+    ) public {
         Structs.VM memory vm = parseVM(_vm);
 
         // Verify the VAA is valid before processing it
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.SetMessageFee memory upgrade = parseSetMessageFee(
-            vm.payload
-        );
+        GovernanceStructs.SetMessageFee memory upgrade = parseSetMessageFee(vm.payload);
 
         // Verify the VAA is for this module
         require(upgrade.module == module, "Invalid Module");
@@ -105,31 +96,26 @@ abstract contract Governance is
      *      Reverts on forked chains unless `upgrade.chain == 0` (chain-agnostic upgrade).
      * @param _vm The raw binary governance VAA encoding the new guardian set.
      */
-    function submitNewGuardianSet(bytes memory _vm) public {
+    function submitNewGuardianSet(
+        bytes memory _vm
+    ) public {
         Structs.VM memory vm = parseVM(_vm);
 
         // Verify the VAA is valid before processing it
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.GuardianSetUpgrade
-            memory upgrade = parseGuardianSetUpgrade(vm.payload);
+        GovernanceStructs.GuardianSetUpgrade memory upgrade = parseGuardianSetUpgrade(vm.payload);
 
         // Verify the VAA is for this module
         require(upgrade.module == module, "invalid Module");
 
         // Verify the VAA is for this chain
-        require(
-            (upgrade.chain == chainId() && !isFork()) || upgrade.chain == 0,
-            "invalid Chain"
-        );
+        require((upgrade.chain == chainId() && !isFork()) || upgrade.chain == 0, "invalid Chain");
 
         // Verify the Guardian Set keys are not empty, this guards
         // against the accidential upgrade to an empty GuardianSet
-        require(
-            upgrade.newGuardianSet.keys.length > 0,
-            "new guardian set is empty"
-        );
+        require(upgrade.newGuardianSet.keys.length > 0, "new guardian set is empty");
 
         // Verify that the index is incrementing via a predictable +1 pattern
         require(
@@ -158,7 +144,9 @@ abstract contract Governance is
      *      Reverts on forked chains unless `transfer.chain == 0` (chain-agnostic transfer).
      * @param _vm The raw binary governance VAA authorizing the fee transfer.
      */
-    function submitTransferFees(bytes memory _vm) public {
+    function submitTransferFees(
+        bytes memory _vm
+    ) public {
         Structs.VM memory vm = parseVM(_vm);
 
         // Verify the VAA is valid before processing it
@@ -166,26 +154,19 @@ abstract contract Governance is
         require(isValid, reason);
 
         // Obtains the transfer from the VAA payload
-        GovernanceStructs.TransferFees memory transfer = parseTransferFees(
-            vm.payload
-        );
+        GovernanceStructs.TransferFees memory transfer = parseTransferFees(vm.payload);
 
         // Verify the VAA is for this module
         require(transfer.module == module, "invalid Module");
 
         // Verify the VAA is for this chain
-        require(
-            (transfer.chain == chainId() && !isFork()) || transfer.chain == 0,
-            "invalid Chain"
-        );
+        require((transfer.chain == chainId() && !isFork()) || transfer.chain == 0, "invalid Chain");
 
         // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
 
         // Obtains the recipient address to be paid transfer fees
-        address payable recipient = payable(
-            address(uint160(uint256(transfer.recipient)))
-        );
+        address payable recipient = payable(address(uint160(uint256(transfer.recipient))));
 
         // Transfers transfer fees to the recipient
         recipient.transfer(transfer.amount);
@@ -199,7 +180,9 @@ abstract contract Governance is
      *      so governance and upgrades can resume normally without replaying the original chain's VAAs.
      * @param _vm The raw binary governance VAA encoding the new chain IDs.
      */
-    function submitRecoverChainId(bytes memory _vm) public {
+    function submitRecoverChainId(
+        bytes memory _vm
+    ) public {
         require(isFork(), "not a fork");
 
         Structs.VM memory vm = parseVM(_vm);
@@ -208,9 +191,7 @@ abstract contract Governance is
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.RecoverChainId memory rci = parseRecoverChainId(
-            vm.payload
-        );
+        GovernanceStructs.RecoverChainId memory rci = parseRecoverChainId(vm.payload);
 
         // Verify the VAA is for this module
         require(rci.module == module, "invalid Module");
@@ -234,15 +215,16 @@ abstract contract Governance is
      *      Emits `ContractUpgraded` with the old and new implementation addresses.
      * @param newImplementation The address of the new implementation contract.
      */
-    function upgradeImplementation(address newImplementation) internal {
+    function upgradeImplementation(
+        address newImplementation
+    ) internal {
         address currentImplementation = _getImplementation();
 
         _upgradeTo(newImplementation);
 
         // Call initialize function of the new implementation
-        (bool success, bytes memory reason) = newImplementation.delegatecall(
-            abi.encodeWithSignature("initialize()")
-        );
+        (bool success, bytes memory reason) =
+            newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
 
         require(success, string(reason));
 

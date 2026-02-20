@@ -24,11 +24,7 @@ contract Messages is Getters {
     /// @return reason A human-readable explanation of why validation failed (empty string if valid).
     function parseAndVerifyVM(
         bytes calldata encodedVM
-    )
-        public
-        view
-        returns (Structs.VM memory vm, bool valid, string memory reason)
-    {
+    ) public view returns (Structs.VM memory vm, bool valid, string memory reason) {
         vm = parseVM(encodedVM);
         /// setting checkHash to false as we can trust the hash field in this case given that parseVM computes and then sets the hash field above
         (valid, reason) = verifyVMInternal(vm, false);
@@ -63,9 +59,7 @@ contract Messages is Getters {
         bool checkHash
     ) internal view returns (bool valid, string memory reason) {
         /// @dev Obtain the current guardianSet for the guardianSetIndex provided
-        Structs.GuardianSet memory guardianSet = getGuardianSet(
-            vm.guardianSetIndex
-        );
+        Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
 
         /**
          * Verify that the hash field in the vm matches with the hash of the contents of the vm if checkHash is set
@@ -104,8 +98,8 @@ contract Messages is Getters {
 
         /// @dev Checks if VM guardian set index matches the current index (unless the current set is expired).
         if (
-            vm.guardianSetIndex != getCurrentGuardianSetIndex() &&
-            guardianSet.expirationTime < block.timestamp
+            vm.guardianSetIndex != getCurrentGuardianSetIndex()
+                && guardianSet.expirationTime < block.timestamp
         ) {
             return (false, "guardian set has expired");
         }
@@ -121,11 +115,8 @@ contract Messages is Getters {
         }
 
         /// @dev Verify the proposed vm.signatures against the guardianSet
-        (bool signaturesValid, string memory invalidReason) = verifySignatures(
-            vm.hash,
-            vm.signatures,
-            guardianSet
-        );
+        (bool signaturesValid, string memory invalidReason) =
+            verifySignatures(vm.hash, vm.signatures, guardianSet);
         if (!signaturesValid) {
             return (false, invalidReason);
         }
@@ -161,10 +152,7 @@ contract Messages is Getters {
             require(signatory != address(0), "ecrecover failed with signature");
 
             /// Ensure that provided signature indices are ascending only
-            require(
-                i == 0 || sig.guardianIndex > lastIndex,
-                "signature indices must be ascending"
-            );
+            require(i == 0 || sig.guardianIndex > lastIndex, "signature indices must be ascending");
             lastIndex = sig.guardianIndex;
 
             /// @dev Ensure that the provided signature index is within the
@@ -173,10 +161,7 @@ contract Messages is Getters {
             /// However, reverting explicitly here ensures that a bug is not
             /// introduced accidentally later due to the nontrivial storage
             /// semantics of solidity.
-            require(
-                sig.guardianIndex < guardianCount,
-                "guardian index out of bounds"
-            );
+            require(sig.guardianIndex < guardianCount, "guardian index out of bounds");
 
             /// Check to see if the signer of the signature does not match a specific Guardian key at the provided index
             if (signatory != guardianSet.keys[sig.guardianIndex]) {
@@ -234,8 +219,8 @@ contract Messages is Getters {
         /*
         Hash the body
 
-        SECURITY: Do not change the way the hash of a VM is computed! 
-        Changing it could result into two different hashes for the same observation. 
+        SECURITY: Do not change the way the hash of a VM is computed!
+        Changing it could result into two different hashes for the same observation.
         But xDapps rely on the hash of an observation for replay protection.
         */
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);

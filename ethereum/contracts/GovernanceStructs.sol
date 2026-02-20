@@ -116,9 +116,7 @@ contract GovernanceStructs {
         cu.chain = encodedUpgrade.toUint16(index);
         index += 2;
 
-        cu.newContract = address(
-            uint160(uint256(encodedUpgrade.toBytes32(index)))
-        );
+        cu.newContract = address(uint160(uint256(encodedUpgrade.toBytes32(index))));
         index += 32;
 
         require(encodedUpgrade.length == index, "invalid ContractUpgrade");
@@ -152,10 +150,8 @@ contract GovernanceStructs {
         uint8 guardianLength = encodedUpgrade.toUint8(index);
         index += 1;
 
-        gsu.newGuardianSet = Structs.GuardianSet({
-            keys: new address[](guardianLength),
-            expirationTime: 0
-        });
+        gsu.newGuardianSet =
+            Structs.GuardianSet({keys: new address[](guardianLength), expirationTime: 0});
 
         for (uint i = 0; i < guardianLength; i++) {
             gsu.newGuardianSet.keys[i] = encodedUpgrade.toAddress(index);
@@ -247,9 +243,6 @@ contract GovernanceStructs {
         rci.newChainId = encodedRecoverChainId.toUint16(index);
         index += 2;
 
-        require(
-            encodedRecoverChainId.length == index,
-            "invalid RecoverChainId"
-        );
+        require(encodedRecoverChainId.length == index, "invalid RecoverChainId");
     }
 }

@@ -15,11 +15,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 ///      publishing entrypoint and the one-time initialization logic.
 contract Implementation is Governance {
     event LogMessagePublished(
-        address indexed sender,
-        uint64 sequence,
-        uint32 nonce,
-        bytes payload,
-        uint8 consistencyLevel
+        address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel
     );
 
     /// @notice Publishes a message to the Wormhole network, emitting a `LogMessagePublished` event.
@@ -48,17 +44,13 @@ contract Implementation is Governance {
 
         sequence = useSequence(msg.sender);
         // emit log
-        emit LogMessagePublished(
-            msg.sender,
-            sequence,
-            nonce,
-            payload,
-            consistencyLevel
-        );
+        emit LogMessagePublished(msg.sender, sequence, nonce, payload, consistencyLevel);
     }
 
     /// @dev Reads and increments the sequence number for the given emitter atomically.
-    function useSequence(address emitter) internal returns (uint64 sequence) {
+    function useSequence(
+        address emitter
+    ) internal returns (uint64 sequence) {
         sequence = nextSequence(emitter);
         setNextSequence(emitter, sequence + 1);
     }

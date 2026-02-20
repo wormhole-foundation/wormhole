@@ -146,18 +146,11 @@ interface IWormhole {
     /// @notice Emitted when a message is published via `publishMessage`.
     /// @dev Guardian nodes observe this event and produce a VAA attesting to the message.
     event LogMessagePublished(
-        address indexed sender,
-        uint64 sequence,
-        uint32 nonce,
-        bytes payload,
-        uint8 consistencyLevel
+        address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel
     );
 
     /// @notice Emitted when the core bridge implementation contract is upgraded.
-    event ContractUpgraded(
-        address indexed oldContract,
-        address indexed newContract
-    );
+    event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
     /// @notice Emitted when a new guardian set is installed.
     event GuardianSetAdded(uint32 indexed index);
@@ -268,7 +261,9 @@ interface IWormhole {
     /// @notice Returns whether a given implementation address has been initialized.
     /// @param impl The implementation contract address to check.
     /// @return True if the implementation has been initialized via `initialize()`.
-    function isInitialized(address impl) external view returns (bool);
+    function isInitialized(
+        address impl
+    ) external view returns (bool);
 
     /// @notice Returns the Wormhole chain ID of this chain.
     /// @dev This is NOT the EVM chain ID (`block.chainid`). Wormhole maintains its own chain ID registry.
@@ -311,7 +306,9 @@ interface IWormhole {
     ///      Together with emitterChainId and emitterAddress, uniquely identifies a VAA.
     /// @param emitter The emitter address to query.
     /// @return The next sequence number for this emitter.
-    function nextSequence(address emitter) external view returns (uint64);
+    function nextSequence(
+        address emitter
+    ) external view returns (uint64);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Governance payload parsers
@@ -359,23 +356,33 @@ interface IWormhole {
     /// @notice Upgrades the core bridge implementation contract via a governance VAA.
     /// @dev Reverts on forked chains. Use `submitRecoverChainId` first on forks.
     /// @param _vm The raw binary governance VAA authorizing the upgrade.
-    function submitContractUpgrade(bytes memory _vm) external;
+    function submitContractUpgrade(
+        bytes memory _vm
+    ) external;
 
     /// @notice Updates the message publishing fee via a governance VAA.
     /// @param _vm The raw binary governance VAA authorizing the fee change.
-    function submitSetMessageFee(bytes memory _vm) external;
+    function submitSetMessageFee(
+        bytes memory _vm
+    ) external;
 
     /// @notice Rotates the active guardian set via a governance VAA.
     /// @dev The new set index must be `getCurrentGuardianSetIndex() + 1`. The old set expires in 24h.
     /// @param _vm The raw binary governance VAA encoding the new guardian set.
-    function submitNewGuardianSet(bytes memory _vm) external;
+    function submitNewGuardianSet(
+        bytes memory _vm
+    ) external;
 
     /// @notice Transfers accumulated message fees to a recipient via a governance VAA.
     /// @param _vm The raw binary governance VAA authorizing the fee transfer.
-    function submitTransferFees(bytes memory _vm) external;
+    function submitTransferFees(
+        bytes memory _vm
+    ) external;
 
     /// @notice Re-synchronizes chain IDs on a hard-forked chain via a governance VAA.
     /// @dev Only callable when `isFork()` returns true.
     /// @param _vm The raw binary governance VAA encoding the new chain IDs.
-    function submitRecoverChainId(bytes memory _vm) external;
+    function submitRecoverChainId(
+        bytes memory _vm
+    ) external;
 }
