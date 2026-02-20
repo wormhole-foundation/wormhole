@@ -104,7 +104,10 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 // whether a message is ready to be processed from its perspective. This state is used by the
 // processor to determine whether a message should be processed or not. This occurs elsewhere
 // in the processor code.
-// Returns error if accountant fails to process message
+//
+// WARNING: This returns error if the Accountant fails to process the message and propagates it
+// to the `processor` which in turn interprets this as a signal to RESTART THE PROCESSOR.
+// Therefore, errors returned by this function effectively act as panics.
 func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common.MessagePublication) error {
 	if k == nil {
 		p.logger.Warn("nil message publication")
@@ -188,7 +191,7 @@ func (p *Processor) processWithGovernor(k *node_common.MessagePublication) bool 
 
 // processWithAccountant processes a message using the Accountant to check if it is ready to be published
 // (i.e. if it has enough observations).
-// Returns error if accountant fails to process message
+// Returns error if the Accountant fails to process message
 func (p *Processor) processWithAccountant(ctx context.Context, k *node_common.MessagePublication) error {
 	if k == nil {
 		p.logger.Warn("nil message publication")
@@ -554,7 +557,8 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 //
 // SECURITY: This function assumes the p2p layer has already verified the SignedDelegateObservation signature and hence does not re-verify it.
 //
-// Returns error if accountant fails to process message
+// WARNING: This returns error if the Accountant fails to process the message and propagates it to the `processor` which in turn interprets
+// this as a signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
 func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *gossipv1.SignedDelegateObservation) error {
 	if m == nil {
 		p.logger.Warn("nil signed delegate observation")
@@ -706,7 +710,10 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
 // This function assumes cfg corresponds to m.EmitterChain
-// Returns error if accountant fails to process message
+//
+// WARNING: This returns error if the Accountant fails to process the message and propagates it
+// to the `processor` which in turn interprets this as a signal to RESTART THE PROCESSOR.
+// Therefore, errors returned by this function effectively act as panics.
 func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegatedGuardianChainConfig, m *gossipv1.DelegateObservation) error {
 	if cfg == nil {
 		p.logger.Warn("nil delegated guardian chain config")
@@ -769,7 +776,9 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 // checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it runs the converted
 // MessagePublication through the normal message pipeline.
 // This function assumes cfg corresponds to mp.EmitterChain
-// Returns error if accountant fails to process message
+//
+// WARNING: This returns error if the Accountant fails to process the message and propagates it to the `processor` which in turn interprets
+// this as a signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
 func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, cfg *DelegatedGuardianChainConfig) error {
 	if mp == nil {
 		p.logger.Warn("nil message publication")
