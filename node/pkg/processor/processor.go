@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"slices"
+	"sort"
 	"sync"
 	"time"
 
@@ -428,8 +429,18 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 			}
 
+			// Sort chains to get deterministic map iteration
+			chainIds := make([]vaa.ChainID, 0, len(chains))
+			for k := range chains {
+				chainIds = append(chainIds, k)
+			}
+			sort.Slice(chainIds, func(i, j int) bool {
+				return chainIds[i] < chainIds[j]
+			})
+
 			// Log details for new/updated chain configs
-			for chain, cfg := range chains {
+			for _, chain := range chainIds {
+				cfg := chains[chain]
 				if _, isNonDelegable := nonDelegableChains[chain]; isNonDelegable {
 					p.logger.Error("attempted to set config for non-delegable chain; ignoring",
 						zap.Stringer("chainID", chain),
