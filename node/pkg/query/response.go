@@ -266,10 +266,9 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 		return fmt.Errorf("failed to unmarshal query request: %w", err)
 	}
 
-	queryRequestBytes, err = queryRequest.Marshal()
-	if err != nil {
-		return err
-	}
+	// Use the original bytes, not re-marshaled ones.
+	// Canonical form is now validated during unmarshal, ensuring the signature
+	// matches the actual data format (including length fields).
 	signedQueryRequest.QueryRequest = queryRequestBytes
 	msg.Request = signedQueryRequest
 

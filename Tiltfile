@@ -74,6 +74,7 @@ config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chai
 config.define_bool("redis", False, "Enable a redis instance")
 config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
 config.define_bool("query_server", False, "Enable cross-chain query server")
+config.define_bool("kubo", False, "Enable kubo/IPFS node")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -100,6 +101,7 @@ btc = cfg.get("btc", False)
 redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
+kubo = cfg.get("kubo", query_server)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -124,12 +126,14 @@ docker_build(
     ref = "cli-gen",
     context = ".",
     dockerfile = "Dockerfile.cli",
+    only = ["./clients/js"],
 )
 
 docker_build(
     ref = "const-gen",
     context = ".",
     dockerfile = "Dockerfile.const",
+    only = ["./clients/js", "./scripts", "./ethereum/.env.test"],
     build_args={"num_guardians": '%s' % (num_guardians)},
 )
 
@@ -140,7 +144,7 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js", "./relayer"]
+    only = ["./node", "./sdk", "./wormchain"],
 )
 
 def command_with_dlv(argv):
@@ -190,6 +194,7 @@ def generate_bootstrap_peers(num_guardians, port_num):
 
 bootstrapPeers = generate_bootstrap_peers(num_guardians, 8999)
 ccqBootstrapPeers = generate_bootstrap_peers(num_guardians, 8996)
+stakingFactoryAddress = "0x8fed3F9126e7051DeA6c530920cb0BAE5ffa17a8"
 
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
@@ -347,7 +352,7 @@ def build_node_yaml():
                     "--gatewayWS",
                     "ws://wormchain:26657/websocket",
                     "--gatewayLCD",
-                    "http://wormchain:1317"
+                    "http://wormchain:1317",
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
@@ -516,6 +521,19 @@ docker_build(
     ],
 )
 
+# Staking pools deployment (for CCQ staking tests)
+if query_server:
+    docker_build(
+        ref = "staking-pools-deploy",
+        context = "..",
+        dockerfile = "./devnet/staking-contracts/Dockerfile",
+        only = ["./queries-staking", "./wormhole/devnet/staking-contracts", "./wormhole/devnet"],
+        build_args = {
+            "QUERIES_STAKING_URL": "https://github.com/wormhole-foundation/queries-staking.git",
+            "QUERIES_STAKING_TAG": "main"
+        },
+    )
+
 if redis or generic_relayer:
     docker_build(
         ref = "redis",
@@ -603,7 +621,7 @@ if ci_tests:
         ref = "sdk-test-image",
         context = ".",
         dockerfile = "testing/Dockerfile.sdk.test",
-        only = [],
+        only = ["./ethereum", "./relayer/ethereum", "./solana/idl", "./sdk/js", "./testing"],
         live_update = [
             sync("./sdk/js/src", "/app/sdk/js/src"),
             sync("./testing", "/app/testing"),
@@ -613,7 +631,7 @@ if ci_tests:
         ref = "spydk-test-image",
         context = ".",
         dockerfile = "testing/Dockerfile.spydk.test",
-        only = [],
+        only = ["./spydk/js", "./testing"],
         live_update = [
             sync("./spydk/js/src", "/app/spydk/js/src"),
             sync("./testing", "/app/testing"),
@@ -623,7 +641,7 @@ if ci_tests:
         ref = "query-sdk-test-image",
         context = ".",
         dockerfile = "testing/Dockerfile.querysdk.test",
-        only = [],
+        only = ["./sdk/js-query", "./testing"],
         live_update = [
             sync("./sdk/js/src", "/app/sdk/js-query/src"),
             sync("./testing", "/app/testing"),
@@ -648,9 +666,11 @@ if ci_tests:
         encode_yaml_stream(
             set_env_in_jobs(
                 set_env_in_jobs(
-                    set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
-                    "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
-                    "MAX_WORKERS", max_workers))
+                    set_env_in_jobs(
+                        set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
+                        "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
+                    "MAX_WORKERS", max_workers),
+                "STAKING_FACTORY_ADDRESS", stakingFactoryAddress))
     )
 
     # separate resources to parallelize docker builds
@@ -666,23 +686,27 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/spydk.sh handles waiting for spy, not having deps gets the build earlier
     )
+    # Accountant tests need to wait for staking-pools-deploy when query_server is enabled
+    # to avoid race condition on eth-devnet
+    accountant_deps = ["staking-pools-deploy"] if query_server else []
+
     k8s_resource(
         "accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = accountant_deps,
     )
     k8s_resource(
         "ntt-accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = accountant_deps,
     )
     k8s_resource(
         "query-sdk-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
+        resource_deps = ["query-server"],
     )
 
     # launches Transfer Verifier binary and sets up monitoring script
@@ -713,6 +737,7 @@ if terra2 or wormchain:
         context = ".",
         dockerfile = "./cosmwasm/Dockerfile",
         target = "artifacts",
+        only = ["./cosmwasm", "./sdk/rust"],
         platform = "linux/amd64",
     )
 
@@ -831,7 +856,7 @@ if wormchain:
         dockerfile = "./wormchain/Dockerfile",
         platform = "linux/amd64",
         build_args = {"num_guardians": str(num_guardians)},
-        only = [],
+        only = ["./wormchain", "./sdk"],
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
     )
 
@@ -910,7 +935,7 @@ if ibc_relayer:
         ref = "ibc-relayer-image",
         context = ".",
         dockerfile = "./wormchain/ibc-relayer/Dockerfile",
-        only = []
+        only = ["./wormchain/ibc-relayer"],
     )
 
     k8s_yaml_with_ns("devnet/ibc-relayer.yaml")
@@ -965,13 +990,46 @@ if aptos:
         trigger_mode = trigger_mode,
     )
 
+if kubo:
+    docker_build(
+        ref = "kubo-node",
+        context = ".",
+        dockerfile_contents = """
+FROM ipfs/kubo:latest
+        """,
+    )
+
+    k8s_yaml_with_ns("devnet/ccq-rate-limits-config.yaml")
+    k8s_yaml_with_ns("devnet/kubo.yaml")
+
+    k8s_resource(
+        "kubo",
+        port_forwards = [
+          '4737:8080'
+        ],
+        labels = ["kubo"],
+        trigger_mode = trigger_mode,
+    )
+
+if query_server:
+    k8s_yaml_with_ns("devnet/staking-pools-deploy.yaml")
+
+    k8s_resource(
+        "staking-pools-deploy",
+        resource_deps = ["eth-devnet", "kubo"],
+        labels = ["query-server"],
+        trigger_mode = trigger_mode,
+    )
+
 def build_query_server_yaml():
     qs_yaml = read_yaml_stream("devnet/query-server.yaml")
 
     for obj in qs_yaml:
         if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "query-server":
             container = obj["spec"]["template"]["spec"]["containers"][0]
-            container["command"] += ["--bootstrap="+ccqBootstrapPeers]
+            container["command"] += [
+                "--bootstrap="+ccqBootstrapPeers,
+            ]
 
     return encode_yaml_stream(qs_yaml)
 
@@ -980,7 +1038,7 @@ if query_server:
 
     k8s_resource(
         "query-server",
-        resource_deps = ["guardian"],
+        resource_deps = ["guardian", "staking-pools-deploy"],
         port_forwards = [
             port_forward(6069, name = "REST [:6069]", host = webHost),
             port_forward(6068, name = "Status [:6068]", host = webHost)

@@ -2,7 +2,7 @@ import { keccak256 } from "@ethersproject/keccak256";
 import { Buffer } from "buffer";
 import { BinaryWriter } from "./BinaryWriter";
 import { Network } from "./consts";
-import { coalesceUint8Array, hexToUint8Array } from "./utils";
+import { coalesceUint8Array, hexToUint8Array, uint8ArrayToHex } from "./utils";
 import { BinaryReader } from "./BinaryReader";
 import { EthCallQueryRequest } from "./ethCall";
 import { EthCallByTimestampQueryRequest } from "./ethCallByTimestamp";
@@ -23,24 +23,43 @@ export function getPrefix(network: Network) {
   return network === "MAINNET"
     ? MAINNET_QUERY_REQUEST_PREFIX
     : network === "TESTNET"
-    ? TESTNET_QUERY_REQUEST_PREFIX
-    : DEVNET_QUERY_REQUEST_PREFIX;
+      ? TESTNET_QUERY_REQUEST_PREFIX
+      : DEVNET_QUERY_REQUEST_PREFIX;
 }
 
-const REQUEST_VERSION = 1;
+const MSG_VERSION = 2;
 
 export class QueryRequest {
   constructor(
     public nonce: number,
+    public timestamp: number, // Unix timestamp in seconds
     public requests: PerChainQueryRequest[] = [],
-    public version: number = REQUEST_VERSION
-  ) {}
+    public stakerAddress?: string // Optional 20-byte Ethereum address for delegation
+  ) { }
 
   serialize(): Uint8Array {
     const writer = new BinaryWriter()
-      .writeUint8(this.version)
+      .writeUint8(MSG_VERSION)
       .writeUint32(this.nonce)
-      .writeUint8(this.requests.length);
+      .writeUint64(BigInt(this.timestamp));
+
+    // Write optional staker address with length prefix
+    if (this.stakerAddress) {
+      const stakerBytes = hexToUint8Array(
+        this.stakerAddress.replace(/^0x/, "")
+      );
+      if (stakerBytes.length !== 20) {
+        throw new Error(
+          `Invalid staker address length: expected 20 bytes, got ${stakerBytes.length}`
+        );
+      }
+      writer.writeUint8(20);
+      writer.writeUint8Array(stakerBytes);
+    } else {
+      writer.writeUint8(0);
+    }
+
+    writer.writeUint8(this.requests.length);
     this.requests.forEach((request) =>
       writer.writeUint8Array(request.serialize())
     );
@@ -49,7 +68,7 @@ export class QueryRequest {
 
   static digest(network: Network, bytes: Uint8Array): Uint8Array {
     const prefix = getPrefix(network);
-    const data = Buffer.concat([Buffer.from(prefix), bytes]);
+    const data = Buffer.concat([Buffer.from(prefix), Buffer.from(bytes)]);
     return hexToUint8Array(keccak256(data).slice(2));
   }
 
@@ -60,11 +79,28 @@ export class QueryRequest {
 
   static fromReader(reader: BinaryReader): QueryRequest {
     const version = reader.readUint8();
-    if (version != REQUEST_VERSION) {
-      throw new Error(`Unsupported message version: ${version}`);
+    if (version !== MSG_VERSION) {
+      throw new Error(
+        `Unsupported message version: ${version} (only v2 supported)`
+      );
     }
     const nonce = reader.readUint32();
-    const queryRequest = new QueryRequest(nonce);
+    const timestamp = Number(reader.readUint64());
+
+    // Read optional staker address with length prefix
+    let stakerAddress: string | undefined = undefined;
+    const stakerLen = reader.readUint8();
+    if (stakerLen > 0) {
+      if (stakerLen !== 20) {
+        throw new Error(
+          `Invalid staker address length: expected 20, got ${stakerLen}`
+        );
+      }
+      const stakerBytes = reader.readUint8Array(stakerLen);
+      stakerAddress = uint8ArrayToHex(stakerBytes);
+    }
+
+    const queryRequest = new QueryRequest(nonce, timestamp, [], stakerAddress);
     const numPerChainQueries = reader.readUint8();
     for (let idx = 0; idx < numPerChainQueries; idx++) {
       queryRequest.requests.push(PerChainQueryRequest.fromReader(reader));
@@ -74,7 +110,7 @@ export class QueryRequest {
 }
 
 export class PerChainQueryRequest {
-  constructor(public chainId: number, public query: ChainSpecificQuery) {}
+  constructor(public chainId: number, public query: ChainSpecificQuery) { }
 
   serialize(): Uint8Array {
     const writer = new BinaryWriter()
