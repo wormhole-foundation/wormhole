@@ -1202,7 +1202,6 @@ type DelegateObservation struct {
 	// The serialized payload.
 	Payload []byte `protobuf:"bytes,7,opt,name=payload,proto3" json:"payload,omitempty"`
 	// Transaction hash on the emitter chain in which the transfer was performed.
-	// Optional, included for observability.
 	TxHash []byte `protobuf:"bytes,8,opt,name=tx_hash,json=txHash,proto3" json:"tx_hash,omitempty"`
 	// Indicates if this message can be reobserved.
 	Unreliable bool `protobuf:"varint,9,opt,name=unreliable,proto3" json:"unreliable,omitempty"`

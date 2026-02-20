@@ -251,7 +251,6 @@ message DelegateObservation {
   bytes payload = 7;
 
   // Transaction hash on the emitter chain in which the transfer was performed.
-  // Optional, included for observability.
   bytes tx_hash = 8;
 
   // Indicates if this message can be reobserved.
