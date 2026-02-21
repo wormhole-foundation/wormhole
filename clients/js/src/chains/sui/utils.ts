@@ -15,7 +15,7 @@ import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
 import { NETWORKS } from "../../consts";
 import { Payload, VAA, parse, serialiseVAA } from "../../vaa";
 import { SuiRpcValidationError } from "./error";
-import { Network } from "@wormhole-foundation/sdk";
+import { Network } from "@wormhole-foundation/sdk-base";
 import { isValidSuiAddress } from "../../sdk/sui";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
