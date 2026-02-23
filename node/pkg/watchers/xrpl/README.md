@@ -64,37 +64,49 @@ On any transaction, the watcher MUST verify that the transaction result is [`tes
 
 For the purposes of NTT, any XRPL Account can potentially be an NTT Manager. However,
 
-<aside>
-🚧
+> 🚧 This watcher also requires tracking of registered **Manager Accounts** - i.e. XRPL accounts which have been transferred to the multisig of the [Delegated Manager Set](https://github.com/wormholelabs-xyz/wormhole/blob/doge/whitepapers/0016_manager_service.md) for XRPL - and their **registered token**. The details of this may change if the [Batch](https://xrpl.org/resources/known-amendments#batch) amendment is accepted. For now, consider that this will be a hardcoded list during the “alpha” phase of this feature rollout.
 
-This watcher also requires tracking of registered **Manager Accounts** - i.e. XRPL accounts which have been transferred to the multisig of the [Delegated Manager Set](https://github.com/wormholelabs-xyz/wormhole/blob/doge/whitepapers/0016_manager_service.md) for XRPL - and their **registered token**. The details of this may change if the [Batch](https://xrpl.org/resources/known-amendments#batch) amendment is accepted. For now, consider that this will be a hardcoded list during the “alpha” phase of this feature rollout.
+> 💡 Remember that all fields must be generated deterministically based on the transaction information!
 
-</aside>
+### Generic Messages
 
-<aside>
-💡
+In order to enable generic messaging from XRPL, the watcher must observe transactions to a dedicated "core" account and emit corresponding message observations.
 
-Remember that all fields must be generated deterministically based on the transaction information!
+Upon a Payment to the Core Account, the guardian watcher MUST
 
-</aside>
+- Verify that the transaction is `validated`
+- Verify that the transaction result is `tesSUCCESS`
+- Verify that the transaction type is `Payment`
+- Verify that the MemoFormat is `application/x-wormhole-publish`, hex-encoded
+
+Then the watcher must generate the VAA body.
+
+```go
+// VAA Body
+uint32   timestamp         // ledger close time
+uint32   nonce             // * memo data
+uint16   emitter_chain     // watcher's chain ID
+[32]byte emitter_address   // account (payment sender)
+uint64   sequence          // (ledgerIndex << 32) | txIndex
+uint8    consistency_level // 0
+[]byte   payload           // * memo data
+```
+
+Every field can be determined from the existing XRPL Payment transaction fields with the exception of the nonce and payload, which are typically integrator specified. For this, the following [MemoData](https://xrpl.org/docs/references/protocol/transactions/common-fields#memos-field) must be provided (encoded as a hexadecimal string).
+
+```go
+uint8  version = 1
+uint32 nonce
+[]byte payload
+```
 
 ### Initialize Transceiver
 
-<aside>
-🚧
-
-TODO
-
-</aside>
+> 🚧 TODO
 
 ### Transceiver (Peer) Registration
 
-<aside>
-🚧
-
-TODO
-
-</aside>
+> 🚧 TODO
 
 ### NativeTokenTransfer TransceiverMessage
 
@@ -105,6 +117,7 @@ Upon a Payment to a registered Manager Account, the guardian watcher MUST
 - Verify that the transaction is `validated`
 - Verify that the transaction result is `tesSUCCESS`
 - Verify that the transaction type is `Payment`
+- Verify that the MemoFormat is `application/x-ntt-transfer`, hex-encoded
 - Verify that the `from_decimals` matches…
   - `6` for XRP
   - [no check for Trust Line tokens, this may be arbitrarily specified by the sender]
