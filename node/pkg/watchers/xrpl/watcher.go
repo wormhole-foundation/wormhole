@@ -54,6 +54,7 @@ var (
 type Watcher struct {
 	rpc           string
 	contract      string
+	nttAccounts   []string
 	unsafeDevMode bool
 
 	msgChan       chan<- *common.MessagePublication
@@ -74,6 +75,7 @@ type Watcher struct {
 func NewWatcher(
 	rpc string,
 	contract string,
+	nttAccounts []string,
 	unsafeDevMode bool,
 	msgChan chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -81,6 +83,7 @@ func NewWatcher(
 	return &Watcher{
 		rpc:           rpc,
 		contract:      contract,
+		nttAccounts:   nttAccounts,
 		unsafeDevMode: unsafeDevMode,
 		msgChan:       msgChan,
 		obsvReqC:      obsvReqC,
@@ -99,6 +102,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		zap.String("watcher_name", "xrpl"),
 		zap.String("rpc", w.rpc),
 		zap.String("contract", w.contract),
+		zap.Strings("nttAccounts", w.nttAccounts),
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
 
@@ -120,7 +124,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
 
 	// Initialize the parser with the watcher's fetchMPTAssetScale method
-	w.parser = NewParser(w.fetchMPTAssetScale)
+	w.parser = NewParser(w.contract, w.fetchMPTAssetScale)
 
 	// Create the transaction channel once - handlers will write to this channel
 	w.txChan = make(chan *streamtypes.TransactionStream, 100)
@@ -245,17 +249,24 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Subscribe to the contract account
+	// Subscribe to the core account and any NTT accounts
+	accounts := []types.Address{types.Address(w.contract)}
+	for _, nttAccount := range w.nttAccounts {
+		accounts = append(accounts, types.Address(nttAccount))
+	}
 	subscribeReq := &subscribe.Request{
-		Accounts: []types.Address{types.Address(w.contract)},
+		Accounts: accounts,
 	}
 
 	_, err := w.client.Request(subscribeReq)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to account %s: %w", w.contract, err)
+		return fmt.Errorf("failed to subscribe to accounts %v: %w", accounts, err)
 	}
 
-	logger.Info("Subscribed to account", zap.String("account", w.contract))
+	logger.Info("Subscribed to accounts",
+		zap.String("contract", w.contract),
+		zap.Strings("nttAccounts", w.nttAccounts),
+	)
 
 	// Set up transaction handler for this subscription attempt.
 	// The handler writes to the shared txChan but respects subCtx cancellation.

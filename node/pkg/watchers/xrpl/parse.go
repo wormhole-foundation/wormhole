@@ -73,6 +73,7 @@ type MPTAssetScaleFetcher func(mptIssuanceID string) (uint8, error)
 // Parser handles parsing of XRPL NTT transactions.
 // It is stateless except for the MPT asset scale fetcher, which can be injected for testing.
 type Parser struct {
+	coreAccount        string // Core Wormhole manager account — payments to this account are not NTT
 	fetchMPTAssetScale MPTAssetScaleFetcher
 }
 
@@ -88,9 +89,11 @@ type GenericTx struct {
 	MetaTransactionResult string
 }
 
-// NewParser creates a new Parser with the given MPT asset scale fetcher.
-func NewParser(fetchMPTAssetScale MPTAssetScaleFetcher) *Parser {
+// NewParser creates a new Parser with the given core account and MPT asset scale fetcher.
+// Payments to coreAccount are skipped by parseNttTransaction (they are not NTT transfers).
+func NewParser(coreAccount string, fetchMPTAssetScale MPTAssetScaleFetcher) *Parser {
 	return &Parser{
+		coreAccount:        coreAccount,
 		fetchMPTAssetScale: fetchMPTAssetScale,
 	}
 }
@@ -110,7 +113,7 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 		return nil, fmt.Errorf("failed to parse close time: %w", err)
 	}
 
-	return p.parseTransaction(GenericTx{
+	return p.parseNttTransaction(GenericTx{
 		Transaction:           tx.Transaction,
 		Hash:                  string(tx.Hash),
 		LedgerIndex:           tx.LedgerIndex,
@@ -132,7 +135,7 @@ func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePu
 	}
 	timestamp := time.Unix(int64(tx.Date)+rippleEpochOffset, 0)
 
-	return p.parseTransaction(GenericTx{
+	return p.parseNttTransaction(GenericTx{
 		Transaction:           tx.TxJSON,
 		Hash:                  tx.Hash.String(),
 		LedgerIndex:           tx.LedgerIndex,
@@ -143,12 +146,12 @@ func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePu
 	})
 }
 
-// parseTransaction contains the shared logic for parsing both TransactionStream and TxResponse.
-// Returns (nil, nil) if no NTT memo is found (not an NTT transaction).
+// parseNttTransaction contains the shared logic for parsing both TransactionStream and TxResponse.
+// Returns (nil, nil) if no NTT memo is found or if the payment is sent to the core account.
 //
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check the Validated field before calling this function.
-func (p *Parser) parseTransaction(
+func (p *Parser) parseNttTransaction(
 	tx GenericTx,
 ) (*common.MessagePublication, error) {
 	// Parse memo data first - if no NTT memo, this isn't an NTT transaction
@@ -180,6 +183,11 @@ func (p *Parser) parseTransaction(
 	destination, err := p.extractDestination(tx.Transaction)
 	if err != nil {
 		return nil, err
+	}
+
+	// Skip payments to the core account — those are not NTT transfers
+	if p.coreAccount != "" && destination == p.coreAccount {
+		return nil, nil
 	}
 
 	// Parse delivered amount to get token info
