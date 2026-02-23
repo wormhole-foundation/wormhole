@@ -26,6 +26,9 @@ import (
 // Per XRPL docs, MemoFormat conventionally contains the MIME type of the MemoData content.
 const nttMemoFormat = "6170706C69636174696F6E2F782D6E74742D7472616E73666572"
 
+// coreMemoFormat is the hex-encoded MemoFormat for generic Wormhole messages: "application/x-wormhole-publish"
+const coreMemoFormat = "6170706C69636174696F6E2F782D776F726D686F6C652D7075626C697368"
+
 // Prefixes for NTT payloads
 var transceiverPrefix = [4]byte{0x99, 0x45, 0xFF, 0x10}
 var nttPrefix = [4]byte{0x99, 0x4E, 0x54, 0x54}
@@ -56,6 +59,12 @@ type memoData struct {
 	recipientChain      uint16
 	fromDecimals        uint8
 	toDecimals          uint8
+}
+
+// coreMessageData contains the parsed memo data for generic Wormhole messages
+type coreMessageData struct {
+	nonce   uint32
+	payload []byte
 }
 
 // tokenInfo contains information about the token being transferred
@@ -113,7 +122,7 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 		return nil, fmt.Errorf("failed to parse close time: %w", err)
 	}
 
-	return p.parseNttTransaction(GenericTx{
+	return p.parseTransaction(GenericTx{
 		Transaction:           tx.Transaction,
 		Hash:                  string(tx.Hash),
 		LedgerIndex:           tx.LedgerIndex,
@@ -135,7 +144,7 @@ func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePu
 	}
 	timestamp := time.Unix(int64(tx.Date)+rippleEpochOffset, 0)
 
-	return p.parseNttTransaction(GenericTx{
+	return p.parseTransaction(GenericTx{
 		Transaction:           tx.TxJSON,
 		Hash:                  tx.Hash.String(),
 		LedgerIndex:           tx.LedgerIndex,
@@ -254,6 +263,157 @@ func (p *Parser) parseNttTransaction(
 		ConsistencyLevel: 0, // XRPL validated ledgers are final
 		IsReobservation:  false,
 	}, nil
+}
+
+// parseTransaction dispatches to parseCoreTransaction and parseNttTransaction.
+// Returns (nil, nil) if neither matched.
+func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, error) {
+	msg, err := p.parseCoreTransaction(tx)
+	if msg != nil || err != nil {
+		return msg, err
+	}
+
+	return p.parseNttTransaction(tx)
+}
+
+// parseCoreTransaction parses a generic Wormhole message (payment to the core account).
+// Returns (nil, nil) if the payment is not to the core account or has no core memo.
+func (p *Parser) parseCoreTransaction(tx GenericTx) (*common.MessagePublication, error) {
+	if p.coreAccount == "" {
+		return nil, nil
+	}
+
+	// Check destination is the core account
+	destination, err := p.extractDestination(tx.Transaction)
+	if err != nil {
+		return nil, err
+	}
+	if destination != p.coreAccount {
+		return nil, nil
+	}
+
+	// Parse core memo data — if no matching memo, not a core message
+	coreMemo, err := p.parseCoreMessageMemoData(tx.Transaction)
+	if err != nil {
+		return nil, err
+	}
+	if coreMemo == nil {
+		return nil, nil
+	}
+
+	// Validate transaction result is tesSUCCESS
+	if err := p.validateTransactionResult(tx); err != nil {
+		return nil, err
+	}
+
+	// Validate transaction type is Payment
+	if err := p.validateTransactionType(tx.Transaction); err != nil {
+		return nil, err
+	}
+
+	// Extract sender address as emitter
+	sender, err := p.extractSender(tx.Transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract transaction hash
+	txHash, err := hex.DecodeString(tx.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
+	}
+
+	if tx.MetaTransactionIndex > math.MaxUint32 {
+		return nil, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
+	}
+
+	// Calculate sequence: (ledgerIndex << 32) | txIndex
+	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
+
+	return &common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        tx.Timestamp,
+		Nonce:            coreMemo.nonce,
+		Sequence:         sequence,
+		EmitterChain:     vaa.ChainIDXRPL,
+		EmitterAddress:   sender,
+		Payload:          coreMemo.payload,
+		ConsistencyLevel: 0,
+		IsReobservation:  false,
+	}, nil
+}
+
+// parseCoreMessageMemoData extracts and parses the generic Wormhole message memo data.
+// Returns (nil, nil) if no matching memo is found (not an error, just not a core message).
+//
+// MemoData format (hex-decoded):
+//   - uint8   version (must be 1)
+//   - uint32  nonce (big-endian)
+//   - []byte  payload (remaining bytes)
+func (p *Parser) parseCoreMessageMemoData(tx transaction.FlatTransaction) (*coreMessageData, error) {
+	memosRaw, ok := tx["Memos"]
+	if !ok {
+		return nil, nil
+	}
+
+	memos, ok := memosRaw.([]any)
+	if !ok {
+		return nil, nil
+	}
+
+	for _, memoWrapperRaw := range memos {
+		memoWrapper, ok := memoWrapperRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		memoRaw, ok := memoWrapper["Memo"]
+		if !ok {
+			continue
+		}
+
+		memo, ok := memoRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Check MemoFormat matches core message MIME type
+		memoFormatStr, ok := memo["MemoFormat"].(string)
+		if !ok || memoFormatStr != coreMemoFormat {
+			continue
+		}
+
+		// Extract and decode MemoData (hex-encoded payload)
+		memoDataStr, ok := memo["MemoData"].(string)
+		if !ok {
+			continue
+		}
+
+		data, err := hex.DecodeString(memoDataStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode core MemoData: %w", err)
+		}
+
+		// Minimum length: 1 (version) + 4 (nonce) = 5 bytes
+		if len(data) < 5 {
+			return nil, fmt.Errorf("core memo data too short: got %d bytes, need at least 5", len(data))
+		}
+
+		// Validate version
+		if data[0] != 1 {
+			return nil, fmt.Errorf("unsupported core memo version: %d", data[0])
+		}
+
+		nonce := binary.BigEndian.Uint32(data[1:5])
+		payload := data[5:]
+
+		return &coreMessageData{
+			nonce:   nonce,
+			payload: payload,
+		}, nil
+	}
+
+	return nil, nil
 }
 
 // =============================================================================
