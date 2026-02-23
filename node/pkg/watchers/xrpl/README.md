@@ -121,7 +121,7 @@ Then the watcher must generate the VAA body and NativeTokenTransfer Transceiver 
 uint32   timestamp                     // ledger close time
 uint32   nonce                         // 0
 uint16   emitter_chain                 // watcher's chain ID
-[32]byte emitter_address               // keccak256(source_ntt_manager_address + source_token)
+[32]byte emitter_address               // keccak256("ntt" + source_ntt_manager_address + source_token)
 uint64   sequence                      // (ledgerIndex << 32) | txIndex
 uint8    consistency_level             // 0
 // Payload
@@ -215,7 +215,7 @@ The reliance on the XRPL watcher having to look up registrations on Solana was e
 
 ## Using the Manager Address as Emitter
 
-The calculation `keccak256(source_ntt_manager_address + source_token)` is used as the emitter address to prevent any possible confusion between different tokens being sent to the same manager. While, as of this writing, accounts [must opt in](https://xrpl.org/docs/concepts/tokens/fungible-tokens/multi-purpose-tokens#core-properties-of-mpts-on-xrpl) to receiving tokens, this is not true of XRP and we don’t know what future changes may be made to the protocol. If the `source_ntt_manager_address` were used directly, the only differentiation the guardian watcher would make (without performing any initialization message lookups) would be the `source_token` field which is [**unchecked**](https://github.com/wormhole-foundation/native-token-transfers/blob/fbe42df37ba19d3c05db8bb77b56c47fc0467c0e/evm/src/NttManager/NttManager.sol#L237) by other implementations. The approach in this design maintains safe compatibility with existing NTT deployments.
+The calculation `keccak256("ntt" + source_ntt_manager_address + source_token)` is used as the emitter address to prevent any possible confusion between different tokens being sent to the same manager. While, as of this writing, accounts [must opt in](https://xrpl.org/docs/concepts/tokens/fungible-tokens/multi-purpose-tokens#core-properties-of-mpts-on-xrpl) to receiving tokens, this is not true of XRP and we don’t know what future changes may be made to the protocol. If the `source_ntt_manager_address` were used directly, the only differentiation the guardian watcher would make (without performing any initialization message lookups) would be the `source_token` field which is [**unchecked**](https://github.com/wormhole-foundation/native-token-transfers/blob/fbe42df37ba19d3c05db8bb77b56c47fc0467c0e/evm/src/NttManager/NttManager.sol#L237) by other implementations. The approach in this design maintains safe compatibility with existing NTT deployments. The `ntt` prefix is added to prevent any confusion with future Wormhole protocols that might concatenate the source address and 32-bytes - which may be more likely to conflict since all zeroes are used to represent XRP.
 
 # **Security Considerations**
 

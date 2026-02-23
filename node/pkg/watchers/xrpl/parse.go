@@ -218,7 +218,7 @@ func (p *Parser) parseTransaction(
 		return nil, fmt.Errorf("failed to convert source NTT manager address: %w", err)
 	}
 
-	// Calculate emitter address: keccak256(source_ntt_manager + source_token)
+	// Calculate emitter address: keccak256("ntt" + source_ntt_manager + source_token)
 	emitterAddress := p.calculateEmitterAddress(sourceNTTManager, tokenInfo.sourceToken)
 
 	// Build the NTT payload
@@ -727,11 +727,12 @@ func (p *Parser) scaleAmount(amount uint64, fromDecimals, toDecimals uint8) (uin
 // =============================================================================
 
 // calculateEmitterAddress calculates the emitter address from source NTT manager and source token.
-// emitter = keccak256(source_ntt_manager_address + source_token)
+// emitter = keccak256("ntt" + source_ntt_manager_address + source_token)
 func (p *Parser) calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte) vaa.Address {
-	data := make([]byte, 64)
-	copy(data[:32], sourceNTTManager[:])
-	copy(data[32:], sourceToken[:])
+	data := make([]byte, 3+64)
+	copy(data[:3], "ntt")
+	copy(data[3:35], sourceNTTManager[:])
+	copy(data[35:], sourceToken[:])
 
 	hash := ethcrypto.Keccak256(data)
 
