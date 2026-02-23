@@ -2270,3 +2270,243 @@ func TestParseTransaction_TransactionIndexOverflow(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid transaction index")
 }
+
+// =============================================================================
+// Core message (generic Wormhole message) tests
+// =============================================================================
+
+// testCoreMemoFormat is hex-encoded: "application/x-wormhole-publish"
+const testCoreMemoFormat = "6170706C69636174696F6E2F782D776F726D686F6C652D7075626C697368"
+
+// testCoreAccount is a sample XRPL core account address
+const testCoreAccount = "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe"
+
+// createCoreMemoData creates a hex-encoded core memo: version(1) + nonce(4) + payload
+func createCoreMemoData(version uint8, nonce uint32, payload []byte) string {
+	data := make([]byte, 1+4+len(payload))
+	data[0] = version
+	binary.BigEndian.PutUint32(data[1:5], nonce)
+	copy(data[5:], payload)
+	return hex.EncodeToString(data)
+}
+
+func createFlatTransactionWithCoreMemo(memoData, destination string) transaction.FlatTransaction {
+	return transaction.FlatTransaction{
+		"TransactionType": "Payment",
+		"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+		"Destination":     destination,
+		"Memos": []any{
+			map[string]any{
+				"Memo": map[string]any{
+					"MemoFormat": testCoreMemoFormat,
+					"MemoData":   memoData,
+				},
+			},
+		},
+	}
+}
+
+func TestParseCoreMessageMemoData_Valid(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	payload := []byte("hello wormhole")
+	memoData := createCoreMemoData(1, 42, payload)
+	tx := createFlatTransactionWithMemos(testCoreMemoFormat, memoData)
+
+	result, err := p.parseCoreMessageMemoData(tx)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, uint32(42), result.nonce)
+	assert.Equal(t, payload, result.payload)
+}
+
+func TestParseCoreMessageMemoData_NoMemo(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	tx := transaction.FlatTransaction{
+		"Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+	}
+
+	result, err := p.parseCoreMessageMemoData(tx)
+
+	require.NoError(t, err)
+	assert.Nil(t, result, "Should return nil when no matching memo")
+}
+
+func TestParseCoreMessageMemoData_WrongVersion(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	payload := []byte("test")
+	memoData := createCoreMemoData(2, 0, payload) // version 2, not supported
+	tx := createFlatTransactionWithMemos(testCoreMemoFormat, memoData)
+
+	result, err := p.parseCoreMessageMemoData(tx)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "unsupported core memo version")
+}
+
+func TestParseCoreMessageMemoData_TooShort(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	// Only 3 bytes — less than the required 5
+	memoData := hex.EncodeToString([]byte{0x01, 0x00, 0x00})
+	tx := createFlatTransactionWithMemos(testCoreMemoFormat, memoData)
+
+	result, err := p.parseCoreMessageMemoData(tx)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "core memo data too short")
+}
+
+func TestParseCoreTransaction_Valid(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	payload := []byte("cross-chain message")
+	memoData := createCoreMemoData(1, 99, payload)
+
+	gtx := GenericTx{
+		Transaction:           createFlatTransactionWithCoreMemo(memoData, testCoreAccount),
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  7,
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify nonce
+	assert.Equal(t, uint32(99), msg.Nonce)
+
+	// Verify payload
+	assert.Equal(t, payload, msg.Payload)
+
+	// Verify emitter chain
+	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
+
+	// Verify emitter is sender (rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh), not core account
+	senderEmitter, err := p.addressToEmitter("rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh")
+	require.NoError(t, err)
+	assert.Equal(t, senderEmitter, msg.EmitterAddress)
+
+	// Verify sequence: (12345 << 32) | 7
+	expectedSequence := (uint64(12345) << 32) | 7
+	assert.Equal(t, expectedSequence, msg.Sequence)
+
+	// Verify consistency level
+	assert.Equal(t, uint8(0), msg.ConsistencyLevel)
+}
+
+func TestParseCoreTransaction_NotCoreAccount(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	payload := []byte("test")
+	memoData := createCoreMemoData(1, 1, payload)
+
+	gtx := GenericTx{
+		Transaction:           createFlatTransactionWithCoreMemo(memoData, "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"), // not core account
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+
+	require.NoError(t, err)
+	assert.Nil(t, msg, "Should return nil for payment not to core account")
+}
+
+func TestParseCoreTransaction_NonPayment(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	payload := []byte("test")
+	memoData := createCoreMemoData(1, 1, payload)
+
+	ftx := createFlatTransactionWithCoreMemo(memoData, testCoreAccount)
+	ftx["TransactionType"] = "OfferCreate" // not a Payment
+
+	gtx := GenericTx{
+		Transaction:           ftx,
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "not Payment")
+}
+
+func TestParseCoreTransaction_FailedResult(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	payload := []byte("test")
+	memoData := createCoreMemoData(1, 1, payload)
+
+	gtx := GenericTx{
+		Transaction:           createFlatTransactionWithCoreMemo(memoData, testCoreAccount),
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tecUNFUNDED_PAYMENT",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "tecUNFUNDED_PAYMENT")
+}
+
+func TestParseTransactionStream_CoreMessage(t *testing.T) {
+	p := NewParser(testCoreAccount, nil)
+	payload := []byte("end-to-end core message")
+	memoData := createCoreMemoData(1, 123, payload)
+
+	tx := &streamtypes.TransactionStream{
+		Hash:         "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:  50000,
+		CloseTimeISO: "2024-06-01T12:00:00Z",
+		Validated:    true,
+		Transaction:  createFlatTransactionWithCoreMemo(memoData, testCoreAccount),
+		Meta: transaction.TxObjMeta{
+			TransactionIndex:  3,
+			TransactionResult: "tesSUCCESS",
+		},
+	}
+
+	msg, err := p.ParseTransactionStream(tx)
+
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify nonce from memo
+	assert.Equal(t, uint32(123), msg.Nonce)
+
+	// Verify payload from memo
+	assert.Equal(t, payload, msg.Payload)
+
+	// Verify emitter chain
+	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
+
+	// Verify sequence: (50000 << 32) | 3
+	expectedSequence := (uint64(50000) << 32) | 3
+	assert.Equal(t, expectedSequence, msg.Sequence)
+
+	// Verify timestamp
+	expectedTime, _ := time.Parse(time.RFC3339, "2024-06-01T12:00:00Z")
+	assert.Equal(t, expectedTime, msg.Timestamp)
+
+	// Verify consistency level
+	assert.Equal(t, uint8(0), msg.ConsistencyLevel)
+
+	// Verify TxID
+	expectedTxHash, _ := hex.DecodeString("AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233")
+	assert.Equal(t, expectedTxHash, msg.TxID)
+}
