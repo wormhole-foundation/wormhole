@@ -21,7 +21,7 @@ func TestProcessTransaction_SkipsUnvalidated(t *testing.T) {
 	w := &Watcher{
 		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
 		msgChan:  msgChan,
-		parser:   NewParser(nil),
+		parser:   NewParser("", nil),
 	}
 
 	tx := &streamtypes.TransactionStream{
@@ -44,7 +44,7 @@ func TestProcessTransaction_SendsValidatedMessage(t *testing.T) {
 	w := &Watcher{
 		contract: contract,
 		msgChan:  msgChan,
-		parser:   NewParser(nil),
+		parser:   NewParser("", nil),
 	}
 
 	tx := &streamtypes.TransactionStream{

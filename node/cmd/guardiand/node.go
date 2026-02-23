@@ -219,8 +219,9 @@ var (
 	xrplEvmRPC      *string
 	xrplEvmContract *string
 
-	xrplRPC      *string
-	xrplContract *string
+	xrplRPC         *string
+	xrplContract    *string
+	xrplNttAccounts *[]string
 
 	plasmaRPC      *string
 	plasmaContract *string
@@ -494,6 +495,7 @@ func init() {
 
 	xrplRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplRPC", "XRPL RPC URL", "ws://xrpl:6006", []string{"ws", "wss"})
 	xrplContract = NodeCmd.Flags().String("xrplContract", "", "XRPL contract address")
+	xrplNttAccounts = NodeCmd.Flags().StringSlice("xrplNttAccounts", []string{}, "XRPL NTT manager accounts to subscribe to")
 
 	plasmaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plasmaRPC", "PLASMA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	plasmaContract = NodeCmd.Flags().String("plasmaContract", "", "Plasma contract address")
@@ -1798,10 +1800,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(xrplRPC) {
 		wc := &xrpl.WatcherConfig{
-			NetworkID: "xrpl",
-			ChainID:   vaa.ChainIDXRPL,
-			Rpc:       *xrplRPC,
-			Contract:  *xrplContract,
+			NetworkID:   "xrpl",
+			ChainID:     vaa.ChainIDXRPL,
+			Rpc:         *xrplRPC,
+			Contract:    *xrplContract,
+			NttAccounts: *xrplNttAccounts,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
