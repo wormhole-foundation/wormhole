@@ -179,6 +179,14 @@ func (s *SolanaWatcher) processTransactionWithRetry(signature solana.Signature) 
 			return
 		}
 
+		if metadataErr := validateTransactionMeta(result.Meta); metadataErr != nil {
+			s.logger.Error("skipping transaction",
+				zap.Stringer("signature", signature),
+				zap.String("reason", metadataErr.Error()),
+			)
+			return
+		}
+
 		tx, err := result.Transaction.GetTransaction()
 		if err != nil {
 			s.logger.Error("failed to extract transaction for subscription event", zap.Error(err))
