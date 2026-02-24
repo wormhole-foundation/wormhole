@@ -16,13 +16,32 @@ Transform untrusted data into constrained types rather than checking and discard
 
 ### Make Invalid States Unrepresentable
 
-Design data structures so that illegal states cannot be constructed. Use sum types (enums/unions) instead of boolean flags. Use bounded types instead of magic sentinel values. If a value can only exist in valid states, you cannot accidentally create an invalid one. The compiler prevents entire classes of bugs.
+Choose data structures so that illegal states cannot be constructed. Use sum types (enums/unions) instead of boolean flags. Use bounded types instead of magic sentinel values. If a value can only exist in valid states, you cannot accidentally create an invalid one. The compiler prevents entire classes of bugs.
 
 ### Document Assumptions and Invariants
 
 Every function must explicitly document its preconditions, postconditions, and invariants. Assert all preconditions at function entry. Assert all postconditions before return. Assert invariants at boundaries where they matter. Comments should explain *why*, not *what*—the code already shows what.
 
-Use `REQUIRES:` and `ENSURES:` in function documentation to specify preconditions and postconditions. Add inline comments explaining non-obvious design decisions.
+Use clear labels like `//SECURITY:` in function documentation to specify preconditions and postconditions. Add inline comments explaining non-obvious design decisions.
+
+Examples:
+
+https://github.com/wormhole-foundation/wormhole/blob/969be0efd50e5a55a827484fdc44bc910fadd2cd/node/pkg/governor/governor.go#L805-L807
+```go
+// WARNING: When this function returns an error, it propagates to the `processor` which in turn interprets this as a
+// signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
+func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
+```
+
+https://github.com/wormhole-foundation/wormhole/blob/969be0efd50e5a55a827484fdc44bc910fadd2cd/node/pkg/watchers/near/tx_processing.go#L99-L104
+```go
+	// SECURITY CRITICAL: Check that block has been finalized.
+	outcomeBlockHeader, isFinalized := e.finalizer.isFinalized(logger, ctx, outcomeBlockHash.String())
+	if !isFinalized {
+		// If it has not, we return an error such that this transaction can be put back into the queue.
+		return fmt.Errorf("block %s not finalized yet", outcomeBlockHash.String())
+	}
+```
 
 ### Redundant Safety Over Performance
 
@@ -78,6 +97,8 @@ Prefer static allocation where possible. Pre-allocate buffers at startup when yo
 ### Minimize Variable Scope
 
 Declare variables at the smallest possible scope. Fewer variables in scope means fewer ways to misuse them. Calculate values when needed, not before. Minimize the gap between where data is validated and where it's used (place-of-check to place-of-use distance).
+
+Make use of constants when values are immutable.
 
 ---
 
@@ -147,6 +168,7 @@ Test that errors propagate correctly. Test that cleanup happens on error. Test t
 Use explicit operations that show you've considered edge cases. For example:
 - For library calls, specify invariants explicitly rather than relying on the library's validation.
 - For arithmetic, use functions that clarify cases like overflow, truncation, and rounding behavior (exact division vs floor vs ceiling). 
+- Choose names for variables and functions that help the reader understand their guarantees. For example, a function called `ReadFoo` is better than `GetFoo` if the intent is that the caller cannot modify the retrieved data.
 
 ### Automate, don't nit
 
