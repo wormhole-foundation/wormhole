@@ -53,16 +53,6 @@ spec:
             timeoutSeconds: 5
             successThreshold: 1
             failureThreshold: 3
-          livenessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -c
-                - "test -f /tmp/ready"
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 10
-            failureThreshold: 3
           resources:
             requests:
               memory: "256Mi"
