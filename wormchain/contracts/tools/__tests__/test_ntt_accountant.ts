@@ -1475,7 +1475,8 @@ describe("NTT Global Accountant Tests", () => {
         ).rejects.toThrow();
       }
     });
-    test("k. Relayed message gets accounted", async () => {
+    // NOTE: the relayer contract is no longer deployed in devnet
+    test.skip("k. Relayed message gets accounted", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const beforeEthBalance = await fetchGlobalAccountantBalance(
         HUB_CHAIN,
