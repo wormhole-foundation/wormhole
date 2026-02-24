@@ -29,7 +29,6 @@ describe("Stacks Wormhole Integration Tests", () => {
     const ADDRESS = privateKeyToAddress(STACKS_PRIVATE_KEY, "devnet");
 
     const contractPath = path.resolve(root, "contracts");
-    const dependencyPath = path.resolve(root, "contracts/dependencies");
 
     const rewriteClarity = (code: string) => {
       return code
@@ -37,27 +36,6 @@ describe("Stacks Wormhole Integration Tests", () => {
         .replaceAll("SP1E0XBN9T4B10E9QMR7XMFJPMA19D77WY3KP2QKC", ADDRESS)
         .replaceAll("SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM", ADDRESS);
     };
-
-    const dependencyFiles = [
-      "trait-sip-010.clar",
-      "proposal-trait.clar",
-      "extension-trait.clar",
-      "executor-dao.clar",
-      "trait-semi-fungible.clar",
-      "token-amm-pool-v2-01.clar",
-      "liquidity-locker.clar",
-      "clarity-stacks.clar",
-      "trait-flash-loan-user.clar",
-      "amm-vault-v2-01.clar",
-      "amm-registry-v2-01.clar",
-      "amm-pool-v2-01.clar",
-      "code-body-prover.clar",
-      "clarity-stacks-helper.clar",
-      "self-listing-helper-v3.clar",
-      "hk-ecc-v1.clar",
-      "hk-cursor-v2.clar",
-      "hk-merkle-tree-keccak160-v1.clar",
-    ].map((file) => path.join(dependencyPath, file));
 
     const contractFiles = [
       "addr32.clar",
@@ -70,11 +48,7 @@ describe("Stacks Wormhole Integration Tests", () => {
       "wormhole-core-v4.clar",
     ].map((filename) => path.join(contractPath, filename));
 
-    const versionMap = {
-      "executor-dao.clar": 3,
-    } as Record<string, number>;
-
-    const contracts = [...dependencyFiles, ...contractFiles].map(
+    const contracts = contractFiles.map(
       (filePath) => ({
         name: path.basename(filePath).replace(".clar", ""),
         filename: path.basename(filePath),
@@ -103,7 +77,7 @@ describe("Stacks Wormhole Integration Tests", () => {
       const transaction = await makeContractDeploy({
         contractName: contract.name,
         codeBody: contract.code,
-        clarityVersion: versionMap?.[contract.filename] ?? 3,
+        clarityVersion: 3,
         senderKey: STACKS_PRIVATE_KEY,
         nonce,
         network: "devnet",
