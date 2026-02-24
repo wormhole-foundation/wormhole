@@ -510,14 +510,8 @@ spec:
                   configMap:
                       name: bitcoin-config
                       defaultMode: 0755
-    volumeClaimTemplates:
-        - metadata:
-              name: bitcoin-data
-          spec:
-              accessModes: ["ReadWriteOnce"]
-              resources:
-                  requests:
-                      storage: 10Gi
+                - name: bitcoin-data
+                  emptyDir: {}
 ---
 # Bitcoin Miner Deployment
 apiVersion: apps/v1
