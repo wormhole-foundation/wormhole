@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"sync"
 
+	dgAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/delegated_guardians"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	"github.com/ethereum/go-ethereum"
@@ -51,6 +52,7 @@ type Connector interface {
 	ContractAddress() common.Address
 	GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error)
 	GetGuardianSet(ctx context.Context, index uint32) (ethabi.StructsGuardianSet, error)
+	GetDelegatedGuardianConfig(ctx context.Context) ([]dgAbi.WormholeDelegatedGuardiansDelegatedGuardianSet, error)
 	WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethabi.AbiLogMessagePublished) (event.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	TimeOfBlockByHash(ctx context.Context, hash common.Hash) (uint64, error)

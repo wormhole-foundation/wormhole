@@ -612,12 +612,13 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	s.updateLatestBlock(slot)
 
 	for txNum, txRpc := range out.Transactions {
-		if txRpc.Meta.Err != nil {
+		// SECURITY: Validate transaction metadata before accessing fields
+		if metaErr := validateTransactionMeta(txRpc.Meta); metaErr != nil {
 			if logger.Level().Enabled(zapcore.DebugLevel) {
-				logger.Debug("Transaction failed, skipping it",
+				logger.Debug("skipping transaction",
 					zap.Uint64("slot", slot),
 					zap.Int("txNum", txNum),
-					zap.String("err", fmt.Sprint(txRpc.Meta.Err)),
+					zap.String("reason", metaErr.Error()),
 				)
 			}
 			continue
@@ -655,11 +656,12 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 // processTransaction processes a transaction and publishes any Wormhole events.
 func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.Client, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) (numObservations uint32) {
-	if meta.Err != nil {
+	// SECURITY: Validate transaction metadata before accessing fields
+	if metadataErr := validateTransactionMeta(meta); metadataErr != nil {
 		if s.logger.Level().Enabled(zapcore.DebugLevel) {
-			s.logger.Debug("Transaction failed, skipping it",
+			s.logger.Debug("skipping transaction",
 				zap.Uint64("slot", slot),
-				zap.String("err", fmt.Sprint(meta.Err)),
+				zap.String("reason", metadataErr.Error()),
 			)
 		}
 		return
@@ -1216,4 +1218,23 @@ func isPossibleWormholeMessage(whLogPrefix string, logMessages []string) bool {
 		}
 	}
 	return false
+}
+
+// validateTransactionMeta checks if transaction metadata is present and the transaction succeeded.
+// Returns specific errors for nil metadata or transactions that failed on-chain.
+// This function does not validate the transaction itself or check if it's relevant to the watcher.
+//
+// SECURITY: This function should be used to validate every transaction to ensure that they did not fail on-chain.
+func validateTransactionMeta(meta *rpc.TransactionMeta) error {
+	// See: [https://solana.com/docs/rpc/http/gettransaction]. The metadata field may be `null` so solana-go
+	// may correctly give a nil result in this case. This is not expected to occur in practice.
+	// However, we must avoid processing nil metadata or failed transactions.
+	if meta == nil {
+		return fmt.Errorf("transaction metadata is nil")
+	}
+
+	if meta.Err != nil {
+		return fmt.Errorf("transaction failed on-chain: %v", meta.Err)
+	}
+	return nil
 }
