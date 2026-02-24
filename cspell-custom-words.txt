@@ -60,9 +60,11 @@ dymension
 Dymension
 ethcrypto
 ethersproject
+Errorf
 ETHRPC
 evmos
 evmtypes
+Finalizer
 fogo
 Fogo
 forgeable
