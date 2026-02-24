@@ -250,7 +250,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, gotErr := ParseMessagePublicationAccount(tt.messageAccountData)
+			got, gotErr := ParseMessagePublicationAccount(tt.messageAccountData)
 			if gotErr != nil {
 				// We didn't expect an error, but we got one.
 				if tt.errStr == "" {
