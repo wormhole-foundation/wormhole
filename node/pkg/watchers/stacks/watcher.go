@@ -353,6 +353,10 @@ func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logg
 		return fmt.Errorf("failed to fetch Stacks block replay: %w", err)
 	}
 
+	if !replay.ValidMerkleRoot {
+		return fmt.Errorf("block %s has invalid merkle root", blockHash)
+	}
+
 	// Stacks blocks are expected to always contain at least one transaction
 	if len(replay.Transactions) == 0 {
 		return fmt.Errorf("block %s has no transactions", blockHash)
@@ -487,6 +491,10 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 	replay, err := w.fetchStacksBlockReplay(ctx, transaction.IndexBlockHash)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch block replay: %w", err)
+	}
+
+	if !replay.ValidMerkleRoot {
+		return 0, fmt.Errorf("block %s has invalid merkle root", transaction.IndexBlockHash)
 	}
 
 	stableBitcoinBlockHeight := w.stableBitcoinHeight.Load()
