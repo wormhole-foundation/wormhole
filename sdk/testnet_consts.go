@@ -110,3 +110,12 @@ var KnownTestnetWrappedNativeAddresses = map[vaa.ChainID]string{
 	// WETH
 	vaa.ChainIDHolesky: "0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8",
 }
+
+// KnownTestnetManagerEmitters is a list of known manager emitters on various testnets.
+// Note that the format allows multiple emitters per chain.
+var KnownTestnetManagerEmitters = []struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{
+	{ChainId: vaa.ChainIDSolana, Addr: "af528793be84ee2c922e2b27b7cae282a4d098f4fe528f35ded8c8c06d0b1090"},
+}

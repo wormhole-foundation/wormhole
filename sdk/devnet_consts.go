@@ -52,3 +52,13 @@ var KnownDevnetWrappedNativeAddresses = map[vaa.ChainID]string{
 var KnownDevnetCoreContracts = map[vaa.ChainID]string{
 	vaa.ChainIDEthereum: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
 }
+
+// KnownDevnetManagerEmitters is a list of known manager emitters used during development.
+// Note that the format allows multiple emitters per chain.
+var KnownDevnetManagerEmitters = []struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{
+	{ChainId: vaa.ChainIDSolana, Addr: "af528793be84ee2c922e2b27b7cae282a4d098f4fe528f35ded8c8c06d0b1090"},
+	{ChainId: vaa.ChainIDEthereum, Addr: "00000000000000000000000090F8bf6A479f320ead074411a4B0e7944Ea8c9C1"},
+}

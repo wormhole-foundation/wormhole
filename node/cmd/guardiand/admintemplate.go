@@ -80,6 +80,13 @@ var governanceCallData *string
 var coreBridgeSetMessageFeeChainId *string
 var coreBridgeSetMessageFeeMessageFee *string
 
+var delegatedManagerChainId *string
+var delegatedManagerSetIndex *string
+var delegatedManagerSet *string
+var delegatedManagerThreshold *string
+var delegatedManagerNumKeys *string
+var delegatedManagerPublicKeys *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -226,6 +233,17 @@ func init() {
 	// solana call command
 	AdminClientGeneralPurposeGovernanceSolanaCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
 	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSolanaCallCmd)
+
+	// flags for the delegated-manager-set-update command
+	delegatedManagerFlagSet := pflag.NewFlagSet("delegated-manager", pflag.ExitOnError)
+	delegatedManagerChainId = delegatedManagerFlagSet.String("manager-chain-id", "", "Wormhole Chain ID for the manager chain (e.g., 65 for Dogecoin)")
+	delegatedManagerSetIndex = delegatedManagerFlagSet.String("manager-set-index", "", "Index of the new manager set (must be current + 1)")
+	delegatedManagerSet = delegatedManagerFlagSet.String("manager-set", "", "Hex-encoded manager set bytes (without leading 0x). Alternative to --threshold/--num-keys/--public-keys")
+	delegatedManagerThreshold = delegatedManagerFlagSet.String("threshold", "", "Number of required signatures (M) for secp256k1 multisig")
+	delegatedManagerNumKeys = delegatedManagerFlagSet.String("num-keys", "", "Total number of public keys (N) for secp256k1 multisig")
+	delegatedManagerPublicKeys = delegatedManagerFlagSet.String("public-keys", "", "Comma-separated list of compressed secp256k1 public keys (33 bytes each, hex-encoded)")
+	AdminClientDelegatedManagerSetUpdateCmd.Flags().AddFlagSet(delegatedManagerFlagSet)
+	TemplateCmd.AddCommand(AdminClientDelegatedManagerSetUpdateCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -369,6 +387,12 @@ var AdminClientGeneralPurposeGovernanceSolanaCallCmd = &cobra.Command{
 	Use:   "governance-solana-call",
 	Short: "Generate a 'general purpose solana governance call' template for specified chain and address",
 	Run:   runGeneralPurposeGovernanceSolanaCallTemplate,
+}
+
+var AdminClientDelegatedManagerSetUpdateCmd = &cobra.Command{
+	Use:   "delegated-manager-set-update",
+	Short: "Generate a DelegatedManager manager set update governance VAA template",
+	Run:   runDelegatedManagerSetUpdateTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -1241,6 +1265,96 @@ func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []st
 						ChainId:            uint32(chainID),
 						GovernanceContract: *governanceContractAddress,
 						EncodedInstruction: *governanceCallData,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+func runDelegatedManagerSetUpdateTemplate(cmd *cobra.Command, args []string) {
+	if *delegatedManagerChainId == "" {
+		log.Fatal("--manager-chain-id must be specified")
+	}
+	managerChainId, err := parseChainID(*delegatedManagerChainId)
+	if err != nil {
+		log.Fatal("failed to parse manager-chain-id: ", err)
+	}
+
+	if *delegatedManagerSetIndex == "" {
+		log.Fatal("--manager-set-index must be specified")
+	}
+	managerSetIndex, err := strconv.ParseUint(*delegatedManagerSetIndex, 10, 32)
+	if err != nil {
+		log.Fatal("failed to parse manager-set-index as uint32: ", err)
+	}
+
+	var managerSet string
+	if *delegatedManagerSet != "" {
+		// Use raw manager set bytes if provided
+		managerSet = strings.TrimPrefix(*delegatedManagerSet, "0x")
+		// Validate it's valid hex
+		if _, err := hex.DecodeString(managerSet); err != nil {
+			log.Fatal("invalid manager-set (expected hex): ", err)
+		}
+	} else if *delegatedManagerThreshold != "" && *delegatedManagerNumKeys != "" && *delegatedManagerPublicKeys != "" {
+		// Build secp256k1 multisig manager set from components
+		threshold, err := strconv.ParseUint(*delegatedManagerThreshold, 10, 8)
+		if err != nil {
+			log.Fatal("failed to parse threshold as uint8: ", err)
+		}
+		numKeys, err := strconv.ParseUint(*delegatedManagerNumKeys, 10, 8)
+		if err != nil {
+			log.Fatal("failed to parse num-keys as uint8: ", err)
+		}
+		publicKeyStrs := strings.Split(*delegatedManagerPublicKeys, ",")
+
+		// Parse public keys into the format expected by vaa.Secp256k1MultisigManagerSet
+		publicKeys := make([][vaa.CompressedSecp256k1PublicKeyLength]byte, len(publicKeyStrs))
+		for i, pkStr := range publicKeyStrs {
+			pkHex := strings.TrimPrefix(strings.TrimSpace(pkStr), "0x")
+			pkBytes, err := hex.DecodeString(pkHex)
+			if err != nil {
+				log.Fatalf("public key %d is not valid hex: %v", i, err)
+			}
+			if len(pkBytes) != vaa.CompressedSecp256k1PublicKeyLength {
+				log.Fatalf("public key %d has invalid length: expected %d bytes, got %d", i, vaa.CompressedSecp256k1PublicKeyLength, len(pkBytes))
+			}
+			copy(publicKeys[i][:], pkBytes)
+		}
+
+		managerSetStruct := vaa.Secp256k1MultisigManagerSet{
+			M:          uint8(threshold),
+			N:          uint8(numKeys),
+			PublicKeys: publicKeys,
+		}
+		managerSetBytes, err := managerSetStruct.Serialize()
+		if err != nil {
+			log.Fatal("failed to serialize manager set: ", err)
+		}
+		managerSet = hex.EncodeToString(managerSetBytes)
+	} else {
+		log.Fatal("Either --manager-set or (--threshold, --num-keys, --public-keys) must be provided")
+	}
+
+	seq, nonce := randSeqNonce()
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_DelegatedManagerSetUpdate{
+					DelegatedManagerSetUpdate: &nodev1.DelegatedManagerSetUpdate{
+						ManagerChainId:  uint32(managerChainId),
+						ManagerSetIndex: uint32(managerSetIndex),
+						ManagerSet:      managerSet,
 					},
 				},
 			},

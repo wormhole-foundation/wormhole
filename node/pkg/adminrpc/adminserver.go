@@ -702,6 +702,31 @@ func coreBridgeSetMessageFeeToVaa(req *nodev1.CoreBridgeSetMessageFee, timestamp
 	return v, nil
 }
 
+// delegatedManagerSetUpdateToVaa converts a nodev1.DelegatedManagerSetUpdate message to its canonical VAA representation.
+// Returns an error if the data is invalid.
+func delegatedManagerSetUpdateToVaa(req *nodev1.DelegatedManagerSetUpdate, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.ManagerChainId > math.MaxUint16 {
+		return nil, errors.New("invalid manager_chain_id")
+	}
+
+	managerSetBytes, err := hex.DecodeString(req.ManagerSet)
+	if err != nil {
+		return nil, fmt.Errorf("invalid manager_set encoding (expected hex): %w", err)
+	}
+
+	body, err := vaa.BodyManagerSetUpdate{
+		ManagerChainID:     vaa.ChainID(req.ManagerChainId),
+		NewManagerSetIndex: req.ManagerSetIndex,
+		NewManagerSet:      managerSetBytes,
+	}.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+	return v, nil
+}
+
 func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	governanceContract := ethcommon.HexToAddress(evmCall.GovernanceContract)
 	targetContract := ethcommon.HexToAddress(evmCall.TargetContract)
@@ -812,6 +837,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = solanaCallToVaa(payload.SolanaCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CoreBridgeSetMessageFee:
 		v, err = coreBridgeSetMessageFeeToVaa(payload.CoreBridgeSetMessageFee, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_DelegatedManagerSetUpdate:
+		v, err = delegatedManagerSetUpdateToVaa(payload.DelegatedManagerSetUpdate, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:
 		err = fmt.Errorf("unsupported VAA type: %T", payload)
 	}

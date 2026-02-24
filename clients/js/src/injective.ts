@@ -143,6 +143,8 @@ export async function execute_injective(
     }
     case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Injective");
+    case "DelegatedManager":
+      throw Error("DelegatedManager governance VAAs are not yet supported");
     default:
       action = impossible(payload);
       target_contract = impossible(payload);
