@@ -19,7 +19,7 @@
     "@noble/secp256k1": "^2.3.0",
     "@scure/base": "^1.2.6",
     "@stacks/blockchain-api-client": "^8.13.6",
-    "@stacks/transactions": "^7.2.0",
+    "@stacks/transactions": "^7.3.1",
     "@wormhole-foundation/wormhole-cli": "^0.0.4",
     "bigint-buffer": "^1.1.5",
     "ethers": "^5",

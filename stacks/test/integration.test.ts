@@ -48,13 +48,11 @@ describe("Stacks Wormhole Integration Tests", () => {
       "wormhole-core-v4.clar",
     ].map((filename) => path.join(contractPath, filename));
 
-    const contracts = contractFiles.map(
-      (filePath) => ({
-        name: path.basename(filePath).replace(".clar", ""),
-        filename: path.basename(filePath),
-        code: rewriteClarity(fs.readFileSync(filePath, "utf8")),
-      })
-    );
+    const contracts = contractFiles.map((filePath) => ({
+      name: path.basename(filePath).replace(".clar", ""),
+      filename: path.basename(filePath),
+      code: rewriteClarity(fs.readFileSync(filePath, "utf8")),
+    }));
 
     let nonce = await fetchNonce({
       address: ADDRESS,
@@ -70,14 +68,14 @@ describe("Stacks Wormhole Integration Tests", () => {
     };
 
     console.log(
-      `Deploying ${contracts.length} contracts starting with nonce ${nonce}`
+      `Deploying ${contracts.length} contracts starting with nonce ${nonce}`,
     );
 
     for (const contract of contracts) {
       const transaction = await makeContractDeploy({
         contractName: contract.name,
         codeBody: contract.code,
-        clarityVersion: 3,
+        clarityVersion: 4,
         senderKey: STACKS_PRIVATE_KEY,
         nonce,
         network: "devnet",
@@ -96,14 +94,14 @@ describe("Stacks Wormhole Integration Tests", () => {
         // Allow pre existing contracts only for local testing
       ) {
         console.log(
-          `Contract ${contract.name} already exists, skipping deployment`
+          `Contract ${contract.name} already exists, skipping deployment`,
         );
         results.successfulDeployments++;
         results.contracts.push(contract.name);
         continue;
       } else if ("error" in response) {
         throw new Error(
-          `Deploy failed for ${contract.name}: ${response.error} ${response.reason}`
+          `Deploy failed for ${contract.name}: ${response.error} ${response.reason}`,
         );
       }
 
@@ -202,13 +200,13 @@ describe("Stacks Wormhole Integration Tests", () => {
     })) as TupleCV<{ "active-guardian-set-id": UIntCV }>;
 
     const activeGuardianSetId = Number(
-      exportedVars.value["active-guardian-set-id"].value
+      exportedVars.value["active-guardian-set-id"].value,
     );
 
     const keychain = wormhole.generateGuardianSetKeychain(19);
     const guardianSetUpgrade = wormhole.generateGuardianSetUpdateVaa(
       keychain,
-      activeGuardianSetId + 1
+      activeGuardianSetId + 1,
     );
 
     const nonce = await fetchNonce({
@@ -350,7 +348,7 @@ describe("Stacks Wormhole Integration Tests", () => {
     if ("error" in response) throw new Error(response.error);
 
     console.log(
-      `Posted faulty message (abort_by_post_condition): ${response.txid}`
+      `Posted faulty message (abort_by_post_condition): ${response.txid}`,
     );
     await waitForTransactionSuccess(response.txid);
 
@@ -501,7 +499,7 @@ describe("Stacks Wormhole Integration Tests", () => {
     }
 
     console.log(
-      `Posted faulty message (abort_by_response_two_step): ${callResponse.txid}`
+      `Posted faulty message (abort_by_response_two_step): ${callResponse.txid}`,
     );
     try {
       await waitForTransactionSuccess(callResponse.txid);
