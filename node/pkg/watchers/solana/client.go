@@ -191,7 +191,7 @@ const (
 	//   emitter_chain          u16       =  2
 	//   emitter_address        [u8; 32]  = 32
 	//   payload_len            u32       =  4  (Borsh Vec length prefix)
-	//   payload                [u8; N]   =  N  (variable, 0 minimum)
+	//   payload                [u8; N]   =  N  (variable, 0 minimum. N == `payload_len`)
 	//                                    -----
 	//                             Total = 95 + N
 	MessageAccountDataMinLength = 3
