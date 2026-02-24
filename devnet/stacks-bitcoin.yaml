@@ -543,7 +543,7 @@ spec:
                       - name: MINE_INTERVAL_EPOCH2_05
                         value: "3"
                       - name: MINE_INTERVAL_EPOCH25
-                        value: "10"
+                        value: "7"
                       - name: MINE_INTERVAL_EPOCH3
                         value: "10"
                       - name: STACKS_2_05_HEIGHT
