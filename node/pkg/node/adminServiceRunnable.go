@@ -79,7 +79,7 @@ func adminServiceRunnable(
 	var evmConnector connectors.Connector
 	if ethRpc != nil && ethContract != nil {
 		contract := ethcommon.HexToAddress(*ethContract)
-		evmConnector, err = connectors.NewEthereumBaseConnector(ctx, "eth", *ethRpc, contract, logger)
+		evmConnector, err = connectors.NewEthereumBaseConnector(ctx, "eth", *ethRpc, contract, nil, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to ethereum")
 		}

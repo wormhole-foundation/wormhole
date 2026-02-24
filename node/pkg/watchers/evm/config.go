@@ -2,6 +2,7 @@ package evm
 
 import (
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -12,13 +13,15 @@ import (
 )
 
 type WatcherConfig struct {
-	NetworkID              watchers.NetworkID // human readable name
-	ChainID                vaa.ChainID        // ChainID
-	Rpc                    string             // RPC URL
-	Contract               string             // hex representation of the contract address
-	GuardianSetUpdateChain bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
-	CcqBackfillCache       bool
-	TxVerifierEnabled      bool
+	NetworkID                  watchers.NetworkID // human readable name
+	ChainID                    vaa.ChainID        // ChainID
+	Rpc                        string             // RPC URL
+	Contract                   string             // hex representation of the contract address
+	GuardianSetUpdateChain     bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
+	DelegatedGuardiansContract string             // hex representation of the delegated guardians contract address
+	CcqBackfillCache           bool
+	TxVerifierEnabled          bool
+	DgConfigC                  chan<- *processor.DelegatedGuardianConfig // Delegated guardian config channel, set by GuardianOptionWatchers
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -45,6 +48,16 @@ func (wc *WatcherConfig) Create(
 		setWriteC = setC
 	}
 
+	// only actually use the delegated guardians config channel if a delegated guardians contract is configured
+	// Note: DgConfigC is set by GuardianOptionWatchers in options.go
+	var dgConfigWriteC chan<- *processor.DelegatedGuardianConfig = nil
+	var dgContractAddr *eth_common.Address
+	if wc.DelegatedGuardiansContract != "" {
+		dgConfigWriteC = wc.DgConfigC
+		addr := eth_common.HexToAddress(wc.DelegatedGuardiansContract)
+		dgContractAddr = &addr
+	}
+
 	watcher := NewEthWatcher(
 		wc.Rpc,
 		eth_common.HexToAddress(wc.Contract),
@@ -52,6 +65,8 @@ func (wc *WatcherConfig) Create(
 		wc.ChainID,
 		msgC,
 		setWriteC,
+		dgConfigWriteC,
+		dgContractAddr,
 		obsvReqC,
 		queryReqC,
 		queryResponseC,

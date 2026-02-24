@@ -30,6 +30,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -137,6 +138,11 @@ type (
 		latestSafeBlockNumber      uint64
 		latestFinalizedBlockNumber uint64
 
+		// Delegated guardians config
+		dgConfigC                               chan<- *processor.DelegatedGuardianConfig
+		dgContractAddr                          *eth_common.Address
+		currentDelegatedGuardianConfigTimestamp uint32
+
 		ccqConfig          query.PerChainConfig
 		ccqMaxBlockNumber  *big.Int
 		ccqTimestampCache  *BlocksByTimestamp
@@ -188,6 +194,8 @@ func NewEthWatcher(
 	chainID vaa.ChainID,
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
+	dgConfigC chan<- *processor.DelegatedGuardianConfig,
+	dgContractAddr *eth_common.Address,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
@@ -205,6 +213,8 @@ func NewEthWatcher(
 		chainID:            chainID,
 		msgC:               msgC,
 		setC:               setC,
+		dgConfigC:          dgConfigC,
+		dgContractAddr:     dgContractAddr,
 		obsvReqC:           obsvReqC,
 		queryReqC:          queryReqC,
 		queryResponseC:     queryResponseC,
@@ -342,7 +352,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 
 	// Get the node version for troubleshooting
-	w.logVersion(ctx, logger)
+	w.logVersion(ctx)
 
 	errC := make(chan error)
 
@@ -358,7 +368,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	defer messageSub.Unsubscribe()
 
 	// Fetch initial guardian set
-	if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
+	if err := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); err != nil {
 		return fmt.Errorf("failed to request guardian set: %v", err)
 	}
 
@@ -371,13 +381,40 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case <-t.C:
-				if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
+				if err := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); err != nil {
 					errC <- fmt.Errorf("failed to request guardian set: %v", err) //nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 			}
 		}
 	})
+
+	// Fetch initial delegated guardian config if configured.
+	if w.dgContractAddr != nil && w.dgConfigC != nil {
+		if err := w.fetchAndUpdateDelegatedGuardianConfig(ctx); err != nil {
+			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(err))
+		}
+	}
+
+	// Poll for delegated guardian config.
+	if w.dgContractAddr != nil && w.dgConfigC != nil {
+		// Keep this outer gate even though fetchAndUpdateDelegatedGuardianConfig() also checks
+		common.RunWithScissors(ctx, errC, "evm_fetch_delegated_guardian_config", func(ctx context.Context) error {
+			t := time.NewTicker(15 * time.Second)
+			defer t.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-t.C:
+					if err := w.fetchAndUpdateDelegatedGuardianConfig(ctx); err != nil {
+						errC <- fmt.Errorf("failed to request delegated guardian config: %v", err) //nolint:channelcheck // The watcher will exit anyway
+						return nil
+					}
+				}
+			}
+		})
+	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_objs_req", func(ctx context.Context) error {
 		for {
@@ -440,7 +477,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if err != nil {
 					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
 					if canRetryGetBlockTime(err) {
-						go w.waitForBlockTime(ctx, logger, errC, ev)
+						go w.waitForBlockTime(ctx, errC, ev)
 						continue
 					}
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -683,12 +720,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 }
 
 func (w *Watcher) fetchAndUpdateGuardianSet(
-	logger *zap.Logger,
 	ctx context.Context,
 	ethConn connectors.Connector,
 ) error {
 	msm := time.Now()
-	logger.Debug("fetching guardian set")
+	w.logger.Debug("fetching guardian set")
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	idx, gs, err := fetchCurrentGuardianSet(timeout, ethConn)
@@ -704,7 +740,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 		return nil
 	}
 
-	logger.Info("updated guardian set found", zap.Any("value", gs), zap.Uint32("index", idx))
+	w.logger.Info("updated guardian set found", zap.Any("value", gs), zap.Uint32("index", idx))
 
 	w.currentGuardianSet = &idx
 
@@ -728,6 +764,82 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 	}
 
 	return currentIndex, &gs, nil
+}
+
+func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
+	ctx context.Context,
+) error {
+	// defensive check in case this function is called from another path in the future.
+	if w.dgContractAddr == nil || w.dgConfigC == nil {
+		return nil
+	}
+
+	msm := time.Now()
+	w.logger.Debug("fetching delegated guardian config from contract")
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	configs, err := w.ethConn.GetDelegatedGuardianConfig(timeout)
+	if err != nil {
+		ethConnectionErrors.WithLabelValues(w.networkName, "delegated_guardian_config_fetch_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+		w.logger.Error("failed to fetch delegated guardian config", zap.Error(err))
+		return err
+	}
+
+	w.logger.Debug("successfully fetched delegated guardian config",
+		zap.Int("numChains", len(configs)),
+		zap.Duration("latency", time.Since(msm)))
+	queryLatency.WithLabelValues(w.networkName, "get_delegated_guardian_config").Observe(time.Since(msm).Seconds())
+
+	// Check if config has changed by comparing timestamps
+	if len(configs) > 0 {
+		// Find the most recent timestamp across all chain configs
+		var maxTimestamp uint32
+		for _, cfg := range configs {
+			if cfg.Timestamp > maxTimestamp {
+				maxTimestamp = cfg.Timestamp
+			}
+		}
+
+		if w.currentDelegatedGuardianConfigTimestamp == maxTimestamp {
+			return nil
+		}
+
+		w.logger.Info("updated delegated guardian config found", zap.Uint32("timestamp", maxTimestamp), zap.Int("chains", len(configs)))
+
+		w.currentDelegatedGuardianConfigTimestamp = maxTimestamp
+
+		// Build the DelegatedGuardianConfig
+		dgConfig := processor.NewDelegatedGuardianConfig()
+		for _, cfg := range configs {
+			// skip config without keys
+			if len(cfg.Keys) == 0 {
+				w.logger.Info("skipping delegated guardian config with no keys",
+					zap.Uint32("chainID", uint32(cfg.ChainId)),
+					zap.Uint32("timestamp", cfg.Timestamp))
+				continue
+			}
+
+			chainID := vaa.ChainID(cfg.ChainId)
+			chainConfig, err := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
+			if err != nil {
+				w.logger.Error("failed to instantiate delegated guardian chain config", zap.Error(err))
+				return err
+			}
+			dgConfig.Chains[chainID] = chainConfig
+			w.logger.Info("delegated guardian config for chain",
+				zap.Stringer("chainID", chainID),
+				zap.Int("numKeys", len(cfg.Keys)),
+				zap.Uint8("threshold", cfg.Threshold),
+				zap.Uint32("timestamp", cfg.Timestamp))
+		}
+
+		w.dgConfigC <- dgConfig //nolint:channelcheck // Will only block the delegated guardian config update routine
+		w.logger.Info("sent delegated guardian config update to processor")
+	}
+
+	return nil
 }
 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
@@ -944,8 +1056,8 @@ func (w *Watcher) verifyAndPublish(
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
 // the block time fails. If it is finally able to read the block time, it posts the event for processing. Otherwise, it will eventually give up.
-func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC chan error, ev *ethabi.AbiLogMessagePublished) {
-	logger.Warn("found new message publication transaction but failed to look up block time, deferring processing",
+func (w *Watcher) waitForBlockTime(ctx context.Context, errC chan error, ev *ethabi.AbiLogMessagePublished) {
+	w.logger.Warn("found new message publication transaction but failed to look up block time, deferring processing",
 		zap.String("msgId", msgIdFromLogEvent(w.chainID, ev)),
 		zap.Stringer("txHash", ev.Raw.TxHash),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
@@ -968,7 +1080,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 		case <-t.C:
 			blockTime, err := w.getBlockTime(ctx, ev.Raw.BlockHash)
 			if err == nil {
-				logger.Info("retry of block time query succeeded, posting transaction",
+				w.logger.Info("retry of block time query succeeded, posting transaction",
 					zap.String("msgId", msgIdFromLogEvent(w.chainID, ev)),
 					zap.Stringer("txHash", ev.Raw.TxHash),
 					zap.Uint64("blockNum", ev.Raw.BlockNumber),
@@ -991,7 +1103,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 				return
 			}
 			if retries >= MaxRetries {
-				logger.Error("repeatedly failed to look up block time, giving up",
+				w.logger.Error("repeatedly failed to look up block time, giving up",
 					zap.String("msgId", msgIdFromLogEvent(w.chainID, ev)),
 					zap.Stringer("txHash", ev.Raw.TxHash),
 					zap.Uint64("blockNum", ev.Raw.BlockNumber),
@@ -1012,18 +1124,18 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 }
 
 // logVersion runs the web3_clientVersion rpc and logs the node version
-func (w *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+func (w *Watcher) logVersion(ctx context.Context) {
 	// From: https://ethereum.org/en/developers/docs/apis/json-rpc/#web3_clientversion
 	var version string
 	if err := w.ethConn.RawCallContext(ctx, &version, "web3_clientVersion"); err != nil {
-		logger.Error("problem retrieving node version",
+		w.logger.Error("problem retrieving node version",
 			zap.Error(err),
 			zap.String("network", w.networkName),
 		)
 		return
 	}
 
-	logger.Info("node version",
+	w.logger.Info("node version",
 		zap.String("version", version),
 		zap.String("network", w.networkName),
 	)
@@ -1042,7 +1154,7 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 		return
 	}
 
-	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.logger)
+	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.dgContractAddr, w.logger)
 	if err != nil {
 		err = fmt.Errorf("dialing eth client failed: %w", err)
 		return
