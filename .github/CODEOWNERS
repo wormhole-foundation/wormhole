@@ -107,8 +107,7 @@
 
 ## Watchers
 
-/node/pkg/watchers @evan-gray @panoel @fergarrui
-/node/pkg/watchers/evm/msg_verifier.go @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/watchers @evan-gray @panoel @fergarrui @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Guardian Dependency Upgrades (go.mod) 
 /node/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
