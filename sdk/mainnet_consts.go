@@ -200,3 +200,9 @@ var KnownManagerEmitters = []struct {
 	ChainId vaa.ChainID
 	Addr    string
 }{}
+
+// KnownXRPLSequencer is the known XRPL sequencer emitter on mainnet.
+var KnownXRPLSequencer = struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{}
