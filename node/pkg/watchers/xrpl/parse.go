@@ -150,11 +150,33 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check tx.Validated before calling this function.
 func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePublication, error) {
-	// Convert Ripple epoch timestamp to Unix timestamp
-	if tx.Date > math.MaxInt64-rippleEpochOffset {
-		return nil, fmt.Errorf("transaction date %d would overflow int64", tx.Date)
+	// Get the transaction date. In rippled API v2, the `date` field is inside
+	// `tx_json` rather than at the top level, so TxResponse.Date may be 0.
+	// Fall back to reading it from TxJSON when that happens.
+	date := tx.Date
+	if date == 0 {
+		if d, ok := tx.TxJSON["date"]; ok {
+			switch v := d.(type) {
+			case float64:
+				date = uint(v)
+			case json.Number:
+				n, err := v.Int64()
+				if err == nil && n >= 0 {
+					date = uint(n)
+				}
+			}
+		}
 	}
-	timestamp := time.Unix(int64(tx.Date)+rippleEpochOffset, 0)
+
+	if date == 0 {
+		return nil, fmt.Errorf("transaction date is zero (not populated in API response)")
+	}
+
+	// Convert Ripple epoch timestamp to Unix timestamp
+	if date > math.MaxInt64-rippleEpochOffset {
+		return nil, fmt.Errorf("transaction date %d would overflow int64", date)
+	}
+	timestamp := time.Unix(int64(date)+rippleEpochOffset, 0)
 
 	return p.parseTransaction(GenericTx{
 		Transaction:           tx.TxJSON,

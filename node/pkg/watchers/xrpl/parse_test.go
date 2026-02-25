@@ -2659,3 +2659,143 @@ func TestParseTicketCreateTransaction_DispatchedFromParseTransaction(t *testing.
 	// Verify it was dispatched correctly (XTCF prefix)
 	assert.Equal(t, xtcfPrefix[:], msg.Payload[0:4])
 }
+
+func TestParseTxResponse_TicketCreateTimestamp(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
+	tx := &transactions.TxResponse{
+		Hash:        types.Hash256(txHash),
+		LedgerIndex: 50000,
+		Date:        784111200, // Ripple epoch seconds (2024-11-05T06:00:00Z when converted)
+		Validated:   true,
+		TxJSON: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+			"TicketCount":     float64(3),
+		},
+		Meta: transaction.TxMetadataBuilder{
+			TransactionIndex:  2,
+			TransactionResult: "tesSUCCESS",
+			AffectedNodes: []transaction.AffectedNode{
+				{
+					CreatedNode: &transaction.CreatedNode{
+						LedgerEntryType: ledger.TicketEntry,
+						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(100)},
+					},
+				},
+				{
+					CreatedNode: &transaction.CreatedNode{
+						LedgerEntryType: ledger.TicketEntry,
+						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(101)},
+					},
+				},
+				{
+					CreatedNode: &transaction.CreatedNode{
+						LedgerEntryType: ledger.TicketEntry,
+						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(102)},
+					},
+				},
+			},
+		},
+	}
+
+	msg, err := p.ParseTxResponse(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify timestamp: Ripple epoch 784111200 + offset 946684800 = Unix 1730796000
+	expectedTime := time.Unix(784111200+rippleEpochOffset, 0)
+	assert.Equal(t, expectedTime, msg.Timestamp)
+	assert.False(t, msg.Timestamp.IsZero(), "timestamp should not be zero")
+
+	// Verify the timestamp is not the Ripple epoch start (which would indicate Date=0)
+	rippleEpochStart := time.Unix(rippleEpochOffset, 0) // 2000-01-01T00:00:00Z
+	assert.NotEqual(t, rippleEpochStart, msg.Timestamp, "timestamp should not be the Ripple epoch start (Date=0)")
+
+	// Verify XTCF payload
+	assert.Equal(t, xtcfPrefix[:], msg.Payload[0:4])
+	ticketStart := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(100), ticketStart)
+	ticketCount := binary.BigEndian.Uint64(msg.Payload[12:20])
+	assert.Equal(t, uint64(3), ticketCount)
+}
+
+// TestParseTxResponse_TicketCreateDateFallback verifies that when TxResponse.Date is 0
+// (as happens with rippled API v2, which returns `date` inside `tx_json` rather than
+// at the top level), ParseTxResponse falls back to reading `date` from TxJSON.
+func TestParseTxResponse_TicketCreateDateFallback(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
+	rippleDate := float64(773452800) // 2024-06-30 in Ripple epoch seconds
+	tx := &transactions.TxResponse{
+		Hash:        types.Hash256(txHash),
+		LedgerIndex: 50000,
+		Date:        0, // Not populated in API v2 — date is inside tx_json instead
+		Validated:   true,
+		TxJSON: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+			"TicketCount":     float64(1),
+			"date":            rippleDate,
+		},
+		Meta: transaction.TxMetadataBuilder{
+			TransactionIndex:  0,
+			TransactionResult: "tesSUCCESS",
+			AffectedNodes: []transaction.AffectedNode{
+				{
+					CreatedNode: &transaction.CreatedNode{
+						LedgerEntryType: ledger.TicketEntry,
+						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(50)},
+					},
+				},
+			},
+		},
+	}
+
+	msg, err := p.ParseTxResponse(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// The fallback should read date from TxJSON and produce the correct timestamp
+	expectedTimestamp := time.Unix(int64(rippleDate)+rippleEpochOffset, 0)
+	assert.Equal(t, expectedTimestamp, msg.Timestamp,
+		"should read date from TxJSON when TxResponse.Date is 0")
+}
+
+// TestParseTxResponse_DateZeroError verifies that ParseTxResponse returns an error
+// when the date is zero in both TxResponse.Date and TxJSON.
+func TestParseTxResponse_DateZeroError(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
+	tx := &transactions.TxResponse{
+		Hash:        types.Hash256(txHash),
+		LedgerIndex: 50000,
+		Date:        0,
+		Validated:   true,
+		TxJSON: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+			"TicketCount":     float64(1),
+		},
+		Meta: transaction.TxMetadataBuilder{
+			TransactionIndex:  0,
+			TransactionResult: "tesSUCCESS",
+			AffectedNodes: []transaction.AffectedNode{
+				{
+					CreatedNode: &transaction.CreatedNode{
+						LedgerEntryType: ledger.TicketEntry,
+						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(50)},
+					},
+				},
+			},
+		},
+	}
+
+	msg, err := p.ParseTxResponse(tx)
+	require.Error(t, err)
+	require.Nil(t, msg)
+	assert.Contains(t, err.Error(), "date is zero")
+}
