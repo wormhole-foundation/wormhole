@@ -21,6 +21,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/gorilla/mux"
@@ -97,10 +98,12 @@ func GuardianOptionP2P(
 					nodeName,
 					g.guardianSigner,
 					g.batchObsvC.writeC,
+					g.delegateObsvC.writeC,
 					signedInC,
 					g.obsvReqC.writeC,
 					g.gossipControlSendC,
 					g.gossipAttestationSendC,
+					g.gossipDelegatedAttestationSendC,
 					g.gossipVaaSendC,
 					g.obsvReqSendC.readC,
 					g.acct,
@@ -462,6 +465,11 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					g.chainQueryReqC[wc.GetChainID()] = make(chan *query.PerChainQueryInternal, query.QueryRequestBufferSize)
 				}
 
+				// For EVM watchers, set the delegated guardian config channel
+				if evmWc, ok := wc.(*evm.WatcherConfig); ok {
+					evmWc.DgConfigC = g.dgConfigC.writeC
+				}
+
 				runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
 
 				if err != nil {
@@ -558,7 +566,7 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 		dependencies: []string{"db", "governor"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			// local public grpc service socket
-			//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
+			//nolint:contextcheck // Context is handled by gRPC interceptor chain in common.NewInstrumentedGRPCServer
 			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, publicGRPCSocketPath, publicRpcLogDetail, g.db, g.gst, g.gov)
 			if err != nil {
 				return fmt.Errorf("failed to create publicrpc service: %w", err)
@@ -630,7 +638,7 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
 // Dependencies: See below.
-func GuardianOptionProcessor(networkId string) *GuardianOption {
+func GuardianOptionProcessor(networkId string, delegatedGuardiansEnabled bool) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor, accountant, and notary may be set to nil, but that choice needs to be made before the processor is configured
@@ -642,13 +650,17 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.db,
 				g.msgC.readC,
 				g.setC.readC,
+				g.dgConfigC.readC,
 				g.gossipAttestationSendC,
+				g.gossipDelegatedAttestationSendC,
 				g.gossipVaaSendC,
 				g.batchObsvC.readC,
+				g.delegateObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,
 				g.guardianSigner,
 				g.gst,
+				g.dgc,
 				g.gov,
 				g.acct,
 				g.acctC.readC,
@@ -656,6 +668,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.gatewayRelayer,
 				networkId,
 				g.alternatePublisher,
+				delegatedGuardiansEnabled,
 			).Run
 
 			return nil

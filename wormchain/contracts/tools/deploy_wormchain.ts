@@ -402,6 +402,21 @@ async function main() {
         address: "wormhole1g25zz7gyuyh6chuejc3ppfemgfla4xpsm69lzq",
         name: "guardianAccountant1",
       }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole1c2405d3qvwyff06th0xhce2vn85jqjm3gu6ljq",
+        name: "guardianGatewayRelayer2",
+      }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole1s3f4ylzdpjze03zw0q27nwdmmre4ymrhdcadnh",
+        name: "guardianNttAccountant2",
+      }),
+      client.core.msgCreateAllowlistEntryRequest({
+        signer: signer,
+        address: "wormhole16syhshv7fel8ez7kqqh8j9knq29at2y2p2pwg6",
+        name: "guardianAccountant2",
+      }),
     ],
     {
       ...ZERO_FEE,

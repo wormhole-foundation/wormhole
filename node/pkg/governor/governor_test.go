@@ -25,6 +25,29 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 )
 
+// scaleValue is a helper function to scale a value by the guardianDB.ScaledValueFactor for test assertions.
+// Since DB now stores scaled values, internal functions return scaled values.
+func scaleValue(v int64) int64 {
+	return v * guardianDB.ScaledValueFactor
+}
+
+// repeatValue creates a slice of int64 with the given value repeated count times.
+func repeatValue(val int64, count int) []int64 {
+	result := make([]int64, count)
+	for i := range result {
+		result[i] = val
+	}
+	return result
+}
+
+// absInt64 returns the absolute value of x.
+func absInt64(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // This is so we can have consistent config data for unit tests.
 func (gov *ChainGovernor) initConfigForTest(
 	emitterChainID vaa.ChainID,
@@ -122,13 +145,14 @@ func (gov *ChainGovernor) getStatsForAllChains() (numTrans int, valueTrans uint6
 	for _, ce := range gov.chains {
 		numTrans += len(ce.transfers)
 		for _, te := range ce.transfers {
-			valueTrans += te.dbTransfer.Value
+			// Scale down since DB now stores scaled values
+			valueTrans += scaleDownUsdValue(te.dbTransfer.ScaledValue)
 		}
 
 		numPending += len(ce.pending)
 		for _, pe := range ce.pending {
-			value, _ := usdValue(pe.amount, pe.token)
-			valuePending += value
+			scaledValue, _ := scaledUsdValue(pe.amount, pe.token)
+			valuePending += scaleDownUsdValue(scaledValue)
 		}
 	}
 
@@ -144,13 +168,14 @@ func (gov *ChainGovernor) getStatsForAllChainsCancelFlow() (numTrans int, valueT
 	for _, ce := range gov.chains {
 		numTrans += len(ce.transfers)
 		for _, te := range ce.transfers {
-			valueTrans += te.value // Needs to be .value and not .dbTransfer.value because we want the SIGNED version of this.
+			// Scale down since DB now stores scaled values. Use signed value for flow cancel.
+			valueTrans += te.scaledValue / int64(guardianDB.ScaledValueFactor)
 		}
 
 		numPending += len(ce.pending)
 		for _, pe := range ce.pending {
-			value, _ := usdValue(pe.amount, pe.token)
-			valuePending += value
+			scaledValue, _ := scaledUsdValue(pe.amount, pe.token)
+			valuePending += scaleDownUsdValue(scaledValue)
 		}
 	}
 
@@ -206,7 +231,7 @@ func TestSumAllFromToday(t *testing.T) {
 	var transfers []transfer
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime}
+	dbTransfer := &guardianDB.Transfer{ScaledValue: 125000, Timestamp: transferTime}
 	transfer, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer)
@@ -251,7 +276,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	// - Transfer from emitter: we only care about Value
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the destination chain must be the same as the emitter chain
-	outgoingDbTransfer := &guardianDB.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
+	outgoingDbTransfer := &guardianDB.Transfer{ScaledValue: emitterTransferValue, Timestamp: transferTime}
 	outgoingTransfer, err := newTransferFromDbTransfer(outgoingDbTransfer)
 	require.NoError(t, err)
 
@@ -260,7 +285,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 		OriginChain:   originChain,
 		OriginAddress: originAddress,
 		TargetChain:   vaa.ChainID(emitterChainId), // emitter
-		Value:         flowCancelValue,
+		ScaledValue:   flowCancelValue,
 		Timestamp:     transferTime,
 	}
 
@@ -376,7 +401,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	// - Transfer from emitter: we only care about Value
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the destination chain must be the same as the emitter chain
-	emitterDbTransfer := &guardianDB.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
+	emitterDbTransfer := &guardianDB.Transfer{ScaledValue: emitterTransferValue, Timestamp: transferTime}
 	emitterTransfer, err := newTransferFromDbTransfer(emitterDbTransfer)
 	require.NoError(t, err)
 	transfers_from_emitter = append(transfers_from_emitter, emitterTransfer)
@@ -385,7 +410,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 		OriginChain:   originChain,
 		OriginAddress: originAddress,
 		TargetChain:   vaa.ChainID(emitterChainId), // emitter
-		Value:         flowCancelValue,
+		ScaledValue:   flowCancelValue,
 		Timestamp:     transferTime,
 	}
 
@@ -435,7 +460,7 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 
 	// Create a lot of transfers. Their total value should exceed `emitterLimit`
 	for i := 0; i < 25; i++ {
-		transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
+		transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: emitterTransferValue, Timestamp: transferTime})
 		require.NoError(t, err)
 		transfers_from_emitter = append(
 			transfers_from_emitter,
@@ -476,9 +501,9 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 
 	emitterChainId := vaa.ChainIDSolana
 
-	transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{Value: math.MaxInt64, Timestamp: transferTime})
+	transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: math.MaxInt64, Timestamp: transferTime})
 	require.NoError(t, err)
-	transfer2, err := newTransferFromDbTransfer(&guardianDB.Transfer{Value: 1, Timestamp: transferTime})
+	transfer2, err := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: 1, Timestamp: transferTime})
 	require.NoError(t, err)
 	transfers_from_emitter = append(transfers_from_emitter, transfer, transfer2)
 
@@ -495,7 +520,7 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 	assert.Zero(t, sum)
 	usage, err := gov.trimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.ErrorContains(t, err, "integer overflow")
-	assert.Equal(t, uint64(10000), usage)
+	assert.Equal(t, uint64(10000*guardianDB.ScaledValueFactor), usage)
 
 	// overwrite emitter (discard transfer added above)
 	emitter = &chainEntry{
@@ -505,7 +530,7 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 	gov.chains[emitter.emitterChainId] = emitter
 
 	// Now test underflow
-	transfer3 := &guardianDB.Transfer{Value: math.MaxInt64, Timestamp: transferTime, TargetChain: vaa.ChainIDSolana}
+	transfer3 := &guardianDB.Transfer{ScaledValue: math.MaxInt64, Timestamp: transferTime, TargetChain: vaa.ChainIDSolana}
 
 	ce := gov.chains[emitter.emitterChainId]
 	err = ce.addFlowCancelTransferFromDbTransfer(transfer3)
@@ -518,7 +543,7 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 	assert.Zero(t, sum)
 	usage, err = gov.trimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.ErrorContains(t, err, "integer underflow")
-	assert.Equal(t, uint64(10000), usage)
+	assert.Equal(t, uint64(10000*guardianDB.ScaledValueFactor), usage)
 }
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
@@ -533,7 +558,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	// The first transfer should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:59am (CST)")
 	require.NoError(t, err)
-	dbTransfer := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime1}
+	dbTransfer := &guardianDB.Transfer{ScaledValue: 125000, Timestamp: transferTime1}
 	transfer, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer)
@@ -541,7 +566,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	// But the second should not.
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer = &guardianDB.Transfer{Value: 225000, Timestamp: transferTime2}
+	dbTransfer = &guardianDB.Transfer{ScaledValue: 225000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -565,14 +590,14 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	// The first two transfers should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 10:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer1 := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime1}
+	dbTransfer1 := &guardianDB.Transfer{ScaledValue: 125000, Timestamp: transferTime1}
 	transfer1, err := newTransferFromDbTransfer(dbTransfer1)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer1)
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer2 := &guardianDB.Transfer{Value: 135000, Timestamp: transferTime2}
+	dbTransfer2 := &guardianDB.Transfer{ScaledValue: 135000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer2)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -580,21 +605,21 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	// But the next three should not.
 	transferTime3, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer3 := &guardianDB.Transfer{Value: 145000, Timestamp: transferTime3}
+	dbTransfer3 := &guardianDB.Transfer{ScaledValue: 145000, Timestamp: transferTime3}
 	transfer3, err := newTransferFromDbTransfer(dbTransfer3)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer3)
 
 	transferTime4, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer4 := &guardianDB.Transfer{Value: 155000, Timestamp: transferTime4}
+	dbTransfer4 := &guardianDB.Transfer{ScaledValue: 155000, Timestamp: transferTime4}
 	transfer4, err := newTransferFromDbTransfer(dbTransfer4)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer4)
 
 	transferTime5, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer5 := &guardianDB.Transfer{Value: 165000, Timestamp: transferTime5}
+	dbTransfer5 := &guardianDB.Transfer{ScaledValue: 165000, Timestamp: transferTime5}
 	transfer5, err := newTransferFromDbTransfer(dbTransfer5)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer5)
@@ -618,14 +643,14 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer1 := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime1}
+	dbTransfer1 := &guardianDB.Transfer{ScaledValue: 125000, Timestamp: transferTime1}
 	transfer1, err := newTransferFromDbTransfer(dbTransfer1)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer1)
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:45am (CST)")
 	require.NoError(t, err)
-	dbTransfer2 := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime2}
+	dbTransfer2 := &guardianDB.Transfer{ScaledValue: 125000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer2)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -1017,7 +1042,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	assert.Equal(t, int(1), len(chainEntryEthereum.transfers))
 	assert.Equal(t, int(1), len(chainEntrySui.transfers))
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(5000), sumEth) // Outbound on Ethereum
+	assert.Equal(t, scaleValue(5000), sumEth) // Outbound on Ethereum
 	assert.Equal(t, int(1), len(ethTransfers))
 	require.NoError(t, err)
 
@@ -1025,8 +1050,8 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	// - ensure that the sum of the transfers is equal to the value of the inverse transfer
 	// - ensure the actual governor usage is Zero (any negative value is converted to zero by TrimAndSumValueForChain)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, 1, len(suiTransfers)) // A single NEGATIVE transfer
-	assert.Equal(t, int64(-5000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
+	assert.Equal(t, 1, len(suiTransfers))      // A single NEGATIVE transfer
+	assert.Equal(t, scaleValue(-5000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
 	require.NoError(t, err)
 	suiGovernorUsage, err := gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
@@ -1059,12 +1084,12 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	assert.Equal(t, int(2), len(chainEntryEthereum.transfers)) // One for inbound refund and another for outbound
 	assert.Equal(t, int(2), len(chainEntrySui.transfers))      // One for inbound refund and another for outbound
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(4000), sumEth)       // Out was 5000 then the cancellation makes this 4000.
+	assert.Equal(t, scaleValue(4000), sumEth)  // Out was 5000 then the cancellation makes this 4000.
 	assert.Equal(t, int(2), len(ethTransfers)) // Two transfers: outbound 5000 and inverse -1000 transfer
 	require.NoError(t, err)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int(2), len(suiTransfers))
-	assert.Equal(t, int64(-4000), sumSui) // -5000 from Ethereum inverse added to 1000 from sending to Ethereum
+	assert.Equal(t, scaleValue(-4000), sumSui) // -5000 from Ethereum inverse added to 1000 from sending to Ethereum
 	require.NoError(t, err)
 	suiGovernorUsage, err = gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
@@ -1094,12 +1119,12 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	assert.Equal(t, int(3), len(chainEntryEthereum.transfers)) // One for inbound refund and another for outbound
 	assert.Equal(t, int(2), len(chainEntrySui.transfers))      // One for inbound refund and another for outbound
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(5500), sumEth)       // The value of the non-cancelled transfer
+	assert.Equal(t, scaleValue(5500), sumEth)  // The value of the non-cancelled transfer
 	assert.Equal(t, int(3), len(ethTransfers)) // Two transfers cancel each other out
 	require.NoError(t, err)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int(2), len(suiTransfers))
-	assert.Equal(t, int64(-4000), sumSui) // Sui's limit should not change
+	assert.Equal(t, scaleValue(-4000), sumSui) // Sui's limit should not change
 	require.NoError(t, err)
 	suiGovernorUsage, err = gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
@@ -1247,7 +1272,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	assert.Equal(t, int(1), len(chainEntryEthereum.transfers))
 	assert.Equal(t, int(1), len(chainEntrySui.transfers))
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(5000), sumEth) // Outbound on Ethereum
+	assert.Equal(t, scaleValue(5000), sumEth) // Outbound on Ethereum
 	assert.Equal(t, int(1), len(ethTransfers))
 	require.NoError(t, err)
 
@@ -1255,8 +1280,8 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	// - ensure that the sum of the transfers is equal to the value of the inverse transfer
 	// - ensure the actual governor usage is Zero (any negative value is converted to zero by TrimAndSumValueForChain)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, 1, len(suiTransfers)) // A single NEGATIVE transfer
-	assert.Equal(t, int64(-5000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
+	assert.Equal(t, 1, len(suiTransfers))      // A single NEGATIVE transfer
+	assert.Equal(t, scaleValue(-5000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
 	require.NoError(t, err)
 	suiGovernorUsage, err := gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
@@ -1284,12 +1309,12 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	assert.Equal(t, int(2), len(chainEntryEthereum.transfers)) // One for inbound refund and another for outbound
 	assert.Equal(t, int(2), len(chainEntrySui.transfers))      // One for inbound refund and another for outbound
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(0), sumEth)          // Out was 4000 then the cancellation makes this zero.
+	assert.Equal(t, scaleValue(0), sumEth)     // Out was 4000 then the cancellation makes this zero.
 	assert.Equal(t, int(2), len(ethTransfers)) // Two transfers cancel each other out
 	require.NoError(t, err)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int(2), len(suiTransfers))
-	assert.Equal(t, int64(0), sumSui)
+	assert.Equal(t, scaleValue(0), sumSui)
 	require.NoError(t, err)
 
 	// Message for a non-flow cancellable token (Ethereum --> Sui)
@@ -1311,12 +1336,12 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	assert.Equal(t, int(3), len(chainEntryEthereum.transfers)) // One for inbound refund and another for outbound
 	assert.Equal(t, int(2), len(chainEntrySui.transfers))      // One for inbound refund and another for outbound
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(2500), sumEth)       // The value of the non-cancelled transfer
+	assert.Equal(t, scaleValue(2500), sumEth)  // The value of the non-cancelled transfer
 	assert.Equal(t, int(3), len(ethTransfers)) // Two transfers cancel each other out
 	require.NoError(t, err)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int(2), len(suiTransfers))
-	assert.Equal(t, int64(0), sumSui) // Sui's limit is still zero
+	assert.Equal(t, scaleValue(0), sumSui) // Sui's limit is still zero
 	require.NoError(t, err)
 }
 
@@ -1782,7 +1807,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	assert.Equal(t, int(0), len(chainEntryEthereum.pending)) // One for inbound refund and another for outbound
 	assert.Equal(t, int(1), len(chainEntrySui.transfers))
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(10000), sumEth) // Equal to total dailyLimit
+	assert.Equal(t, scaleValue(10000), sumEth) // Equal to total dailyLimit
 	assert.Equal(t, int(1), len(ethTransfers))
 	require.NoError(t, err)
 
@@ -1790,8 +1815,8 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	// - ensure that the sum of the transfers is equal to the value of the inverse transfer
 	// - ensure the actual governor usage is Zero (any negative value is converted to zero by TrimAndSumValueForChain)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, 1, len(suiTransfers))  // A single NEGATIVE transfer
-	assert.Equal(t, int64(-10000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
+	assert.Equal(t, 1, len(suiTransfers))       // A single NEGATIVE transfer
+	assert.Equal(t, scaleValue(-10000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
 	require.NoError(t, err)
 	suiGovernorUsage, err := gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
@@ -1818,12 +1843,12 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	assert.Equal(t, int(1), len(chainEntryEthereum.pending))   // One for inbound refund and another for outbound
 	assert.Equal(t, int(1), len(chainEntrySui.transfers))      // One inverse transfer. Inverse from pending not added yet
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(10000), sumEth)      // Same as before: full dailyLimit
+	assert.Equal(t, scaleValue(10000), sumEth) // Same as before: full dailyLimit
 	assert.Equal(t, int(1), len(ethTransfers)) // Same as before
 	require.NoError(t, err)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int(1), len(suiTransfers)) // just the inverse from before
-	assert.Equal(t, int64(-10000), sumSui)     // Unchanged.
+	assert.Equal(t, int(1), len(suiTransfers))  // just the inverse from before
+	assert.Equal(t, scaleValue(-10000), sumSui) // Unchanged.
 	require.NoError(t, err)
 	suiGovernorUsage, err = gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
@@ -1849,12 +1874,12 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	assert.Equal(t, int(1), len(chainEntryEthereum.pending)) // We have not yet released the pending transfer
 	assert.Equal(t, int(2), len(chainEntrySui.transfers))
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(9000), sumEth)       // We freed up room because of Sui incoming
+	assert.Equal(t, scaleValue(9000), sumEth)  // We freed up room because of Sui incoming
 	assert.Equal(t, int(2), len(ethTransfers)) // Two transfers cancel each other out
 	require.NoError(t, err)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int(2), len(suiTransfers))
-	assert.Equal(t, int64(-9000), sumSui) // We consumed some outbound capacity
+	assert.Equal(t, scaleValue(-9000), sumSui) // We consumed some outbound capacity
 	require.NoError(t, err)
 	suiGovernorUsage, err = gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, uint64(0), suiGovernorUsage) // Still zero because it's still negative
@@ -1889,12 +1914,12 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	assert.Equal(t, int(0), len(chainEntryEthereum.pending))   // Released
 	assert.Equal(t, int(3), len(chainEntrySui.transfers))      // One outbound, two inverses from Ethereum
 	sumEth, ethTransfers, err = gov.trimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(9500), sumEth)
+	assert.Equal(t, scaleValue(9500), sumEth)
 	assert.Equal(t, int(3), len(ethTransfers))
 	require.NoError(t, err)
 	sumSui, suiTransfers, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, int(3), len(suiTransfers)) // New inverse transfer added after pending transfer was released
-	assert.Equal(t, int64(-9500), sumSui)      // Flow-cancelling inverse transfer added to Sui after released
+	assert.Equal(t, scaleValue(-9500), sumSui) // Flow-cancelling inverse transfer added to Sui after released
 	require.NoError(t, err)
 	suiGovernorUsage, err = gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, uint64(0), suiGovernorUsage) // Still zero
@@ -2509,9 +2534,10 @@ func TestIsBigTransfer(t *testing.T) {
 		checkForBigTransactions: bigTransactionSize != 0,
 	}
 
-	assert.Equal(t, false, ce.isBigTransfer(uint64(4_999_999)))
-	assert.Equal(t, true, ce.isBigTransfer(uint64(5_000_000)))
-	assert.Equal(t, true, ce.isBigTransfer(uint64(5_000_001)))
+	// isBigTransfer expects scaled values, so we need to scale the input
+	assert.Equal(t, false, ce.isBigTransfer(uint64(4_999_999)*guardianDB.ScaledValueFactor))
+	assert.Equal(t, true, ce.isBigTransfer(uint64(5_000_000)*guardianDB.ScaledValueFactor))
+	assert.Equal(t, true, ce.isBigTransfer(uint64(5_000_001)*guardianDB.ScaledValueFactor))
 }
 
 func TestTransferPayloadTooShort(t *testing.T) {
@@ -2590,7 +2616,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 
 	xfer1 := &guardianDB.Transfer{
 		Timestamp:      startTime.Add(time.Minute * 5),
-		Value:          uint64(1000),
+		ScaledValue:    uint64(1000) * guardianDB.ScaledValueFactor, // Scaled value
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -2602,7 +2628,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 
 	xfer2 := &guardianDB.Transfer{
 		Timestamp:      startTime.Add(time.Minute * 5),
-		Value:          uint64(2000),
+		ScaledValue:    uint64(2000) * guardianDB.ScaledValueFactor, // Scaled value
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -2735,7 +2761,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	// This transfer should exhaust the dailyLimit for the emitter chain
 	xfer1 := &guardianDB.Transfer{
 		Timestamp:      transferTime.Add(-10),
-		Value:          uint64(10000),
+		ScaledValue:    uint64(10000) * guardianDB.ScaledValueFactor, // Scaled value
 		OriginChain:    vaa.ChainIDSolana,
 		OriginAddress:  flowCancelTokenOriginAddress,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -2749,7 +2775,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	// This incoming transfer should free up some of the space on the previous emitter chain
 	xfer2 := &guardianDB.Transfer{
 		Timestamp:      transferTime.Add(-9),
-		Value:          uint64(2000),
+		ScaledValue:    uint64(2000) * guardianDB.ScaledValueFactor, // Scaled value
 		OriginChain:    vaa.ChainIDSolana,
 		OriginAddress:  flowCancelTokenOriginAddress,
 		EmitterChain:   vaa.ChainIDSui,
@@ -2764,7 +2790,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	// cancel is not applied
 	xfer3 := &guardianDB.Transfer{
 		Timestamp:      transferTime.Add(-8),
-		Value:          uint64(50),
+		ScaledValue:    uint64(50) * guardianDB.ScaledValueFactor, // Scaled value
 		OriginChain:    vaa.ChainIDSolana,
 		OriginAddress:  flowCancelTokenOriginAddress,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -2810,14 +2836,14 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	assert.Equal(t, uint64(20000), valueTransferred)
 
 	governorUsageEth, err := gov.trimAndSumValueForChain(chainEntryEth, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, uint64(10000), governorUsageEth)
-	assert.Zero(t, governorUsageEth-chainEntryEth.dailyLimit) // Make sure we used the whole capacity
+	assert.Equal(t, uint64(10000)*guardianDB.ScaledValueFactor, governorUsageEth)
+	assert.Zero(t, governorUsageEth-chainEntryEth.dailyLimit*guardianDB.ScaledValueFactor) // Make sure we used the whole capacity
 	require.NoError(t, err)
 	governorUsageSui, err := gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, governorUsageSui)
 	require.NoError(t, err)
 	sumTransfersSui, _, err := gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(-10000), sumTransfersSui)
+	assert.Equal(t, scaleValue(-10000), sumTransfersSui)
 	require.NoError(t, err)
 
 	// STEP 2: Load second transfer
@@ -2834,15 +2860,15 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	assert.Equal(t, uint64(24000), valueTransferred)
 
 	governorUsageEth, err = gov.trimAndSumValueForChain(chainEntryEth, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, uint64(8000), governorUsageEth)
+	assert.Equal(t, uint64(8000)*guardianDB.ScaledValueFactor, governorUsageEth)
 	// Remaining capacity
-	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 2000) // #nosec G115 -- If this overflowed the test would fail
+	assert.Equal(t, int(chainEntryEth.dailyLimit*guardianDB.ScaledValueFactor-governorUsageEth), 2000*guardianDB.ScaledValueFactor) // #nosec G115 -- If this overflowed the test would fail
 	require.NoError(t, err)
 	governorUsageSui, err = gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, governorUsageSui)
 	require.NoError(t, err)
 	sumTransfersSui, _, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(-8000), sumTransfersSui)
+	assert.Equal(t, scaleValue(-8000), sumTransfersSui)
 	require.NoError(t, err)
 
 	// STEP 3: Load third transfer
@@ -2858,15 +2884,15 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	assert.Equal(t, int64(0), netValueTransferred) // Value cancels out for all transfers
 
 	governorUsageEth, err = gov.trimAndSumValueForChain(chainEntryEth, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, uint64(8050), governorUsageEth)
+	assert.Equal(t, uint64(8050)*guardianDB.ScaledValueFactor, governorUsageEth)
 	// Remaining capacity
-	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 1950) // #nosec G115 -- If this overflowed the test would fail
+	assert.Equal(t, int(chainEntryEth.dailyLimit*guardianDB.ScaledValueFactor-governorUsageEth), 1950*guardianDB.ScaledValueFactor) // #nosec G115 -- If this overflowed the test would fail
 	require.NoError(t, err)
 	governorUsageSui, err = gov.trimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	require.NoError(t, err)
 	assert.Zero(t, governorUsageSui)
 	sumTransfersSui, _, err = gov.trimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
-	assert.Equal(t, int64(-8050), sumTransfersSui)
+	assert.Equal(t, scaleValue(-8050), sumTransfersSui)
 	require.NoError(t, err)
 
 	// Sanity check: make sure these are still empty/zero
@@ -2924,14 +2950,14 @@ func TestFlowCancelDependsOnCorridors(t *testing.T) {
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
 	dbTransfer := &guardianDB.Transfer{
-		Value:         125000,
+		ScaledValue:   125000,
 		Timestamp:     transferTime,
 		OriginAddress: flowCancelTokenOriginAddress,
 		OriginChain:   vaa.ChainIDEthereum,
 		TargetChain:   vaa.ChainIDSui,
 		EmitterChain:  vaa.ChainIDEthereum,
 	}
-	flowCancelTransfer := &transfer{value: 125000, dbTransfer: dbTransfer}
+	flowCancelTransfer := &transfer{scaledValue: 125000, dbTransfer: dbTransfer}
 	added, err := gov.tryAddFlowCancelTransfer(flowCancelTransfer)
 	assert.False(t, added)
 	require.NoError(t, err)
@@ -3434,6 +3460,22 @@ func TestCheckedAddUint64HappyPath(t *testing.T) {
 	sum, err = CheckedAddUint64(x, y)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(3000), sum)
+
+	// Documented limit: $184T for uint64
+	oneEightyFourTrillionScaled := uint64(184_000_000_000_000) * guardianDB.ScaledValueFactor
+	ninetyTwoTrillionScaled := uint64(92_000_000_000_000) * guardianDB.ScaledValueFactor
+	sum, err = CheckedAddUint64(oneEightyFourTrillionScaled, 0)
+	require.NoError(t, err)
+	assert.Equal(t, oneEightyFourTrillionScaled, sum)
+
+	sum, err = CheckedAddUint64(ninetyTwoTrillionScaled, ninetyTwoTrillionScaled)
+	require.NoError(t, err)
+	assert.Equal(t, oneEightyFourTrillionScaled, sum)
+
+	// Just under overflow boundary
+	sum, err = CheckedAddUint64(math.MaxUint64-1, 1)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(math.MaxUint64), sum)
 }
 
 func TestCheckedAddInt64HappyPath(t *testing.T) {
@@ -3471,11 +3513,52 @@ func TestCheckedAddInt64HappyPath(t *testing.T) {
 	sum, err = CheckedAddInt64(x, y)
 	require.NoError(t, err)
 	assert.Equal(t, int64(3000), sum)
+
+	// Documented limit: $92T for flow-cancel (int64)
+	ninetyTwoTrillionScaled := int64(92_000_000_000_000) * guardianDB.ScaledValueFactor
+	fortySixTrillionScaled := int64(46_000_000_000_000) * guardianDB.ScaledValueFactor
+	sum, err = CheckedAddInt64(ninetyTwoTrillionScaled, 0)
+	require.NoError(t, err)
+	assert.Equal(t, ninetyTwoTrillionScaled, sum)
+
+	sum, err = CheckedAddInt64(fortySixTrillionScaled, fortySixTrillionScaled)
+	require.NoError(t, err)
+	assert.Equal(t, ninetyTwoTrillionScaled, sum)
+
+	// Flow-cancel: positive + negative (common case)
+	sum, err = CheckedAddInt64(ninetyTwoTrillionScaled, -ninetyTwoTrillionScaled)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), sum)
+
+	sum, err = CheckedAddInt64(ninetyTwoTrillionScaled, -fortySixTrillionScaled)
+	require.NoError(t, err)
+	assert.Equal(t, fortySixTrillionScaled, sum)
+
+	// Large mixed signs should not overflow
+	sum, err = CheckedAddInt64(math.MaxInt64, math.MinInt64+1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), sum)
+
+	// Just under overflow boundary
+	sum, err = CheckedAddInt64(math.MaxInt64-1, 1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(math.MaxInt64), sum)
+
+	// Just under underflow boundary
+	sum, err = CheckedAddInt64(math.MinInt64+1, -1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(math.MinInt64), sum)
 }
 
 func TestCheckedAddUint64ReturnsErrorOnOverflow(t *testing.T) {
 	// Return error on overflow
 	sum, err := CheckedAddUint64(math.MaxUint64, 1)
+	require.Error(t, err)
+	assert.Equal(t, uint64(0), sum)
+
+	// $100T + $100T overflows (above documented $184T limit)
+	hundredTrillionScaled := uint64(100_000_000_000_000) * guardianDB.ScaledValueFactor
+	sum, err = CheckedAddUint64(hundredTrillionScaled, hundredTrillionScaled)
 	require.Error(t, err)
 	assert.Equal(t, uint64(0), sum)
 }
@@ -3485,6 +3568,12 @@ func TestCheckedAddInt64ReturnsErrorOnOverflow(t *testing.T) {
 	sum, err := CheckedAddInt64(math.MaxInt64, 1)
 	require.Error(t, err)
 	assert.Equal(t, int64(0), sum)
+
+	// $50T + $50T overflows (above documented $92T limit)
+	fiftyTrillionScaled := int64(50_000_000_000_000) * guardianDB.ScaledValueFactor
+	sum, err = CheckedAddInt64(fiftyTrillionScaled, fiftyTrillionScaled)
+	require.Error(t, err)
+	assert.Equal(t, int64(0), sum)
 }
 
 func TestCheckedAddInt64ReturnsErrorOnUnderflow(t *testing.T) {
@@ -3492,9 +3581,15 @@ func TestCheckedAddInt64ReturnsErrorOnUnderflow(t *testing.T) {
 	sum, err := CheckedAddInt64(math.MinInt64, -1)
 	require.Error(t, err)
 	assert.Equal(t, int64(0), sum)
+
+	// -$50T + -$50T underflows (below documented -$92T limit)
+	fiftyTrillionScaled := int64(50_000_000_000_000) * guardianDB.ScaledValueFactor
+	sum, err = CheckedAddInt64(-fiftyTrillionScaled, -fiftyTrillionScaled)
+	require.Error(t, err)
+	assert.Equal(t, int64(0), sum)
 }
 
-func Test_computeValue(t *testing.T) {
+func Test_scaledUsdValue(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -3511,7 +3606,8 @@ func Test_computeValue(t *testing.T) {
 				decimals: big.NewInt(0),
 				price:    big.NewFloat(1),
 			},
-			want:    10,
+			// 10 * guardianDB.ScaledValueFactor = 10 * 100_000 = 1_000_000
+			want:    10 * guardianDB.ScaledValueFactor,
 			wantErr: false,
 		},
 		{
@@ -3571,20 +3667,312 @@ func Test_computeValue(t *testing.T) {
 			want:    0,
 			wantErr: true,
 		},
+		{
+			name:   "$184 trillion succeeds (documented limit)",
+			amount: big.NewInt(184_000_000_000_000),
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(0),
+				price:    big.NewFloat(1),
+			},
+			want:    184_000_000_000_000 * guardianDB.ScaledValueFactor,
+			wantErr: false,
+		},
+		{
+			name: "value exceeding uint64 after scaling fails",
+			// math.MaxUint64 / guardianDB.ScaledValueFactor + 1 ≈ 184.47 trillion
+			amount: big.NewInt(0).Add(
+				big.NewInt(0).SetUint64(math.MaxUint64/guardianDB.ScaledValueFactor),
+				big.NewInt(1),
+			),
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(0),
+				price:    big.NewFloat(1),
+			},
+			want:    0,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := usdValue(tt.amount, tt.token)
+			got, gotErr := scaledUsdValue(tt.amount, tt.token)
 			if gotErr != nil {
 				if !tt.wantErr {
-					t.Errorf("computeValue() failed: %v", gotErr)
+					t.Errorf("scaledUsdValue() failed: %v", gotErr)
 				}
 				return
 			}
 			if tt.wantErr {
-				t.Fatal("computeValue() succeeded unexpectedly")
+				t.Fatal("scaledUsdValue() succeeded unexpectedly")
 			}
 			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_scaleDownUsdValue(t *testing.T) {
+	tests := []struct {
+		name        string
+		scaledValue uint64
+		want        uint64
+	}{
+		// Edge cases
+		{"zero value", 0, 0},
+		{"below scaling factor truncates to zero", guardianDB.ScaledValueFactor - 1, 0},
+
+		// Minimum representable dollar value
+		{"exactly scaling factor equals $1", guardianDB.ScaledValueFactor, 1},
+		{"just above scaling factor truncates to $1", guardianDB.ScaledValueFactor + 1, 1},
+
+		// Typical value
+		{"typical value", 1_234_567_890, 12_345},
+
+		// Documented limit: $184 trillion for uint64
+		{"$184 trillion (documented uint64 limit)", 184_000_000_000_000 * guardianDB.ScaledValueFactor, 184_000_000_000_000},
+
+		// Mathematical maximum
+		{"max uint64 scaled value", math.MaxUint64, math.MaxUint64 / guardianDB.ScaledValueFactor},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := scaleDownUsdValue(tt.scaledValue)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_TrimAndSumValueDocumentedLimits(t *testing.T) {
+	ctx := context.Background()
+	gov := newChainGovernorForTest(t, ctx)
+
+	now := time.Now()
+	startTime := now.Add(-time.Hour * 24)
+
+	tests := []struct {
+		name        string
+		transfers   []int64 // scaled values (positive=outbound, negative=flow-cancel)
+		expectedSum int64
+		expectError bool
+	}{
+		{
+			name:        "single $92T transfer succeeds (documented int64 limit)",
+			transfers:   []int64{int64(92_000_000_000_000) * guardianDB.ScaledValueFactor},
+			expectedSum: int64(92_000_000_000_000) * guardianDB.ScaledValueFactor,
+			expectError: false,
+		},
+		{
+			name: "multiple transfers summing to $90T succeeds",
+			transfers: []int64{
+				int64(30_000_000_000_000) * guardianDB.ScaledValueFactor,
+				int64(30_000_000_000_000) * guardianDB.ScaledValueFactor,
+				int64(30_000_000_000_000) * guardianDB.ScaledValueFactor,
+			},
+			expectedSum: int64(90_000_000_000_000) * guardianDB.ScaledValueFactor,
+			expectError: false,
+		},
+		{
+			name: "$92T outbound minus $46T flow-cancel equals $46T",
+			transfers: []int64{
+				int64(92_000_000_000_000) * guardianDB.ScaledValueFactor,
+				-int64(46_000_000_000_000) * guardianDB.ScaledValueFactor,
+			},
+			expectedSum: int64(46_000_000_000_000) * guardianDB.ScaledValueFactor,
+			expectError: false,
+		},
+		{
+			name:        "1000 x $1B transfers equals $1T",
+			transfers:   repeatValue(int64(1_000_000_000)*guardianDB.ScaledValueFactor, 1000),
+			expectedSum: int64(1_000_000_000_000) * guardianDB.ScaledValueFactor,
+			expectError: false,
+		},
+		{
+			name: "two $50T transfers overflow",
+			transfers: []int64{
+				int64(50_000_000_000_000) * guardianDB.ScaledValueFactor,
+				int64(50_000_000_000_000) * guardianDB.ScaledValueFactor,
+			},
+			expectedSum: 0,
+			expectError: true,
+		},
+		{
+			name: "two -$50T flow-cancels underflow",
+			transfers: []int64{
+				-int64(50_000_000_000_000) * guardianDB.ScaledValueFactor,
+				-int64(50_000_000_000_000) * guardianDB.ScaledValueFactor,
+			},
+			expectedSum: 0,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Build transfer slice
+			var transfers []transfer
+			for _, scaledVal := range tt.transfers {
+				dbTransfer := &guardianDB.Transfer{
+					Timestamp:   now,
+					ScaledValue: uint64(absInt64(scaledVal)), // #nosec G115 -- Test values will not overflow
+				}
+				tr, err := newTransferFromDbTransfer(dbTransfer)
+				require.NoError(t, err)
+				// Set the actual scaled value (can be negative for flow-cancel)
+				tr.scaledValue = scaledVal
+				transfers = append(transfers, tr)
+			}
+
+			sum, _, err := gov.trimAndSumValue(transfers, startTime)
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Equal(t, int64(0), sum)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedSum, sum)
+			}
+		})
+	}
+}
+
+// Test_SubDollarTransfersAccumulate verifies that transfers worth less than $1
+// correctly accumulate when tracking Governor usage. The guardianDB.ScaledValueFactor (100,000)
+// provides precision down to $0.00001. While scaleDownUsdValue() truncates sub-dollar
+// amounts to $0 for display/logging purposes, the internal Governor logic uses scaled
+// values for all limit comparisons and summations, ensuring sub-dollar transfers
+// properly consume the daily limit.
+func Test_SubDollarTransfersAccumulate(t *testing.T) {
+	tests := []struct {
+		name              string
+		tokenPrice        float64
+		dailyLimit        uint64  // Unscaled daily limit in USD
+		transferAmount    float64 // USD value per transfer
+		numTransfers      int     // Number of transfers to reach the limit
+		expectedScaledSum int64   // Expected scaled sum after numTransfers
+	}{
+		{
+			name:              "quarter dollar transfers",
+			tokenPrice:        1.0,
+			dailyLimit:        10,                                // $10 limit
+			transferAmount:    0.25,                              // $0.25 each
+			numTransfers:      40,                                // 40 × $0.25 = $10
+			expectedScaledSum: 10 * guardianDB.ScaledValueFactor, // $10 scaled
+		},
+		{
+			name:              "ten cent transfers",
+			tokenPrice:        1.0,
+			dailyLimit:        10,                                // $10 limit
+			transferAmount:    0.10,                              // $0.10 each
+			numTransfers:      100,                               // 100 × $0.10 = $10
+			expectedScaledSum: 10 * guardianDB.ScaledValueFactor, // $10 scaled
+		},
+		{
+			name:              "smallest representable value accumulates",
+			tokenPrice:        1.0,
+			dailyLimit:        1,                                // $1 limit
+			transferAmount:    0.0001,                           // $0.0001 each (scaled value = 10)
+			numTransfers:      10000,                            // 10,000 × $0.0001 = $1
+			expectedScaledSum: 1 * guardianDB.ScaledValueFactor, // $1 scaled
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			gov := newChainGovernorForTest(t, ctx)
+
+			tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+			toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+			tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+			tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
+			require.NoError(t, err)
+
+			gov.setDayLengthInMinutes(24 * 60)
+			err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, tt.dailyLimit, 0)
+			require.NoError(t, err)
+			err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "TEST", tt.tokenPrice, false)
+			require.NoError(t, err)
+
+			// Build the transfer payload for this test case
+			payloadBytes := buildMockTransferPayloadBytes(1,
+				vaa.ChainIDEthereum,
+				tokenAddrStr,
+				vaa.ChainIDPolygon,
+				toAddrStr,
+				tt.transferAmount,
+			)
+
+			now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
+			require.NoError(t, err)
+			startTime := now.Add(-time.Hour * 24)
+
+			// Process numTransfers transfers - all should be accepted
+			for i := 0; i < tt.numTransfers; i++ {
+				msg := common.MessagePublication{
+					TxID:             hashToTxID(fmt.Sprintf("0x%d", i)),
+					Timestamp:        time.Unix(int64(1654543099), 0),
+					Nonce:            uint32(i), // #nosec G115 -- Test values will not overflow
+					Sequence:         uint64(i), // #nosec G115 -- Test values will not overflow
+					EmitterChain:     vaa.ChainIDEthereum,
+					EmitterAddress:   tokenBridgeAddr,
+					ConsistencyLevel: uint8(32),
+					Payload:          payloadBytes,
+				}
+
+				canPost, err := gov.processMsgForTime(&msg, now)
+				require.NoError(t, err)
+				assert.True(t, canPost, "transfer %d should be accepted", i)
+			}
+
+			// Verify the scaled sum matches expected value
+			ce := gov.chains[vaa.ChainIDEthereum]
+			sum, _, err := gov.trimAndSumValue(ce.transfers, startTime)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedScaledSum, sum, "scaled sum should equal expected value")
+
+			// Verify we're at the limit: the next transfer should be enqueued
+			overflowMsg := common.MessagePublication{
+				TxID:             hashToTxID("0xoverflow"),
+				Timestamp:        time.Unix(int64(1654543099), 0),
+				Nonce:            uint32(tt.numTransfers), // #nosec G115 -- Test values will not overflow
+				Sequence:         uint64(tt.numTransfers), // #nosec G115 -- Test values will not overflow
+				EmitterChain:     vaa.ChainIDEthereum,
+				EmitterAddress:   tokenBridgeAddr,
+				ConsistencyLevel: uint8(32),
+				Payload:          payloadBytes,
+			}
+
+			canPost, err := gov.processMsgForTime(&overflowMsg, now)
+			require.NoError(t, err)
+			assert.False(t, canPost, "transfer exceeding limit should be enqueued")
+
+			// Verify there's exactly one pending transfer
+			assert.Equal(t, 1, len(ce.pending), "should have one pending transfer")
+
+			// Store the pending message details for later verification
+			require.Equal(t, 1, len(ce.pending))
+			pendingMsg := ce.pending[0].dbData.Msg
+
+			// Advance time by 24+ hours to allow the pending transfer to be released
+			laterTime := now.Add(time.Hour * 25)
+
+			// Release pending transfers
+			msgs, err := gov.checkPendingForTime(laterTime)
+			require.NoError(t, err)
+			assert.Equal(t, 1, len(msgs), "one transfer should be released")
+
+			// Verify the released message matches the original pending message
+			if len(msgs) == 1 {
+				releasedMsg := msgs[0]
+				assert.Equal(t, pendingMsg.TxID, releasedMsg.TxID, "released TxID should match")
+				assert.Equal(t, pendingMsg.Nonce, releasedMsg.Nonce, "released Nonce should match")
+				assert.Equal(t, pendingMsg.Sequence, releasedMsg.Sequence, "released Sequence should match")
+				assert.Equal(t, pendingMsg.EmitterChain, releasedMsg.EmitterChain, "released EmitterChain should match")
+				assert.Equal(t, pendingMsg.EmitterAddress, releasedMsg.EmitterAddress, "released EmitterAddress should match")
+				assert.Equal(t, pendingMsg.Payload, releasedMsg.Payload, "released Payload should match")
+			}
+
+			// Verify the pending queue is now empty
+			assert.Equal(t, 0, len(ce.pending), "pending queue should be empty after release")
 		})
 	}
 }

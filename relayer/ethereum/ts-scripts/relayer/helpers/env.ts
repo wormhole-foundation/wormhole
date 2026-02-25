@@ -254,6 +254,7 @@ export function loadGuardianKeys(): string[] {
   const NUM_GUARDIANS = get_env_var("NUM_GUARDIANS");
   const guardianKey = get_env_var("GUARDIAN_KEY");
   const guardianKey2 = get_env_var("GUARDIAN_KEY2");
+  const guardianKey3 = get_env_var("GUARDIAN_KEY3");
 
   let numGuardians: number = 0;
   console.log("NUM_GUARDIANS variable : " + NUM_GUARDIANS);
@@ -274,6 +275,13 @@ export function loadGuardianKeys(): string[] {
       throw Error("Failed to find guardian key 2 for this process!");
     }
     output.push(guardianKey2);
+  }
+
+  if (numGuardians >= 3) {
+    if (!guardianKey3) {
+      throw Error("Failed to find guardian key 3 for this process!");
+    }
+    output.push(guardianKey3);
   }
 
   return output;

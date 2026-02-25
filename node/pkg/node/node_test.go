@@ -198,7 +198,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
 			GuardianOptionAlternatePublisher([]byte{}, []string{}), // disable alternate publisher
-			GuardianOptionProcessor(networkID),
+			GuardianOptionProcessor(networkID, false),
 
 			// Keep this last so that all of its dependencies are met.
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, false, cfg.p2pPort, "", 0, "", "", false, []string{}, []string{}, []string{}),
