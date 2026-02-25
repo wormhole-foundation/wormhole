@@ -1403,6 +1403,8 @@ func DeserializeXRPLTicketRefillPayload(bz []byte) (*XRPLTicketRefillPayload, er
 }
 
 // Serialize serializes an XRPLTicketRefillPayload to bytes.
+//
+//nolint:unparam // error is always nil but kept for consistency with other Serialize methods.
 func (p *XRPLTicketRefillPayload) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
