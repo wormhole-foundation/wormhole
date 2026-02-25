@@ -846,6 +846,16 @@ type XRPLTokenID struct {
 	MPTID [24]byte
 }
 
+// XRPLMemo represents a memo entry in an XRPL release payload.
+type XRPLMemo struct {
+	// Data is the raw memo data bytes
+	Data []byte
+	// Format is the raw memo format bytes (e.g., MIME type)
+	Format []byte
+	// Type is the raw memo type bytes
+	Type []byte
+}
+
 // XRPLReleasePayload represents a VAA payload for releasing funds on the XRP Ledger.
 // This payload is emitted by a registered emitter to trigger Manager Service signing.
 type XRPLReleasePayload struct {
@@ -867,13 +877,15 @@ type XRPLReleasePayload struct {
 	SourceSequence uint64
 	// Token is the variable-length token identifier
 	Token XRPLTokenID
+	// Memos is the list of memo entries attached to the payment transaction
+	Memos []XRPLMemo
 }
 
 // DeserializeXRPLReleasePayload deserializes an XRPLReleasePayload from bytes.
 func DeserializeXRPLReleasePayload(bz []byte) (*XRPLReleasePayload, error) {
 	// Minimum size: prefix (4) + ticket_id (8) + custody (20) + recipient (20) + amount (8) +
-	// decimals (1) + source_chain (2) + source_emitter (32) + source_sequence (8) + token_type (1) = 104
-	const minSize = 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1
+	// decimals (1) + source_chain (2) + source_emitter (32) + source_sequence (8) + token_type (1) + memos_len (2) = 106
+	const minSize = 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 2
 
 	if len(bz) < minSize {
 		return nil, fmt.Errorf("XRPL release payload too short: expected at least %d bytes, got %d", minSize, len(bz))
@@ -950,6 +962,62 @@ func DeserializeXRPLReleasePayload(bz []byte) (*XRPLReleasePayload, error) {
 		return nil, fmt.Errorf("unknown XRPL token type: 0x%02x", payload.Token.Type)
 	}
 
+	// Memos
+	if offset+2 > len(bz) {
+		return nil, fmt.Errorf("XRPL release payload truncated: missing memos_len")
+	}
+	memosLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+	offset += 2
+
+	if memosLen > 0 {
+		remaining := len(bz) - offset
+		// Each memo has at minimum 3 x 2-byte length prefixes = 6 bytes
+		if int(memosLen) > remaining/6 {
+			return nil, fmt.Errorf("XRPL memo count %d exceeds remaining payload size of %d bytes", memosLen, remaining)
+		}
+		payload.Memos = make([]XRPLMemo, memosLen)
+		for i := uint16(0); i < memosLen; i++ {
+			// memo_data_len + memo_data
+			if offset+2 > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: missing memo_data_len for memo %d", i)
+			}
+			dataLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+			offset += 2
+			if offset+int(dataLen) > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: memo_data for memo %d requires %d bytes, got %d", i, dataLen, len(bz)-offset)
+			}
+			payload.Memos[i].Data = make([]byte, dataLen)
+			copy(payload.Memos[i].Data, bz[offset:offset+int(dataLen)])
+			offset += int(dataLen)
+
+			// memo_format_len + memo_format
+			if offset+2 > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: missing memo_format_len for memo %d", i)
+			}
+			formatLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+			offset += 2
+			if offset+int(formatLen) > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: memo_format for memo %d requires %d bytes, got %d", i, formatLen, len(bz)-offset)
+			}
+			payload.Memos[i].Format = make([]byte, formatLen)
+			copy(payload.Memos[i].Format, bz[offset:offset+int(formatLen)])
+			offset += int(formatLen)
+
+			// memo_type_len + memo_type
+			if offset+2 > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: missing memo_type_len for memo %d", i)
+			}
+			typeLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+			offset += 2
+			if offset+int(typeLen) > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: memo_type for memo %d requires %d bytes, got %d", i, typeLen, len(bz)-offset)
+			}
+			payload.Memos[i].Type = make([]byte, typeLen)
+			copy(payload.Memos[i].Type, bz[offset:offset+int(typeLen)])
+			offset += int(typeLen)
+		}
+	}
+
 	// Verify we consumed all bytes
 	if offset != len(bz) {
 		return nil, fmt.Errorf("XRPL release payload has trailing bytes: consumed %d of %d bytes", offset, len(bz))
@@ -1002,6 +1070,31 @@ func (p *XRPLReleasePayload) Serialize() ([]byte, error) {
 		buf.Write(p.Token.MPTID[:])
 	default:
 		return nil, fmt.Errorf("unknown XRPL token type: 0x%02x", p.Token.Type)
+	}
+
+	// Memos
+	if len(p.Memos) > math.MaxUint16 {
+		return nil, fmt.Errorf("too many memos: %d", len(p.Memos))
+	}
+	MustWrite(buf, binary.BigEndian, uint16(len(p.Memos))) // #nosec G115 -- checked above
+	for _, memo := range p.Memos {
+		if len(memo.Data) > math.MaxUint16 {
+			return nil, fmt.Errorf("memo data too long: %d bytes", len(memo.Data))
+		}
+		MustWrite(buf, binary.BigEndian, uint16(len(memo.Data))) // #nosec G115 -- checked above
+		buf.Write(memo.Data)
+
+		if len(memo.Format) > math.MaxUint16 {
+			return nil, fmt.Errorf("memo format too long: %d bytes", len(memo.Format))
+		}
+		MustWrite(buf, binary.BigEndian, uint16(len(memo.Format))) // #nosec G115 -- checked above
+		buf.Write(memo.Format)
+
+		if len(memo.Type) > math.MaxUint16 {
+			return nil, fmt.Errorf("memo type too long: %d bytes", len(memo.Type))
+		}
+		MustWrite(buf, binary.BigEndian, uint16(len(memo.Type))) // #nosec G115 -- checked above
+		buf.Write(memo.Type)
 	}
 
 	return buf.Bytes(), nil
