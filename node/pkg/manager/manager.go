@@ -89,6 +89,8 @@ type ManagerService struct {
 	db *db.ManagerDB
 	// pendingTxMu protects access to database operations for aggregated transactions.
 	pendingTxMu sync.RWMutex
+	// xrplSequencer is the known XRPL sequencer emitter address.
+	xrplSequencer *emitterEntry
 	// reader is used to dynamically fetch manager sets from the DelegatedManagerSet contract.
 	reader *ManagerSetReader
 }
@@ -107,16 +109,20 @@ func NewManagerService(
 	database *db.Database,
 	delegatedManagerSetRPC string,
 ) (*ManagerService, error) {
-	// Select the appropriate emitter list based on environment
+	// Select the appropriate emitter and sequencer lists based on environment
 	var emitters []emitterEntry
+	var xrplSequencer *emitterEntry
 	//nolint:exhaustive // GoTest, and AccountantMock intentionally fall through to default
 	switch env {
 	case common.UnsafeDevNet:
 		emitters = parseEmitters(sdk.KnownDevnetManagerEmitters)
+		xrplSequencer = parseSequencer(sdk.KnownDevnetXRPLSequencer)
 	case common.TestNet:
 		emitters = parseEmitters(sdk.KnownTestnetManagerEmitters)
+		xrplSequencer = parseSequencer(sdk.KnownTestnetXRPLSequencer)
 	case common.MainNet:
 		emitters = parseEmitters(sdk.KnownManagerEmitters)
+		xrplSequencer = parseSequencer(sdk.KnownXRPLSequencer)
 	default:
 		emitters = []emitterEntry{}
 	}
@@ -143,6 +149,7 @@ func NewManagerService(
 		vaaC:           vaaC,
 		env:            env,
 		emitters:       emitters,
+		xrplSequencer:  xrplSequencer,
 		signers:        signers,
 		signerPubKeys:  signerPubKeys,
 		managerTxSendC: managerTxSendC,
@@ -150,6 +157,25 @@ func NewManagerService(
 		db:             db.NewManagerDB(database.Conn()),
 		reader:         reader,
 	}, nil
+}
+
+// parseSequencer converts a single SDK sequencer entry to an internal emitterEntry.
+// Returns nil if the entry has an empty address (e.g. mainnet before configuration).
+func parseSequencer(sdkEntry struct {
+	ChainId vaa.ChainID
+	Addr    string
+}) *emitterEntry {
+	if sdkEntry.Addr == "" {
+		return nil
+	}
+	addr, err := hex.DecodeString(sdkEntry.Addr)
+	if err != nil {
+		panic("invalid sequencer address: " + sdkEntry.Addr)
+	}
+	return &emitterEntry{
+		chainId: sdkEntry.ChainId,
+		addr:    addr,
+	}
 }
 
 // parseEmitters converts the SDK emitter format to internal emitterEntry slice.
@@ -182,6 +208,7 @@ func (c *ManagerService) Run(ctx context.Context) error {
 	c.logger.Info("manager service enabled",
 		zap.String("environment", string(c.env)),
 		zap.Int("known_emitters", len(c.emitters)),
+		zap.Bool("xrpl_sequencer", c.xrplSequencer != nil),
 		zap.Int("signers", len(c.signers)),
 	)
 
@@ -201,12 +228,8 @@ func (c *ManagerService) Run(ctx context.Context) error {
 func (c *ManagerService) handleVAA(v *vaa.VAA) {
 	// SECURITY: this channel should only be pushed to by a process that has verified the signatures on the VAA to belong to the current guardian set
 
-	// Check if this VAA is from a known manager emitter
-	// SECURITY: This is a defense-in-depth / DoS prevention check done to intentionally limit
-	// the scope of unknown emitters incidentally triggering this signing logic.
-	// In the future, this could be moved to a permissionless on-chain registration.
-	// Note that for the `UTX0` case, redeem scripts are tied to a particular emitter.
-	if !c.isKnownEmitter(v.EmitterChain, v.EmitterAddress) {
+	// SECURITY: Validate that this VAA is from an authorized emitter for its payload type.
+	if !c.validateEmitter(v) {
 		c.logger.Debug("skipping VAA from unknown emitter",
 			zap.String("message_id", v.MessageID()),
 			zap.Stringer("emitter_chain", v.EmitterChain),
@@ -308,6 +331,38 @@ func (c *ManagerService) handleIncomingTransaction(tx *gossipv1.ManagerTransacti
 	}
 
 	c.storeSignature(sig)
+}
+
+// validateEmitter checks if the VAA is from an authorized emitter for its payload type.
+//
+// For XRPL payloads, it checks against the known sequencer addresses.
+//
+// SECURITY: This is critical for XRPL as the sequencer contract controls all accounts!
+//
+// For UTXO payloads (e.g. Dogecoin), it checks against the known manager emitters list.
+//
+// SECURITY: This is a defense-in-depth / DoS prevention check for UTX0 done to intentionally limit
+// the scope of unknown emitters incidentally triggering this signing logic.
+// In the future, this could be moved to a permissionless on-chain registration.
+// Note that for the `UTX0` case, redeem scripts are tied to a particular emitter.
+func (c *ManagerService) validateEmitter(v *vaa.VAA) bool {
+	prefix := vaa.GetPayloadPrefix(v.Payload)
+	switch prefix {
+	case vaa.XRPLPayloadPrefix:
+		return c.isXRPLSequencer(v.EmitterChain, v.EmitterAddress)
+	case vaa.UTXOPayloadPrefix:
+		return c.isKnownEmitter(v.EmitterChain, v.EmitterAddress)
+	default:
+		return false
+	}
+}
+
+// isXRPLSequencer checks if the given chain and address match the known XRPL sequencer.
+func (c *ManagerService) isXRPLSequencer(chain vaa.ChainID, addr vaa.Address) bool {
+	if c.xrplSequencer == nil {
+		return false
+	}
+	return c.xrplSequencer.chainId == chain && bytes.Equal(c.xrplSequencer.addr, addr.Bytes())
 }
 
 // isKnownEmitter checks if the given chain and emitter address match a known manager emitter.
