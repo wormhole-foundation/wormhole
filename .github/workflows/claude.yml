@@ -13,10 +13,10 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '@claude'))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,9 +25,19 @@ jobs:
       id-token: write
       actions: read
     steps:
+      - name: Resolve PR head SHA for issue_comment events
+        id: pr-sha
+        if: github.event_name == 'issue_comment'
+        run: |
+          sha=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.head.sha')
+          echo "sha=$sha" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'issue_comment' && steps.pr-sha.outputs.sha || github.sha }}
           fetch-depth: 0
 
       - name: Run Claude Code
@@ -38,7 +48,7 @@ jobs:
 
           claude_args: |
             --model claude-opus-4-6
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),Bash(git:*),Read,Glob,Grep,WebFetch,WebSearch"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*),Bash(git show:*),Bash(git status:*),Read,Glob,Grep,WebFetch,WebSearch"
             --system-prompt "You are a code assistant operating on a GitHub repository. You support multiple tasks depending on what the user asks for.
 
             ## Task Routing
