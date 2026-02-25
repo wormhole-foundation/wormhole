@@ -1373,8 +1373,8 @@ func TestXRPLReleasePayloadXRP(t *testing.T) {
 	// Serialize
 	buf, err := payload.Serialize()
 	require.NoError(t, err)
-	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 = 104
-	assert.Len(t, buf, 104)
+	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 2(memos_len) = 106
+	assert.Len(t, buf, 106)
 
 	// Verify prefix
 	assert.Equal(t, XRPLPayloadPrefix[:], buf[0:4])
@@ -1392,6 +1392,7 @@ func TestXRPLReleasePayloadXRP(t *testing.T) {
 	assert.Equal(t, payload.SourceEmitter, deserialized.SourceEmitter)
 	assert.Equal(t, payload.SourceSequence, deserialized.SourceSequence)
 	assert.Equal(t, XRPLTokenTypeXRP, deserialized.Token.Type)
+	assert.Empty(t, deserialized.Memos)
 }
 
 func TestXRPLReleasePayloadIOU(t *testing.T) {
@@ -1414,8 +1415,8 @@ func TestXRPLReleasePayloadIOU(t *testing.T) {
 	// Serialize
 	buf, err := payload.Serialize()
 	require.NoError(t, err)
-	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 20 + 20 = 144
-	assert.Len(t, buf, 144)
+	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 20 + 20 + 2(memos_len) = 146
+	assert.Len(t, buf, 146)
 
 	// Deserialize
 	deserialized, err := DeserializeXRPLReleasePayload(buf)
@@ -1448,8 +1449,8 @@ func TestXRPLReleasePayloadMPT(t *testing.T) {
 	// Serialize
 	buf, err := payload.Serialize()
 	require.NoError(t, err)
-	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 24 = 128
-	assert.Len(t, buf, 128)
+	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 24 + 2(memos_len) = 130
+	assert.Len(t, buf, 130)
 
 	// Deserialize
 	deserialized, err := DeserializeXRPLReleasePayload(buf)
@@ -1548,12 +1549,12 @@ func TestDeserializeXRPLReleasePayloadErrors(t *testing.T) {
 	}{
 		{
 			name:        "too short",
-			payload:     make([]byte, 103),
+			payload:     make([]byte, 105),
 			expectedErr: "XRPL release payload too short",
 		},
 		{
 			name:        "invalid prefix",
-			payload:     append([]byte("XXXX"), make([]byte, 100)...),
+			payload:     append([]byte("XXXX"), make([]byte, 102)...),
 			expectedErr: "invalid XRPL payload prefix",
 		},
 	}
@@ -1582,8 +1583,10 @@ func TestDeserializeXRPLReleasePayloadUnknownTokenType(t *testing.T) {
 	buf, err := payload.Serialize()
 	require.NoError(t, err)
 
-	// Change token type to unknown value
-	buf[len(buf)-1] = 0xFF
+	// Token type byte is at offset: 4(prefix) + 8(ticket) + 20(custody) + 20(recipient) +
+	// 8(amount) + 1(decimals) + 2(source_chain) + 32(source_emitter) + 8(source_seq) = 103
+	tokenTypeOffset := 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8
+	buf[tokenTypeOffset] = 0xFF
 
 	_, err = DeserializeXRPLReleasePayload(buf)
 	require.ErrorContains(t, err, "unknown XRPL token type")
@@ -1632,6 +1635,116 @@ func TestDeserializeXRPLReleasePayloadTruncatedIOU(t *testing.T) {
 	// Truncate the IOU data
 	_, err = DeserializeXRPLReleasePayload(buf[:len(buf)-10])
 	require.ErrorContains(t, err, "IOU token_id requires")
+}
+
+func TestXRPLReleasePayloadWithMemos(t *testing.T) {
+	payload := XRPLReleasePayload{
+		TicketID:       42,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    ChainIDSolana,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 100,
+		Token:          XRPLTokenID{Type: XRPLTokenTypeXRP},
+		Memos: []XRPLMemo{
+			{
+				Data:   []byte("hello world"),
+				Format: []byte("text/plain"),
+				Type:   []byte("message"),
+			},
+			{
+				Data:   []byte{0xDE, 0xAD, 0xBE, 0xEF},
+				Format: []byte{},
+				Type:   []byte("binary"),
+			},
+		},
+	}
+
+	// Serialize
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Deserialize
+	deserialized, err := DeserializeXRPLReleasePayload(buf)
+	require.NoError(t, err)
+
+	require.Len(t, deserialized.Memos, 2)
+
+	// First memo
+	assert.Equal(t, []byte("hello world"), deserialized.Memos[0].Data)
+	assert.Equal(t, []byte("text/plain"), deserialized.Memos[0].Format)
+	assert.Equal(t, []byte("message"), deserialized.Memos[0].Type)
+
+	// Second memo
+	assert.Equal(t, []byte{0xDE, 0xAD, 0xBE, 0xEF}, deserialized.Memos[1].Data)
+	assert.Empty(t, deserialized.Memos[1].Format)
+	assert.Equal(t, []byte("binary"), deserialized.Memos[1].Type)
+}
+
+func TestXRPLReleasePayloadRoundTripWithMemos(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload XRPLReleasePayload
+	}{
+		{
+			name: "XRP with memos",
+			payload: XRPLReleasePayload{
+				TicketID:       1,
+				CustodyAccount: testXRPLCustodyAccount,
+				Recipient:      testXRPLRecipient,
+				Amount:         1000000,
+				TokenDecimals:  6,
+				SourceChain:    ChainIDSolana,
+				SourceEmitter:  testXRPLSourceEmitter,
+				SourceSequence: 1,
+				Token:          XRPLTokenID{Type: XRPLTokenTypeXRP},
+				Memos: []XRPLMemo{
+					{Data: []byte("test"), Format: []byte("text/plain"), Type: []byte("note")},
+				},
+			},
+		},
+		{
+			name: "IOU with memos",
+			payload: XRPLReleasePayload{
+				TicketID:       2,
+				CustodyAccount: testXRPLCustodyAccount,
+				Recipient:      testXRPLRecipient,
+				Amount:         5000000000,
+				TokenDecimals:  8,
+				SourceChain:    ChainIDEthereum,
+				SourceEmitter:  testXRPLSourceEmitter,
+				SourceSequence: 2,
+				Token: XRPLTokenID{
+					Type:     XRPLTokenTypeIOU,
+					Currency: testXRPLCurrency,
+					Issuer:   testXRPLIssuer,
+				},
+				Memos: []XRPLMemo{
+					{Data: []byte("memo1"), Format: []byte("fmt1"), Type: []byte("type1")},
+					{Data: []byte("memo2"), Format: []byte("fmt2"), Type: []byte("type2")},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			buf, err := tc.payload.Serialize()
+			require.NoError(t, err)
+
+			deserialized, err := DeserializeXRPLReleasePayload(buf)
+			require.NoError(t, err)
+
+			require.Len(t, deserialized.Memos, len(tc.payload.Memos))
+			for i, memo := range tc.payload.Memos {
+				assert.Equal(t, memo.Data, deserialized.Memos[i].Data)
+				assert.Equal(t, memo.Format, deserialized.Memos[i].Format)
+				assert.Equal(t, memo.Type, deserialized.Memos[i].Type)
+			}
+		})
+	}
 }
 
 func TestDeserializeXRPLReleasePayloadTruncatedMPT(t *testing.T) {

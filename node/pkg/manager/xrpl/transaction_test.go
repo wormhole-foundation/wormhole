@@ -129,6 +129,87 @@ func TestBuildPaymentTransactionMPT(t *testing.T) {
 	assert.Equal(t, hex.EncodeToString(mptID[:]), amountMap["mpt_issuance_id"])
 }
 
+func TestBuildPaymentTransactionWithMemos(t *testing.T) {
+	payload := &vaa.XRPLReleasePayload{
+		TicketID:       42,
+		CustodyAccount: testCustodyAccountID,
+		Recipient:      testRecipientAccountID,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    vaa.ChainIDSolana,
+		SourceEmitter:  testSourceEmitter,
+		SourceSequence: 100,
+		Token: vaa.XRPLTokenID{
+			Type: vaa.XRPLTokenTypeXRP,
+		},
+		Memos: []vaa.XRPLMemo{
+			{
+				Data:   []byte("hello"),
+				Format: []byte("text/plain"),
+				Type:   []byte("message"),
+			},
+			{
+				Data:   []byte{0xDE, 0xAD},
+				Format: []byte{},
+				Type:   []byte("bin"),
+			},
+		},
+	}
+
+	flatTx, err := BuildPaymentTransaction(payload, testManagerSetM)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Payment", flatTx["TransactionType"])
+
+	// Verify memos are present in the flat transaction
+	memosRaw, ok := flatTx["Memos"]
+	require.True(t, ok, "Memos should be present in flat transaction")
+
+	memos, ok := memosRaw.([]interface{})
+	require.True(t, ok, "Memos should be a slice")
+	assert.Len(t, memos, 2)
+
+	// Verify first memo
+	memo0, ok := memos[0].(map[string]interface{})
+	require.True(t, ok)
+	memoInner0, ok := memo0["Memo"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, hex.EncodeToString([]byte("hello")), memoInner0["MemoData"])
+	assert.Equal(t, hex.EncodeToString([]byte("text/plain")), memoInner0["MemoFormat"])
+	assert.Equal(t, hex.EncodeToString([]byte("message")), memoInner0["MemoType"])
+
+	// Verify second memo has empty format omitted
+	memo1, ok := memos[1].(map[string]interface{})
+	require.True(t, ok)
+	memoInner1, ok := memo1["Memo"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, hex.EncodeToString([]byte{0xDE, 0xAD}), memoInner1["MemoData"])
+	assert.Equal(t, hex.EncodeToString([]byte("bin")), memoInner1["MemoType"])
+}
+
+func TestBuildPaymentTransactionNoMemos(t *testing.T) {
+	payload := &vaa.XRPLReleasePayload{
+		TicketID:       42,
+		CustodyAccount: testCustodyAccountID,
+		Recipient:      testRecipientAccountID,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    vaa.ChainIDSolana,
+		SourceEmitter:  testSourceEmitter,
+		SourceSequence: 100,
+		Token: vaa.XRPLTokenID{
+			Type: vaa.XRPLTokenTypeXRP,
+		},
+	}
+
+	flatTx, err := BuildPaymentTransaction(payload, testManagerSetM)
+	require.NoError(t, err)
+
+	// Memos should not be in the flat transaction when empty
+	_, ok := flatTx["Memos"]
+	assert.False(t, ok, "Memos should not be present when empty")
+}
+
 func TestComputeMultisignHash(t *testing.T) {
 	payload := &vaa.XRPLReleasePayload{
 		TicketID:       42,
