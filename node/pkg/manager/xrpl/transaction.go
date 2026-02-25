@@ -62,12 +62,29 @@ func BuildPaymentTransaction(payload *vaa.XRPLReleasePayload, m uint8) (transact
 	// Deterministic fee: 12 drops base fee * (N+1) for multisig
 	fee := uint64(m+1) * 12
 
+	// Convert memos
+	memos := make([]types.MemoWrapper, 0, len(payload.Memos))
+	for _, m := range payload.Memos {
+		memo := types.Memo{}
+		if len(m.Data) > 0 {
+			memo.MemoData = hex.EncodeToString(m.Data)
+		}
+		if len(m.Format) > 0 {
+			memo.MemoFormat = hex.EncodeToString(m.Format)
+		}
+		if len(m.Type) > 0 {
+			memo.MemoType = hex.EncodeToString(m.Type)
+		}
+		memos = append(memos, types.MemoWrapper{Memo: memo})
+	}
+
 	// Build Payment transaction
 	payment := &transaction.Payment{
 		BaseTx: transaction.BaseTx{
 			Account:        types.Address(custodyAddress),
 			Fee:            types.XRPCurrencyAmount(fee),
 			TicketSequence: uint32(payload.TicketID), // #nosec G115 -- TicketID is bounded by XRPL protocol
+			Memos:          memos,
 		},
 		Amount:      amount,
 		Destination: types.Address(recipientAddress),

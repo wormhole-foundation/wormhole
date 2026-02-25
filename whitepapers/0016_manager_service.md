@@ -238,9 +238,11 @@ Emitted when a ticket is assigned to an inbound transfer. Guardians observe this
 | 61     | 2    | source_chain                 |
 | 63     | 32   | source_emitter               |
 | 95     | 8    | source_sequence              |
-| 103    | 1-41 | token_id (variable, at end)  |
+| 103    | 1-41 | token_id (variable)          |
+| var    | 2    | memos_len                    |
+| var    | var  | memos (repeated)             |
 
-**token_id encoding (variable length at end of payload):**
+**token_id encoding (variable length):**
 
 | Type | Byte 0 | Remaining Bytes             | Total    |
 | ---- | ------ | --------------------------- | -------- |
@@ -248,7 +250,18 @@ Emitted when a ticket is assigned to an inbound transfer. Guardians observe this
 | IOU  | 0x01   | currency (20) + issuer (20) | 41 bytes |
 | MPT  | 0x02   | mpt_issuance_id (24)        | 25 bytes |
 
-Total: 104 bytes (XRP), 128 bytes (MPT), 144 bytes (IOU)
+**Each memo entry:**
+
+```go
+u16    memo_data_len
+[]byte memo_data
+u16    memo_format_len
+[]byte memo_format
+u16    memo_type_len
+[]byte memo_type
+```
+
+Minimum bytes: 106 bytes (XRP), 130 bytes (MPT), 146 bytes (IOU)
 
 #### Manager Service API
 
