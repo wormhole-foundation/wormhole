@@ -124,7 +124,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
 
 	// Initialize the parser with the watcher's fetchMPTAssetScale method
-	w.parser = NewParser(w.contract, w.fetchMPTAssetScale)
+	w.parser = NewParser(w.contract, w.nttAccounts, w.fetchMPTAssetScale)
 
 	// Create the transaction channel once - handlers will write to this channel
 	w.txChan = make(chan *streamtypes.TransactionStream, 100)

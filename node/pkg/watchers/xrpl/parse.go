@@ -33,6 +33,9 @@ const coreMemoFormat = "6170706C69636174696F6E2F782D776F726D686F6C652D7075626C69
 var transceiverPrefix = [4]byte{0x99, 0x45, 0xFF, 0x10}
 var nttPrefix = [4]byte{0x99, 0x4E, 0x54, 0x54}
 
+// xtcfPrefix is the 4-byte prefix for XRPL ticket refill confirmation payloads
+var xtcfPrefix = [4]byte{'X', 'T', 'C', 'F'}
+
 // NTT constants
 const (
 	memoDataLength        = 72 // Length of memo data: prefix(4) + recipientNTTManager(32) + recipientAddress(32) + recipientChain(2) + fromDecimals(1) + toDecimals(1)
@@ -82,7 +85,8 @@ type MPTAssetScaleFetcher func(mptIssuanceID string) (uint8, error)
 // Parser handles parsing of XRPL NTT transactions.
 // It is stateless except for the MPT asset scale fetcher, which can be injected for testing.
 type Parser struct {
-	coreAccount        string // Core Wormhole manager account — payments to this account are not NTT
+	coreAccount        string          // Core Wormhole manager account — payments to this account are not NTT
+	managedAccounts    map[string]bool // Managed accounts (NTT accounts) — TicketCreate on these emits XTCF
 	fetchMPTAssetScale MPTAssetScaleFetcher
 }
 
@@ -96,13 +100,20 @@ type GenericTx struct {
 	MetaDeliveredAmount   any
 	MetaTransactionIndex  uint64
 	MetaTransactionResult string
+	MetaAffectedNodes     []transaction.AffectedNode
 }
 
-// NewParser creates a new Parser with the given core account and MPT asset scale fetcher.
+// NewParser creates a new Parser with the given core account, managed accounts, and MPT asset scale fetcher.
 // Payments to coreAccount are skipped by parseNttTransaction (they are not NTT transfers).
-func NewParser(coreAccount string, fetchMPTAssetScale MPTAssetScaleFetcher) *Parser {
+// managedAccounts are the NTT accounts for which TicketCreate transactions generate XTCF messages.
+func NewParser(coreAccount string, managedAccounts []string, fetchMPTAssetScale MPTAssetScaleFetcher) *Parser {
+	managed := make(map[string]bool, len(managedAccounts))
+	for _, addr := range managedAccounts {
+		managed[addr] = true
+	}
 	return &Parser{
 		coreAccount:        coreAccount,
+		managedAccounts:    managed,
 		fetchMPTAssetScale: fetchMPTAssetScale,
 	}
 }
@@ -129,6 +140,7 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 		MetaDeliveredAmount:   tx.Meta.DeliveredAmount,
 		MetaTransactionIndex:  tx.Meta.TransactionIndex,
 		MetaTransactionResult: tx.Meta.TransactionResult,
+		MetaAffectedNodes:     tx.Meta.AffectedNodes,
 		Timestamp:             timestamp,
 	})
 }
@@ -151,6 +163,7 @@ func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePu
 		MetaDeliveredAmount:   tx.Meta.DeliveredAmount,
 		MetaTransactionIndex:  tx.Meta.TransactionIndex,
 		MetaTransactionResult: tx.Meta.TransactionResult,
+		MetaAffectedNodes:     tx.Meta.AffectedNodes,
 		Timestamp:             timestamp,
 	})
 }
@@ -265,15 +278,20 @@ func (p *Parser) parseNttTransaction(
 	}, nil
 }
 
-// parseTransaction dispatches to parseCoreTransaction and parseNttTransaction.
-// Returns (nil, nil) if neither matched.
+// parseTransaction dispatches to parseCoreTransaction, parseNttTransaction, and parseTicketCreateTransaction.
+// Returns (nil, nil) if none matched.
 func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, error) {
 	msg, err := p.parseCoreTransaction(tx)
 	if msg != nil || err != nil {
 		return msg, err
 	}
 
-	return p.parseNttTransaction(tx)
+	msg, err = p.parseNttTransaction(tx)
+	if msg != nil || err != nil {
+		return msg, err
+	}
+
+	return p.parseTicketCreateTransaction(tx)
 }
 
 // parseCoreTransaction parses a generic Wormhole message (payment to the core account).
@@ -414,6 +432,122 @@ func (p *Parser) parseCoreMessageMemoData(tx transaction.FlatTransaction) (*core
 	}
 
 	return nil, nil
+}
+
+// parseTicketCreateTransaction parses a TicketCreate transaction on a managed account.
+// When tickets are created, it emits an XTCF (ticket refill confirmation) message so the
+// sequencer can track the newly created ticket range.
+// Returns (nil, nil) if this is not a TicketCreate on a managed account.
+func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePublication, error) {
+	// Check transaction type is TicketCreate
+	txTypeRaw, ok := tx.Transaction["TransactionType"]
+	if !ok {
+		return nil, nil
+	}
+	txType, ok := txTypeRaw.(string)
+	if !ok || txType != "TicketCreate" {
+		return nil, nil
+	}
+
+	// Check the Account is a managed account
+	accountRaw, ok := tx.Transaction["Account"]
+	if !ok {
+		return nil, nil
+	}
+	account, ok := accountRaw.(string)
+	if !ok {
+		return nil, nil
+	}
+	if !p.managedAccounts[account] {
+		return nil, nil
+	}
+
+	// Validate transaction result is tesSUCCESS
+	if err := p.validateTransactionResult(tx); err != nil {
+		return nil, err
+	}
+
+	// Extract created ticket sequences from AffectedNodes metadata
+	var ticketSequences []uint64
+	for _, node := range tx.MetaAffectedNodes {
+		if node.CreatedNode == nil {
+			continue
+		}
+		if string(node.CreatedNode.LedgerEntryType) != "Ticket" {
+			continue
+		}
+		// NewFields is a FlatLedgerObject (map[string]interface{})
+		seqRaw, ok := node.CreatedNode.NewFields["TicketSequence"]
+		if !ok {
+			continue
+		}
+		// JSON numbers deserialize as float64
+		switch v := seqRaw.(type) {
+		case float64:
+			ticketSequences = append(ticketSequences, uint64(v))
+		case json.Number:
+			n, err := v.Int64()
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse TicketSequence from json.Number: %w", err)
+			}
+			if n < 0 {
+				return nil, fmt.Errorf("negative TicketSequence: %d", n)
+			}
+			ticketSequences = append(ticketSequences, uint64(n)) // #nosec G115 -- validated non-negative above
+		default:
+			return nil, fmt.Errorf("unexpected TicketSequence type: %T", seqRaw)
+		}
+	}
+
+	if len(ticketSequences) == 0 {
+		return nil, fmt.Errorf("TicketCreate transaction has no created Ticket entries")
+	}
+
+	// Find the minimum ticket sequence (ticket_start) and count
+	ticketStart := ticketSequences[0]
+	for _, seq := range ticketSequences[1:] {
+		if seq < ticketStart {
+			ticketStart = seq
+		}
+	}
+	ticketCount := uint64(len(ticketSequences))
+
+	// Build XTCF payload (20 bytes)
+	payload := make([]byte, 20)
+	copy(payload[0:4], xtcfPrefix[:])
+	binary.BigEndian.PutUint64(payload[4:12], ticketStart)
+	binary.BigEndian.PutUint64(payload[12:20], ticketCount)
+
+	// Extract transaction hash
+	txHash, err := hex.DecodeString(tx.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
+	}
+
+	if tx.MetaTransactionIndex > math.MaxUint32 {
+		return nil, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
+	}
+
+	// Calculate sequence: (ledgerIndex << 32) | txIndex
+	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
+
+	// Emitter is the managed account (left-padded to 32 bytes)
+	emitterAddress, err := p.addressToEmitter(account)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert account to emitter: %w", err)
+	}
+
+	return &common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        tx.Timestamp,
+		Nonce:            0,
+		Sequence:         sequence,
+		EmitterChain:     vaa.ChainIDXRPL,
+		EmitterAddress:   emitterAddress,
+		Payload:          payload,
+		ConsistencyLevel: 0,
+		IsReobservation:  false,
+	}, nil
 }
 
 // =============================================================================

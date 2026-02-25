@@ -45,7 +45,7 @@ func TestValidateTransactionResult_Integration(t *testing.T) {
 	require.True(t, txResp.Validated, "transaction should be validated")
 
 	// Create a parser and test validateTransactionResult
-	parser := NewParser("", nil)
+	parser := NewParser("", nil, nil)
 
 	// Create a GenericTx with the transaction result from the response
 	tx := GenericTx{
@@ -69,7 +69,7 @@ func TestValidateTransactionResult_Integration(t *testing.T) {
 // validateTransactionResult correctly rejects a failed transaction.
 func TestValidateTransactionResult_Integration_FailedTransaction(t *testing.T) {
 	// Create a parser
-	parser := NewParser("", nil)
+	parser := NewParser("", nil, nil)
 
 	// Create a GenericTx with a non-success result
 	tx := GenericTx{
@@ -86,7 +86,7 @@ func TestValidateTransactionResult_Integration_FailedTransaction(t *testing.T) {
 // TestValidateTransactionResult_Integration_EmptyResult tests that
 // validateTransactionResult correctly handles a transaction with empty result.
 func TestValidateTransactionResult_Integration_EmptyResult(t *testing.T) {
-	parser := NewParser("", nil)
+	parser := NewParser("", nil, nil)
 
 	tx := GenericTx{
 		MetaTransactionResult: "",
