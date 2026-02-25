@@ -697,6 +697,18 @@ func TestScaleAmount_AllMaxDecimals(t *testing.T) {
 	assert.Equal(t, uint8(8), decimals)
 }
 
+func TestScaleAmount_ToZeroDecimals(t *testing.T) {
+	p := NewParser("", nil)
+
+	// 0.01 represented with fromDecimals=21 means raw amount = 10^19
+	// target = min(min(8, 21), 0) = 0
+	// scale from 21 to 0: divide by 10^21
+	// 10^19 / 10^21 = 0 (truncated)
+	amount, decimals := p.scaleAmount(10000000000000000000, 21, 0)
+	assert.Equal(t, uint64(0), amount)
+	assert.Equal(t, uint8(0), decimals)
+}
+
 // =============================================================================
 // calculateEmitterAddress tests
 // =============================================================================
