@@ -822,6 +822,9 @@ var UTXOPayloadPrefix = [4]byte{'U', 'T', 'X', '0'}
 // XRPLPayloadPrefix is the 4-byte prefix for XRPL release payloads (0x5852454C)
 var XRPLPayloadPrefix = [4]byte{'X', 'R', 'E', 'L'}
 
+// XRPLTicketRefillPrefix is the 4-byte prefix for XRPL ticket refill payloads (0x5852464C)
+var XRPLTicketRefillPrefix = [4]byte{'X', 'R', 'F', 'L'}
+
 // XRPLTokenType represents the type of token in an XRPL release payload.
 type XRPLTokenType uint8
 
@@ -1349,6 +1352,71 @@ func (p *UTXOUnlockPayload) Serialize() ([]byte, error) {
 			return nil, fmt.Errorf("failed to write output %d: %w", i, err)
 		}
 	}
+
+	return buf.Bytes(), nil
+}
+
+// XRPLTicketRefillPayload represents a VAA payload for refilling tickets on the XRP Ledger.
+// This payload is emitted by the XRPL sequencer when tickets are running low.
+type XRPLTicketRefillPayload struct {
+	// Account is the 20-byte XRPL account ID that will create the tickets
+	Account [20]byte
+	// UseTicket is the ticket sequence to consume for the TicketCreate transaction
+	UseTicket uint64
+	// RequestCount is the number of tickets to create (1-250)
+	RequestCount uint64
+}
+
+// DeserializeXRPLTicketRefillPayload deserializes an XRPLTicketRefillPayload from bytes.
+// Expected format: prefix (4) + account (20) + use_ticket (8) + request_count (8) = 40 bytes
+func DeserializeXRPLTicketRefillPayload(bz []byte) (*XRPLTicketRefillPayload, error) {
+	const expectedSize = 4 + 20 + 8 + 8
+
+	if len(bz) < expectedSize {
+		return nil, fmt.Errorf("XRPL ticket refill payload too short: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	// Check prefix
+	if !bytes.Equal(bz[0:4], XRPLTicketRefillPrefix[:]) {
+		return nil, fmt.Errorf("invalid XRPL ticket refill payload prefix: expected %s, got %s", string(XRPLTicketRefillPrefix[:]), string(bz[0:4]))
+	}
+
+	if len(bz) > expectedSize {
+		return nil, fmt.Errorf("XRPL ticket refill payload has trailing bytes: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	payload := &XRPLTicketRefillPayload{}
+	offset := 4
+
+	// Account (20 bytes)
+	copy(payload.Account[:], bz[offset:offset+20])
+	offset += 20
+
+	// UseTicket (8 bytes)
+	payload.UseTicket = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// RequestCount (8 bytes)
+	payload.RequestCount = binary.BigEndian.Uint64(bz[offset : offset+8])
+
+	return payload, nil
+}
+
+// Serialize serializes an XRPLTicketRefillPayload to bytes.
+func (p *XRPLTicketRefillPayload) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Prefix
+	buf.Write(XRPLTicketRefillPrefix[:])
+
+	// Account
+	buf.Write(p.Account[:])
+
+	// UseTicket
+	MustWrite(buf, binary.BigEndian, p.UseTicket)
+
+	// RequestCount
+	MustWrite(buf, binary.BigEndian, p.RequestCount)
 
 	return buf.Bytes(), nil
 }

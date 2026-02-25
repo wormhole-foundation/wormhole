@@ -252,6 +252,8 @@ func (c *ManagerService) handleVAA(v *vaa.VAA) {
 		c.handleUTXOPayload(v)
 	case vaa.XRPLPayloadPrefix:
 		c.handleXRPLPayload(v)
+	case vaa.XRPLTicketRefillPrefix:
+		c.handleXRPLTicketRefill(v)
 	default:
 		c.logger.Warn("unknown payload prefix",
 			zap.String("message_id", v.MessageID()),
@@ -349,6 +351,8 @@ func (c *ManagerService) validateEmitter(v *vaa.VAA) bool {
 	prefix := vaa.GetPayloadPrefix(v.Payload)
 	switch prefix {
 	case vaa.XRPLPayloadPrefix:
+		return c.isXRPLSequencer(v.EmitterChain, v.EmitterAddress)
+	case vaa.XRPLTicketRefillPrefix:
 		return c.isXRPLSequencer(v.EmitterChain, v.EmitterAddress)
 	case vaa.UTXOPayloadPrefix:
 		return c.isKnownEmitter(v.EmitterChain, v.EmitterAddress)
@@ -579,6 +583,111 @@ func (c *ManagerService) handleXRPLPayload(v *vaa.VAA) {
 		c.broadcastSignature(sig)
 	}
 	c.storeSignature(sig)
+}
+
+// handleXRPLTicketRefill processes an XRPL ticket refill payload from a VAA.
+func (c *ManagerService) handleXRPLTicketRefill(v *vaa.VAA) {
+	payload, err := vaa.DeserializeXRPLTicketRefillPayload(v.Payload)
+	if err != nil {
+		c.logger.Error("failed to parse XRPL ticket refill payload",
+			zap.String("message_id", v.MessageID()),
+			zap.Error(err),
+		)
+		return
+	}
+
+	c.logger.Info("parsed XRPL ticket refill payload",
+		zap.String("message_id", v.MessageID()),
+		zap.Uint64("use_ticket", payload.UseTicket),
+		zap.Uint64("request_count", payload.RequestCount),
+	)
+
+	// Check if we have an XRPL signer
+	signer, ok := c.signers[vaa.ChainIDXRPL]
+	if !ok {
+		c.logger.Warn("no signer configured for XRPL",
+			zap.String("message_id", v.MessageID()),
+		)
+		return
+	}
+
+	// Sign the XRPL TicketCreate transaction
+	sig, err := c.signXRPLTicketRefillTransaction(v, payload, signer)
+	if err != nil {
+		c.logger.Error("failed to sign XRPL ticket refill transaction",
+			zap.String("message_id", v.MessageID()),
+			zap.Error(err),
+		)
+		return
+	}
+
+	c.logger.Info("signed XRPL ticket refill transaction",
+		zap.String("message_id", v.MessageID()),
+		zap.Stringer("destination_chain", sig.DestinationChain),
+	)
+
+	if c.managerTxSendC != nil {
+		c.broadcastSignature(sig)
+	}
+	c.storeSignature(sig)
+}
+
+// signXRPLTicketRefillTransaction signs an XRPL TicketCreate transaction for the given ticket refill payload.
+func (c *ManagerService) signXRPLTicketRefillTransaction(
+	v *vaa.VAA,
+	payload *vaa.XRPLTicketRefillPayload,
+	signer guardiansigner.GuardianSigner,
+) (*ManagerSignature, error) {
+	// Get the current manager set for XRPL (XRFL payload doesn't embed a manager set index)
+	managerSet, err := c.getCurrentManagerSet(c.ctx, vaa.ChainIDXRPL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current manager set for XRPL: %w", err)
+	}
+
+	// Verify this node is part of the manager set
+	if !managerSet.IsSigner {
+		return nil, fmt.Errorf("this node is not part of the XRPL manager set")
+	}
+
+	// Build the XRPL TicketCreate transaction
+	flatTx, err := xrpl.BuildTicketCreateTransaction(payload, managerSet.M)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build XRPL ticket create transaction: %w", err)
+	}
+
+	// Derive this signer's XRPL address from compressed public key
+	signerPubKey := c.signerPubKeys[vaa.ChainIDXRPL]
+	signerAddress, err := xrpl.CompressedPubKeyToAddress(signerPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive signer XRPL address: %w", err)
+	}
+
+	// Compute the multisign hash for this signer
+	hash, err := xrpl.ComputeMultisignHash(flatTx, signerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute multisign hash: %w", err)
+	}
+
+	// Sign the hash using the guardian signer
+	ethSig, err := signer.Sign(c.ctx, hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign XRPL ticket refill transaction: %w", err)
+	}
+
+	// Convert Ethereum-style signature to XRPL DER format (without sighash type byte)
+	derSig, err := convertEthSigToXRPLDER(ethSig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert signature to XRPL DER: %w", err)
+	}
+
+	return &ManagerSignature{
+		VAAHash:          v.SigningDigest().Bytes(),
+		VAAID:            v.MessageID(),
+		DestinationChain: vaa.ChainIDXRPL,
+		ManagerSetIndex:  managerSet.Index,
+		SignerIndex:      managerSet.SignerIndex,
+		InputSignatures:  [][]byte{derSig},
+	}, nil
 }
 
 // signUTXOTransaction signs a UTXO unlock transaction using chain-specific logic.
