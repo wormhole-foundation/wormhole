@@ -876,15 +876,15 @@ func (p *Parser) scaleAmount(amount uint64, fromDecimals, toDecimals uint8) (uin
 	// Calculate target decimals: min(min(8, fromDecimals), toDecimals)
 	targetDecimals := min(min(maxNTTDecimals, fromDecimals), toDecimals)
 
-	// If we need to reduce decimals, divide
+	// If we need to reduce decimals, divide by 10 iteratively to avoid
+	// uint64 overflow when computing a large divisor (e.g., 10^21).
 	// Note: targetDecimals is always <= fromDecimals due to the min() formula above,
 	// so we only ever scale down, never up.
 	if fromDecimals > targetDecimals {
-		divisor := uint64(1)
-		for i := uint8(0); i < fromDecimals-targetDecimals; i++ {
-			divisor *= 10
+		decimalsToShift := fromDecimals - targetDecimals
+		for i := uint8(0); i < decimalsToShift; i++ {
+			amount /= 10
 		}
-		amount = amount / divisor
 	}
 
 	return amount, targetDecimals
