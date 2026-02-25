@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	ledger "github.com/Peersyst/xrpl-go/xrpl/ledger-entry-types"
 	streamtypes "github.com/Peersyst/xrpl-go/xrpl/queries/subscription/types"
 	"github.com/Peersyst/xrpl-go/xrpl/queries/transactions"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction"
@@ -87,7 +88,7 @@ func createSampleMemoData(recipientChain uint16, fromDecimals, toDecimals uint8)
 // =============================================================================
 
 func TestParseMemoData_ValidNTTMemo(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := createFlatTransactionWithMemos(testNTTMemoFormat, sampleNTTMemoData)
 
 	memo, err := p.parseMemoData(tx)
@@ -106,7 +107,7 @@ func TestParseMemoData_ValidNTTMemo(t *testing.T) {
 }
 
 func TestParseMemoData_NoMemos(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"Account": "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
 	}
@@ -118,7 +119,7 @@ func TestParseMemoData_NoMemos(t *testing.T) {
 }
 
 func TestParseMemoData_EmptyMemos(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"Memos": []any{},
 	}
@@ -130,7 +131,7 @@ func TestParseMemoData_EmptyMemos(t *testing.T) {
 }
 
 func TestParseMemoData_WrongMemoFormat(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	// Use a different MemoFormat (hex for "text/plain")
 	wrongMemoFormat := "746578742F706C61696E"
 	tx := createFlatTransactionWithMemos(wrongMemoFormat, sampleNTTMemoData)
@@ -142,7 +143,7 @@ func TestParseMemoData_WrongMemoFormat(t *testing.T) {
 }
 
 func TestParseMemoData_InvalidNTTPrefix(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	// Valid hex but wrong prefix (not 994E5454), 72 bytes
 	wrongPrefixData := "DEADBEEF" + "0000000000000000000000001234567890abcdef1234567890abcdef12345678" +
 		"000000000000000000000000D8DA6BF26964AF9D7EED9E03E53415D37AA96045" + "0002" + "06" + "08"
@@ -155,7 +156,7 @@ func TestParseMemoData_InvalidNTTPrefix(t *testing.T) {
 }
 
 func TestParseMemoData_InvalidHexMemoData(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	// Invalid hex string
 	tx := createFlatTransactionWithMemos(testNTTMemoFormat, "NOTVALIDHEX!!!")
 
@@ -166,7 +167,7 @@ func TestParseMemoData_InvalidHexMemoData(t *testing.T) {
 }
 
 func TestParseMemoData_WrongLength(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	// Too short (only 50 bytes)
 	shortData := "994E5454" + "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 	tx := createFlatTransactionWithMemos(testNTTMemoFormat, shortData)
@@ -179,7 +180,7 @@ func TestParseMemoData_WrongLength(t *testing.T) {
 }
 
 func TestParseMemoData_MultipleMemos_OnlyOneValid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"Memos": []any{
 			// First memo: wrong format
@@ -208,7 +209,7 @@ func TestParseMemoData_MultipleMemos_OnlyOneValid(t *testing.T) {
 }
 
 func TestParseMemoData_MalformedMemoStructure(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	testCases := []struct {
 		name string
@@ -290,7 +291,7 @@ func TestParseMemoData_MalformedMemoStructure(t *testing.T) {
 // =============================================================================
 
 func TestAddressToEmitter_ValidAddress(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Standard XRPL r-address
 	address := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
@@ -319,7 +320,7 @@ func TestAddressToEmitter_ValidAddress(t *testing.T) {
 }
 
 func TestAddressToEmitter_InvalidAddress(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	testCases := []struct {
 		name    string
@@ -340,7 +341,7 @@ func TestAddressToEmitter_InvalidAddress(t *testing.T) {
 }
 
 func TestAddressToEmitter_ConsistentResults(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	address := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 
 	// Call twice and verify same result
@@ -353,7 +354,7 @@ func TestAddressToEmitter_ConsistentResults(t *testing.T) {
 }
 
 func TestAddressToEmitter_DifferentAddresses(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	addr1 := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 	addr2 := "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh" // Genesis account
@@ -371,7 +372,7 @@ func TestAddressToEmitter_DifferentAddresses(t *testing.T) {
 // =============================================================================
 
 func TestParseDeliveredAmount_XRP_Valid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	// For XRP, memo.fromDecimals must be 6
 	memo := &memoData{fromDecimals: 6}
 
@@ -399,7 +400,7 @@ func TestParseDeliveredAmount_XRP_Valid(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_XRP_Invalid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 6}
 
 	_, err := p.parseDeliveredAmount("not_a_number", memo)
@@ -407,7 +408,7 @@ func TestParseDeliveredAmount_XRP_Invalid(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_XRP_ValidatesFromDecimals(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Valid: memo fromDecimals == 6 for XRP
 	memo := &memoData{fromDecimals: 6}
@@ -423,7 +424,7 @@ func TestParseDeliveredAmount_XRP_ValidatesFromDecimals(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_RejectsZeroAmount(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 6}
 
 	// XRP zero amount
@@ -447,7 +448,7 @@ func TestParseDeliveredAmount_RejectsZeroAmount(t *testing.T) {
 // =============================================================================
 
 func TestParseDeliveredAmount_TrustLine_AnyFromDecimalsValid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tokenAmount := map[string]any{
 		"currency": "USD",
@@ -471,7 +472,7 @@ func TestParseDeliveredAmount_TrustLine_AnyFromDecimalsValid(t *testing.T) {
 // This test proves the fix is working: without passing fromDecimals to the parser,
 // the code would try to parse at 15 decimals, causing uint64 overflow.
 func TestParseDeliveredAmount_TrustLine_HighPrecisionWithLowFromDecimals(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Sender specifies 6 decimals in memo, even though the value string has 15 decimals
 	memo := &memoData{fromDecimals: 6}
@@ -492,7 +493,7 @@ func TestParseDeliveredAmount_TrustLine_HighPrecisionWithLowFromDecimals(t *test
 }
 
 func TestParseDeliveredAmount_TrustLine_Valid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	// Sender specifies 6 decimals in memo
 	memo := &memoData{fromDecimals: 6}
 
@@ -513,7 +514,7 @@ func TestParseDeliveredAmount_TrustLine_Valid(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_TrustLine_HexCurrency(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 0}
 
 	// RLUSD hex representation
@@ -530,7 +531,7 @@ func TestParseDeliveredAmount_TrustLine_HexCurrency(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_TrustLine_ScientificNotation(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 0}
 
 	tokenAmount := map[string]any{
@@ -546,7 +547,7 @@ func TestParseDeliveredAmount_TrustLine_ScientificNotation(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_TrustLine_InvalidIssuer(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 6}
 
 	tokenAmount := map[string]any{
@@ -561,7 +562,7 @@ func TestParseDeliveredAmount_TrustLine_InvalidIssuer(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_TrustLine_XRPCurrencyDisallowed(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 6}
 
 	tokenAmount := map[string]any{
@@ -576,7 +577,7 @@ func TestParseDeliveredAmount_TrustLine_XRPCurrencyDisallowed(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_TrustLine(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 0}
 
 	// Trust Line delivered as object
@@ -592,7 +593,7 @@ func TestParseDeliveredAmount_TrustLine(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_UnexpectedType(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 6}
 
 	// Passing an integer will fail during JSON unmarshaling
@@ -602,7 +603,7 @@ func TestParseDeliveredAmount_UnexpectedType(t *testing.T) {
 }
 
 func TestParseDeliveredAmount_DispatchToTrustLine(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 2}
 
 	// Token amount without mpt_issuance_id is a Trust Line
@@ -624,7 +625,7 @@ func TestParseDeliveredAmount_DispatchToTrustLine(t *testing.T) {
 // =============================================================================
 
 func TestScaleAmount_NoScaling(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// fromDecimals = 6, toDecimals = 8, max = 8
 	// result = min(min(8, 6), 8) = 6
@@ -634,7 +635,7 @@ func TestScaleAmount_NoScaling(t *testing.T) {
 }
 
 func TestScaleAmount_ScaleDown(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// fromDecimals = 18, toDecimals = 8, max = 8
 	// result = min(min(8, 18), 8) = 8
@@ -645,7 +646,7 @@ func TestScaleAmount_ScaleDown(t *testing.T) {
 }
 
 func TestScaleAmount_ScaleToLowerToDecimals(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// fromDecimals = 8, toDecimals = 4, max = 8
 	// result = min(min(8, 8), 4) = 4
@@ -656,7 +657,7 @@ func TestScaleAmount_ScaleToLowerToDecimals(t *testing.T) {
 }
 
 func TestScaleAmount_MaxDecimals(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// fromDecimals = 10, toDecimals = 10, max = 8
 	// result = min(min(8, 10), 10) = 8
@@ -666,7 +667,7 @@ func TestScaleAmount_MaxDecimals(t *testing.T) {
 }
 
 func TestScaleAmount_LargeAmount(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Large amount that doesn't overflow (just scales down)
 	// targetDecimals = min(min(8, 18), 6) = 6
@@ -679,7 +680,7 @@ func TestScaleAmount_LargeAmount(t *testing.T) {
 }
 
 func TestScaleAmount_ZeroAmount(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	amount, decimals := p.scaleAmount(0, 6, 8)
 	assert.Equal(t, uint64(0), amount)
@@ -687,7 +688,7 @@ func TestScaleAmount_ZeroAmount(t *testing.T) {
 }
 
 func TestScaleAmount_AllMaxDecimals(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// fromDecimals = 10, toDecimals = 10
 	// target = min(min(8, 10), 10) = 8
@@ -698,7 +699,7 @@ func TestScaleAmount_AllMaxDecimals(t *testing.T) {
 }
 
 func TestScaleAmount_ToZeroDecimals(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// 0.01 represented with fromDecimals=21 means raw amount = 10^19
 	// target = min(min(8, 21), 0) = 0
@@ -714,7 +715,7 @@ func TestScaleAmount_ToZeroDecimals(t *testing.T) {
 // =============================================================================
 
 func TestCalculateEmitterAddress_Deterministic(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	var sourceNTTManager [32]byte
 	var sourceToken [32]byte
@@ -729,7 +730,7 @@ func TestCalculateEmitterAddress_Deterministic(t *testing.T) {
 }
 
 func TestCalculateEmitterAddress_DifferentTokens(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	var sourceNTTManager [32]byte
 	sourceNTTManager[31] = 0x01
@@ -752,7 +753,7 @@ func TestCalculateEmitterAddress_DifferentTokens(t *testing.T) {
 // =============================================================================
 
 func TestBuildNTTPayload_Structure(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	var sourceNTTManager [32]byte
 	var recipientNTTManager [32]byte
@@ -822,7 +823,7 @@ func TestBuildNTTPayload_Structure(t *testing.T) {
 // =============================================================================
 
 func TestNormalizeCurrency_StandardCode(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	testCases := []struct {
 		name     string
@@ -848,7 +849,7 @@ func TestNormalizeCurrency_StandardCode(t *testing.T) {
 }
 
 func TestNormalizeCurrency_HexCode(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// RLUSD hex representation (40 chars)
 	hexCurrency := "524C555344000000000000000000000000000000"
@@ -862,7 +863,7 @@ func TestNormalizeCurrency_HexCode(t *testing.T) {
 }
 
 func TestNormalizeCurrency_XRPDisallowed(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	_, err := p.normalizeCurrency("XRP")
 	require.Error(t, err)
@@ -873,7 +874,7 @@ func TestNormalizeCurrency_XRPDisallowed(t *testing.T) {
 }
 
 func TestNormalizeCurrency_SingleCharCode(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	result, err := p.normalizeCurrency("X")
 	require.NoError(t, err)
@@ -882,7 +883,7 @@ func TestNormalizeCurrency_SingleCharCode(t *testing.T) {
 }
 
 func TestNormalizeCurrency_InvalidHexLength(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// 38 characters - invalid hex length (should be 40)
 	_, err := p.normalizeCurrency("524C5553440000000000000000000000000000")
@@ -891,7 +892,7 @@ func TestNormalizeCurrency_InvalidHexLength(t *testing.T) {
 }
 
 func TestNormalizeCurrency_InvalidHexChars(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// 40 characters but invalid hex
 	_, err := p.normalizeCurrency("524C55534400000000000000000000000000ZZZZ")
@@ -900,7 +901,7 @@ func TestNormalizeCurrency_InvalidHexChars(t *testing.T) {
 }
 
 func TestNormalizeCurrency_EmptyString(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	_, err := p.normalizeCurrency("")
 	require.Error(t, err)
@@ -912,7 +913,7 @@ func TestNormalizeCurrency_EmptyString(t *testing.T) {
 // =============================================================================
 
 func TestCalculateTrustLineSourceToken_Deterministic(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	token1, err1 := p.calculateTrustLineSourceToken("USD", "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh")
 	token2, err2 := p.calculateTrustLineSourceToken("USD", "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh")
@@ -926,7 +927,7 @@ func TestCalculateTrustLineSourceToken_Deterministic(t *testing.T) {
 }
 
 func TestCalculateTrustLineSourceToken_DifferentCurrencies(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	token1, err1 := p.calculateTrustLineSourceToken("USD", "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh")
 	token2, err2 := p.calculateTrustLineSourceToken("EUR", "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh")
@@ -937,7 +938,7 @@ func TestCalculateTrustLineSourceToken_DifferentCurrencies(t *testing.T) {
 }
 
 func TestCalculateTrustLineSourceToken_DifferentIssuers(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	token1, err1 := p.calculateTrustLineSourceToken("USD", "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh")
 	token2, err2 := p.calculateTrustLineSourceToken("USD", "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9")
@@ -952,7 +953,7 @@ func TestCalculateTrustLineSourceToken_DifferentIssuers(t *testing.T) {
 // =============================================================================
 
 func TestCalculateMPTSourceToken(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Sample MPT issuance ID (24 bytes = 48 hex chars)
 	mptID := "000000000000000000000000000000000000000000000001"
@@ -969,7 +970,7 @@ func TestCalculateMPTSourceToken(t *testing.T) {
 }
 
 func TestCalculateMPTSourceToken_InvalidLength(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Too short
 	_, err := p.calculateMPTSourceToken("0001")
@@ -982,7 +983,7 @@ func TestCalculateMPTSourceToken_InvalidLength(t *testing.T) {
 // =============================================================================
 
 func TestParseDecimalToUint64_Integers(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Parse 1000000 with 0 target decimals
 	amount, err := p.parseDecimalToUint64("1000000", 0)
@@ -996,7 +997,7 @@ func TestParseDecimalToUint64_Integers(t *testing.T) {
 }
 
 func TestParseDecimalToUint64_Decimals(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Parse 123.456 with 3 target decimals -> 123456
 	amount, err := p.parseDecimalToUint64("123.456", 3)
@@ -1015,7 +1016,7 @@ func TestParseDecimalToUint64_Decimals(t *testing.T) {
 }
 
 func TestParseDecimalToUint64_ScientificNotation(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// 1.23e6 = 1230000 (lowercase e)
 	amount, err := p.parseDecimalToUint64("1.23e6", 0)
@@ -1039,7 +1040,7 @@ func TestParseDecimalToUint64_ScientificNotation(t *testing.T) {
 }
 
 func TestParseDecimalToUint64_Negative(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	_, err := p.parseDecimalToUint64("-100", 6)
 	require.Error(t, err)
@@ -1047,7 +1048,7 @@ func TestParseDecimalToUint64_Negative(t *testing.T) {
 }
 
 func TestParseDecimalToUint64_Zero(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	amount, err := p.parseDecimalToUint64("0", 6)
 	require.NoError(t, err)
@@ -1055,7 +1056,7 @@ func TestParseDecimalToUint64_Zero(t *testing.T) {
 }
 
 func TestParseDecimalToUint64_Overflow(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// This would overflow if parsed at 15 decimals first, but not at 6
 	// A value like 999999999999.123456789012345 at 15 decimals would overflow
@@ -1065,7 +1066,7 @@ func TestParseDecimalToUint64_Overflow(t *testing.T) {
 }
 
 func TestParseDecimalToUint64_HighPrecisionNoOverflow(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// A high-precision value that would overflow at natural precision (15 decimals)
 	// but fits fine at 6 decimals.
@@ -1087,7 +1088,7 @@ func TestParseDecimalToUint64_HighPrecisionNoOverflow(t *testing.T) {
 }
 
 func TestParseDecimalToUint64_Invalid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	_, err := p.parseDecimalToUint64("not_a_number", 6)
 	require.Error(t, err)
@@ -1098,7 +1099,7 @@ func TestParseDecimalToUint64_Invalid(t *testing.T) {
 // =============================================================================
 
 func TestValidateTransactionType_Payment(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"TransactionType": "Payment",
 	}
@@ -1108,7 +1109,7 @@ func TestValidateTransactionType_Payment(t *testing.T) {
 }
 
 func TestValidateTransactionType_NotPayment(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	nonPaymentTypes := []string{
 		"OfferCreate",
@@ -1131,7 +1132,7 @@ func TestValidateTransactionType_NotPayment(t *testing.T) {
 }
 
 func TestValidateTransactionType_Missing(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"Account": "rSomeAccount",
 	}
@@ -1146,7 +1147,7 @@ func TestValidateTransactionType_Missing(t *testing.T) {
 // =============================================================================
 
 func TestValidateTransactionResult_Success(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := GenericTx{
 		MetaTransactionResult: "tesSUCCESS",
 	}
@@ -1156,7 +1157,7 @@ func TestValidateTransactionResult_Success(t *testing.T) {
 }
 
 func TestValidateTransactionResult_Failed(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	failureCodes := []string{
 		"tecUNFUNDED_PAYMENT",
@@ -1180,7 +1181,7 @@ func TestValidateTransactionResult_Failed(t *testing.T) {
 }
 
 func TestValidateTransactionResult_EmptyResult(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := GenericTx{
 		MetaTransactionResult: "",
 	}
@@ -1196,7 +1197,7 @@ func TestValidateTransactionResult_EmptyResult(t *testing.T) {
 // =============================================================================
 
 func TestExtractSender_Valid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := transaction.FlatTransaction{
 		"Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
@@ -1223,7 +1224,7 @@ func TestExtractSender_Valid(t *testing.T) {
 }
 
 func TestExtractSender_MissingAccount(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := transaction.FlatTransaction{
 		"Destination": "rSomeDestination",
@@ -1235,7 +1236,7 @@ func TestExtractSender_MissingAccount(t *testing.T) {
 }
 
 func TestExtractSender_InvalidAccount(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := transaction.FlatTransaction{
 		"Account": "not_a_valid_address",
@@ -1247,7 +1248,7 @@ func TestExtractSender_InvalidAccount(t *testing.T) {
 }
 
 func TestExtractSender_AccountNotString(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := transaction.FlatTransaction{
 		"Account": 12345,
@@ -1263,7 +1264,7 @@ func TestExtractSender_AccountNotString(t *testing.T) {
 // =============================================================================
 
 func TestExtractDestination_Valid(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := transaction.FlatTransaction{
 		"Destination": "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
@@ -1275,7 +1276,7 @@ func TestExtractDestination_Valid(t *testing.T) {
 }
 
 func TestExtractDestination_Missing(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := transaction.FlatTransaction{
 		"Account": "rSomeAccount",
@@ -1287,7 +1288,7 @@ func TestExtractDestination_Missing(t *testing.T) {
 }
 
 func TestExtractDestination_NotString(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := transaction.FlatTransaction{
 		"Destination": 12345,
@@ -1303,7 +1304,7 @@ func TestExtractDestination_NotString(t *testing.T) {
 // =============================================================================
 
 func TestParseTransactionStream_ValidTransaction(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create a mock TransactionStream matching real XRPL transaction structure
 	txHash := "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"
@@ -1352,7 +1353,7 @@ func TestParseTransactionStream_ValidTransaction(t *testing.T) {
 }
 
 func TestParseTransactionStream_NoNTTMemo(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	contract := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 
 	// Transaction with valid meta and destination but no Memos (no NTT payload)
@@ -1378,7 +1379,7 @@ func TestParseTransactionStream_NoNTTMemo(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidTimestamp(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := &streamtypes.TransactionStream{
 		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
@@ -1399,7 +1400,7 @@ func TestParseTransactionStream_InvalidTimestamp(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidTxHash(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := &streamtypes.TransactionStream{
 		Hash:         "NOT_VALID_HEX!!!",
@@ -1420,7 +1421,7 @@ func TestParseTransactionStream_InvalidTxHash(t *testing.T) {
 }
 
 func TestParseTransactionStream_NotPaymentType(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	validTx := createValidNTTTransaction()
 	validTx["TransactionType"] = "OfferCreate" // Not a Payment
@@ -1445,7 +1446,7 @@ func TestParseTransactionStream_NotPaymentType(t *testing.T) {
 }
 
 func TestParseTransactionStream_FailsOnNonSuccessResult(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := &streamtypes.TransactionStream{
 		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
@@ -1515,7 +1516,7 @@ func TestSequenceEncoding(t *testing.T) {
 // =============================================================================
 
 func TestParseTransactionStream_XRPPayment_FullFlow(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create memo with Ethereum as recipient chain, fromDecimals=6 (XRP), toDecimals=8
 	memoData := createSampleMemoData(2, 6, 8)
@@ -1575,7 +1576,7 @@ func TestParseTransactionStream_XRPPayment_FullFlow(t *testing.T) {
 }
 
 func TestParseTransactionStream_TrustLinePayment_FullFlow(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create memo with Solana as recipient chain, fromDecimals=6, toDecimals=9
 	memoData := createSampleMemoData(1, 6, 9)
@@ -1631,7 +1632,7 @@ func TestParseTransactionStream_TrustLinePayment_FullFlow(t *testing.T) {
 }
 
 func TestParseTransactionStream_FromDecimalsMismatch(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create memo with wrong fromDecimals (8 instead of 6 for XRP)
 	memoData := createSampleMemoData(2, 8, 8)
@@ -1674,7 +1675,7 @@ func TestParseTransactionStream_FromDecimalsMismatch(t *testing.T) {
 // =============================================================================
 
 func TestParseTxResponse_ValidTransaction(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	txHash := "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"
 	tx := &transactions.TxResponse{
@@ -1713,7 +1714,7 @@ func TestParseTxResponse_ValidTransaction(t *testing.T) {
 }
 
 func TestParseTxResponse_NoNTTMemo(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := &transactions.TxResponse{
 		Hash:        types.Hash256("8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"),
@@ -1737,7 +1738,7 @@ func TestParseTxResponse_NoNTTMemo(t *testing.T) {
 }
 
 func TestParseTxResponse_DateOverflow(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := &transactions.TxResponse{
 		Hash:        types.Hash256("8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"),
@@ -1767,7 +1768,7 @@ func TestParseMPTCurrencyAmount_Valid(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 6, nil // Return asset scale of 6
 	}
-	p := NewParser("", mockFetcher)
+	p := NewParser("", nil, mockFetcher)
 
 	// MPT delivered amount
 	mptAmount := map[string]any{
@@ -1788,7 +1789,7 @@ func TestParseMPTCurrencyAmount_InvalidValue(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 6, nil
 	}
-	p := NewParser("", mockFetcher)
+	p := NewParser("", nil, mockFetcher)
 
 	mptAmount := map[string]any{
 		"mpt_issuance_id": "000000000000000000000000000000000000000000000001",
@@ -1805,7 +1806,7 @@ func TestParseMPTCurrencyAmount_FetchError(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 0, fmt.Errorf("network error")
 	}
-	p := NewParser("", mockFetcher)
+	p := NewParser("", nil, mockFetcher)
 
 	mptAmount := map[string]any{
 		"mpt_issuance_id": "000000000000000000000000000000000000000000000001",
@@ -1822,7 +1823,7 @@ func TestParseMPTCurrencyAmount_DecimalsMismatch(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 8, nil // Return asset scale of 8, but memo says 6
 	}
-	p := NewParser("", mockFetcher)
+	p := NewParser("", nil, mockFetcher)
 
 	mptAmount := map[string]any{
 		"mpt_issuance_id": "000000000000000000000000000000000000000000000001",
@@ -1839,7 +1840,7 @@ func TestParseMPTCurrencyAmount_ZeroAmount(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 6, nil
 	}
-	p := NewParser("", mockFetcher)
+	p := NewParser("", nil, mockFetcher)
 
 	mptAmount := map[string]any{
 		"mpt_issuance_id": "000000000000000000000000000000000000000000000001",
@@ -1857,7 +1858,7 @@ func TestParseMPTCurrencyAmount_ZeroAmount(t *testing.T) {
 // =============================================================================
 
 func TestValidateTransactionType_NotString(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"TransactionType": 12345, // Not a string
 	}
@@ -1868,7 +1869,7 @@ func TestValidateTransactionType_NotString(t *testing.T) {
 }
 
 func TestParseTransaction_ScaledAmountZero(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create memo with high toDecimals but very small amount
 	// Amount of 1 drop (1e-6 XRP) scaled to 0 decimals becomes 0
@@ -1908,7 +1909,7 @@ func TestParseTransaction_ScaledAmountZero(t *testing.T) {
 }
 
 func TestCalculateMPTSourceToken_InvalidHex(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Invalid hex characters
 	_, err := p.calculateMPTSourceToken("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ")
@@ -1917,7 +1918,7 @@ func TestCalculateMPTSourceToken_InvalidHex(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidDestination(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	validTx := createValidNTTTransaction()
 	validTx["Destination"] = "invalid_address" // Invalid XRPL address
@@ -1941,7 +1942,7 @@ func TestParseTransactionStream_InvalidDestination(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidSender(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	validTx := createValidNTTTransaction()
 	validTx["Account"] = "invalid_sender_address" // Invalid XRPL address
@@ -1965,7 +1966,7 @@ func TestParseTransactionStream_InvalidSender(t *testing.T) {
 }
 
 func TestParseTransactionStream_MissingDestination(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	validTx := createValidNTTTransaction()
 	delete(validTx, "Destination") // Remove destination
@@ -1989,7 +1990,7 @@ func TestParseTransactionStream_MissingDestination(t *testing.T) {
 }
 
 func TestParseTransactionStream_MissingSender(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	validTx := createValidNTTTransaction()
 	delete(validTx, "Account") // Remove account
@@ -2013,7 +2014,7 @@ func TestParseTransactionStream_MissingSender(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidDeliveredAmount(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	tx := &streamtypes.TransactionStream{
 		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
@@ -2034,7 +2035,7 @@ func TestParseTransactionStream_InvalidDeliveredAmount(t *testing.T) {
 }
 
 func TestParseIssuedCurrencyAmount_InvalidValue(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 6}
 
 	// A trust line with an invalid value that will fail to parse
@@ -2053,7 +2054,7 @@ func TestParseMPTCurrencyAmount_InvalidSourceToken(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 6, nil
 	}
-	p := NewParser("", mockFetcher)
+	p := NewParser("", nil, mockFetcher)
 
 	// MPT with invalid mpt_issuance_id (wrong length)
 	mptAmount := map[string]any{
@@ -2072,7 +2073,7 @@ func TestParseTransactionStream_MPTPayment_FullFlow(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 8, nil // Return asset scale of 8
 	}
-	p := NewParser("", mockFetcher)
+	p := NewParser("", nil, mockFetcher)
 
 	// Create memo with fromDecimals matching the MPT asset scale
 	memoData := createSampleMemoData(2, 8, 8) // fromDecimals=8 matches MPT AssetScale
@@ -2127,7 +2128,7 @@ func TestParseTransactionStream_MPTPayment_FullFlow(t *testing.T) {
 // =============================================================================
 
 func TestParseDeliveredAmount_MarshalError(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 	memo := &memoData{fromDecimals: 6}
 
 	// Create a value that can't be marshaled to JSON properly
@@ -2139,7 +2140,7 @@ func TestParseDeliveredAmount_MarshalError(t *testing.T) {
 }
 
 func TestParseTransaction_ParseMemoError(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create a transaction with an NTT memo format but invalid hex in MemoData
 	tx := &streamtypes.TransactionStream{
@@ -2176,7 +2177,7 @@ func TestParseTransaction_ParseMemoError(t *testing.T) {
 }
 
 func TestParseTransaction_ValidationResultError(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create transaction with NTT memo but failed result
 	tx := &streamtypes.TransactionStream{
@@ -2213,7 +2214,7 @@ func TestParseTransaction_ValidationResultError(t *testing.T) {
 }
 
 func TestParseTransaction_ValidationTypeError(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create transaction with NTT memo but non-Payment type
 	tx := &streamtypes.TransactionStream{
@@ -2250,7 +2251,7 @@ func TestParseTransaction_ValidationTypeError(t *testing.T) {
 }
 
 func TestParseTransaction_TransactionIndexOverflow(t *testing.T) {
-	p := NewParser("", nil)
+	p := NewParser("", nil, nil)
 
 	// Create a valid transaction but with TransactionIndex > MaxUint32
 	tx := &streamtypes.TransactionStream{
@@ -2319,7 +2320,7 @@ func createFlatTransactionWithCoreMemo(memoData, destination string) transaction
 }
 
 func TestParseCoreMessageMemoData_Valid(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	payload := []byte("hello wormhole")
 	memoData := createCoreMemoData(1, 42, payload)
 	tx := createFlatTransactionWithMemos(testCoreMemoFormat, memoData)
@@ -2333,7 +2334,7 @@ func TestParseCoreMessageMemoData_Valid(t *testing.T) {
 }
 
 func TestParseCoreMessageMemoData_NoMemo(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	tx := transaction.FlatTransaction{
 		"Account": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
 	}
@@ -2345,7 +2346,7 @@ func TestParseCoreMessageMemoData_NoMemo(t *testing.T) {
 }
 
 func TestParseCoreMessageMemoData_WrongVersion(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	payload := []byte("test")
 	memoData := createCoreMemoData(2, 0, payload) // version 2, not supported
 	tx := createFlatTransactionWithMemos(testCoreMemoFormat, memoData)
@@ -2358,7 +2359,7 @@ func TestParseCoreMessageMemoData_WrongVersion(t *testing.T) {
 }
 
 func TestParseCoreMessageMemoData_TooShort(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	// Only 3 bytes — less than the required 5
 	memoData := hex.EncodeToString([]byte{0x01, 0x00, 0x00})
 	tx := createFlatTransactionWithMemos(testCoreMemoFormat, memoData)
@@ -2371,7 +2372,7 @@ func TestParseCoreMessageMemoData_TooShort(t *testing.T) {
 }
 
 func TestParseCoreTransaction_Valid(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	payload := []byte("cross-chain message")
 	memoData := createCoreMemoData(1, 99, payload)
 
@@ -2412,7 +2413,7 @@ func TestParseCoreTransaction_Valid(t *testing.T) {
 }
 
 func TestParseCoreTransaction_NotCoreAccount(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	payload := []byte("test")
 	memoData := createCoreMemoData(1, 1, payload)
 
@@ -2432,7 +2433,7 @@ func TestParseCoreTransaction_NotCoreAccount(t *testing.T) {
 }
 
 func TestParseCoreTransaction_NonPayment(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	payload := []byte("test")
 	memoData := createCoreMemoData(1, 1, payload)
 
@@ -2456,7 +2457,7 @@ func TestParseCoreTransaction_NonPayment(t *testing.T) {
 }
 
 func TestParseCoreTransaction_FailedResult(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	payload := []byte("test")
 	memoData := createCoreMemoData(1, 1, payload)
 
@@ -2477,7 +2478,7 @@ func TestParseCoreTransaction_FailedResult(t *testing.T) {
 }
 
 func TestParseTransactionStream_CoreMessage(t *testing.T) {
-	p := NewParser(testCoreAccount, nil)
+	p := NewParser(testCoreAccount, nil, nil)
 	payload := []byte("end-to-end core message")
 	memoData := createCoreMemoData(1, 123, payload)
 
@@ -2521,4 +2522,140 @@ func TestParseTransactionStream_CoreMessage(t *testing.T) {
 	// Verify TxID
 	expectedTxHash, _ := hex.DecodeString("AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233")
 	assert.Equal(t, expectedTxHash, msg.TxID)
+}
+
+// --- XTCF (Ticket Refill Confirmation) Tests ---
+
+const testManagedAccount = "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh"
+
+func createTicketCreateTx(account string, ticketSequences []float64) GenericTx {
+	affectedNodes := make([]transaction.AffectedNode, 0, len(ticketSequences))
+	for _, seq := range ticketSequences {
+		affectedNodes = append(affectedNodes, transaction.AffectedNode{
+			CreatedNode: &transaction.CreatedNode{
+				LedgerEntryType: ledger.TicketEntry,
+				NewFields: ledger.FlatLedgerObject{
+					"TicketSequence": seq,
+				},
+			},
+		})
+	}
+
+	return GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         account,
+			"TicketCount":     float64(len(ticketSequences)),
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  3,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes:     affectedNodes,
+		Timestamp:             time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+}
+
+func TestParseTicketCreateTransaction_Success(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createTicketCreateTx(testManagedAccount, []float64{100, 101, 102, 103, 104})
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XTCF prefix
+	assert.Equal(t, byte('X'), msg.Payload[0])
+	assert.Equal(t, byte('T'), msg.Payload[1])
+	assert.Equal(t, byte('C'), msg.Payload[2])
+	assert.Equal(t, byte('F'), msg.Payload[3])
+
+	// Verify payload length (20 bytes)
+	assert.Equal(t, 20, len(msg.Payload))
+
+	// ticket_start = 100
+	ticketStart := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(100), ticketStart)
+
+	// ticket_count = 5
+	ticketCount := binary.BigEndian.Uint64(msg.Payload[12:20])
+	assert.Equal(t, uint64(5), ticketCount)
+
+	// Verify chain and sequence
+	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
+	expectedSequence := (uint64(50000) << 32) | 3
+	assert.Equal(t, expectedSequence, msg.Sequence)
+}
+
+func TestParseTicketCreateTransaction_NotManagedAccount(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createTicketCreateTx("rDifferentAccount1234567890123456", []float64{100})
+	msg, err := p.parseTicketCreateTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseTicketCreateTransaction_NotTicketCreate(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         testManagedAccount,
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+	msg, err := p.parseTicketCreateTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseTicketCreateTransaction_FailedTx(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createTicketCreateTx(testManagedAccount, []float64{100})
+	tx.MetaTransactionResult = "tecNO_PERMISSION"
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	assert.Error(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseTicketCreateTransaction_UnsortedSequences(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	// Tickets may appear in any order in AffectedNodes
+	tx := createTicketCreateTx(testManagedAccount, []float64{105, 102, 108, 101, 103})
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// ticket_start should be the minimum = 101
+	ticketStart := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(101), ticketStart)
+
+	ticketCount := binary.BigEndian.Uint64(msg.Payload[12:20])
+	assert.Equal(t, uint64(5), ticketCount)
+}
+
+func TestParseTicketCreateTransaction_NoManagedAccounts(t *testing.T) {
+	p := NewParser("", nil, nil)
+
+	tx := createTicketCreateTx(testManagedAccount, []float64{100})
+	msg, err := p.parseTicketCreateTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseTicketCreateTransaction_DispatchedFromParseTransaction(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createTicketCreateTx(testManagedAccount, []float64{200, 201, 202})
+	msg, err := p.parseTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify it was dispatched correctly (XTCF prefix)
+	assert.Equal(t, xtcfPrefix[:], msg.Payload[0:4])
 }

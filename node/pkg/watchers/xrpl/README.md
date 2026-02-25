@@ -194,6 +194,22 @@ The `to_decimals` must be passed in off-chain as this field is typically [trimme
 
 Having the sender specify the `from_decimals` ensures that the amount is generated deterministically and as expected by the sender. While the `AssetScale` is immutable in the current XRPL specification, this can be considered as a defense-in-depth measure.
 
+<!-- cspell:ignore XTCF -->
+
+### Ticket Refill Confirmation (XTCF)
+
+The XRPL Sequencer requires a verifiable confirmation of the tickets that were created for a managed account. This is needed because it is possible for an integrator to retain control over the account in addition to the guardian multisig. They may use sequence numbers between refill requests, creating gaps. The watcher must generate messages for TicketCreate transactions on any managed accounts to allow the Sequencer to account for this.
+
+| Offset | Size | Field                                    |
+| ------ | ---- | ---------------------------------------- |
+| 0      | 4    | prefix ("XTCF" = 0x58544346)             |
+| 4      | 8    | ticket_start (first ticket in new range) |
+| 12     | 8    | ticket_count                             |
+
+Total: 20 bytes
+
+> 🚧 If the [Batch](https://xrpl.org/resources/known-amendments#batch) amendment is accepted, an additional Payment to the Core account with a particular memo can be batched with the TicketCreate to trigger this message.
+
 ## Protocol Integration
 
 Other than the watcher implementation described above, this design requires no other changes to Wormhole software or protocols.
@@ -239,23 +255,3 @@ All fields passed via the memo MUST have no security impact and be properly vali
 ## Decimals
 
 This design relies on other NTT implementations handling the decimals on the payload appropriately.
-
-# Test Plan
-
-TODO
-
-# Performance Impact
-
-TODO
-
-# Rollout
-
-TODO
-
-## Acceptance Criteria
-
-TODO
-
-## Rollback
-
-TODO
