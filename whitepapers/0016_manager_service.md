@@ -263,6 +263,21 @@ u16    memo_type_len
 
 Minimum bytes: 106 bytes (XRP), 130 bytes (MPT), 146 bytes (IOU)
 
+<!-- cspell:ignore XRFL -->
+
+#### TicketRefill Payload (XRFL)
+
+Emitted when tickets are running low and need refilling. Guardians observe this payload to construct a TicketCreate transaction on XRPL.
+
+| Offset | Size | Field                        |
+| ------ | ---- | ---------------------------- |
+| 0      | 4    | prefix ("XRFL" = 0x5852464C) |
+| 4      | 20   | xrpl_account                 |
+| 24     | 8    | use_ticket                   |
+| 32     | 8    | request_count                |
+
+Total: 40 bytes
+
 #### Manager Service API
 
 The Manager Service will expose two public endpoints.

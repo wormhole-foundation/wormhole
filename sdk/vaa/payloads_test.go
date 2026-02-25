@@ -1769,3 +1769,68 @@ func TestDeserializeXRPLReleasePayloadTruncatedMPT(t *testing.T) {
 	_, err = DeserializeXRPLReleasePayload(buf[:len(buf)-10])
 	require.ErrorContains(t, err, "MPT token_id requires")
 }
+
+// --- XRPL Ticket Refill Payload Tests ---
+
+var testXRPLTicketRefillAccount = [20]byte{
+	0xB5, 0xF7, 0x62, 0x79, 0x8A, 0x53, 0xD5, 0x43, 0xA0, 0x14,
+	0xCA, 0xF8, 0xB2, 0x97, 0xCF, 0xF8, 0xF2, 0xF9, 0x37, 0xE8,
+}
+
+func TestXRPLTicketRefillPrefix(t *testing.T) {
+	assert.Equal(t, [4]byte{'X', 'R', 'F', 'L'}, XRPLTicketRefillPrefix)
+	assert.Equal(t, [4]byte{0x58, 0x52, 0x46, 0x4C}, XRPLTicketRefillPrefix)
+}
+
+func TestXRPLTicketRefillPayloadSerializeDeserialize(t *testing.T) {
+	payload := &XRPLTicketRefillPayload{
+		Account:      testXRPLTicketRefillAccount,
+		UseTicket:    42,
+		RequestCount: 10,
+	}
+
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Expected size: prefix (4) + account (20) + use_ticket (8) + request_count (8) = 40
+	assert.Equal(t, 40, len(buf))
+
+	// Verify prefix
+	assert.Equal(t, XRPLTicketRefillPrefix[:], buf[0:4])
+
+	// Deserialize and verify round-trip
+	deserialized, err := DeserializeXRPLTicketRefillPayload(buf)
+	require.NoError(t, err)
+
+	assert.Equal(t, payload.Account, deserialized.Account)
+	assert.Equal(t, payload.UseTicket, deserialized.UseTicket)
+	assert.Equal(t, payload.RequestCount, deserialized.RequestCount)
+}
+
+func TestDeserializeXRPLTicketRefillPayloadTooShort(t *testing.T) {
+	// Less than 40 bytes
+	_, err := DeserializeXRPLTicketRefillPayload([]byte{0x58, 0x52, 0x46, 0x4C, 0x00})
+	require.ErrorContains(t, err, "too short")
+}
+
+func TestDeserializeXRPLTicketRefillPayloadInvalidPrefix(t *testing.T) {
+	buf := make([]byte, 40)
+	copy(buf[0:4], []byte("XREL")) // Wrong prefix
+	_, err := DeserializeXRPLTicketRefillPayload(buf)
+	require.ErrorContains(t, err, "invalid XRPL ticket refill payload prefix")
+}
+
+func TestDeserializeXRPLTicketRefillPayloadTrailingBytes(t *testing.T) {
+	payload := &XRPLTicketRefillPayload{
+		Account:      testXRPLTicketRefillAccount,
+		UseTicket:    1,
+		RequestCount: 5,
+	}
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Add trailing byte
+	buf = append(buf, 0x00)
+	_, err = DeserializeXRPLTicketRefillPayload(buf)
+	require.ErrorContains(t, err, "trailing bytes")
+}
