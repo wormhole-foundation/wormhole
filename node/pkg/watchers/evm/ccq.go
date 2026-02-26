@@ -162,7 +162,11 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 			zap.Any("batch", batch),
 			zap.Error(err),
 		)
-		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
+		status := query.QueryRetryNeeded
+		if ccqBatchHasRevert(batch, len(evmCallData)) {
+			status = query.QueryFatalError
+		}
+		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
 
@@ -456,7 +460,11 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 			zap.Any("batch", batch),
 			zap.Error(err),
 		)
-		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
+		status := query.QueryRetryNeeded
+		if ccqBatchHasRevert(batch, len(evmCallData)) {
+			status = query.QueryFatalError
+		}
+		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
 
@@ -602,7 +610,11 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 			zap.String("blockTime", blockResult.Time.String()),
 			zap.Error(err),
 		)
-		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
+		status := query.QueryRetryNeeded
+		if ccqBatchHasRevert(batch, len(evmCallData)) {
+			status = query.QueryFatalError
+		}
+		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
 
@@ -756,6 +768,27 @@ func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, evmCallData 
 	}
 
 	return results, err
+}
+
+// ccqBatchHasRevert checks the first numCalls entries of the batch for a revert error.
+// If any call reverted, retrying is pointless because the result is deterministic.
+func ccqBatchHasRevert(batch []rpc.BatchElem, numCalls int) bool {
+	if numCalls <= 0 || len(batch) == 0 {
+		return false
+	}
+
+	upperBound := numCalls
+	if upperBound > len(batch) {
+		upperBound = len(batch)
+	}
+
+	for i := 0; i < upperBound; i++ {
+		if batch[i].Error != nil && strings.Contains(
+			strings.ToLower(batch[i].Error.Error()), "execution reverted") {
+			return true
+		}
+	}
+	return false
 }
 
 // ccqAddLatestBlock adds the latest block to the timestamp cache. The cache handles rollbacks.
