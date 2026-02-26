@@ -343,6 +343,8 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 					w.logger.Warn("event is invalid", zap.Stringer("tx_hash", txHash), zap.String("event", event.String()))
 					continue
 				}
+
+				// SECURITY: Event identification. Event must come from the CosmWasm VM.
 				eventType := gjson.Get(event.String(), "type").String()
 				if eventType == "wasm" {
 					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event, txHash)
@@ -441,6 +443,9 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 				panic("invalid chain ID")
 			}
 
+			// SECURITY: Directly using data for URL path is scary.
+			// Potential for directory traversal attacks to return the incorrect data
+			// This is hex encoded so it's acceptable but be careful changing this logic.
 			reqTxHashStr := hex.EncodeToString(r.TxHash)
 			w.logger.Info("received observation request", zap.String("chain", ce.chainName), zap.String("txHash", reqTxHashStr))
 
@@ -487,6 +492,8 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 					continue
 				}
 				eventType := gjson.Get(event.String(), "type")
+
+				// SECURITY: Event identification. Event must come from the CosmWasm VM.
 				if eventType.String() == "wasm" {
 					w.logger.Debug("found wasm event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash))
 					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event, txHash)
@@ -520,6 +527,8 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 		return nil, fmt.Errorf("failed to parse attributes: %w", err)
 	}
 
+	// SECURITY: Event came from wormhole-ibc-receiver contract
+	// Acts as the core contract emitter for gateway
 	str, err := attributes.GetAsString("_contract_address")
 	if err != nil {
 		return nil, err
@@ -528,6 +537,8 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 		return nil, fmt.Errorf("received an event from an unexpected contract: %s", str)
 	}
 
+	// SECURITY: Event identification for the wormhole-ibc-receiver contract.
+	// Prevents type confusion issues
 	str, err = attributes.GetAsString("action")
 	if err != nil || str != "receive_publish" {
 		//nolint:nilerr // Returning nil here just means that no `receive_publish` action exists. We don't want to continue processing in this case.
@@ -538,6 +549,8 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	evt.Msg = new(common.MessagePublication)
 	evt.Msg.TxID = txHash.Bytes()
 
+	// This holds the capability for finding the proper chain Id to emit the event for.
+	// Must be the real channel Id of the IBC message.
 	evt.ChannelID, err = attributes.GetAsString("channel_id")
 	if err != nil {
 		return evt, err
@@ -590,6 +603,11 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 
 // processIbcReceivePublishEvent takes an IBC event, maps it to a message publication and publishes it.
 func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, observationType string) error {
+
+	// SECURITY: The ibc watcher is the only watcher that can handle multiple chain IDs
+	// To make this safe, it has a mapping from channel ID to chain IDs that it uses
+	// This prevents chains like Solana and Ethereum from being emitted from.
+	// Prevents cross-chain attacks where Osmosis can emit an event for Injective as well.
 	mappedChainID, err := w.getChainIdFromChannelID(evt.ChannelID)
 	if err != nil {
 		w.logger.Error("query for IBC channel ID failed",
@@ -641,6 +659,8 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		return nil
 	}
 
+	// SECURITY: Emitter chain on message must match the channels matching chain ID.
+	// This is the only place where the EmitterChain is compared to the messages chain ID.
 	if evt.Msg.EmitterChain != ce.chainID {
 		w.logger.Error(fmt.Sprintf("chain id mismatch in %s message", observationType),
 			zap.String("IbcChannelID", evt.ChannelID),
