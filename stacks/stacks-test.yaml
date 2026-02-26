@@ -1,0 +1,23 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stacks-test
+  labels:
+    app: stacks-test
+spec:
+  selector:
+    matchLabels:
+      app: stacks-test
+  template:
+    metadata:
+      labels:
+        app: stacks-test
+    spec:
+      containers:
+        - name: stacks-test
+          image: stacks-test
+          command:
+            - /bin/sh
+            - -c
+            - npm run test:integration

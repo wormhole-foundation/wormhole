@@ -74,6 +74,7 @@ config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chai
 config.define_bool("redis", False, "Enable a redis instance")
 config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
 config.define_bool("query_server", False, "Enable cross-chain query server")
+config.define_bool("stacks", False, "Enable Stacks component")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -100,6 +101,7 @@ btc = cfg.get("btc", False)
 redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
+stacks = cfg.get("stacks", ci)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -287,7 +289,7 @@ def build_node_yaml():
                     "--suiMoveEventType",
                     "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
                 ]
-            
+
             # Handle evm2 configuration based on guardian count and evm2 flag
             if require_per_guardian_config:
                 # Use a shell wrapper to conditionally set the values based on pod ordinal
@@ -407,6 +409,18 @@ def build_node_yaml():
                     "http://wormchain:1317"
                 ]
 
+            if stacks:
+                container["command"] += [
+                    "--stacksStateContract",
+                    "ST5ZW3BC07M4P27KFJ6JJ6PKTB1NW79SH0BVYB3W.wormhole-core-state",
+                    "--stacksRPC",
+                    "http://stacks-node:20443",
+                    "--stacksRPCAuthToken",
+                    "12345",
+                    "--stacksBitcoinBlockPollInterval",
+                    "2s"
+                ]
+
             # Wrap the command with a shell script for per-guardian configuration
             if require_per_guardian_config:
                 original_command = container["command"]
@@ -421,7 +435,7 @@ def build_node_yaml():
                     for arg in delegated_chain_args:
                         line += " \"" + escape_line(arg) + "\""
                     return line + "\n"
-                
+
                 # Build the shell wrapper script
                 wrapper_script = "POD_ORDINAL=$(echo $POD_NAME | grep -o '[0-9]*$')\n"
 
@@ -439,12 +453,12 @@ def build_node_yaml():
                         for args in chain_to_args[chain]
                     ]
                     wrapper_script += generate_exec_line(original_command, chain_args)
-                
+
                 wrapper_script += "else\n"
                 # Canonical guardians do not listen to delegated chains
-                wrapper_script += generate_exec_line(original_command, []) 
+                wrapper_script += generate_exec_line(original_command, [])
                 wrapper_script += "fi\n"
-                
+
                 # Replace the command with the wrapper
                 container["command"] = ["/bin/sh", "-c", wrapper_script]
 
@@ -469,6 +483,8 @@ if wormchain:
     guardian_resource_deps = guardian_resource_deps + ["wormchain", "wormchain-deploy"]
 if sui:
     guardian_resource_deps = guardian_resource_deps + ["sui"]
+if stacks:
+    guardian_resource_deps = guardian_resource_deps + ["stacks-node"]
 
 k8s_resource(
     "guardian",
@@ -772,7 +788,6 @@ if ci_tests:
                     "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
                     "MAX_WORKERS", max_workers))
     )
-
     # separate resources to parallelize docker builds
     k8s_resource(
         "sdk-ci-tests",
@@ -1115,4 +1130,90 @@ if query_server:
         ],
         labels = ["query-server"],
         trigger_mode = trigger_mode
+    )
+
+if stacks:
+    # Build stacker image
+    docker_build(
+        ref = "stacks-stacker",
+        context = "./stacks/stacker",
+        dockerfile = "stacks/stacker/Dockerfile"
+    )
+
+    # Build broadcaster image
+    docker_build(
+        ref = "stacks-broadcaster",
+        context = "./stacks/broadcaster",
+        dockerfile = "stacks/broadcaster/Dockerfile"
+    )
+
+    # Build Stacks integration test suite
+    docker_build(
+        ref = "stacks-test",
+        context = "./stacks",
+        dockerfile = "stacks/test/Dockerfile",
+    )
+
+    # Deploy Bitcoin services
+    k8s_yaml_with_ns("devnet/stacks-bitcoin.yaml")
+    k8s_resource(
+        "bitcoin-node",
+        port_forwards = [
+            port_forward(18443, name = "Bitcoin RPC [:18443]", host = webHost),
+            port_forward(18444, name = "Bitcoin P2P [:18444]", host = webHost)
+        ],
+        labels = ["stacks"],
+        trigger_mode = trigger_mode,
+    )
+    k8s_resource(
+        "bitcoin-miner",
+        resource_deps = ["bitcoin-node"],
+        labels = ["stacks"],
+        trigger_mode = trigger_mode,
+    )
+
+    # Deploy Stacks node
+    k8s_yaml_with_ns("devnet/stacks-node.yaml")
+    k8s_resource(
+        "stacks-node",
+        resource_deps = ["bitcoin-miner"],
+        port_forwards = [
+            port_forward(20443, name = "Stacks Node RPC [:20443]", host = webHost)
+        ],
+        labels = ["stacks"],
+        trigger_mode = trigger_mode,
+    )
+
+    # Deploy Stacks signer
+    k8s_yaml_with_ns("devnet/stacks-signer.yaml")
+    k8s_resource(
+        "stacks-signer",
+        labels = ["stacks"],
+        trigger_mode = trigger_mode,
+    )
+
+    # Deploy Stacker (establishes PoX anchor blocks)
+    k8s_yaml_with_ns("devnet/stacks-stacker.yaml")
+    k8s_resource(
+        "stacks-stacker",
+        labels = ["stacks"],
+        trigger_mode = trigger_mode,
+    )
+
+    # Deploy TX broadcaster
+    k8s_yaml_with_ns("devnet/stacks-broadcaster.yaml")
+    k8s_resource(
+        "stacks-broadcaster",
+        resource_deps = ["stacks-node", "stacks-signer"],
+        labels = ["stacks"],
+        trigger_mode = trigger_mode,
+    )
+
+    # Deploy Stacks integration test suite
+    k8s_yaml_with_ns("stacks/stacks-test.yaml")
+    k8s_resource(
+        "stacks-test",
+        resource_deps = ["stacks-broadcaster"], # After Nakamoto
+        labels = ["stacks"],
+        trigger_mode = trigger_mode,
     )
