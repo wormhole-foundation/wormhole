@@ -60,6 +60,8 @@ module core_messages::sender_test {
     public fun test_send_message(aptos_framework: &signer, user: &signer) {
         let message_fee = 100;
         timestamp::set_time_has_started_for_testing(aptos_framework);
+        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+
         wormhole::init_test(
             22,
             1,
@@ -68,8 +70,6 @@ module core_messages::sender_test {
             message_fee
         );
         sender::init_module_test();
-
-        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
 
         // create user account and airdrop coins
         account::create_account_for_test(signer::address_of(user));

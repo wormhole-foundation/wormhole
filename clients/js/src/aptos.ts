@@ -359,19 +359,24 @@ export async function callEntryFunc(
   );
 
   // simulate transaction before submitting
-  const sim = await client.simulateTransaction(accountFrom, rawTxn);
-  sim.forEach((tx) => {
-    if (!tx.success) {
-      console.error(JSON.stringify(tx, null, 2));
-      throw new Error(`Transaction failed: ${tx.vm_status}`);
-    }
-  });
+  if (network !== "Devnet") {
+    // TODO: determine why simulation is no longer working for devnet after 4.5.0 upgrade
+    const sim = await client.simulateTransaction(accountFrom, rawTxn);
+    sim.forEach((tx) => {
+      if (!tx.success) {
+        console.error(JSON.stringify(tx, null, 2));
+        throw new Error(`Transaction failed: ${tx.vm_status}`);
+      }
+    });
+  }
 
   // simulation successful... let's do it
   const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
   const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
 
-  await client.waitForTransaction(transactionRes.hash);
+  await client.waitForTransaction(transactionRes.hash, {
+    checkSuccess: true,
+  });
   return transactionRes.hash;
 }
 
