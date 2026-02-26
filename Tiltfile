@@ -285,7 +285,7 @@ def build_node_yaml():
                     "--suiRPC",
                     "http://sui:9000",
                     "--suiMoveEventType",
-                    "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
+                    "0xf82ef05c95ebafcbeb1cce2b636448b8cd1c6daad201f7d04ecddcda15c19d52::publish_message::WormholeMessage",
                 ]
             
             # Handle evm2 configuration based on guardian count and evm2 flag

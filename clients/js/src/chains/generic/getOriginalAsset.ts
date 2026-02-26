@@ -115,7 +115,11 @@ export const getOriginalAsset = async (
     }
     case "Sui": {
       const provider = getProviderForChain(chainName, network, { rpc });
-      return getOriginalAssetSui(provider, tokenBridgeAddress, assetAddress);
+      return getOriginalAssetSui(
+        provider as any,
+        tokenBridgeAddress,
+        assetAddress
+      );
     }
     case "Btc":
     case "Osmosis":

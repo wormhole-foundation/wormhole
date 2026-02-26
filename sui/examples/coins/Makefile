@@ -8,8 +8,8 @@ clean:
 
 .PHONY: check
 check:
-	sui move build -d
+	sui move build
 
 .PHONY: test
 test: check
-	sui move test -d
+	sui move test

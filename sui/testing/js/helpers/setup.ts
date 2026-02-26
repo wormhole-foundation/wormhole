@@ -37,39 +37,3 @@ export function modifyHardCodedVersionControl(
   const dst = `const CURRENT_BUILD_VERSION: u64 = ${newVersion}`;
   fs.writeFileSync(versionControlDotMove, contents.replace(src, dst), UTF8);
 }
-
-export function setUpWormholeDirectory(
-  srcWormholePath: string,
-  dstWormholePath: string
-) {
-  fs.cpSync(srcWormholePath, dstWormholePath, { recursive: true });
-
-  // Remove irrelevant files. This part is not necessary, but is helpful
-  // for debugging a clean package directory.
-  const removeThese = [
-    "Move.devnet.toml",
-    "Move.lock",
-    "Makefile",
-    "README.md",
-    "build",
-  ];
-  for (const basename of removeThese) {
-    fs.rmSync(`${dstWormholePath}/${basename}`, {
-      recursive: true,
-      force: true,
-    });
-  }
-
-  // Fix Move.toml file.
-  const moveTomlPath = `${dstWormholePath}/Move.toml`;
-  const moveToml = fs.readFileSync(moveTomlPath, UTF8);
-  fs.writeFileSync(
-    moveTomlPath,
-    moveToml.replace(`wormhole = "_"`, `wormhole = "0x0"`),
-    UTF8
-  );
-}
-
-export function cleanUpPackageDirectory(packagePath: string) {
-  fs.rmSync(packagePath, { recursive: true, force: true });
-}

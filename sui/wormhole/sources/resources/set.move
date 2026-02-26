@@ -64,7 +64,7 @@ module wormhole::set_tests {
 
         let my_set = set::new(ctx);
 
-        let (i, n) = (0, 256);
+        let (i, n) = (0u64, 256);
         while (i < n) {
             set::add(&mut my_set, i);
             i = i + 1;
