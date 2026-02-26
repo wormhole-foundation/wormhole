@@ -51,3 +51,42 @@ $(BIN)/guardiand: dirs generate
 	cd node && go build -ldflags "-X github.com/certusone/wormhole/node/pkg/version.version=${VERSION}" \
 	  -mod=readonly -o ../$(BIN)/guardiand \
 	  github.com/certusone/wormhole/node
+
+# ── Coverage targets ──────────────────────────────────────────────
+# All coverage targets use the coverage-* prefix.
+# Tab-complete "make coverage" to discover them.
+#
+#   coverage         — run tests + check against baseline (main entry point)
+#   coverage-init    — create baseline from scratch (first-time setup)
+#   coverage-update  — update baseline after improvements
+#   coverage-test    — just run tests with coverage, no baseline check
+#
+# Use VERBOSE=1 for detailed output:  VERBOSE=1 make coverage
+COVERAGE_FLAGS := $(if $(VERBOSE),-v,)
+
+# Internal: build the coverage checker binary (not shown in help)
+.PHONY: build-coverage-check
+build-coverage-check:
+	@cd scripts/coverage-check && go build -o ../../coverage-check .
+
+.PHONY: coverage-test
+## Run tests with coverage for node/ and sdk/ (no baseline check)
+coverage-test:
+	@echo "Running tests with coverage for node and sdk..."
+	@(cd node && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
+	@(cd sdk && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
+
+.PHONY: coverage
+## Run tests and check coverage against baseline
+coverage: build-coverage-check coverage-test
+	@./coverage-check $(COVERAGE_FLAGS)
+
+.PHONY: coverage-init
+## Create coverage baseline from scratch (first-time setup)
+coverage-init: build-coverage-check coverage-test
+	@./coverage-check -init
+
+.PHONY: coverage-update
+## Update coverage baseline with current values
+coverage-update: build-coverage-check coverage-test
+	@./coverage-check -u
