@@ -115,6 +115,26 @@ func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *
 		return
 	}
 
+	// SECURITY: Validate byte lengths before calling binary.BigEndian.Uint64,
+	// which requires exactly 8 bytes. The Algorand core bridge contract does not
+	// validate the length of ApplicationArgs[2] (nonce), so a malicious user can
+	// submit a publishMessage transaction with a short nonce to cause a panic.
+	if len(at.ApplicationArgs[2]) != 8 {
+		logger.Warn("skipping observation with invalid nonce length",
+			zap.Int("nonce_len", len(at.ApplicationArgs[2])),
+			zap.Stringer("emitter", at.Sender))
+		return
+	}
+	// Defense-in-depth: The sequence number is emitted by the core bridge
+	// contract via Log(Itob(seq)), so it should always be 8 bytes. Validate
+	// anyway to avoid a panic if the contract behavior ever changes.
+	if len([]byte(ed.Logs[0])) != 8 {
+		logger.Warn("skipping observation with invalid sequence length",
+			zap.Int("seq_len", len([]byte(ed.Logs[0]))),
+			zap.Stringer("emitter", at.Sender))
+		return
+	}
+
 	logger.Info("emitter: " + hex.EncodeToString(at.Sender[:]))
 
 	var a vaa.Address
