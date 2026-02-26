@@ -331,6 +331,32 @@ jobs:
       - name: Run golang tests
         run: cd node && go test -v -timeout 5m -race ./...
 
+  # Verify Rust SDK chain synchronization with Go SDK
+  rust-chain-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v3
+
+      - name: Get rust toolchain version
+        id: toolchain
+        run: |
+          WORKSPACE_DIR="sdk/rust"
+          if [ -f "${WORKSPACE_DIR}/rust-toolchain.toml" ]; then
+            RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' "${WORKSPACE_DIR}/rust-toolchain.toml")"
+          else
+            RUST_VERSION="stable"
+          fi
+          echo "::set-output name=version::${RUST_VERSION}"
+
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
+        with:
+          toolchain: ${{ steps.toolchain.outputs.version }}
+
+      - name: Run chain synchronization check
+        run: ./scripts/check-rust-chain-sync.sh
+
   # Run Rust lints and tests
   rust-lint-and-tests:
     runs-on: ubuntu-24.04
