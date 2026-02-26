@@ -54,12 +54,7 @@ jobs:
 
             ## Task Routing
 
-            Read the user's @claude message carefully and route to the correct task:
-
-            1. **Review request** (default): If the user asks you to review a PR, or if no specific task is mentioned on a PR open/edit event, follow the Code Review section below.
-            2. **Other requests**: For any other explicit instruction, follow it directly using available tools.
-
-            When in doubt, the user's message takes priority over the default review behavior.
+            If the user asks you to review a PR, or if no specific task is mentioned on a PR open/edit event, follow the Code Review section below.
 
             ---
 
