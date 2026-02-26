@@ -138,6 +138,7 @@ func (w *Watcher) cclEnable(ctx context.Context) error {
 
 // cclHandleMessage is called for new observations that have the consistency level set to custom handling.
 // It reads the configuration for the emitter and updates the `pendingMessage` object for custom handling.
+// SECURITY: This function SHOULD NOT modify the actual data signed in the VAA. Otherwise, replay protection is broken.
 func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage, emitterAddr ethCommon.Address) {
 	if !w.cclEnabled {
 		w.cclLogger.Error("received an observation with custom handling but the feature is not enabled, treating as finalized", zap.String("msgId", pe.message.MessageIDString()))
@@ -165,6 +166,7 @@ func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage
 	switch req := r.(type) {
 	case *NothingSpecial:
 		w.cclLogger.Info("received an observation with the nothing special specifier, treating as finalized", zap.String("msgId", pe.message.MessageIDString()))
+		// SECURITY: Default to finalized when the CL is unknown.
 		pe.effectiveCL = vaa.ConsistencyLevelFinalized
 	case *AdditionalBlocks:
 		if req.consistencyLevel != vaa.ConsistencyLevelFinalized && req.consistencyLevel != vaa.ConsistencyLevelSafe && req.consistencyLevel != vaa.ConsistencyLevelPublishImmediately {
@@ -182,10 +184,13 @@ func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage
 			zap.Uint8("consistencyLevel", req.consistencyLevel),
 			zap.Uint16("additionalBlocks", req.additionalBlocks),
 		)
+
+		// SECURITY: Write occurs on 'effectiveCL' and NOT pe.Message.ConsistencyLevel to prevent observations with duplicate hashes
 		pe.effectiveCL = req.consistencyLevel
 		pe.additionalBlocks = uint64(req.additionalBlocks)
 	default:
 		w.cclLogger.Error("invalid custom handling type, treating as finalized", zap.Stringer("emitterAddress", emitterAddr), zap.Uint8("reqType", uint8(req.Type())), zap.Error(err))
+		// SECURITY: Default to finalized when the CL is unknown.
 		pe.effectiveCL = vaa.ConsistencyLevelFinalized
 	}
 }

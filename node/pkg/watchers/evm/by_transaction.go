@@ -20,6 +20,27 @@ var (
 	LogMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
 
+// isLogValid checks that a log entry was emitted by the expected contract,
+// has the expected LogMessagePublished event topic, and has not been removed
+// due to a chain reorganization. This is called from both the real-time
+// subscription path (postMessage) and the reobservation path
+// (MessageEventsForTransaction) to ensure consistent validation.
+func isLogValid(l types.Log, contract eth_common.Address) bool {
+	// SECURITY: Reject logs that have been flagged as removed due to a chain reorg.
+	if l.Removed {
+		return false
+	}
+	// SECURITY: Verify the log was produced by our contract.
+	if l.Address != contract {
+		return false
+	}
+	// SECURITY: Verify the event is LogMessagePublished.
+	if len(l.Topics) == 0 || l.Topics[0] != LogMessagePublishedTopic {
+		return false
+	}
+	return true
+}
+
 // MessageEventsForTransaction returns the lockup events for a given transaction.
 // Returns the block number and a list of MessagePublication events.
 func MessageEventsForTransaction(
@@ -35,6 +56,7 @@ func MessageEventsForTransaction(
 		return nil, 0, nil, fmt.Errorf("failed to get transaction receipt: %w", err)
 	}
 
+	// SECURITY
 	// Bail early when the transaction receipt status is anything other than
 	// 1 (success). In theory, this check isn't strictly necessary - a failed
 	// transaction cannot emit logs and will trigger neither subscription
@@ -61,12 +83,7 @@ func MessageEventsForTransaction(
 			continue
 		}
 
-		// SECURITY: Skip logs not produced by our contract.
-		if l.Address != contract {
-			continue
-		}
-
-		if l.Topics[0] != LogMessagePublishedTopic {
+		if !isLogValid(*l, contract) {
 			continue
 		}
 
@@ -80,7 +97,7 @@ func MessageEventsForTransaction(
 			Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
 			Nonce:            ev.Nonce,
 			Sequence:         ev.Sequence,
-			EmitterChain:     chainId,
+			EmitterChain:     chainId, // SECURITY: Hardcoded to watcher chain id
 			EmitterAddress:   PadAddress(ev.Sender),
 			Payload:          ev.Payload,
 			ConsistencyLevel: ev.ConsistencyLevel,
