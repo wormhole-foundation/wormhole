@@ -1,0 +1,18 @@
+ignoreGeneratedHeader = false
+severity = "warning"
+confidence = 0.8
+# Required so that violations return a failing exit code
+errorCode = 1
+warningCode = 2
+
+# Enable our custom already-locked-checker rule
+[rule.already-locked-checker]
+  severity = "error"
+  # Exclude test files and other patterns as needed
+  # Available patterns:
+  # - "**/*_test.go" - exclude all test files
+  # - "**/testdata/**" - exclude testdata directories
+  # - "**/mock*.go" - exclude mock files
+  # - "~\.(pb|auto|generated)\.go$" - exclude generated files (regex)
+  # - "specific/path/file.go" - exclude specific files
+  Exclude = ["**/*_test.go", "**/testdata/**", "**/mock*.go", "**/*.pb.go", "**/*.proto"]
