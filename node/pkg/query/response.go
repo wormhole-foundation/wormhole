@@ -259,17 +259,10 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 		return fmt.Errorf("failed to read query request [%d]: %w", n, err)
 	}
 
-	queryRequest := QueryRequest{}
-	queryRequestReader := bytes.NewReader(queryRequestBytes[:])
-	err := queryRequest.UnmarshalFromReader(queryRequestReader)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal query request: %w", err)
-	}
-
-	queryRequestBytes, err = queryRequest.Marshal()
-	if err != nil {
-		return err
-	}
+	// Store the original request bytes as-is. The embedded request is not
+	// parsed here — it is treated as opaque. The guardian already validated
+	// the request before signing the response. Structural checks (response
+	// count and type matching) are handled in Validate().
 	signedQueryRequest.QueryRequest = queryRequestBytes
 	msg.Request = signedQueryRequest
 
@@ -299,9 +292,13 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 	return nil
 }
 
-// Validate does basic validation on a received query request.
+// Validate does structural validation on a query response publication.
+// It verifies that the embedded request is well-formed and that the
+// per-chain responses match the per-chain queries in count and type.
 func (msg *QueryResponsePublication) Validate() error {
-	// Unmarshal and validate the contained query request.
+	// Parse and validate the embedded request. The Validate() call via
+	// Unmarshal is version-aware: v1 requests skip timestamp/staker checks,
+	// v2 requests enforce them.
 	var queryRequest QueryRequest
 	err := queryRequest.Unmarshal(msg.Request.QueryRequest)
 	if err != nil {
@@ -419,11 +416,14 @@ func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes
 		return err
 	}
 
-	// Skip the response length.
+	// Read and validate the response length to ensure canonical encoding.
 	var respLength uint32
 	if err := binary.Read(reader, binary.BigEndian, &respLength); err != nil {
 		return fmt.Errorf("failed to read response length: %w", err)
 	}
+
+	// Record the position before reading the response data
+	startPos := int64(reader.Size()) - int64(reader.Len())
 
 	switch queryType {
 	case EthCallQueryRequestType:
@@ -453,11 +453,22 @@ func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes
 	case SolanaPdaQueryRequestType:
 		r := SolanaPdaQueryResponse{}
 		if err := r.UnmarshalFromReader(reader); err != nil {
-			return fmt.Errorf("failed to unmarshal sol_account response: %w", err)
+			return fmt.Errorf("failed to unmarshal sol_pda response: %w", err)
 		}
 		perChainResponse.Response = &r
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
+	}
+
+	// Validate that the actual bytes consumed match the declared length.
+	endPos := int64(reader.Size()) - int64(reader.Len())
+	bytesConsumed := endPos - startPos
+	if bytesConsumed < 0 || bytesConsumed > int64(respLength) {
+		return fmt.Errorf("response consumed invalid byte count: %d", bytesConsumed)
+	}
+	actualLength := uint32(bytesConsumed) // #nosec G115 -- Validated above to be within uint32 range
+	if actualLength != respLength {
+		return fmt.Errorf("response length mismatch: declared %d bytes, actual %d bytes", respLength, actualLength)
 	}
 
 	return nil

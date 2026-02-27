@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import base58 from "bs58";
+import * as base58 from "bs58";
 import { BinaryWriter } from "./BinaryWriter";
 import { ChainQueryType, ChainSpecificQuery } from "./request";
 import { bigIntWithDef, coalesceUint8Array } from "./utils";

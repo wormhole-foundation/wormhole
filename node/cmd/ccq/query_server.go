@@ -1,5 +1,5 @@
 // Note: To generate a signer key file do: guardiand keygen --block-type "CCQ SERVER SIGNING KEY" /path/to/key/file
-// You will need to add this key to ccqAllowedRequesters in the guardian configs.
+// This key must have associated staking to be authorized for CCQ queries.
 
 package ccq
 
@@ -10,15 +10,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
+	"github.com/certusone/wormhole/node/pkg/query/queryratelimit"
+	"github.com/certusone/wormhole/node/pkg/query/querystaking"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	promremotew "github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write"
 	"github.com/certusone/wormhole/node/pkg/version"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/spf13/cobra"
@@ -36,7 +41,6 @@ var (
 	listenAddr             *string
 	nodeKeyPath            *string
 	signerKeyPath          *string
-	permFile               *string
 	ethRPC                 *string
 	ethContract            *string
 	logLevel               *string
@@ -48,7 +52,10 @@ var (
 	shutdownDelay2         *uint
 	monitorPeers           *bool
 	gossipAdvertiseAddress *string
-	verifyPermissions      *bool
+	ccqFactoryAddress      *string
+	ipfsGateway            *string
+	policyCacheDuration    *uint
+	stakingPoolAddresses   *string
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -62,7 +69,6 @@ func init() {
 	nodeKeyPath = QueryServerCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 	signerKeyPath = QueryServerCmd.Flags().String("signerKey", "", "Path to key used to sign unsigned queries")
 	listenAddr = QueryServerCmd.Flags().String("listenAddr", "[::]:6069", "Listen address for query server (disabled if blank)")
-	permFile = QueryServerCmd.Flags().String("permFile", "", "JSON file containing permissions configuration")
 	ethRPC = QueryServerCmd.Flags().String("ethRPC", "", "Ethereum RPC for fetching current guardian set")
 	ethContract = QueryServerCmd.Flags().String("ethContract", "", "Ethereum core bridge address for fetching current guardian set")
 	logLevel = QueryServerCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
@@ -72,7 +78,10 @@ func init() {
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
-	verifyPermissions = QueryServerCmd.Flags().Bool("verifyPermissions", false, `parse and verify the permissions file and then exit with 0 if success, 1 if failure`)
+	ccqFactoryAddress = QueryServerCmd.Flags().String("ccqFactoryAddress", "", "Address of the CCQ staking factory contract for staking-based rate limiting (optional, not used if stakingPoolAddresses is provided)")
+	ipfsGateway = QueryServerCmd.Flags().String("ipfsGateway", "https://ipfs.io/ipfs/", "IPFS gateway URL for fetching conversion tables")
+	policyCacheDuration = QueryServerCmd.Flags().Uint("policyCacheDuration", 300, "Staking policy cache duration in seconds (default: 300 = 5 minutes)")
+	stakingPoolAddresses = QueryServerCmd.Flags().String("stakingPoolAddresses", "", "Comma-separated list of staking pool contract addresses (e.g., 0xaaa...,0xbbb...). If provided, pools are queried directly without factory discovery.")
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
 	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
@@ -96,15 +105,6 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			fmt.Println("Invalid value for --env, should be devnet, testnet or mainnet", zap.String("val", *envStr))
 		}
 		os.Exit(1)
-	}
-
-	if *verifyPermissions {
-		_, err := parseConfigFile(*permFile, env)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		os.Exit(0)
 	}
 
 	common.SetRestrictiveUmask()
@@ -167,19 +167,11 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	if *p2pBootstrap == "" {
 		logger.Fatal("Please specify --bootstrap")
 	}
-	if *permFile == "" {
-		logger.Fatal("Please specify --permFile")
-	}
 	if *ethRPC == "" {
 		logger.Fatal("Please specify --ethRPC")
 	}
 	if *ethContract == "" {
 		logger.Fatal("Please specify --ethContract")
-	}
-
-	permissions, err := NewPermissions(*permFile, env)
-	if err != nil {
-		logger.Fatal("Failed to load permissions file", zap.String("permFile", *permFile), zap.Error(err))
 	}
 
 	loggingMap := NewLoggingMap()
@@ -204,6 +196,60 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Parse pool addresses if provided
+	var poolAddresses []ethCommon.Address
+	if *stakingPoolAddresses != "" {
+		addressStrings := strings.Split(*stakingPoolAddresses, ",")
+		for _, addrStr := range addressStrings {
+			addrStr = strings.TrimSpace(addrStr)
+			if !ethCommon.IsHexAddress(addrStr) {
+				logger.Fatal("Invalid staking pool address", zap.String("address", addrStr))
+			}
+			poolAddresses = append(poolAddresses, ethCommon.HexToAddress(addrStr))
+		}
+		logger.Info("Using direct pool address configuration",
+			zap.Int("poolCount", len(poolAddresses)),
+			zap.String("ipfsGateway", *ipfsGateway),
+			zap.Uint("policyCacheDurationSeconds", *policyCacheDuration))
+	} else if *ccqFactoryAddress != "" {
+		if !ethCommon.IsHexAddress(*ccqFactoryAddress) {
+			logger.Fatal("Invalid CCQ factory address", zap.String("address", *ccqFactoryAddress))
+		}
+		logger.Info("Using factory-based pool discovery",
+			zap.String("factoryAddress", *ccqFactoryAddress),
+			zap.String("ipfsGateway", *ipfsGateway),
+			zap.Uint("policyCacheDurationSeconds", *policyCacheDuration))
+	} else {
+		logger.Fatal("Must specify either --stakingPoolAddresses or --ccqFactoryAddress")
+	}
+
+	ethClient, err := ethclient.Dial(*ethRPC)
+	if err != nil {
+		logger.Fatal("Failed to connect to Ethereum RPC for staking", zap.Error(err))
+	}
+
+	var factoryAddr ethCommon.Address
+	if *ccqFactoryAddress != "" {
+		factoryAddr = ethCommon.HexToAddress(*ccqFactoryAddress)
+	}
+	cacheDuration := time.Duration(*policyCacheDuration) * time.Second // #nosec G115 -- policyCacheDuration is validated to be reasonable
+	policyProvider, err := querystaking.CreateStakingPolicyProvider(
+		ethClient,
+		logger,
+		ctx,
+		factoryAddr,
+		poolAddresses,
+		*ipfsGateway,
+		cacheDuration,
+	)
+	if err != nil {
+		logger.Fatal("Failed to create staking policy provider", zap.Error(err))
+	}
+
+	limitEnforcer := queryratelimit.NewEnforcer()
+
+	logger.Info("Staking-based rate limiting enabled - CCQ server will enforce rate limits before publishing to gossip")
+
 	// Run p2p
 	pendingResponses := NewPendingResponses(logger)
 	p2pSub, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap, *gossipAdvertiseAddress, protectedPeers)
@@ -213,7 +259,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2pSub.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
+		s := NewHTTPServer(*listenAddr, p2pSub.topic_req, signerKey, pendingResponses, logger, env, loggingMap, policyProvider, limitEnforcer)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
@@ -279,19 +325,11 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		cancel()
 	}()
 
-	// Start watching for permissions file updates.
+	// Start logging cleanup process.
 	errC := make(chan error)
-	permWatcherErr := permissions.StartWatcher(ctx, logger, errC)
-	if permWatcherErr != nil {
-		// Cleanup p2p connection.
-		cancel()
-		logger.Fatal("Could not start permissions file watcher", zap.Error(err))
-	}
-
-	// Star logging cleanup process.
 	loggingMap.Start(ctx, logger, errC)
 
-	// Wait for either a shutdown or a fatal error from the permissions watcher.
+	// Wait for either a shutdown or a fatal error.
 	select {
 	case <-ctx.Done():
 		logger.Info("Context cancelled, exiting...")
@@ -300,9 +338,6 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Error("Encountered an error, exiting", zap.Error(err))
 		break
 	}
-
-	// Stop the permissions file watcher.
-	permissions.StopWatcher()
 
 	// Shutdown p2p. Without this the same host won't properly discover peers until some timeout
 	p2pSub.sub.Cancel()

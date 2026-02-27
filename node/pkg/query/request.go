@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -17,14 +18,35 @@ import (
 	solana "github.com/gagliardetto/solana-go"
 )
 
-// MSG_VERSION is the current version of the CCQ message protocol.
-const MSG_VERSION uint8 = 1
+const (
+	// MSG_VERSION_V1 is the QueryRequest version prior to permissionless queries
+	// and is unused in this version
+	MSG_VERSION_V1 uint8 = 1
+	// MSG_VERSION_V2 is the current version of the CCQ message protocol.
+	// v2 adds timestamp (required) and optional staker address fields.
+	MSG_VERSION_V2 uint8 = 2
+
+	// Maximum sizes for untrusted length fields to prevent DoS via memory exhaustion.
+	// These limits are enforced during unmarshaling before allocating memory.
+	MAX_BLOCK_ID_LEN  = 256   // Max length for block ID strings (hex hash + prefix)
+	MAX_FINALITY_LEN  = 128   // Max length for finality strings
+	MAX_CALL_DATA_LEN = 65536 // Max length for call data (64KB per call)
+	MAX_SEED_LEN      = 256   // Max length for Solana PDA seeds
+)
 
 // QueryRequest defines a cross chain query request to be submitted to the guardians.
 // It is the payload of the SignedQueryRequest gossip message.
 type QueryRequest struct {
+	version         uint8 // Message version (set during unmarshal; Marshal always writes v2)
 	Nonce           uint32
+	Timestamp       uint64             // Unix seconds (REQUIRED for v2)
+	StakerAddress   *ethCommon.Address // Optional staker address for delegated queries (nil = self-staking, v2 only)
 	PerChainQueries []*PerChainQueryRequest
+}
+
+// Version returns the message version. Set during unmarshal; Marshal always writes v2.
+func (qr *QueryRequest) Version() uint8 {
+	return qr.version
 }
 
 // PerChainQueryRequest represents a query request for a single chain.
@@ -249,16 +271,27 @@ func SignedQueryRequestEqual(left *gossipv1.SignedQueryRequest, right *gossipv1.
 //
 
 // Marshal serializes the binary representation of a query request.
-// This method calls Validate() and relies on it to range checks lengths, etc.
+// This method calls validateForVersion() and relies on it to range check lengths, etc.
 func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
-	if err := queryRequest.Validate(); err != nil {
+	// Marshal always produces v2 format, so validate with v2 rules
+	// regardless of what version the struct was unmarshaled as.
+	if err := queryRequest.validateForVersion(MSG_VERSION_V2); err != nil {
 		return nil, err
 	}
 
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, MSG_VERSION)        // version
-	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
+	vaa.MustWrite(buf, binary.BigEndian, MSG_VERSION_V2)         // version (v2)
+	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce)     // uint32
+	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Timestamp) // uint64
+
+	// Write staker address with length prefix
+	if queryRequest.StakerAddress != nil {
+		vaa.MustWrite(buf, binary.BigEndian, uint8(20)) // staker address length
+		buf.Write(queryRequest.StakerAddress[:])        // 20 bytes
+	} else {
+		vaa.MustWrite(buf, binary.BigEndian, uint8(0)) // no staker address (self-staking)
+	}
 
 	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries))) // #nosec G115 -- `PerChainQueries` length checked in `Validate`
 	for _, perChainQuery := range queryRequest.PerChainQueries {
@@ -285,12 +318,40 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 		return fmt.Errorf("failed to read message version: %w", err)
 	}
 
-	if version != MSG_VERSION {
+	if version != MSG_VERSION_V1 && version != MSG_VERSION_V2 {
 		return fmt.Errorf("unsupported message version: %d", version)
 	}
+	queryRequest.version = version
 
 	if err := binary.Read(reader, binary.BigEndian, &queryRequest.Nonce); err != nil {
 		return fmt.Errorf("failed to read request nonce: %w", err)
+	}
+
+	// v2 adds timestamp and optional staker address fields.
+	// v1 requests lack these fields; Timestamp remains 0 and StakerAddress nil.
+	// Call sites that require v2 (e.g. the HTTP handler) enforce this via Validate().
+	if version >= MSG_VERSION_V2 {
+		if err := binary.Read(reader, binary.BigEndian, &queryRequest.Timestamp); err != nil {
+			return fmt.Errorf("failed to read request timestamp: %w", err)
+		}
+
+		// Read staker address with length prefix
+		var stakerLen uint8
+		if err := binary.Read(reader, binary.BigEndian, &stakerLen); err != nil {
+			return fmt.Errorf("failed to read staker address length: %w", err)
+		}
+
+		if stakerLen == 20 {
+			var addr ethCommon.Address
+			if n, err := reader.Read(addr[:]); err != nil || n != 20 {
+				return fmt.Errorf("failed to read staker address [%d]: %w", n, err)
+			}
+			queryRequest.StakerAddress = &addr
+		} else if stakerLen == 0 {
+			queryRequest.StakerAddress = nil
+		} else {
+			return fmt.Errorf("invalid staker address length: expected 0 or 20, got %d", stakerLen)
+		}
 	}
 
 	numPerChainQueries := uint8(0)
@@ -319,8 +380,49 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 }
 
 // Validate does basic validation on a received query request.
+// Version 0 (unset) is treated as v2 so that directly constructed
+// QueryRequest structs are validated with v2 rules by default.
 func (queryRequest *QueryRequest) Validate() error {
+	v := queryRequest.version
+	if v == 0 {
+		v = MSG_VERSION_V2
+	}
+	return queryRequest.validateForVersion(v)
+}
+
+// validateForVersion runs validation rules appropriate for the given version.
+// v2 enforces timestamp freshness and staker address constraints;
+// v1 skips those since the fields don't exist in the v1 wire format.
+func (queryRequest *QueryRequest) validateForVersion(version uint8) error {
 	// Nothing to validate on the Nonce.
+
+	if version != MSG_VERSION_V1 {
+		if queryRequest.Timestamp == 0 {
+			return fmt.Errorf("timestamp is required")
+		}
+
+		now := uint64(time.Now().Unix())                  // #nosec G115 -- time.Now() always returns positive Unix timestamps
+		age := int64(now) - int64(queryRequest.Timestamp) // #nosec G115 -- Safe: both values represent reasonable Unix timestamps
+
+		// Reject requests older than 15 minutes
+		if age > 900 {
+			return fmt.Errorf("request timestamp too old: age %d seconds exceeds maximum of 900 seconds", age)
+		}
+
+		// Allow small clock skew (1 minute) for future timestamps
+		if age < -60 {
+			return fmt.Errorf("request timestamp too far in future: %d seconds ahead of server time", -age)
+		}
+
+		// Validate staker address if provided
+		if queryRequest.StakerAddress != nil {
+			// Reject zero address - it's not a valid staker
+			if *queryRequest.StakerAddress == (ethCommon.Address{}) {
+				return fmt.Errorf("staker address cannot be the zero address")
+			}
+		}
+	}
+
 	if len(queryRequest.PerChainQueries) <= 0 {
 		return fmt.Errorf("request does not contain any per chain queries")
 	}
@@ -335,11 +437,26 @@ func (queryRequest *QueryRequest) Validate() error {
 	return nil
 }
 
-// Equal verifies that two query requests are equal.
+// Equal verifies semantic equality of two query requests.
+// The version field is intentionally excluded — two requests with identical
+// nonce, timestamp, staker, and queries are equal regardless of wire version.
 func (left *QueryRequest) Equal(right *QueryRequest) bool {
 	if left.Nonce != right.Nonce {
 		return false
 	}
+
+	if left.Timestamp != right.Timestamp {
+		return false
+	}
+
+	// Compare staker addresses
+	if (left.StakerAddress == nil) != (right.StakerAddress == nil) {
+		return false
+	}
+	if left.StakerAddress != nil && *left.StakerAddress != *right.StakerAddress {
+		return false
+	}
+
 	if len(left.PerChainQueries) != len(right.PerChainQueries) {
 		return false
 	}
@@ -403,11 +520,14 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 		return err
 	}
 
-	// Skip the query length.
+	// Read and validate the query length to ensure canonical encoding.
 	var queryLength uint32
 	if err := binary.Read(reader, binary.BigEndian, &queryLength); err != nil {
 		return fmt.Errorf("failed to read query length: %w", err)
 	}
+
+	// Record the position before reading the query data
+	startPos := int64(reader.Size()) - int64(reader.Len())
 
 	switch queryType {
 	case EthCallQueryRequestType:
@@ -442,6 +562,17 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 		perChainQuery.Query = &q
 	default:
 		return fmt.Errorf("unsupported query type: %d", queryType)
+	}
+
+	// Validate that the actual bytes consumed match the declared length.
+	endPos := int64(reader.Size()) - int64(reader.Len())
+	bytesConsumed := endPos - startPos
+	if bytesConsumed < 0 || bytesConsumed > int64(queryLength) {
+		return fmt.Errorf("query consumed invalid byte count: %d", bytesConsumed)
+	}
+	actualLength := uint32(bytesConsumed) // #nosec G115 -- Validated above to be within uint32 range
+	if actualLength != queryLength {
+		return fmt.Errorf("query length mismatch: declared %d bytes, actual %d bytes", queryLength, actualLength)
 	}
 
 	return nil
@@ -577,6 +708,10 @@ func (ecd *EthCallQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error 
 		return fmt.Errorf("failed to read block id len: %w", err)
 	}
 
+	if blockIdLen > MAX_BLOCK_ID_LEN {
+		return fmt.Errorf("block id length %d exceeds maximum %d", blockIdLen, MAX_BLOCK_ID_LEN)
+	}
+
 	blockId := make([]byte, blockIdLen)
 	if n, err := reader.Read(blockId[:]); err != nil || n != int(blockIdLen) {
 		return fmt.Errorf("failed to read block id [%d]: %w", n, err)
@@ -598,6 +733,11 @@ func (ecd *EthCallQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error 
 		if err := binary.Read(reader, binary.BigEndian, &dataLen); err != nil {
 			return fmt.Errorf("failed to read call Data len: %w", err)
 		}
+
+		if dataLen > MAX_CALL_DATA_LEN {
+			return fmt.Errorf("call data length %d exceeds maximum %d", dataLen, MAX_CALL_DATA_LEN)
+		}
+
 		data := make([]byte, dataLen)
 		if n, err := reader.Read(data[:]); err != nil || n != int(dataLen) {
 			return fmt.Errorf("failed to read call data [%d]: %w", n, err)
@@ -718,6 +858,10 @@ func (ecd *EthCallByTimestampQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 		return fmt.Errorf("failed to read target block id hint len: %w", err)
 	}
 
+	if blockIdHintLen > MAX_BLOCK_ID_LEN {
+		return fmt.Errorf("target block id hint length %d exceeds maximum %d", blockIdHintLen, MAX_BLOCK_ID_LEN)
+	}
+
 	targetBlockIdHint := make([]byte, blockIdHintLen)
 	if n, err := reader.Read(targetBlockIdHint[:]); err != nil || n != int(blockIdHintLen) {
 		return fmt.Errorf("failed to read target block id hint [%d]: %w", n, err)
@@ -727,6 +871,10 @@ func (ecd *EthCallByTimestampQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 	blockIdHintLen = uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &blockIdHintLen); err != nil {
 		return fmt.Errorf("failed to read following block id hint len: %w", err)
+	}
+
+	if blockIdHintLen > MAX_BLOCK_ID_LEN {
+		return fmt.Errorf("following block id hint length %d exceeds maximum %d", blockIdHintLen, MAX_BLOCK_ID_LEN)
 	}
 
 	followingBlockIdHint := make([]byte, blockIdHintLen)
@@ -750,6 +898,11 @@ func (ecd *EthCallByTimestampQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 		if err := binary.Read(reader, binary.BigEndian, &dataLen); err != nil {
 			return fmt.Errorf("failed to read call Data len: %w", err)
 		}
+
+		if dataLen > MAX_CALL_DATA_LEN {
+			return fmt.Errorf("call data length %d exceeds maximum %d", dataLen, MAX_CALL_DATA_LEN)
+		}
+
 		data := make([]byte, dataLen)
 		if n, err := reader.Read(data[:]); err != nil || n != int(dataLen) {
 			return fmt.Errorf("failed to read call data [%d]: %w", n, err)
@@ -882,6 +1035,10 @@ func (ecd *EthCallWithFinalityQueryRequest) UnmarshalFromReader(reader *bytes.Re
 		return fmt.Errorf("failed to read target block id len: %w", err)
 	}
 
+	if blockIdLen > MAX_BLOCK_ID_LEN {
+		return fmt.Errorf("block id length %d exceeds maximum %d", blockIdLen, MAX_BLOCK_ID_LEN)
+	}
+
 	blockId := make([]byte, blockIdLen)
 	if n, err := reader.Read(blockId[:]); err != nil || n != int(blockIdLen) {
 		return fmt.Errorf("failed to read target block id [%d]: %w", n, err)
@@ -891,6 +1048,10 @@ func (ecd *EthCallWithFinalityQueryRequest) UnmarshalFromReader(reader *bytes.Re
 	finalityLen := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &finalityLen); err != nil {
 		return fmt.Errorf("failed to read finality len: %w", err)
+	}
+
+	if finalityLen > MAX_FINALITY_LEN {
+		return fmt.Errorf("finality length %d exceeds maximum %d", finalityLen, MAX_FINALITY_LEN)
 	}
 
 	finality := make([]byte, finalityLen)
@@ -914,6 +1075,11 @@ func (ecd *EthCallWithFinalityQueryRequest) UnmarshalFromReader(reader *bytes.Re
 		if err := binary.Read(reader, binary.BigEndian, &dataLen); err != nil {
 			return fmt.Errorf("failed to read call Data len: %w", err)
 		}
+
+		if dataLen > MAX_CALL_DATA_LEN {
+			return fmt.Errorf("call data length %d exceeds maximum %d", dataLen, MAX_CALL_DATA_LEN)
+		}
+
 		data := make([]byte, dataLen)
 		if n, err := reader.Read(data[:]); err != nil || n != int(dataLen) {
 			return fmt.Errorf("failed to read call data [%d]: %w", n, err)
@@ -1225,6 +1391,11 @@ func (spda *SolanaPdaQueryRequest) UnmarshalFromReader(reader *bytes.Reader) err
 			if err := binary.Read(reader, binary.BigEndian, &seedLen); err != nil {
 				return fmt.Errorf("failed to read call Data len: %w", err)
 			}
+
+			if seedLen > MAX_SEED_LEN {
+				return fmt.Errorf("seed length %d exceeds maximum %d", seedLen, MAX_SEED_LEN)
+			}
+
 			seed := make([]byte, seedLen)
 			if n, err := reader.Read(seed[:]); err != nil || n != int(seedLen) {
 				return fmt.Errorf("failed to read seed [%d]: %w", n, err)

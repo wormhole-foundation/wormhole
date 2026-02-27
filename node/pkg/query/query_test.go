@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -46,19 +47,46 @@ var (
 	watcherChainsForTest = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC, vaa.ChainIDArbitrum}
 )
 
+// parseAllowedRequesters parses a comma-separated list of allowed requesters for testing
+func parseAllowedRequesters(allowedRequesters string) (map[ethCommon.Address]struct{}, error) {
+	if allowedRequesters == "" {
+		return nil, fmt.Errorf("allowedRequesters cannot be empty")
+	}
+
+	var nullAddr ethCommon.Address
+	result := make(map[ethCommon.Address]struct{})
+	for _, str := range strings.Split(allowedRequesters, ",") {
+		str = strings.TrimSpace(str)
+		if str == "" {
+			continue
+		}
+		addr := ethCommon.BytesToAddress(ethCommon.Hex2Bytes(strings.TrimPrefix(str, "0x")))
+		if addr == nullAddr {
+			return nil, fmt.Errorf("invalid address: %s", str)
+		}
+		result[addr] = struct{}{}
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no valid addresses found")
+	}
+
+	return result, nil
+}
+
 // createPerChainQueryForEthCall creates a per chain query for an eth_call for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForEthCall(
 	t *testing.T,
-	chainId vaa.ChainID,
+	chainID vaa.ChainID,
 	block string,
 	numCalls int,
 ) *PerChainQueryRequest {
 	t.Helper()
 	ethCallData := []*EthCallData{}
-	for count := 0; count < numCalls; count++ {
+	for count := range numCalls {
 		ethCallData = append(ethCallData, &EthCallData{
-			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
-			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+			To:   fmt.Appendf(nil, "%-20s", fmt.Sprintf("To for %d:%d", chainID, count)),
+			Data: fmt.Appendf(nil, "CallData for %d:%d", chainID, count),
 		})
 	}
 
@@ -68,7 +96,7 @@ func createPerChainQueryForEthCall(
 	}
 
 	return &PerChainQueryRequest{
-		ChainId: chainId,
+		ChainId: chainID,
 		Query:   callRequest,
 	}
 }
@@ -76,17 +104,17 @@ func createPerChainQueryForEthCall(
 // createPerChainQueryForEthCallByTimestamp creates a per chain query for an eth_call_by_timestamp for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForEthCallByTimestamp(
 	t *testing.T,
-	chainId vaa.ChainID,
+	chainID vaa.ChainID,
 	targetBlock string,
 	followingBlock string,
 	numCalls int,
 ) *PerChainQueryRequest {
 	t.Helper()
 	ethCallData := []*EthCallData{}
-	for count := 0; count < numCalls; count++ {
+	for count := range numCalls {
 		ethCallData = append(ethCallData, &EthCallData{
-			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
-			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+			To:   fmt.Appendf(nil, "%-20s", fmt.Sprintf("To for %d:%d", chainID, count)),
+			Data: fmt.Appendf(nil, "CallData for %d:%d", chainID, count),
 		})
 	}
 
@@ -98,7 +126,7 @@ func createPerChainQueryForEthCallByTimestamp(
 	}
 
 	return &PerChainQueryRequest{
-		ChainId: chainId,
+		ChainId: chainID,
 		Query:   callRequest,
 	}
 }
@@ -106,17 +134,17 @@ func createPerChainQueryForEthCallByTimestamp(
 // createPerChainQueryForEthCallWithFinality creates a per chain query for an eth_call_with_finality for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForEthCallWithFinality(
 	t *testing.T,
-	chainId vaa.ChainID,
+	chainID vaa.ChainID,
 	blockId string,
 	finality string,
 	numCalls int,
 ) *PerChainQueryRequest {
 	t.Helper()
 	ethCallData := []*EthCallData{}
-	for count := 0; count < numCalls; count++ {
+	for count := range numCalls {
 		ethCallData = append(ethCallData, &EthCallData{
-			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
-			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+			To:   fmt.Appendf(nil, "%-20s", fmt.Sprintf("To for %d:%d", chainID, count)),
+			Data: fmt.Appendf(nil, "CallData for %d:%d", chainID, count),
 		})
 	}
 
@@ -127,7 +155,7 @@ func createPerChainQueryForEthCallWithFinality(
 	}
 
 	return &PerChainQueryRequest{
-		ChainId: chainId,
+		ChainId: chainID,
 		Query:   callRequest,
 	}
 }
@@ -142,6 +170,7 @@ func createSignedQueryRequestForTesting(
 	nonce += 1
 	queryRequest := &QueryRequest{
 		Nonce:           nonce,
+		Timestamp:       uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
 		PerChainQueries: perChainQueries,
 	}
 
@@ -337,18 +366,18 @@ func (md *mockData) setExpectedResults(expectedResults []PerChainQueryResponse) 
 
 // setRetries allows a test to specify how many times a given watcher should retry before returning success.
 // If the count is the special value `fatalError`, the watcher will return QueryFatalError.
-func (md *mockData) setRetries(chainId vaa.ChainID, count int) {
+func (md *mockData) setRetries(chainID vaa.ChainID, count int) {
 	md.mutex.Lock()
 	defer md.mutex.Unlock()
-	md.retriesPerChain[chainId] = count
+	md.retriesPerChain[chainID] = count
 }
 
 // incrementRequestsPerChainAlreadyLocked is used by the watchers to keep track of how many times they were invoked in a given test.
-func (md *mockData) incrementRequestsPerChainAlreadyLocked(chainId vaa.ChainID) {
-	if val, exists := md.requestsPerChain[chainId]; exists {
-		md.requestsPerChain[chainId] = val + 1
+func (md *mockData) incrementRequestsPerChainAlreadyLocked(chainID vaa.ChainID) {
+	if val, exists := md.requestsPerChain[chainID]; exists {
+		md.requestsPerChain[chainID] = val + 1
 	} else {
-		md.requestsPerChain[chainId] = 1
+		md.requestsPerChain[chainID] = 1
 	}
 }
 
@@ -360,20 +389,20 @@ func (md *mockData) getQueryResponsePublication() *QueryResponsePublication {
 }
 
 // getRequestsPerChain returns the count of the number of times the given watcher was invoked in a given test.
-func (md *mockData) getRequestsPerChain(chainId vaa.ChainID) int {
+func (md *mockData) getRequestsPerChain(chainID vaa.ChainID) int {
 	md.mutex.Lock()
 	defer md.mutex.Unlock()
-	if ret, exists := md.requestsPerChain[chainId]; exists {
+	if ret, exists := md.requestsPerChain[chainID]; exists {
 		return ret
 	}
 	return 0
 }
 
 // shouldIgnoreAlreadyLocked is used by the watchers to see if they should ignore a query (causing a retry).
-func (md *mockData) shouldIgnoreAlreadyLocked(chainId vaa.ChainID) bool {
-	if val, exists := md.retriesPerChain[chainId]; exists {
+func (md *mockData) shouldIgnoreAlreadyLocked(chainID vaa.ChainID) bool {
+	if val, exists := md.retriesPerChain[chainID]; exists {
 		if val == ignoreQuery {
-			delete(md.retriesPerChain, chainId)
+			delete(md.retriesPerChain, chainID)
 			return true
 		}
 	}
@@ -381,16 +410,16 @@ func (md *mockData) shouldIgnoreAlreadyLocked(chainId vaa.ChainID) bool {
 }
 
 // getStatusAlreadyLocked is used by the watchers to determine what query status they should return, based on the `retriesPerChain`.
-func (md *mockData) getStatusAlreadyLocked(chainId vaa.ChainID) QueryStatus {
-	if val, exists := md.retriesPerChain[chainId]; exists {
+func (md *mockData) getStatusAlreadyLocked(chainID vaa.ChainID) QueryStatus {
+	if val, exists := md.retriesPerChain[chainID]; exists {
 		if val == fatalError {
 			return QueryFatalError
 		}
 		val -= 1
 		if val > 0 {
-			md.retriesPerChain[chainId] = val
+			md.retriesPerChain[chainID] = val
 		} else {
-			delete(md.retriesPerChain, chainId)
+			delete(md.retriesPerChain, chainID)
 		}
 		return QueryRetryNeeded
 	}
@@ -415,16 +444,13 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	require.NoError(t, err)
 	require.NotNil(t, md.sk)
 
-	ccqAllowedRequestersList, err := parseAllowedRequesters(testSigner)
-	require.NoError(t, err)
-
 	// Inbound observation requests from the p2p service (for all chains)
 	md.signedQueryReqReadC, md.signedQueryReqWriteC = makeChannelPair[*gossipv1.SignedQueryRequest](SignedQueryRequestChannelSize)
 
 	// Per-chain query requests
 	md.chainQueryReqC = make(map[vaa.ChainID]chan *PerChainQueryInternal)
-	for _, chainId := range chains {
-		md.chainQueryReqC[chainId] = make(chan *PerChainQueryInternal)
+	for _, chainID := range chains {
+		md.chainQueryReqC[chainID] = make(chan *PerChainQueryInternal)
 	}
 
 	// Query responses from watchers to query handler aggregated across all chains
@@ -436,36 +462,38 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	md.resetState()
 
 	go func() {
-		err := handleQueryRequestsImpl(ctx, logger, md.signedQueryReqReadC, md.chainQueryReqC, ccqAllowedRequestersList,
+		err := handleQueryRequestsImpl(ctx, logger, md.signedQueryReqReadC, md.chainQueryReqC,
 			md.queryResponseReadC, md.queryResponsePublicationWriteC, common.GoTest, requestTimeoutForTest, retryIntervalForTest, auditIntervalForTest)
 		assert.NoError(t, err)
 	}()
 
 	// Create a routine for each configured watcher. It will take a per chain query and return the corresponding expected result.
 	// It also pegs a counter of the number of requests the watcher received, for verification purposes.
-	for chainId := range md.chainQueryReqC {
-		go func(chainId vaa.ChainID, chainQueryReqC <-chan *PerChainQueryInternal) {
+	for chainID := range md.chainQueryReqC {
+		go func(chainID vaa.ChainID, chainQueryReqC <-chan *PerChainQueryInternal) {
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case pcqr := <-chainQueryReqC:
-					require.Equal(t, chainId, pcqr.Request.ChainId)
+					require.Equal(t, chainID, pcqr.Request.ChainId)
 					md.mutex.Lock()
-					md.incrementRequestsPerChainAlreadyLocked(chainId)
-					if md.shouldIgnoreAlreadyLocked(chainId) {
-						logger.Info("watcher ignoring query", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx))
+					md.incrementRequestsPerChainAlreadyLocked(chainID)
+					if md.shouldIgnoreAlreadyLocked(chainID) {
+						logger.Info("watcher ignoring query", zap.String("chainID", chainID.String()), zap.Int("requestIdx", pcqr.RequestIdx))
+					} else if pcqr.RequestIdx >= len(md.expectedResults) {
+						logger.Error("unexpected query reached watcher", zap.String("chainID", chainID.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("expectedResultsLen", len(md.expectedResults)))
 					} else {
 						results := md.expectedResults[pcqr.RequestIdx].Response
-						status := md.getStatusAlreadyLocked(chainId)
-						logger.Info("watcher returning", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("status", int(status)))
+						status := md.getStatusAlreadyLocked(chainID)
+						logger.Info("watcher returning", zap.String("chainID", chainID.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("status", int(status)))
 						queryResponse := CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.Request.ChainId, status, results)
 						md.queryResponseWriteC <- queryResponse
 					}
 					md.mutex.Unlock()
 				}
 			}
-		}(chainId, md.chainQueryReqC[chainId])
+		}(chainID, md.chainQueryReqC[chainID])
 	}
 
 	return &md
@@ -490,7 +518,7 @@ func (md *mockData) startResponseListener(ctx context.Context) {
 
 // waitForResponse is used by the tests to wait for a response publication. It will eventually timeout if the query fails.
 func (md *mockData) waitForResponse() *QueryResponsePublication {
-	for count := 0; count < 50; count++ {
+	for range 50 {
 		time.Sleep(pollIntervalForTest)
 		ret := md.getQueryResponsePublication()
 		if ret != nil {
@@ -817,4 +845,303 @@ func TestPerChainConfigValid(t *testing.T) {
 			assert.Equal(t, "", fmt.Sprintf(`perChainConfig for "%s" has an invalid NumWorkers: %d`, chainID.String(), config.NumWorkers))
 		}
 	}
+}
+
+// ============================================================================
+
+// ============================================================================
+// Delegation Tests
+// ============================================================================
+
+// TestQueryRequestMarshal
+func TestQueryRequestMarshal(t *testing.T) {
+	queryRequest := &QueryRequest{
+		Nonce:     12345,
+		Timestamp: uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+		PerChainQueries: []*PerChainQueryRequest{
+			createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		},
+	}
+
+	// Marshal
+	bytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	// Should use v2 format
+	require.Equal(t, MSG_VERSION_V2, bytes[0], "Should use v2 format")
+
+	// Unmarshal
+	var unmarshaled QueryRequest
+	err = unmarshaled.Unmarshal(bytes)
+	require.NoError(t, err)
+
+	// Verify
+	assert.Equal(t, queryRequest.Nonce, unmarshaled.Nonce)
+	assert.Equal(t, queryRequest.Timestamp, unmarshaled.Timestamp)
+}
+
+// ============================================================================
+// Signature Format Tests (EIP-191 prefixed signatures)
+// ============================================================================
+
+// TestRecoverPrefixedSigner tests that EIP-191 prefixed signatures are correctly recovered
+func TestRecoverPrefixedSigner(t *testing.T) {
+	sk, err := ethCrypto.GenerateKey()
+	require.NoError(t, err)
+	expectedAddr := ethCrypto.PubkeyToAddress(sk.PublicKey)
+
+	// Create a test message and compute digest
+	message := []byte("test query request bytes")
+	digest := QueryRequestDigest(common.UnsafeDevNet, message)
+
+	t.Run("prefixed signature recovery succeeds", func(t *testing.T) {
+		// Sign with EIP-191 prefix (what personal_sign does)
+		prefixedHash := ethCrypto.Keccak256(
+			fmt.Appendf(nil, "\x19Ethereum Signed Message:\n%d", len(digest.Bytes())),
+			digest.Bytes(),
+		)
+		sig, err := ethCrypto.Sign(prefixedHash, sk)
+		require.NoError(t, err)
+
+		// Recover using RecoverPrefixedSigner
+		recovered, err := RecoverPrefixedSigner(digest.Bytes(), sig)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAddr, recovered)
+	})
+
+	t.Run("raw signature recovery still works", func(t *testing.T) {
+		// Sign with raw ECDSA (no prefix)
+		sig, err := ethCrypto.Sign(digest.Bytes(), sk)
+		require.NoError(t, err)
+
+		// Recover using RecoverQueryRequestSigner
+		recovered, err := RecoverQueryRequestSigner(digest.Bytes(), sig)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAddr, recovered)
+	})
+
+	t.Run("wrong recovery method returns different address", func(t *testing.T) {
+		// Sign with raw ECDSA
+		sig, err := ethCrypto.Sign(digest.Bytes(), sk)
+		require.NoError(t, err)
+
+		// Try to recover as prefixed - should get wrong address
+		recovered, err := RecoverPrefixedSigner(digest.Bytes(), sig)
+		require.NoError(t, err)
+		assert.NotEqual(t, expectedAddr, recovered, "Wrong recovery method should produce different address")
+	})
+}
+
+// TestRecoverQueryRequestSigner_RecoveryIDValidation tests strict validation of signature recovery IDs
+func TestRecoverQueryRequestSigner_RecoveryIDValidation(t *testing.T) {
+	sk, err := ethCrypto.GenerateKey()
+	require.NoError(t, err)
+	expectedAddr := ethCrypto.PubkeyToAddress(sk.PublicKey)
+
+	// Create a test message and compute digest
+	message := []byte("test query request")
+	digest := QueryRequestDigest(common.UnsafeDevNet, message)
+
+	t.Run("valid recovery IDs are accepted", func(t *testing.T) {
+		// Generate a valid signature (go-ethereum produces v=0 or v=1)
+		sig, err := ethCrypto.Sign(digest.Bytes(), sk)
+		require.NoError(t, err)
+		require.Len(t, sig, 65)
+
+		// Test with recovery ID = 0 or 1 (as produced by go-ethereum)
+		originalV := sig[64]
+		require.True(t, originalV == 0 || originalV == 1, "go-ethereum should produce v=0 or v=1")
+
+		recovered, err := RecoverQueryRequestSigner(digest.Bytes(), sig)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAddr, recovered)
+
+		// Test that v and v+27 are equivalent (normalization works correctly)
+		// v=0 should be equivalent to v=27, and v=1 should be equivalent to v=28
+		sigNormalized := make([]byte, 65)
+		copy(sigNormalized, sig)
+		sigNormalized[64] = originalV + 27
+
+		recovered, err = RecoverQueryRequestSigner(digest.Bytes(), sigNormalized)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAddr, recovered, "v=%d and v=%d should recover the same address", originalV, originalV+27)
+	})
+
+	t.Run("invalid recovery IDs are rejected", func(t *testing.T) {
+		// Generate a valid signature
+		sig, err := ethCrypto.Sign(digest.Bytes(), sk)
+		require.NoError(t, err)
+
+		// Test invalid recovery IDs
+		invalidIDs := []byte{2, 3, 26, 29, 30, 100, 255}
+
+		for _, invalidV := range invalidIDs {
+			invalidSig := make([]byte, 65)
+			copy(invalidSig, sig)
+			invalidSig[64] = invalidV
+
+			_, err := RecoverQueryRequestSigner(digest.Bytes(), invalidSig)
+			assert.Error(t, err, "recovery ID %d should be rejected", invalidV)
+			assert.Contains(t, err.Error(), "invalid signature recovery ID", "error message should mention invalid recovery ID")
+			assert.Contains(t, err.Error(), fmt.Sprintf("got %d", invalidV), "error message should include the invalid value")
+		}
+	})
+
+	t.Run("signature length validation", func(t *testing.T) {
+		// Test too short
+		shortSig := make([]byte, 64)
+		_, err := RecoverQueryRequestSigner(digest.Bytes(), shortSig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "signature must be 65 bytes")
+
+		// Test too long
+		longSig := make([]byte, 66)
+		_, err = RecoverQueryRequestSigner(digest.Bytes(), longSig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "signature must be 65 bytes")
+	})
+}
+
+// TestDuplicateRequestIsDropped tests that duplicate query requests (same signature + payload)
+// are dropped while the original request is still pending
+func TestDuplicateRequestIsDropped(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
+
+	// Create the request and the expected results
+	perChainQueries := []*PerChainQueryRequest{createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(t, md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(t, queryRequest.PerChainQueries)
+	md.setExpectedResults(expectedResults)
+
+	// Make the watcher delay before responding so the request stays pending
+	md.setRetries(vaa.ChainIDPolygon, ignoreQuery)
+
+	// Submit the first query request
+	md.signedQueryReqWriteC <- signedQueryRequest
+
+	// Give the handler time to process the first request and add it to pendingQueries
+	time.Sleep(pollIntervalForTest * 2)
+
+	// Submit the exact same query request again (duplicate) while the first is still pending
+	md.signedQueryReqWriteC <- signedQueryRequest
+
+	// Give the handler time to process the duplicate
+	time.Sleep(pollIntervalForTest * 2)
+
+	// Now let the first request complete by clearing the retries
+	md.mutex.Lock()
+	delete(md.retriesPerChain, vaa.ChainIDPolygon)
+	md.mutex.Unlock()
+
+	// Wait for the first response - should succeed
+	queryResponsePublication := md.waitForResponse()
+	require.NotNil(t, queryResponsePublication, "First request should succeed")
+
+	// Verify the watcher was called twice (once for original, once for retry after ignoreQuery)
+	// but NOT called a third time for the duplicate
+	requestCount := md.getRequestsPerChain(vaa.ChainIDPolygon)
+	assert.Equal(t, 2, requestCount, "Watcher should be called twice (original + retry), not for duplicate")
+
+	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
+}
+
+// TestNonCanonicalQueryLengthRejected tests that query requests with incorrect length fields are rejected
+func TestNonCanonicalQueryLengthRejected(t *testing.T) {
+	// Create a valid query request and marshal it
+	perChainQuery := createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2)
+	validBytes, err := perChainQuery.Marshal()
+	require.NoError(t, err)
+
+	// Corrupt the length field (bytes 0-1 contain chainId, byte 2 contains queryType, bytes 3-6 contain length)
+	corruptedBytes := make([]byte, len(validBytes))
+	copy(corruptedBytes, validBytes)
+
+	// Change the length field to an incorrect value (add 10 to the length)
+	// The length is at position 3 (after 2 bytes chainId + 1 byte queryType)
+	originalLength := uint32(corruptedBytes[3])<<24 | uint32(corruptedBytes[4])<<16 |
+		uint32(corruptedBytes[5])<<8 | uint32(corruptedBytes[6])
+	incorrectLength := originalLength + 10
+	corruptedBytes[3] = byte(incorrectLength >> 24)
+	corruptedBytes[4] = byte(incorrectLength >> 16)
+	corruptedBytes[5] = byte(incorrectLength >> 8)
+	corruptedBytes[6] = byte(incorrectLength)
+
+	// Try to unmarshal - should fail with length mismatch error
+	var perChainQuery2 PerChainQueryRequest
+	err = perChainQuery2.Unmarshal(corruptedBytes)
+	require.Error(t, err, "Non-canonical query with incorrect length should be rejected")
+	assert.Contains(t, err.Error(), "query length mismatch",
+		"Error should indicate length mismatch")
+}
+
+// TestExcessiveLengthFieldsRejected tests that queries with excessive length fields are rejected before allocation
+func TestExcessiveLengthFieldsRejected(t *testing.T) {
+	t.Run("excessive block id length", func(t *testing.T) {
+		// Create a buffer with a valid structure but excessive blockIdLen
+		buf := new(bytes.Buffer)
+		// Write chainId (2 bytes)
+		vaa.MustWrite(buf, binary.BigEndian, vaa.ChainIDPolygon)
+		// Write queryType (1 byte)
+		vaa.MustWrite(buf, binary.BigEndian, uint8(EthCallQueryRequestType))
+		// Write queryLength (4 bytes) - we'll validate this separately
+		vaa.MustWrite(buf, binary.BigEndian, uint32(1000))
+		// Write excessive blockIdLen (4 bytes) - should trigger validation
+		vaa.MustWrite(buf, binary.BigEndian, uint32(MAX_BLOCK_ID_LEN+1))
+
+		var pcq PerChainQueryRequest
+		err := pcq.Unmarshal(buf.Bytes())
+		require.Error(t, err, "Excessive block id length should be rejected")
+		assert.Contains(t, err.Error(), "exceeds maximum", "Error should mention exceeds maximum")
+	})
+
+	t.Run("excessive call data length", func(t *testing.T) {
+		// Create a minimal EthCallQueryRequest with excessive dataLen
+		buf := new(bytes.Buffer)
+		// Write chainId
+		vaa.MustWrite(buf, binary.BigEndian, vaa.ChainIDPolygon)
+		// Write queryType
+		vaa.MustWrite(buf, binary.BigEndian, uint8(EthCallQueryRequestType))
+		// Write queryLength placeholder (will cause length mismatch but that's ok for this test)
+		vaa.MustWrite(buf, binary.BigEndian, uint32(1000))
+		// Write blockIdLen
+		vaa.MustWrite(buf, binary.BigEndian, uint32(2))
+		// Write blockId
+		buf.Write([]byte("0x"))
+		// Write numCallData
+		vaa.MustWrite(buf, binary.BigEndian, uint8(1))
+		// Write To address (20 bytes)
+		buf.Write(make([]byte, 20))
+		// Write excessive dataLen - should trigger validation
+		vaa.MustWrite(buf, binary.BigEndian, uint32(MAX_CALL_DATA_LEN+1))
+
+		var pcq PerChainQueryRequest
+		err := pcq.Unmarshal(buf.Bytes())
+		require.Error(t, err, "Excessive call data length should be rejected")
+		assert.Contains(t, err.Error(), "exceeds maximum", "Error should mention exceeds maximum")
+	})
+
+	t.Run("excessive finality length", func(t *testing.T) {
+		// Create a minimal EthCallWithFinalityQueryRequest with excessive finalityLen
+		buf := new(bytes.Buffer)
+		// Write chainId
+		vaa.MustWrite(buf, binary.BigEndian, vaa.ChainIDPolygon)
+		// Write queryType
+		vaa.MustWrite(buf, binary.BigEndian, uint8(EthCallWithFinalityQueryRequestType))
+		// Write queryLength placeholder
+		vaa.MustWrite(buf, binary.BigEndian, uint32(1000))
+		// Write blockIdLen
+		vaa.MustWrite(buf, binary.BigEndian, uint32(2))
+		// Write blockId
+		buf.Write([]byte("0x"))
+		// Write excessive finalityLen - should trigger validation
+		vaa.MustWrite(buf, binary.BigEndian, uint32(MAX_FINALITY_LEN+1))
+
+		var pcq PerChainQueryRequest
+		err := pcq.Unmarshal(buf.Bytes())
+		require.Error(t, err, "Excessive finality length should be rejected")
+		assert.Contains(t, err.Error(), "exceeds maximum", "Error should mention exceeds maximum")
+	})
 }

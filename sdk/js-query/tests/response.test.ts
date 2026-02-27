@@ -11,12 +11,12 @@ import {
   PerChainQueryResponse,
   QueryRequest,
   QueryResponse,
-} from "..";
+} from "../src";
 
 describe("from works with hex and Uint8Array", () => {
   test("QueryResponse", () => {
     const result =
-      "010000b094a2ee9b1d5b310e1710bb5f6106bd481f28d932f83d6220c8ffdd5c55b91818ca78c812cd03c51338e384ab09265aa6fb2615a830e13c65775e769c5505800100000037010000002a010005010000002a0000000930783238343236626201130db1b83d205562461ed0720b37f1fbc21bf67f00000004916d5743010005010000005500000000028426bb7e422fe7df070cd5261d8e23280debfd1ac8c544dcd80837c5f1ebda47c06b7f000609c35ffdb8800100000020000000000000000000000000000000000000000000000000000000000000002a";
+      "010000b094a2ee9b1d5b310e1710bb5f6106bd481f28d932f83d6220c8ffdd5c55b91818ca78c812cd03c51338e384ab09265aa6fb2615a830e13c65775e769c5505800100000040020000002a000000000000000000010005010000002a0000000930783238343236626201130db1b83d205562461ed0720b37f1fbc21bf67f00000004916d5743010005010000005500000000028426bb7e422fe7df070cd5261d8e23280debfd1ac8c544dcd80837c5f1ebda47c06b7f000609c35ffdb8800100000020000000000000000000000000000000000000000000000000000000000000002a";
     const queryResponseFromHex = QueryResponse.from(result);
     const queryResponseFromUint8Array = QueryResponse.from(
       Buffer.from(result, "hex")
@@ -29,14 +29,13 @@ describe("from works with hex and Uint8Array", () => {
 describe("from yields known results", () => {
   test("demo contract call", () => {
     const result =
-      "010000b094a2ee9b1d5b310e1710bb5f6106bd481f28d932f83d6220c8ffdd5c55b91818ca78c812cd03c51338e384ab09265aa6fb2615a830e13c65775e769c5505800100000037010000002a010005010000002a0000000930783238343236626201130db1b83d205562461ed0720b37f1fbc21bf67f00000004916d5743010005010000005500000000028426bb7e422fe7df070cd5261d8e23280debfd1ac8c544dcd80837c5f1ebda47c06b7f000609c35ffdb8800100000020000000000000000000000000000000000000000000000000000000000000002a";
+      "010000b094a2ee9b1d5b310e1710bb5f6106bd481f28d932f83d6220c8ffdd5c55b91818ca78c812cd03c51338e384ab09265aa6fb2615a830e13c65775e769c5505800100000040020000002a000000000000000000010005010000002a0000000930783238343236626201130db1b83d205562461ed0720b37f1fbc21bf67f00000004916d5743010005010000005500000000028426bb7e422fe7df070cd5261d8e23280debfd1ac8c544dcd80837c5f1ebda47c06b7f000609c35ffdb8800100000020000000000000000000000000000000000000000000000000000000000000002a";
     const queryResponse = QueryResponse.from(Buffer.from(result, "hex"));
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
     expect(queryResponse.requestId).toEqual(
       "0xb094a2ee9b1d5b310e1710bb5f6106bd481f28d932f83d6220c8ffdd5c55b91818ca78c812cd03c51338e384ab09265aa6fb2615a830e13c65775e769c55058001"
     );
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.nonce).toEqual(42);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(5);
@@ -123,35 +122,39 @@ describe("serialize and from are inverse", () => {
       EthCallWithFinalityQueryResponse.from(serializedResponse).serialize()
     ).toEqual(serializedResponse);
   });
-  const exampleQueryRequest = new QueryRequest(42, [
-    new PerChainQueryRequest(
-      5,
-      new EthCallQueryRequest(987654, [
-        {
-          to: "0x130Db1B83d205562461eD0720B37f1FBC21Bf67F",
-          data: "0x01234567",
-        },
-      ])
-    ),
-    new PerChainQueryRequest(
-      2,
-      new EthCallByTimestampQueryRequest(BigInt(99999999), 12345, 45678, [
-        {
-          to: "0x130Db1B83d205562461eD0720B37f1FBC21Bf67F",
-          data: "0x01234567",
-        },
-      ])
-    ),
-    new PerChainQueryRequest(
-      23,
-      new EthCallWithFinalityQueryRequest(987654, "finalized", [
-        {
-          to: "0x130Db1B83d205562461eD0720B37f1FBC21Bf67F",
-          data: "0x01234567",
-        },
-      ])
-    ),
-  ]);
+  const exampleQueryRequest = new QueryRequest(
+    42,
+    Math.floor(Date.now() / 1000),
+    [
+      new PerChainQueryRequest(
+        5,
+        new EthCallQueryRequest(987654, [
+          {
+            to: "0x130Db1B83d205562461eD0720B37f1FBC21Bf67F",
+            data: "0x01234567",
+          },
+        ])
+      ),
+      new PerChainQueryRequest(
+        2,
+        new EthCallByTimestampQueryRequest(BigInt(99999999), 12345, 45678, [
+          {
+            to: "0x130Db1B83d205562461eD0720B37f1FBC21Bf67F",
+            data: "0x01234567",
+          },
+        ])
+      ),
+      new PerChainQueryRequest(
+        23,
+        new EthCallWithFinalityQueryRequest(987654, "finalized", [
+          {
+            to: "0x130Db1B83d205562461eD0720B37f1FBC21Bf67F",
+            data: "0x01234567",
+          },
+        ])
+      ),
+    ]
+  );
   test("QueryRequest", () => {
     const serializedRequest = exampleQueryRequest.serialize();
     expect(QueryRequest.from(serializedRequest).serialize()).toEqual(
