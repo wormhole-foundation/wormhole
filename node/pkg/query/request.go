@@ -37,7 +37,7 @@ const (
 // QueryRequest defines a cross chain query request to be submitted to the guardians.
 // It is the payload of the SignedQueryRequest gossip message.
 type QueryRequest struct {
-	version         uint8              // Message version (set during unmarshal; Marshal always writes v2)
+	version         uint8 // Message version (set during unmarshal; Marshal always writes v2)
 	Nonce           uint32
 	Timestamp       uint64             // Unix seconds (REQUIRED for v2)
 	StakerAddress   *ethCommon.Address // Optional staker address for delegated queries (nil = self-staking, v2 only)

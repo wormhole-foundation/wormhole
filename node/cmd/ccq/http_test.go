@@ -309,7 +309,7 @@ func TestHandleQuery_V1RequestRejected(t *testing.T) {
 	var buf bytes.Buffer
 	buf.WriteByte(query.MSG_VERSION_V1)
 	buf.Write([]byte{0, 0, 0, 1}) // nonce = 1
-	buf.WriteByte(1)               // 1 per-chain query
+	buf.WriteByte(1)              // 1 per-chain query
 	buf.Write(pcqBytes)
 	v1Bytes := buf.Bytes()
 
