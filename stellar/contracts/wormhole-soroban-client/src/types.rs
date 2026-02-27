@@ -1,7 +1,8 @@
 //! Public type definitions for the Wormhole Core contract.
 //!
-//! Contains the core data structures for VAA handling, guardian sets, and cross-chain
-//! messaging. External contracts should use these types when integrating with Wormhole.
+//! Contains the core data structures for VAA handling, guardian sets, and
+//! cross-chain messaging. External contracts should use these types when
+//! integrating with Wormhole.
 
 use crate::{BytesReader, VAA_HEADER_MIN_LENGTH, WormholeError};
 use core::convert::TryFrom;
@@ -11,8 +12,9 @@ use soroban_sdk::{Bytes, BytesN, Env, Vec, contracttype};
 
 /// ECDSA signature from a Wormhole guardian.
 ///
-/// Each signature contains the guardian's index for lookup and the secp256k1 ECDSA
-/// signature components (r, s, v) used to recover the signer's Ethereum address.
+/// Each signature contains the guardian's index for lookup and the secp256k1
+/// ECDSA signature components (r, s, v) used to recover the signer's Ethereum
+/// address.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Signature {
@@ -26,12 +28,13 @@ pub struct Signature {
     pub v: u32,
 }
 
-/// Verifiable Action Approval (VAA) - a cross-chain message attested by guardians.
+/// Verifiable Action Approval (VAA) - a cross-chain message attested by
+/// guardians.
 ///
-/// VAAs are the core primitive for Wormhole's cross-chain messaging. They contain
-/// a message body signed by a quorum of guardians (13 of 19 on mainnet). VAAs can
-/// carry arbitrary payloads including governance actions, token transfers, or
-/// application-specific data.
+/// VAAs are the core primitive for Wormhole's cross-chain messaging. They
+/// contain a message body signed by a quorum of guardians (13 of 19 on
+/// mainnet). VAAs can carry arbitrary payloads including governance actions,
+/// token transfers, or application-specific data.
 ///
 /// Parse from bytes using `VAA::try_from((&env, &bytes))`.
 #[contracttype]
@@ -123,7 +126,7 @@ pub struct PostedMessageData {
     pub nonce: u32,
     /// Wormhole chain ID of this blockchain (61 for Stellar).
     pub emitter_chain: u32,
-    /// Keccak256 hash of the emitter's Stellar address.
+    /// 32-byte contract ID of the emitter contract.
     pub emitter_address: BytesN<32>,
     /// Auto-incrementing sequence number for this emitter.
     pub sequence: u64,
@@ -206,9 +209,10 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
 impl VAA {
     /// Serializes the VAA body for hashing during signature verification.
     ///
-    /// Returns the 51-byte fixed header plus variable payload. The body excludes
-    /// the version, guardian set index, and signatures—guardians sign only this data.
-    /// Output is big-endian encoded to match the Wormhole wire format.
+    /// Returns the 51-byte fixed header plus variable payload. The body
+    /// excludes the version, guardian set index, and signatures—guardians
+    /// sign only this data. Output is big-endian encoded to match the
+    /// Wormhole wire format.
     pub fn serialize_body(&self, env: &Env) -> Bytes {
         let mut bytes = Bytes::new(env);
 

@@ -9,12 +9,8 @@ members = [
 edition = "2024"
 
 [workspace.dependencies]
-soroban-sdk = "23.0.2"
+soroban-sdk = "25.1.1"
 wormhole-soroban-client = { path = "contracts/wormhole-soroban-client" }
-stellar-strkey = "0.0.14"
-base64 = "0.21"
-serde_json = "1.0"
-hex = "0.4"
 
 [profile.release]
 opt-level = "z"

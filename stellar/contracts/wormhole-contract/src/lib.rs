@@ -1,7 +1,8 @@
 //! Wormhole Core Contract implementation for Stellar/Soroban.
 //!
-//! This crate provides the complete implementation of the Wormhole Core contract,
-//! enabling Stellar to participate in Wormhole's cross-chain messaging protocol as Chain ID 61.
+//! This crate provides the complete implementation of the Wormhole Core
+//! contract, enabling Stellar to participate in Wormhole's cross-chain
+//! messaging protocol as Chain ID 61.
 //!
 //! # Architecture
 //!
@@ -14,13 +15,15 @@
 
 #![no_std]
 
+use crate::governance::{
+    ContractUpgradeAction, GovernanceAction, GuardianSetUpgradeAction, SetMessageFeeAction,
+    TransferFeesAction,
+    guardian_set::{get_current_guardian_set_index, get_guardian_set, get_guardian_set_expiry},
+};
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
 use wormhole_soroban_client::{
-    ConsistencyLevel, GuardianSetInfo, WormholeCoreInterface, WormholeError, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID,
-};
-use crate::governance::{
-    guardian_set::get_current_guardian_set_index, guardian_set::get_guardian_set, guardian_set::get_guardian_set_expiry,
-    ContractUpgradeAction, GovernanceAction, GuardianSetUpgradeAction, SetMessageFeeAction, TransferFeesAction,
+    CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GuardianSetInfo,
+    WormholeCoreInterface, WormholeError,
 };
 
 mod governance;
@@ -42,12 +45,15 @@ pub struct Wormhole;
 impl Wormhole {
     /// Constructor called atomically during contract deployment.
     ///
-    /// Sets up the initial guardian set (index 0), configures the contract as its
-    /// own admin for governance upgrades, and stores the governance emitter address.
+    /// Sets up the initial guardian set (index 0), configures the contract as
+    /// its own admin for governance upgrades, and stores the governance
+    /// emitter address.
     ///
     /// # Arguments
-    /// * `initial_guardians` - Ethereum addresses (20 bytes) of initial guardians
-    /// * `governance_emitter` - 32-byte address authorized to emit governance VAAs
+    /// * `initial_guardians` - Ethereum addresses (20 bytes) of initial
+    ///   guardians
+    /// * `governance_emitter` - 32-byte address authorized to emit governance
+    ///   VAAs
     ///
     /// # Panics
     /// Panics with `EmptyGuardianSet` if no guardians are provided.

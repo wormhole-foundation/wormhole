@@ -3,7 +3,7 @@
 //! Handles posting messages to be attested by Wormhole guardians, including
 //! fee collection, sequence number management, and event emission.
 
-use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
+use soroban_sdk::{Address, Bytes, BytesN, Env, address_payload::AddressPayload, contractevent, token};
 use wormhole_soroban_client::{
     CHAIN_ID_STELLAR, ConsistencyLevel, PostedMessageData, STORAGE_TTL_EXTENSION,
     STORAGE_TTL_THRESHOLD, WormholeError,
@@ -12,20 +12,21 @@ use wormhole_soroban_client::{
 use crate::{
     governance,
     storage::StorageKey,
-    utils::{address_to_bytes32, get_native_token_address, keccak256_hash},
+    utils::{get_native_token_address, keccak256_hash},
 };
 
 /// Emitted when a cross-chain message is posted successfully.
 ///
-/// Guardians observe these events and produce VAAs attesting to the message contents.
-/// The event data matches the message body structure for easy verification.
+/// Guardians observe these events and produce VAAs attesting to the message
+/// contents. The event data matches the message body structure for easy
+/// verification.
 #[contractevent(topics = ["wormhole", "message_published"])]
 struct MessagePublishedEvent {
     /// Caller-provided nonce for deduplication.
     nonce: u32,
     /// Auto-assigned sequence number for this emitter.
     sequence: u64,
-    /// Keccak256 hash of the emitter's Stellar address.
+    /// 32-byte contract ID of the emitter contract.
     emitter_address: BytesN<32>,
     /// Application-specific message data.
     payload: Bytes,
@@ -156,7 +157,10 @@ pub fn post_message_with_fee(
 
     let sequence = next_emitter_sequence(env, emitter);
 
-    let emitter_bytes = address_to_bytes32(env, emitter);
+    let emitter_bytes = match emitter.to_payload() {
+        Some(AddressPayload::ContractIdHash(contract_id)) => contract_id,
+        _ => return Err(WormholeError::InvalidEmitterAddress),
+    };
 
     let message_data = PostedMessageData {
         timestamp: u32::try_from(env.ledger().timestamp()).unwrap_or(0),

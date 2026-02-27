@@ -1,8 +1,9 @@
 //! Wormhole Core Contract Interface for Stellar/Soroban.
 //!
-//! This crate provides the public API for interacting with the Wormhole Core contract.
-//! External contracts should depend only on this interface crate for smaller WASM
-//! binaries, while the implementation lives in `wormhole-contract`.
+//! This crate provides the public API for interacting with the Wormhole Core
+//! contract. External contracts should depend only on this interface crate for
+//! smaller WASM binaries, while the implementation lives in
+//! `wormhole-contract`.
 //!
 //! # Key Types
 //!
@@ -20,7 +21,7 @@
 //! let vaa = VAA::try_from((&env, &vaa_bytes))?;
 //! client.verify_vaa(&vaa_bytes)?;
 //!
-//! // Post a cross-chain message
+//! // Post a cross-chain message (emitter is always treated as a contract)
 //! let sequence = client.post_message(&emitter, nonce, &payload, ConsistencyLevel::Finalized)?;
 //! ```
 
@@ -41,8 +42,8 @@ use soroban_sdk::{Address, Bytes, BytesN, Env, contractclient};
 /// Complete public interface for the Wormhole Core contract.
 ///
 /// Defines all contract entry points for VAA verification, governance actions,
-/// cross-chain message posting, and state queries. The `wormhole-contract` crate
-/// implements this trait with the `#[contractimpl]` macro.
+/// cross-chain message posting, and state queries. The `wormhole-contract`
+/// crate implements this trait with the `#[contractimpl]` macro.
 ///
 /// # Security Model
 ///
@@ -108,7 +109,8 @@ pub trait WormholeCoreInterface {
     /// Requires valid VAA signed by current guardian set.
     ///
     /// # Arguments
-    /// * `vaa_bytes` - Serialized governance VAA containing guardian set upgrade payload
+    /// * `vaa_bytes` - Serialized governance VAA containing guardian set
+    ///   upgrade payload
     ///
     /// # Errors
     /// * VAA verification errors
@@ -132,7 +134,8 @@ pub trait WormholeCoreInterface {
     /// Requires valid VAA signed by current guardian set.
     ///
     /// # Arguments
-    /// * `vaa_bytes` - Serialized governance VAA containing fee transfer payload
+    /// * `vaa_bytes` - Serialized governance VAA containing fee transfer
+    ///   payload
     ///
     /// # Errors
     /// * VAA verification errors
@@ -144,10 +147,12 @@ pub trait WormholeCoreInterface {
     // ========== Message Posting ==========
 
     /// Post a cross-chain message to be attested by Guardians.
-    /// Collects message fee if configured.
+    /// The emitter is always treated as a contract address. Collects message
+    /// fee if configured.
     ///
     /// # Arguments
-    /// * `emitter` - Address of the message emitter (must authorize)
+    /// * `emitter` - Contract address acting as the message emitter (must
+    ///   authorize)
     /// * `nonce` - Unique nonce for the message
     /// * `payload` - Message payload bytes
     /// * `consistency_level` - Finality requirement (Confirmed or Finalized)
@@ -156,7 +161,8 @@ pub trait WormholeCoreInterface {
     /// Sequence number assigned to the message
     ///
     /// # Errors
-    /// * `Error::InsufficientFeePaid` - Fee not paid (requires prior token approval)
+    /// * `Error::InsufficientFeePaid` - Fee not paid (requires prior token
+    ///   approval)
     fn post_message(
         env: Env,
         emitter: Address,

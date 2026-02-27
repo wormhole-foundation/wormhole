@@ -1,8 +1,8 @@
 //! VAA verification and signature validation.
 //!
-//! Provides cryptographic verification of VAA signatures against stored guardian sets.
-//! Uses secp256k1 ECDSA recovery to derive Ethereum addresses from signatures, then
-//! compares against the known guardian keys.
+//! Provides cryptographic verification of VAA signatures against stored
+//! guardian sets. Uses secp256k1 ECDSA recovery to derive Ethereum addresses
+//! from signatures, then compares against the known guardian keys.
 //!
 //! Parsing and serialization are in `wormhole-soroban-client::types`.
 
@@ -92,11 +92,10 @@ fn verify_signatures_impl(
     let mut last_guardian_index = None;
 
     for signature in vaa.signatures.iter() {
-        if let Some(last_idx) = last_guardian_index {
-            if signature.guardian_index <= last_idx {
+        if let Some(last_idx) = last_guardian_index
+            && signature.guardian_index <= last_idx {
                 return Err(WormholeError::SignaturesNotAscending);
             }
-        }
         last_guardian_index = Some(signature.guardian_index);
 
         if signature.guardian_index >= guardian_count {
@@ -120,7 +119,7 @@ fn verify_signatures_impl(
 /// Combines `VAA::try_from` parsing with full signature verification.
 pub fn verify_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<bool, WormholeError> {
     let vaa = VAA::try_from((env, vaa_bytes))?;
-    verify_vaa_signatures(&vaa, &env)
+    verify_vaa_signatures(&vaa, env)
 }
 
 /// Parses VAA bytes into a structured `VAA` without signature verification.
