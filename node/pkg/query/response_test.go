@@ -404,7 +404,7 @@ func marshalV1QueryRequestForResponseTest(t *testing.T, qr *QueryRequest) []byte
 	b[2] = byte(qr.Nonce >> 8)
 	b[3] = byte(qr.Nonce)
 	buf.Write(b)
-	buf.WriteByte(uint8(len(qr.PerChainQueries)))
+	buf.WriteByte(uint8(len(qr.PerChainQueries))) //nolint:gosec // test code with controlled input
 	for _, pcq := range qr.PerChainQueries {
 		pcqBytes, err := pcq.Marshal()
 		require.NoError(t, err)
