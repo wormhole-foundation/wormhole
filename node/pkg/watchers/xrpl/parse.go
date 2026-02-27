@@ -300,20 +300,21 @@ func (p *Parser) parseNttTransaction(
 	}, nil
 }
 
-// parseTransaction dispatches to parseCoreTransaction, parseNttTransaction, and parseTicketCreateTransaction.
+// parseTransaction dispatches to parseTicketCreateTransaction, parseCoreTransaction, and parseNttTransaction.
+// TicketCreate is checked first because it has no Destination field and would fail in the other parsers.
 // Returns (nil, nil) if none matched.
 func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, error) {
-	msg, err := p.parseCoreTransaction(tx)
+	msg, err := p.parseTicketCreateTransaction(tx)
 	if msg != nil || err != nil {
 		return msg, err
 	}
 
-	msg, err = p.parseNttTransaction(tx)
+	msg, err = p.parseCoreTransaction(tx)
 	if msg != nil || err != nil {
 		return msg, err
 	}
 
-	return p.parseTicketCreateTransaction(tx)
+	return p.parseNttTransaction(tx)
 }
 
 // parseCoreTransaction parses a generic Wormhole message (payment to the core account).
