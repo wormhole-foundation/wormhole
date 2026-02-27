@@ -1,6 +1,7 @@
 package query
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -390,3 +391,117 @@ func TestSolanaPdaQueryResponseMarshalUnmarshal(t *testing.T) {
 }
 
 ///////////// End of Solana PDA Query tests ///////////////////////////
+
+// marshalV1QueryRequestForResponseTest builds v1 wire-format bytes from a v2 QueryRequest.
+// v1 format: [version=1][nonce][numQueries][per-chain-queries...] — no timestamp or staker address.
+func marshalV1QueryRequestForResponseTest(t *testing.T, qr *QueryRequest) []byte {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	buf.WriteByte(MSG_VERSION_V1)
+	b := make([]byte, 4)
+	b[0] = byte(qr.Nonce >> 24)
+	b[1] = byte(qr.Nonce >> 16)
+	b[2] = byte(qr.Nonce >> 8)
+	b[3] = byte(qr.Nonce)
+	buf.Write(b)
+	buf.WriteByte(uint8(len(qr.PerChainQueries)))
+	for _, pcq := range qr.PerChainQueries {
+		pcqBytes, err := pcq.Marshal()
+		require.NoError(t, err)
+		buf.Write(pcqBytes)
+	}
+	return buf.Bytes()
+}
+
+func TestResponseWithEmbeddedV1RequestUnmarshal(t *testing.T) {
+	// Simulate the real-world scenario: a guardian responds to a v1 request
+	// from another CCQ server. The response embeds the v1 request bytes.
+	// Our v2 CCQ server must be able to unmarshal this response.
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	v1RequestBytes := marshalV1QueryRequestForResponseTest(t, queryRequest)
+
+	respPub := createQueryResponseFromRequestWithRequestBytes(t, queryRequest, v1RequestBytes)
+	respPubBytes, err := respPub.Marshal()
+	require.NoError(t, err)
+
+	var respPub2 QueryResponsePublication
+	err = respPub2.Unmarshal(respPubBytes)
+	require.NoError(t, err)
+	require.NotNil(t, respPub2.Request)
+	assert.Equal(t, v1RequestBytes, respPub2.Request.QueryRequest)
+}
+
+func TestResponseWithEmbeddedV2RequestUnmarshal(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	respPub := createQueryResponseFromRequest(t, queryRequest)
+
+	respPubBytes, err := respPub.Marshal()
+	require.NoError(t, err)
+
+	var respPub2 QueryResponsePublication
+	err = respPub2.Unmarshal(respPubBytes)
+	require.NoError(t, err)
+
+	assert.True(t, respPub.Equal(&respPub2))
+}
+
+func TestResponseWithCorruptedEmbeddedRequestIsRejected(t *testing.T) {
+	// Verify that Validate() (via Unmarshal) rejects responses where the
+	// embedded request bytes are garbage, regardless of version.
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	respPub := createQueryResponseFromRequest(t, queryRequest)
+
+	respPubBytes, err := respPub.Marshal()
+	require.NoError(t, err)
+
+	// The embedded request starts at offset 68 (1 version + 2 chainID + 65 signature)
+	// followed by 4 bytes of length. Corrupt the request bytes after the length field.
+	requestOffset := 1 + 2 + 65 + 4
+	require.Greater(t, len(respPubBytes), requestOffset+5)
+	for i := requestOffset; i < requestOffset+5; i++ {
+		respPubBytes[i] = 0xFF
+	}
+
+	var respPub2 QueryResponsePublication
+	err = respPub2.Unmarshal(respPubBytes)
+	assert.Error(t, err)
+}
+
+func TestResponseValidateRejectsCountMismatch(t *testing.T) {
+	// Build a valid response, then add an extra per-chain response to
+	// create a count mismatch with the embedded request's queries.
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	respPub := createQueryResponseFromRequest(t, queryRequest)
+
+	// Duplicate the last response to create a count mismatch.
+	extra := *respPub.PerChainResponses[len(respPub.PerChainResponses)-1]
+	respPub.PerChainResponses = append(respPub.PerChainResponses, &extra)
+
+	err := respPub.Validate()
+	assert.ErrorContains(t, err, "number of responses does not match number of queries")
+}
+
+func TestResponseValidateRejectsTypeMismatch(t *testing.T) {
+	// Build a valid response, then swap a response type so it doesn't
+	// match the corresponding query type.
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	respPub := createQueryResponseFromRequest(t, queryRequest)
+
+	// The first query is EthCallQueryRequest. Replace its response with
+	// an EthCallByTimestampQueryResponse to create a type mismatch.
+	respPub.PerChainResponses[0] = &PerChainQueryResponse{
+		ChainId: vaa.ChainIDPolygon,
+		Response: &EthCallByTimestampQueryResponse{
+			TargetBlockNumber:    1000,
+			TargetBlockHash:      ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+			TargetBlockTime:      timeForTest(t, time.Now()),
+			FollowingBlockNumber: 1001,
+			FollowingBlockHash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3"),
+			FollowingBlockTime:   timeForTest(t, time.Now()),
+			Results:              [][]byte{{0x01}},
+		},
+	}
+
+	err := respPub.Validate()
+	assert.ErrorContains(t, err, "type of response 0 does not match the query")
+}

@@ -79,7 +79,7 @@ func init() {
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
 	ccqFactoryAddress = QueryServerCmd.Flags().String("ccqFactoryAddress", "", "Address of the CCQ staking factory contract for staking-based rate limiting (optional, not used if stakingPoolAddresses is provided)")
-	ipfsGateway = QueryServerCmd.Flags().String("ipfsGateway", "https://ipfs.io", "IPFS gateway URL for fetching conversion tables")
+	ipfsGateway = QueryServerCmd.Flags().String("ipfsGateway", "https://ipfs.io/ipfs/", "IPFS gateway URL for fetching conversion tables")
 	policyCacheDuration = QueryServerCmd.Flags().Uint("policyCacheDuration", 300, "Staking policy cache duration in seconds (default: 300 = 5 minutes)")
 	stakingPoolAddresses = QueryServerCmd.Flags().String("stakingPoolAddresses", "", "Comma-separated list of staking pool contract addresses (e.g., 0xaaa...,0xbbb...). If provided, pools are queried directly without factory discovery.")
 

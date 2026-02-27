@@ -295,6 +295,52 @@ func TestHandleQuery_SignatureMalleability(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "invalid signature", "Error should mention invalid signature")
 }
 
+// TestHandleQuery_V1RequestRejected tests that the HTTP handler rejects v1 requests
+func TestHandleQuery_V1RequestRejected(t *testing.T) {
+	sk, err := eth_crypto.GenerateKey()
+	require.NoError(t, err)
+
+	// Build v1 wire-format bytes manually:
+	// [version=1][nonce=1 as uint32][numQueries=1][per-chain-query bytes]
+	qr := createTestQueryRequest()
+	pcqBytes, err := qr.PerChainQueries[0].Marshal()
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	buf.WriteByte(query.MSG_VERSION_V1)
+	buf.Write([]byte{0, 0, 0, 1}) // nonce = 1
+	buf.WriteByte(1)               // 1 per-chain query
+	buf.Write(pcqBytes)
+	v1Bytes := buf.Bytes()
+
+	// Sign the v1 bytes
+	digest := query.QueryRequestDigest(common.UnsafeDevNet, v1Bytes)
+	sig, err := eth_crypto.Sign(digest.Bytes(), sk)
+	require.NoError(t, err)
+
+	reqBody := queryRequest{
+		Bytes:     hex.EncodeToString(v1Bytes),
+		Signature: hex.EncodeToString(sig),
+	}
+	body, err := json.Marshal(reqBody)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/query", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	server := &httpServer{
+		logger:           zap.NewNop(),
+		env:              common.UnsafeDevNet,
+		pendingResponses: NewPendingResponses(zap.NewNop()),
+		loggingMap:       NewLoggingMap(),
+	}
+
+	server.handleQuery(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "v1 request should be rejected")
+	assert.Contains(t, w.Body.String(), "v2 query request required")
+}
+
 // TestSignatureRecovery_ValidFormats tests that signature recovery works for both formats
 func TestSignatureRecovery_ValidFormats(t *testing.T) {
 	sk, err := eth_crypto.GenerateKey()

@@ -153,6 +153,13 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if qr.Version() != query.MSG_VERSION_V2 {
+		s.logger.Error("unsupported query request version", zap.Uint8("version", qr.Version()))
+		http.Error(w, "v2 query request required", http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("unsupported_version").Inc()
+		return
+	}
+
 	if err := qr.Validate(); err != nil {
 		s.logger.Error("invalid query request", zap.Error(err))
 		http.Error(w, "invalid query request", http.StatusBadRequest)

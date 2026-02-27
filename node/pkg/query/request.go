@@ -37,10 +37,16 @@ const (
 // QueryRequest defines a cross chain query request to be submitted to the guardians.
 // It is the payload of the SignedQueryRequest gossip message.
 type QueryRequest struct {
+	version         uint8              // Message version (set during unmarshal; Marshal always writes v2)
 	Nonce           uint32
-	Timestamp       uint64             // Unix seconds (REQUIRED)
-	StakerAddress   *ethCommon.Address // Optional staker address for delegated queries (nil = self-staking)
+	Timestamp       uint64             // Unix seconds (REQUIRED for v2)
+	StakerAddress   *ethCommon.Address // Optional staker address for delegated queries (nil = self-staking, v2 only)
 	PerChainQueries []*PerChainQueryRequest
+}
+
+// Version returns the message version. Set during unmarshal; Marshal always writes v2.
+func (qr *QueryRequest) Version() uint8 {
+	return qr.version
 }
 
 // PerChainQueryRequest represents a query request for a single chain.
@@ -265,9 +271,11 @@ func SignedQueryRequestEqual(left *gossipv1.SignedQueryRequest, right *gossipv1.
 //
 
 // Marshal serializes the binary representation of a query request.
-// This method calls Validate() and relies on it to range checks lengths, etc.
+// This method calls validateForVersion() and relies on it to range check lengths, etc.
 func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
-	if err := queryRequest.Validate(); err != nil {
+	// Marshal always produces v2 format, so validate with v2 rules
+	// regardless of what version the struct was unmarshaled as.
+	if err := queryRequest.validateForVersion(MSG_VERSION_V2); err != nil {
 		return nil, err
 	}
 
@@ -310,34 +318,40 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 		return fmt.Errorf("failed to read message version: %w", err)
 	}
 
-	if version != MSG_VERSION_V2 {
-		return fmt.Errorf("unsupported message version: %d (only v2 supported)", version)
+	if version != MSG_VERSION_V1 && version != MSG_VERSION_V2 {
+		return fmt.Errorf("unsupported message version: %d", version)
 	}
+	queryRequest.version = version
 
 	if err := binary.Read(reader, binary.BigEndian, &queryRequest.Nonce); err != nil {
 		return fmt.Errorf("failed to read request nonce: %w", err)
 	}
 
-	if err := binary.Read(reader, binary.BigEndian, &queryRequest.Timestamp); err != nil {
-		return fmt.Errorf("failed to read request timestamp: %w", err)
-	}
-
-	// Read staker address with length prefix
-	var stakerLen uint8
-	if err := binary.Read(reader, binary.BigEndian, &stakerLen); err != nil {
-		return fmt.Errorf("failed to read staker address length: %w", err)
-	}
-
-	if stakerLen == 20 {
-		var addr ethCommon.Address
-		if n, err := reader.Read(addr[:]); err != nil || n != 20 {
-			return fmt.Errorf("failed to read staker address [%d]: %w", n, err)
+	// v2 adds timestamp and optional staker address fields.
+	// v1 requests lack these fields; Timestamp remains 0 and StakerAddress nil.
+	// Call sites that require v2 (e.g. the HTTP handler) enforce this via Validate().
+	if version >= MSG_VERSION_V2 {
+		if err := binary.Read(reader, binary.BigEndian, &queryRequest.Timestamp); err != nil {
+			return fmt.Errorf("failed to read request timestamp: %w", err)
 		}
-		queryRequest.StakerAddress = &addr
-	} else if stakerLen == 0 {
-		queryRequest.StakerAddress = nil
-	} else {
-		return fmt.Errorf("invalid staker address length: expected 0 or 20, got %d", stakerLen)
+
+		// Read staker address with length prefix
+		var stakerLen uint8
+		if err := binary.Read(reader, binary.BigEndian, &stakerLen); err != nil {
+			return fmt.Errorf("failed to read staker address length: %w", err)
+		}
+
+		if stakerLen == 20 {
+			var addr ethCommon.Address
+			if n, err := reader.Read(addr[:]); err != nil || n != 20 {
+				return fmt.Errorf("failed to read staker address [%d]: %w", n, err)
+			}
+			queryRequest.StakerAddress = &addr
+		} else if stakerLen == 0 {
+			queryRequest.StakerAddress = nil
+		} else {
+			return fmt.Errorf("invalid staker address length: expected 0 or 20, got %d", stakerLen)
+		}
 	}
 
 	numPerChainQueries := uint8(0)
@@ -366,32 +380,46 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 }
 
 // Validate does basic validation on a received query request.
+// Version 0 (unset) is treated as v2 so that directly constructed
+// QueryRequest structs are validated with v2 rules by default.
 func (queryRequest *QueryRequest) Validate() error {
+	v := queryRequest.version
+	if v == 0 {
+		v = MSG_VERSION_V2
+	}
+	return queryRequest.validateForVersion(v)
+}
+
+// validateForVersion runs validation rules appropriate for the given version.
+// v2 enforces timestamp freshness and staker address constraints;
+// v1 skips those since the fields don't exist in the v1 wire format.
+func (queryRequest *QueryRequest) validateForVersion(version uint8) error {
 	// Nothing to validate on the Nonce.
 
-	// Validate timestamp is present and within acceptable time window
-	if queryRequest.Timestamp == 0 {
-		return fmt.Errorf("timestamp is required")
-	}
+	if version != MSG_VERSION_V1 {
+		if queryRequest.Timestamp == 0 {
+			return fmt.Errorf("timestamp is required")
+		}
 
-	now := uint64(time.Now().Unix())                  // #nosec G115 -- time.Now() always returns positive Unix timestamps
-	age := int64(now) - int64(queryRequest.Timestamp) // #nosec G115 -- Safe: both values represent reasonable Unix timestamps
+		now := uint64(time.Now().Unix())                  // #nosec G115 -- time.Now() always returns positive Unix timestamps
+		age := int64(now) - int64(queryRequest.Timestamp) // #nosec G115 -- Safe: both values represent reasonable Unix timestamps
 
-	// Reject requests older than 15 minutes
-	if age > 900 {
-		return fmt.Errorf("request timestamp too old: age %d seconds exceeds maximum of 900 seconds", age)
-	}
+		// Reject requests older than 15 minutes
+		if age > 900 {
+			return fmt.Errorf("request timestamp too old: age %d seconds exceeds maximum of 900 seconds", age)
+		}
 
-	// Allow small clock skew (1 minute) for future timestamps
-	if age < -60 {
-		return fmt.Errorf("request timestamp too far in future: %d seconds ahead of server time", -age)
-	}
+		// Allow small clock skew (1 minute) for future timestamps
+		if age < -60 {
+			return fmt.Errorf("request timestamp too far in future: %d seconds ahead of server time", -age)
+		}
 
-	// Validate staker address if provided
-	if queryRequest.StakerAddress != nil {
-		// Reject zero address - it's not a valid staker
-		if *queryRequest.StakerAddress == (ethCommon.Address{}) {
-			return fmt.Errorf("staker address cannot be the zero address")
+		// Validate staker address if provided
+		if queryRequest.StakerAddress != nil {
+			// Reject zero address - it's not a valid staker
+			if *queryRequest.StakerAddress == (ethCommon.Address{}) {
+				return fmt.Errorf("staker address cannot be the zero address")
+			}
 		}
 	}
 
@@ -409,7 +437,9 @@ func (queryRequest *QueryRequest) Validate() error {
 	return nil
 }
 
-// Equal verifies that two query requests are equal.
+// Equal verifies semantic equality of two query requests.
+// The version field is intentionally excluded — two requests with identical
+// nonce, timestamp, staker, and queries are equal regardless of wire version.
 func (left *QueryRequest) Equal(right *QueryRequest) bool {
 	if left.Nonce != right.Nonce {
 		return false

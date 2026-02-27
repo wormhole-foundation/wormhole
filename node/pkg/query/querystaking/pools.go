@@ -1107,6 +1107,13 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr comm
 		// Policy is empty - provide detailed diagnostic summary
 		sc.logger.Warn("completed staking policy fetch - NO ACCESS GRANTED", failureReasonFields...)
 
+		// If there were infrastructure errors that prevented rate determination,
+		// return an error so callers don't treat this as "no stake".
+		if totalErrors > 0 {
+			stakingPolicyFetches.WithLabelValues("infrastructure_error", "all").Inc()
+			return nil, fmt.Errorf("failed to determine staking policy: %d infrastructure error(s) during fetch", totalErrors)
+		}
+
 		// Log specific diagnostic message based on failure reasons
 		if failureReasons["no_stake"] > 0 {
 			sc.logger.Warn("no access: staker has no stake in any pools",

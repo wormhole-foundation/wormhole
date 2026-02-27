@@ -1,6 +1,7 @@
 package query
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -943,4 +944,143 @@ func TestQueryRequestTimestampValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// marshalV1QueryRequest builds a v1 wire-format QueryRequest from an existing
+// v2 QueryRequest. v1 has: [version=1][nonce][numQueries][per-chain-queries...]
+// with no timestamp or staker address fields.
+func marshalV1QueryRequest(t *testing.T, qr *QueryRequest) []byte {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	// version
+	buf.WriteByte(MSG_VERSION_V1)
+	// nonce (big-endian uint32)
+	b := make([]byte, 4)
+	b[0] = byte(qr.Nonce >> 24)
+	b[1] = byte(qr.Nonce >> 16)
+	b[2] = byte(qr.Nonce >> 8)
+	b[3] = byte(qr.Nonce)
+	buf.Write(b)
+	// num per-chain queries
+	buf.WriteByte(uint8(len(qr.PerChainQueries)))
+	for _, pcq := range qr.PerChainQueries {
+		pcqBytes, err := pcq.Marshal()
+		require.NoError(t, err)
+		buf.Write(pcqBytes)
+	}
+	return buf.Bytes()
+}
+
+func TestV1QueryRequestUnmarshal(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	v1Bytes := marshalV1QueryRequest(t, queryRequest)
+
+	var parsed QueryRequest
+	err := parsed.Unmarshal(v1Bytes)
+	require.NoError(t, err)
+
+	assert.Equal(t, queryRequest.Nonce, parsed.Nonce)
+	assert.Equal(t, uint64(0), parsed.Timestamp, "v1 should have zero timestamp")
+	assert.Nil(t, parsed.StakerAddress, "v1 should have nil staker address")
+	assert.Equal(t, len(queryRequest.PerChainQueries), len(parsed.PerChainQueries))
+}
+
+func TestV2QueryRequestUnmarshalStillWorks(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	v2Bytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	var parsed QueryRequest
+	err = parsed.Unmarshal(v2Bytes)
+	require.NoError(t, err)
+
+	assert.True(t, queryRequest.Equal(&parsed))
+}
+
+func TestV2QueryRequestWithStakerAddressRoundTrip(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	staker := ethCommon.HexToAddress("0x1234567890abcdef1234567890abcdef12345678")
+	queryRequest.StakerAddress = &staker
+
+	v2Bytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	var parsed QueryRequest
+	err = parsed.Unmarshal(v2Bytes)
+	require.NoError(t, err)
+
+	assert.True(t, queryRequest.Equal(&parsed))
+	require.NotNil(t, parsed.StakerAddress)
+	assert.Equal(t, staker, *parsed.StakerAddress)
+}
+
+func TestUnsupportedVersionIsRejected(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	v1Bytes := marshalV1QueryRequest(t, queryRequest)
+
+	// Overwrite version byte with 0
+	v1Bytes[0] = 0
+	var parsed QueryRequest
+	err := parsed.Unmarshal(v1Bytes)
+	assert.ErrorContains(t, err, "unsupported message version: 0")
+
+	// Overwrite version byte with 3
+	v1Bytes[0] = 3
+	err = parsed.Unmarshal(v1Bytes)
+	assert.ErrorContains(t, err, "unsupported message version: 3")
+}
+
+func TestV1RequestValidateIsVersionAware(t *testing.T) {
+	// v1 requests have Timestamp=0 and no staker address.
+	// Validate() should pass for v1 since those are v2-only fields.
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	v1Bytes := marshalV1QueryRequest(t, queryRequest)
+
+	var parsed QueryRequest
+	err := parsed.Unmarshal(v1Bytes)
+	require.NoError(t, err)
+	assert.Equal(t, MSG_VERSION_V1, parsed.Version())
+
+	// Validate should pass — v1 doesn't require timestamp
+	err = parsed.Validate()
+	assert.NoError(t, err)
+}
+
+func TestV2RequestValidateEnforcesTimestamp(t *testing.T) {
+	// A v2 request with Timestamp=0 should fail Validate().
+	parsed := QueryRequest{
+		version: MSG_VERSION_V2,
+		Nonce:   1,
+		PerChainQueries: []*PerChainQueryRequest{
+			{
+				ChainId: vaa.ChainIDPolygon,
+				Query: &EthCallQueryRequest{
+					BlockId: "0x28d9630",
+					CallData: []*EthCallData{
+						{
+							To:   ethCommon.HexToAddress("0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270").Bytes(),
+							Data: []byte{0x01},
+						},
+					},
+				},
+			},
+		},
+	}
+	err := parsed.Validate()
+	assert.ErrorContains(t, err, "timestamp is required")
+}
+
+func TestV2RequestRunsValidation(t *testing.T) {
+	queryRequest := createQueryRequestForTesting(t, vaa.ChainIDPolygon)
+	v2Bytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	// Corrupt the timestamp to 0 in the v2 bytes (bytes 5-12, after version+nonce)
+	for i := 5; i < 13; i++ {
+		v2Bytes[i] = 0
+	}
+
+	var parsed QueryRequest
+	err = parsed.Unmarshal(v2Bytes)
+	assert.ErrorContains(t, err, "timestamp is required")
 }
