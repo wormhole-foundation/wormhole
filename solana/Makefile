@@ -59,8 +59,12 @@ SOURCE_FILES:=$(shell find . -name "*.rs" -or -name "*.lock" -or -name "*.toml" 
 
 .FORCE:
 
-## Build contracts.
-artifacts: check-svmchain-name check-network artifacts-$(SVM)-$(NETWORK)
+# concrete target to parse SVM and NETWORK from the goal name
+artifacts-%:
+	$(eval SVM := $(word 1,$(subst -, ,$*)))
+	$(eval NETWORK := $(word 2,$(subst -, ,$*)))
+	echo $(SVM)
+	@$(MAKE) NETWORK=$(NETWORK) SVM=$(SVM) artifacts
 
 .PHONY: check-network
 check-network:
@@ -74,7 +78,7 @@ check-svmchain-name:
 		exit 1; \
 	fi
 
-artifacts-$(SVM)-$(NETWORK): $(SOURCE_FILES)
+artifacts: check-svmchain-name check-network $(SOURCE_FILES)
 	echo $@
 	@echo "Building artifacts for ${SVM} ${NETWORK} (${bridge_ADDRESS_$${SVM}_${NETWORK}})"
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_${SVM}_${NETWORK}} --build-arg CHAIN_ID=${CHAIN_ID_${SVM}} -o $@ .
@@ -142,5 +146,5 @@ build: check-network check-svmchain-name
 	EMITTER_ADDRESS=11111111111111111111111111111115 \
 	cargo build
 
-clean: check-svmchain-name
-	rm -rf artifacts-$(SVM)-mainnet artifacts-$(SVM)-testnet artifacts-$(SVM)-devnet *-buffer-*.txt
+clean:
+	rm -rf artifacts-* *-buffer-*.txt
