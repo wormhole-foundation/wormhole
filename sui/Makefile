@@ -7,7 +7,7 @@ clean:
 
 .PHONY: test
 test:
-	$(foreach dir,$(TEST_CONTRACT_DIRS), make -C $(dir) $@ &&) true
+	$(foreach dir,$(TEST_CONTRACT_DIRS), echo running tests in $(dir); make -C $(dir) $@ &&) true
 
 test-docker:
 	DOCKER_BUILDKIT=1 docker build --progress plain  -f ../Dockerfile.cli -t cli-gen ..

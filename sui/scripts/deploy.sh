@@ -79,9 +79,9 @@ WORMHOLE_PUBLISH_OUTPUT=$($(echo worm sui deploy "$WORMHOLE_PATH" -n "$NETWORK" 
 echo "$WORMHOLE_PUBLISH_OUTPUT"
 
 echo -e "\n[2/4] Initializing core bridge..."
-WORMHOLE_PACKAGE_ID=$(echo "$WORMHOLE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
+WORMHOLE_PACKAGE_ID=$(echo "$WORMHOLE_PUBLISH_OUTPUT" | grep -o 'Published to .*' | sed 's/Published to *//')
 WORMHOLE_INIT_OUTPUT=$($(echo worm sui init-wormhole -n "$NETWORK" --initial-guardian "$GUARDIAN_ADDR" -p "$WORMHOLE_PACKAGE_ID" "$PRIVATE_KEY_ARG"))
-WORMHOLE_STATE_OBJECT_ID=$(echo "$WORMHOLE_INIT_OUTPUT" | grep -oP 'Wormhole state object ID +\K.*')
+WORMHOLE_STATE_OBJECT_ID=$(echo "$WORMHOLE_INIT_OUTPUT" | grep -o 'Wormhole state object ID .*' | sed 's/Wormhole state object ID *//')
 echo "$WORMHOLE_INIT_OUTPUT"
 
 echo -e "\n[3/4] Publishing token bridge contracts..."
@@ -89,19 +89,19 @@ TOKEN_BRIDGE_PUBLISH_OUTPUT=$($(echo worm sui deploy "$TOKEN_BRIDGE_PATH" -n "$N
 echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT"
 
 echo -e "\n[4/4] Initializing token bridge..."
-TOKEN_BRIDGE_PACKAGE_ID=$(echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
+TOKEN_BRIDGE_PACKAGE_ID=$(echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT" | grep -o 'Published to .*' | sed 's/Published to *//')
 TOKEN_BRIDGE_INIT_OUTPUT=$($(echo worm sui init-token-bridge -n "$NETWORK" -p "$TOKEN_BRIDGE_PACKAGE_ID" -w "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
-TOKEN_BRIDGE_STATE_OBJECT_ID=$(echo "$TOKEN_BRIDGE_INIT_OUTPUT" | grep -oP 'Token bridge state object ID +\K.*')
+TOKEN_BRIDGE_STATE_OBJECT_ID=$(echo "$TOKEN_BRIDGE_INIT_OUTPUT" | grep -o 'Token bridge state object ID .*' | sed 's/Token bridge state object ID *//')
 echo "$TOKEN_BRIDGE_INIT_OUTPUT"
 
 if [ "$NETWORK" = devnet ]; then
   echo -e "\n[+1/2] Deploying and initializing example app..."
   EXAMPLE_APP_PUBLISH_OUTPUT=$($(echo worm sui deploy "$EXAMPLE_APP_PATH" -n "$NETWORK" "$PRIVATE_KEY_ARG"))
-  EXAMPLE_APP_PACKAGE_ID=$(echo "$EXAMPLE_APP_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
+  EXAMPLE_APP_PACKAGE_ID=$(echo "$EXAMPLE_APP_PUBLISH_OUTPUT" | grep -o 'Published to .*' | sed 's/Published to *//')
   echo "$EXAMPLE_APP_PUBLISH_OUTPUT"
 
   EXAMPLE_INIT_OUTPUT=$($(echo worm sui init-example-message-app -n "$NETWORK" -p "$EXAMPLE_APP_PACKAGE_ID" -w "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
-  EXAMPLE_APP_STATE_OBJECT_ID=$(echo "$EXAMPLE_INIT_OUTPUT" | grep -oP 'Example app state object ID +\K.*')
+  EXAMPLE_APP_STATE_OBJECT_ID=$(echo "$EXAMPLE_INIT_OUTPUT" | grep -o 'Example app state object ID .*' | sed 's/Example app state object ID *//')
   echo "$EXAMPLE_INIT_OUTPUT"
 
   echo -e "\n[+2/2] Deploying example coins..."
