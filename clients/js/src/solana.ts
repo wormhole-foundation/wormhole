@@ -38,6 +38,7 @@ import {
   platformToChains,
 } from "@wormhole-foundation/sdk-base";
 import { hexToUint8Array, tryNativeToUint8Array } from "./sdk/array";
+import { castChainIdToOldSdk } from "./utils";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -67,9 +68,6 @@ export async function execute_solana(
   }
 
   const nftContract = contracts.nftBridge.get(network, chain);
-  if (!nftContract) {
-    throw new Error(`NFT bridge address not defined for ${chain} ${network}`);
-  }
 
   const tbContract = contracts.tokenBridge.get(network, chain);
   if (!tbContract) {
@@ -78,7 +76,7 @@ export async function execute_solana(
 
   const bridgeId = new web3s.PublicKey(coreContract);
   const tokenBridgeId = new web3s.PublicKey(tbContract);
-  const nftBridgeId = new web3s.PublicKey(nftContract);
+  const nftBridgeId = nftContract ? new web3s.PublicKey(nftContract) : undefined;
 
   let ix: web3s.TransactionInstruction;
   switch (v.payload.module) {
@@ -277,7 +275,7 @@ export async function transferSolana(
       payerAddress,
       BigInt(amount),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain)
+      castChainIdToOldSdk(chainToChainId(dstChain))
     );
   } else {
     // find the associated token account
@@ -296,7 +294,7 @@ export async function transferSolana(
       tokenAddress, // mintAddress
       BigInt(amount),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain)
+      castChainIdToOldSdk(chainToChainId(dstChain))
     );
   }
 
@@ -372,7 +370,7 @@ export async function queryRegistrationsSolana(
 
           const endpoint = deriveEndpointKey(
             programId,
-            chainToChainId(cstr),
+            castChainIdToOldSdk(chainToChainId(cstr)),
             hexToUint8Array(emitter_addr)
           );
 

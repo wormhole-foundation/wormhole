@@ -14,6 +14,7 @@ import {
   Network,
 } from "@wormhole-foundation/sdk-base";
 import { tryNativeToUint8Array } from "./sdk/array";
+import { castChainIdToOldSdk } from "./utils";
 
 export function keyPairToImplicitAccount(keyPair: KeyPair): string {
   return Buffer.from(keyPair.getPublicKey().data).toString("hex");
@@ -197,7 +198,7 @@ export async function transferNear(
       token_bridge,
       BigInt(amount),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain),
+      castChainIdToOldSdk(chainToChainId(dstChain)),
       BigInt(0)
     );
     const result = await nearAccount.functionCall(msg);
@@ -211,7 +212,7 @@ export async function transferNear(
       tokenAddress,
       BigInt(amount),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain),
+      castChainIdToOldSdk(chainToChainId(dstChain)),
       BigInt(0)
     );
     for (const msg of msgs) {

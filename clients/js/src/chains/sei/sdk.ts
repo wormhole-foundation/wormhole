@@ -11,8 +11,9 @@ import {
   ChainId,
   chainToChainId,
   toChainId,
-} from "@wormhole-foundation/sdk";
+} from "@wormhole-foundation/sdk-base";
 import { fromUint8Array } from "js-base64";
+import { castChainIdToOldSdk } from "../../utils";
 
 /**
  * Returns the address of the foreign asset
@@ -33,7 +34,7 @@ export async function getForeignAssetSei(
       tokenBridgeAddress,
       {
         wrapped_registry: {
-          chain: toChainId(originChain),
+          chain: castChainIdToOldSdk(toChainId(originChain)),
           address: fromUint8Array(originAsset),
         },
       }
@@ -75,11 +76,12 @@ export async function getOriginalAssetSei(
   client: CosmWasmClient
 ): Promise<WormholeWrappedInfo> {
   const chainId = chainToChainId("Sei");
-  if (isNativeCosmWasmDenom(chainId, wrappedAddress)) {
+  const oldChainId = castChainIdToOldSdk(chainId) as any;
+  if (isNativeCosmWasmDenom(oldChainId, wrappedAddress)) {
     return {
       isWrapped: false,
       chainId,
-      assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
+      assetAddress: hexToUint8Array(buildTokenId(oldChainId, wrappedAddress)),
     };
   }
   try {
@@ -97,7 +99,7 @@ export async function getOriginalAssetSei(
   return {
     isWrapped: false,
     chainId: chainId,
-    assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
+    assetAddress: hexToUint8Array(buildTokenId(oldChainId, wrappedAddress)),
   };
 }
 

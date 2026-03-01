@@ -1,9 +1,7 @@
 import yargs from "yargs";
 import { transferEVM } from "../evm";
 import { NETWORK_OPTIONS, NETWORKS } from "../consts";
-import { transferTerra } from "../terra";
 import { transferInjective } from "../injective";
-import { transferXpla } from "../xpla";
 import { transferSolana } from "../solana";
 import { transferAlgorand } from "../algorand";
 import { transferNear } from "../near";
@@ -93,16 +91,6 @@ export const handler = async (
       network,
       rpc
     );
-  } else if (srcChain === "Terra" || srcChain === "Terra2") {
-    await transferTerra(
-      srcChain,
-      dstChain,
-      dstAddr,
-      tokenAddr,
-      amount,
-      network,
-      rpc
-    );
   } else if (srcChain === "Solana" || srcChain === "Pythnet") {
     await transferSolana(
       srcChain,
@@ -119,8 +107,6 @@ export const handler = async (
     await transferNear(dstChain, dstAddr, tokenAddr, amount, network, rpc);
   } else if (srcChain === "Injective") {
     await transferInjective(dstChain, dstAddr, tokenAddr, amount, network, rpc);
-  } else if (srcChain === "Xpla") {
-    await transferXpla(dstChain, dstAddr, tokenAddr, amount, network, rpc);
   } else if (srcChain === "Sui") {
     await transferSui(dstChain, dstAddr, tokenAddr, amount, network, rpc);
   } else if (srcChain === "Aptos") {

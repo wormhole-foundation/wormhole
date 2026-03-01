@@ -31,7 +31,7 @@ import {
 import { YargsAddCommandsFn } from "../Yargs";
 import { deploy } from "./deploy";
 import { initExampleApp, initTokenBridge, initWormhole } from "./init";
-import { Chain, chainIdToChain, toChainId } from "@wormhole-foundation/sdk";
+import { Chain, chainIdToChain, toChainId } from "@wormhole-foundation/sdk-base";
 
 export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(

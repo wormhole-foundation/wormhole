@@ -5,7 +5,7 @@ import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORKS, NETWORK_OPTIONS } from "../consts";
 import { getNetwork } from "../utils";
-import { contracts } from "@wormhole-foundation/sdk";
+import { contracts } from "@wormhole-foundation/sdk-base";
 
 export const command = "verify-vaa";
 export const desc = "Verifies a VAA by querying the core contract on Ethereum";

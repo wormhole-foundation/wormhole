@@ -12,7 +12,7 @@ import {
   toChain,
 } from "@wormhole-foundation/sdk-base";
 import { chainToChain, getNetwork } from "../../utils";
-import { Chain } from "@wormhole-foundation/sdk";
+import { Chain } from "@wormhole-foundation/sdk-base";
 
 export const command = "registrations <network> <chain> <module>";
 export const desc = "Print chain registrations";
@@ -59,9 +59,6 @@ export const handler = async (
   } else if (chainToPlatform(chain) === "Evm") {
     const evm = require("../../evm");
     results = await evm.queryRegistrationsEvm(network, chain, module);
-  } else if (chain === "Terra" || chain === "Terra2" || chain === "Xpla") {
-    const terra = require("../../terra");
-    results = await terra.queryRegistrationsTerra(network, chain, module);
   } else if (chain === "Injective") {
     const injective = require("../../injective");
     results = await injective.queryRegistrationsInjective(network, module);

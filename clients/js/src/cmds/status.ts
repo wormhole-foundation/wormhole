@@ -1,7 +1,7 @@
 import yargs from "yargs";
 import { ethers } from "ethers";
 import { NETWORKS } from "../consts";
-import { chainToChain, getNetwork } from "../utils";
+import { castChainIdToOldSdk, chainToChain, getNetwork } from "../utils";
 import {
   Chain,
   assertChain,
@@ -48,13 +48,13 @@ export const handler = async (
   const targetChainProviders = new Map<ChainName, ethers.providers.Provider>();
   for (const key in NETWORKS[network]) {
     targetChainProviders.set(
-      toChainName(chainToChainId(key as Chain)),
+      toChainName(castChainIdToOldSdk(chainToChainId(key as Chain))),
       new ethers.providers.JsonRpcProvider(NETWORKS[network][key as Chain].rpc)
     );
   }
 
   // TODO: Convert this over to sdkv2
-  const v1ChainName = toChainName(chainToChainId(chain));
+  const v1ChainName = toChainName(castChainIdToOldSdk(chainToChainId(chain)));
   const info = await relayer.getWormholeRelayerInfo(v1ChainName, argv.tx, {
     environment:
       network === "Devnet"

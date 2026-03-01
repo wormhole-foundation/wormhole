@@ -7,8 +7,6 @@ import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import { JsonRpcProvider, Connection as SuiConnection } from "@mysten/sui.js";
 import { getCosmWasmClient } from "@sei-js/core";
 import { Connection as SolanaConnection } from "@solana/web3.js";
-import { LCDClient as TerraLCDClient } from "@terra-money/terra.js";
-import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { AptosClient } from "aptos";
 import { ethers } from "ethers";
@@ -32,16 +30,12 @@ export type ChainProvider<T extends Chain> = T extends "Algorand"
   ? ChainGrpcWasmApi
   : T extends "Near"
   ? Promise<NearProvider>
-  : T extends "Terra" | "Terra2"
-  ? TerraLCDClient
   : T extends "Sei"
   ? Promise<CosmWasmClient>
   : T extends "Solana"
   ? SolanaConnection
   : T extends "Sui"
   ? JsonRpcProvider
-  : T extends "Xpla"
-  ? XplaLCDClient
   : never;
 
 export const getProviderForChain = <T extends Chain>(
@@ -57,31 +51,24 @@ export const getProviderForChain = <T extends Chain>(
   switch (chain) {
     case "Solana":
       return new SolanaConnection(rpc, "confirmed") as ChainProvider<T>;
-    case "Acala":
+    case "Fogo":
+      return new SolanaConnection(rpc, "confirmed") as ChainProvider<T>;
     case "Arbitrum":
-    case "Aurora":
     case "Avalanche":
     case "Base":
     case "Bsc":
     case "Celo":
     case "Ethereum":
     case "Fantom":
-    case "Gnosis":
-    case "Karura":
     case "Klaytn":
     case "Moonbeam":
-    case "Neon":
-    case "Oasis":
     case "Optimism":
     case "Polygon":
-    // case "Rootstock":
     case "Scroll":
     case "Mantle":
-    case "Blast":
     case "Xlayer":
     case "Linea":
     case "Berachain":
-    case "Snaxchain":
     case "Seievm":
     case "Sepolia":
     case "ArbitrumSepolia":
@@ -90,17 +77,6 @@ export const getProviderForChain = <T extends Chain>(
     case "PolygonSepolia":
     case "Holesky":
       return new ethers.providers.JsonRpcProvider(rpc) as ChainProvider<T>;
-    case "Terra":
-    case "Terra2":
-      const chain_id =
-        chain === "Terra"
-          ? NETWORKS[network].Terra.chain_id
-          : NETWORKS[network].Terra2.chain_id;
-      return new TerraLCDClient({
-        URL: rpc,
-        chainID: chain_id,
-        isClassic: chain === "Terra",
-      }) as ChainProvider<T>;
     case "Injective": {
       const endpoints = getNetworkEndpoints(
         network === "Mainnet"
@@ -111,17 +87,6 @@ export const getProviderForChain = <T extends Chain>(
     }
     case "Sei":
       return getCosmWasmClient(rpc) as ChainProvider<T>;
-    case "Xpla": {
-      const chainId = NETWORKS[network].Xpla.chain_id;
-      if (!chainId) {
-        throw new Error(`No ${network} chain ID defined for XPLA.`);
-      }
-
-      return new XplaLCDClient({
-        URL: rpc,
-        chainID: chainId,
-      }) as ChainProvider<T>;
-    }
     case "Algorand": {
       const { token, port } = {
         ...{
@@ -158,7 +123,20 @@ export const getProviderForChain = <T extends Chain>(
     case "Seda":
     case "Dymension":
     case "Provenance":
-    case "Rootstock":
+    case "Unichain":
+    case "HyperCore":
+    case "Worldchain":
+    case "Ink":
+    case "HyperEVM":
+    case "Monad":
+    case "Mezo":
+    case "Sonic":
+    case "Converge":
+    case "Plume":
+    case "XRPLEVM":
+    case "Plasma":
+    case "CreditCoin":
+    case "Noble":
       throw new Error(`${chain} not supported`);
     default:
       impossible(chain);
