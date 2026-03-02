@@ -8,7 +8,7 @@
 # correctness and safety. Always verify any major dependency updates.
 
 DOCKER=${DOCKER:-docker}
-DOCKER_IMAGE_DEBIAN_DISTRO=bullseye
+DOCKER_IMAGE_DEBIAN_DISTRO=bookworm
 REPO_ROOT_DIR=$(dirname "$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )")
 
 # Update the github actions to use the updated version of go

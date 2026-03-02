@@ -33,7 +33,7 @@ jobs:
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: "1.24.13"
           cache-dependency-path: wormchain/interchaintest/go.sum
 
       - name: Set up Docker Buildx
@@ -75,7 +75,7 @@ jobs:
       - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: "1.24.13"
           cache-dependency-path: interchaintest/go.sum
 
       - name: checkout chain
