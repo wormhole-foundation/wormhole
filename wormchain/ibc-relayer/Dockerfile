@@ -2,7 +2,7 @@ FROM docker.io/golang:1.24.13-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a02
 
 #used for a readiness probe
 RUN apt-get update
-RUN apt install -y netcat
+RUN apt install -y netcat-openbsd
 RUN apt install -y jq
 
 WORKDIR /app
