@@ -808,6 +808,44 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 	return v, nil
 }
 
+func suiCallToVaa(suiCall *nodev1.SuiCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	govContractStr := suiCall.GovernanceContract
+	if len(govContractStr) >= 2 && govContractStr[:2] == "0x" {
+		govContractStr = govContractStr[2:]
+	}
+	address, err := hex.DecodeString(govContractStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode governance contract address: %w", err)
+	}
+	if len(address) != 32 {
+		return nil, errors.New("invalid governance contract address length (expected 32 bytes)")
+	}
+
+	var governanceContract [32]byte
+	copy(governanceContract[:], address)
+
+	callData, err := hex.DecodeString(suiCall.EncodedCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode call data: %w", err)
+	}
+	if suiCall.ChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", suiCall.ChainId)
+	}
+
+	body, err := vaa.BodyGeneralPurposeGovernanceSui{
+		ChainID:            vaa.ChainID(suiCall.ChainId),
+		GovernanceContract: governanceContract,
+		Payload:            callData,
+	}.Serialize()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+	return v, nil
+}
+
 func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, timestamp time.Time) (*vaa.VAA, error) {
 	var (
 		v   *vaa.VAA
@@ -855,6 +893,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = evmCallToVaa(payload.EvmCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_SolanaCall:
 		v, err = solanaCallToVaa(payload.SolanaCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_SuiCall:
+		v, err = suiCallToVaa(payload.SuiCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CoreBridgeSetMessageFee:
 		v, err = coreBridgeSetMessageFeeToVaa(payload.CoreBridgeSetMessageFee, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_DelegatedGuardiansConfig:

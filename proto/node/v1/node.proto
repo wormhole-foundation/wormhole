@@ -160,6 +160,9 @@ message GovernanceMessage {
 
     // Delegated Guardians
     DelegatedGuardiansConfig delegated_guardians_config = 31;
+
+    // Generic Sui governance
+    SuiCall sui_call = 32;
   }
 }
 
@@ -589,6 +592,18 @@ message SolanaCall {
 
   // Encoded instruction data to be passed on to the governed contract (hex encoded)
   string encoded_instruction = 3;
+}
+
+// SuiCall represents a generic Sui call that can be executed by the generalized governance contract.
+message SuiCall {
+  // ID of the chain where the action should be executed (uint16).
+  uint32 chain_id = 1;
+
+  // Address of the governance contract (0x-prefixed hex, 32 bytes)
+  string governance_contract = 2;
+
+  // Encoded call data to be passed on to the governed contract (hex encoded)
+  string encoded_call = 3;
 }
 
 message CoreBridgeSetMessageFee {

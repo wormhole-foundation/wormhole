@@ -122,6 +122,7 @@ var (
 	// General purpose governance
 	GeneralPurposeGovernanceEvmAction    GovernanceAction = 1
 	GeneralPurposeGovernanceSolanaAction GovernanceAction = 2
+	GeneralPurposeGovernanceSuiAction    GovernanceAction = 3
 
 	// Delegated Guardians governance actions
 	DelegatedGuardiansSetConfigAction GovernanceAction = 1
@@ -285,6 +286,15 @@ type (
 		// instruction encodes the target contract address (unlike in EVM, where
 		// an abi encoded calldata doesn't include the target contract address)
 		Instruction []byte
+	}
+
+	// BodyGeneralPurposeGovernanceSui is a general purpose governance message for Sui chains
+	BodyGeneralPurposeGovernanceSui struct {
+		ChainID            ChainID
+		GovernanceContract Address
+		// Like Solana, the payload is opaque and self-describing.
+		// The Sui governance contract parses it to dispatch the action.
+		Payload []byte
 	}
 
 	// BodyCoreBridgeSetMessageFee is a governance message to set the message fee for the core bridge.
@@ -595,6 +605,15 @@ func (r BodyGeneralPurposeGovernanceSolana) Serialize() ([]byte, error) {
 	// the relevant dynamic fields.
 	payload.Write(r.Instruction)
 	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceSolanaAction, r.ChainID, payload.Bytes())
+}
+
+func (r BodyGeneralPurposeGovernanceSui) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	payload.Write(r.GovernanceContract[:])
+	// Like Solana, the payload is opaque and self-describing.
+	// The Sui governance contract parses it to dispatch the action.
+	payload.Write(r.Payload)
+	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceSuiAction, r.ChainID, payload.Bytes())
 }
 
 func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) ([]byte, error) {
