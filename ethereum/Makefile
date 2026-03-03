@@ -53,7 +53,7 @@ build: forge_dependencies node_modules ${SOURCE_FILES}
 flattened/%.sol: contracts/%.sol node_modules
 	./sh/flatten.sh
 
-.PHONY: flattened
+.PHONY: flattened verifiable-delegated-guardians-build
 flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
 
 .env: .env.test
