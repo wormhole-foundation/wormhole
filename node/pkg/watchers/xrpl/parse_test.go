@@ -179,18 +179,47 @@ func TestParseMemoData_WrongLength(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid memo data length")
 }
 
-func TestParseMemoData_MultipleMemos_OnlyOneValid(t *testing.T) {
+func TestParseMemoData_MultipleMemos_ValidAtIndex0(t *testing.T) {
 	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"Memos": []any{
-			// First memo: wrong format
+			// First memo (index 0): valid NTT
+			map[string]any{
+				"Memo": map[string]any{
+					"MemoFormat": testNTTMemoFormat,
+					"MemoData":   sampleNTTMemoData,
+				},
+			},
+			// Second memo: something else
 			map[string]any{
 				"Memo": map[string]any{
 					"MemoFormat": "746578742F706C61696E", // "text/plain"
 					"MemoData":   "48656C6C6F",           // "Hello"
 				},
 			},
-			// Second memo: valid NTT
+		},
+	}
+
+	memo, err := p.parseMemoData(tx)
+
+	require.NoError(t, err)
+	require.NotNil(t, memo, "Should find the valid NTT memo at index 0")
+	assert.Equal(t, uint16(2), memo.recipientChain)
+	assert.Equal(t, uint8(6), memo.fromDecimals)
+}
+
+func TestParseMemoData_MultipleMemos_ValidNotAtIndex0(t *testing.T) {
+	p := NewParser("", nil, nil)
+	tx := transaction.FlatTransaction{
+		"Memos": []any{
+			// First memo (index 0): wrong format
+			map[string]any{
+				"Memo": map[string]any{
+					"MemoFormat": "746578742F706C61696E", // "text/plain"
+					"MemoData":   "48656C6C6F",           // "Hello"
+				},
+			},
+			// Second memo (index 1): valid NTT — should be ignored
 			map[string]any{
 				"Memo": map[string]any{
 					"MemoFormat": testNTTMemoFormat,
@@ -203,9 +232,7 @@ func TestParseMemoData_MultipleMemos_OnlyOneValid(t *testing.T) {
 	memo, err := p.parseMemoData(tx)
 
 	require.NoError(t, err)
-	require.NotNil(t, memo, "Should find the valid NTT memo")
-	assert.Equal(t, uint16(2), memo.recipientChain)
-	assert.Equal(t, uint8(6), memo.fromDecimals)
+	require.Nil(t, memo, "Should not find NTT memo when it is not at index 0")
 }
 
 func TestParseMemoData_MalformedMemoStructure(t *testing.T) {

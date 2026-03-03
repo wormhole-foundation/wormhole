@@ -384,7 +384,8 @@ func (p *Parser) parseCoreTransaction(tx GenericTx) (*common.MessagePublication,
 	}, nil
 }
 
-// parseCoreMessageMemoData extracts and parses the generic Wormhole message memo data.
+// parseCoreMessageMemoData extracts and parses the generic Wormhole message memo data
+// from the first memo (index 0) in the transaction's Memos array.
 // Returns (nil, nil) if no matching memo is found (not an error, just not a core message).
 //
 // MemoData format (hex-decoded):
@@ -402,59 +403,61 @@ func (p *Parser) parseCoreMessageMemoData(tx transaction.FlatTransaction) (*core
 		return nil, nil
 	}
 
-	for _, memoWrapperRaw := range memos {
-		memoWrapper, ok := memoWrapperRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		memoRaw, ok := memoWrapper["Memo"]
-		if !ok {
-			continue
-		}
-
-		memo, ok := memoRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		// Check MemoFormat matches core message MIME type
-		memoFormatStr, ok := memo["MemoFormat"].(string)
-		if !ok || memoFormatStr != coreMemoFormat {
-			continue
-		}
-
-		// Extract and decode MemoData (hex-encoded payload)
-		memoDataStr, ok := memo["MemoData"].(string)
-		if !ok {
-			continue
-		}
-
-		data, err := hex.DecodeString(memoDataStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode core MemoData: %w", err)
-		}
-
-		// Minimum length: 1 (version) + 4 (nonce) = 5 bytes
-		if len(data) < 5 {
-			return nil, fmt.Errorf("core memo data too short: got %d bytes, need at least 5", len(data))
-		}
-
-		// Validate version
-		if data[0] != 1 {
-			return nil, fmt.Errorf("unsupported core memo version: %d", data[0])
-		}
-
-		nonce := binary.BigEndian.Uint32(data[1:5])
-		payload := data[5:]
-
-		return &coreMessageData{
-			nonce:   nonce,
-			payload: payload,
-		}, nil
+	if len(memos) == 0 {
+		return nil, nil
 	}
 
-	return nil, nil
+	// Only check the first memo (index 0)
+	// SECURITY: this makes it safe to add future memo support without the possibility for message confusion
+	memoWrapper, ok := memos[0].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	memoRaw, ok := memoWrapper["Memo"]
+	if !ok {
+		return nil, nil
+	}
+
+	memo, ok := memoRaw.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	// Check MemoFormat matches core message MIME type
+	memoFormatStr, ok := memo["MemoFormat"].(string)
+	if !ok || memoFormatStr != coreMemoFormat {
+		return nil, nil
+	}
+
+	// Extract and decode MemoData (hex-encoded payload)
+	memoDataStr, ok := memo["MemoData"].(string)
+	if !ok {
+		return nil, nil
+	}
+
+	data, err := hex.DecodeString(memoDataStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode core MemoData: %w", err)
+	}
+
+	// Minimum length: 1 (version) + 4 (nonce) = 5 bytes
+	if len(data) < 5 {
+		return nil, fmt.Errorf("core memo data too short: got %d bytes, need at least 5", len(data))
+	}
+
+	// Validate version
+	if data[0] != 1 {
+		return nil, fmt.Errorf("unsupported core memo version: %d", data[0])
+	}
+
+	nonce := binary.BigEndian.Uint32(data[1:5])
+	payload := data[5:]
+
+	return &coreMessageData{
+		nonce:   nonce,
+		payload: payload,
+	}, nil
 }
 
 // parseTicketCreateTransaction parses a TicketCreate transaction on a managed account.
@@ -650,7 +653,8 @@ func (p *Parser) extractDestination(tx transaction.FlatTransaction) (string, err
 // Memo parsing
 // =============================================================================
 
-// parseMemoData extracts and parses the 72-byte NTT memo data from transaction Memos.
+// parseMemoData extracts and parses the 72-byte NTT memo data from the first memo (index 0)
+// in the transaction's Memos array.
 // Returns the parsed memoData and any error.
 // Returns (nil, nil) if no NTT memo is found (not an error, just not an NTT transaction).
 //
@@ -674,62 +678,64 @@ func (p *Parser) parseMemoData(tx transaction.FlatTransaction) (*memoData, error
 		return nil, nil
 	}
 
-	for _, memoWrapperRaw := range memos {
-		memoWrapper, ok := memoWrapperRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		memoRaw, ok := memoWrapper["Memo"]
-		if !ok {
-			continue
-		}
-
-		memo, ok := memoRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		// Check MemoFormat matches NTT transfer MIME type
-		memoFormatStr, ok := memo["MemoFormat"].(string)
-		if !ok || memoFormatStr != nttMemoFormat {
-			continue
-		}
-
-		// Extract and decode MemoData (hex-encoded payload)
-		memoDataStr, ok := memo["MemoData"].(string)
-		if !ok {
-			continue
-		}
-
-		data, err := hex.DecodeString(memoDataStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode MemoData: %w", err)
-		}
-
-		// Verify length
-		if len(data) != memoDataLength {
-			return nil, fmt.Errorf("invalid memo data length: got %d, want %d", len(data), memoDataLength)
-		}
-
-		// Verify NTT prefix
-		if data[0] != nttPrefix[0] || data[1] != nttPrefix[1] ||
-			data[2] != nttPrefix[2] || data[3] != nttPrefix[3] {
-			continue
-		}
-
-		// Parse the memo data
-		result := &memoData{}
-		copy(result.recipientNTTManager[:], data[4:36])
-		copy(result.recipientAddress[:], data[36:68])
-		result.recipientChain = binary.BigEndian.Uint16(data[68:70])
-		result.fromDecimals = data[70]
-		result.toDecimals = data[71]
-
-		return result, nil
+	if len(memos) == 0 {
+		return nil, nil
 	}
 
-	return nil, nil
+	// Only check the first memo (index 0)
+	// SECURITY: this makes it safe to add future memo support without the possibility for message confusion
+	memoWrapper, ok := memos[0].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	memoRaw, ok := memoWrapper["Memo"]
+	if !ok {
+		return nil, nil
+	}
+
+	memo, ok := memoRaw.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	// Check MemoFormat matches NTT transfer MIME type
+	memoFormatStr, ok := memo["MemoFormat"].(string)
+	if !ok || memoFormatStr != nttMemoFormat {
+		return nil, nil
+	}
+
+	// Extract and decode MemoData (hex-encoded payload)
+	memoDataStr, ok := memo["MemoData"].(string)
+	if !ok {
+		return nil, nil
+	}
+
+	data, err := hex.DecodeString(memoDataStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode MemoData: %w", err)
+	}
+
+	// Verify length
+	if len(data) != memoDataLength {
+		return nil, fmt.Errorf("invalid memo data length: got %d, want %d", len(data), memoDataLength)
+	}
+
+	// Verify NTT prefix
+	if data[0] != nttPrefix[0] || data[1] != nttPrefix[1] ||
+		data[2] != nttPrefix[2] || data[3] != nttPrefix[3] {
+		return nil, nil
+	}
+
+	// Parse the memo data
+	result := &memoData{}
+	copy(result.recipientNTTManager[:], data[4:36])
+	copy(result.recipientAddress[:], data[36:68])
+	result.recipientChain = binary.BigEndian.Uint16(data[68:70])
+	result.fromDecimals = data[70]
+	result.toDecimals = data[71]
+
+	return result, nil
 }
 
 // =============================================================================
