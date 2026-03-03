@@ -77,7 +77,7 @@ Upon a Payment to the Core Account, the guardian watcher MUST
 - Verify that the transaction is `validated`
 - Verify that the transaction result is `tesSUCCESS`
 - Verify that the transaction type is `Payment`
-- Verify that the MemoFormat is `application/x-wormhole-publish`, hex-encoded
+- Verify that the **first** memo (index 0) has a MemoFormat of `application/x-wormhole-publish`, hex-encoded
 
 Then the watcher must generate the VAA body.
 
@@ -92,7 +92,7 @@ uint8    consistency_level // 0
 []byte   payload           // * memo data
 ```
 
-Every field can be determined from the existing XRPL Payment transaction fields with the exception of the nonce and payload, which are typically integrator specified. For this, the following [MemoData](https://xrpl.org/docs/references/protocol/transactions/common-fields#memos-field) must be provided (encoded as a hexadecimal string).
+Every field can be determined from the existing XRPL Payment transaction fields with the exception of the nonce and payload, which are typically integrator specified. For this, the following [MemoData](https://xrpl.org/docs/references/protocol/transactions/common-fields#memos-field) must be provided as the **first** memo (index 0), encoded as a hexadecimal string.
 
 ```go
 uint8  version = 1
@@ -117,7 +117,7 @@ Upon a Payment to a registered Manager Account, the guardian watcher MUST
 - Verify that the transaction is `validated`
 - Verify that the transaction result is `tesSUCCESS`
 - Verify that the transaction type is `Payment`
-- Verify that the MemoFormat is `application/x-ntt-transfer`, hex-encoded
+- Verify that the **first** memo (index 0) has a MemoFormat of `application/x-ntt-transfer`, hex-encoded
 - Verify that the `from_decimals` matches…
   - `6` for XRP
   - [no check for Trust Line tokens, this may be arbitrarily specified by the sender]
@@ -179,7 +179,7 @@ For the `amount` and `source_token` fields, XRPL supports effectively 3 differen
   - `value` is a string whole number, similar to XRP but the decimals are defined on the metadata during [creation](https://xrpl.org/docs/references/protocol/ledger-data/ledger-entry-types/mptokenissuance#mptokenissuance-fields) as `AssetScale`
   - The `source_token` MUST be `2` + the 31-byte left padded `mpt_issuance_id`, which is 24 bytes.
 
-Every field can be determined from the existing XRPL Payment transaction fields with the exception of the cross-chain recipient information and the appropriate truncated decimal amount. For this, the following [MemoData](https://xrpl.org/docs/references/protocol/transactions/common-fields#memos-field) must be provided (72 bytes, encoded as a hexadecimal string).
+Every field can be determined from the existing XRPL Payment transaction fields with the exception of the cross-chain recipient information and the appropriate truncated decimal amount. For this, the following [MemoData](https://xrpl.org/docs/references/protocol/transactions/common-fields#memos-field) must be provided as the **first** memo (index 0), 72 bytes encoded as a hexadecimal string.
 
 ```go
 [4]byte   prefix = 0x994E5454            // 0x99'N''T''T'
@@ -251,6 +251,8 @@ The calculation `keccak256("ntt" + source_ntt_manager_address + source_token)` i
 ## Permissionless Memo Field
 
 All fields passed via the memo MUST have no security impact and be properly validated or mitigated by the relevant implementations. In other words, these fields must be completed untrusted since they can be arbitrarily generated.
+
+Only the first memo is checked to prevent message confusion across future potential memo encoding versions - e.g. a transaction that specified an upcoming supported memo (A) at index 0 and an existing supported memo (B) at index 1 should not be able to generate a VAA of B on an initial observation yet a different VAA of A on a reobservation after support is rolled out.
 
 ## Decimals
 
