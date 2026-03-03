@@ -3,6 +3,7 @@ package xrpl
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
 	"testing"
@@ -2825,4 +2826,676 @@ func TestParseTxResponse_DateZeroError(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, msg)
 	assert.Contains(t, err.Error(), "date is zero")
+}
+
+// =============================================================================
+// Additional coverage tests
+// =============================================================================
+
+// TestParseTxResponse_DateFallbackJsonNumber tests the json.Number date fallback path
+func TestParseTxResponse_DateFallbackJsonNumber(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
+	tx := &transactions.TxResponse{
+		Hash:        types.Hash256(txHash),
+		LedgerIndex: 50000,
+		Date:        0, // Force fallback
+		Validated:   true,
+		TxJSON: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+			"TicketCount":     float64(1),
+			"date":            json.Number("784111200"),
+		},
+		Meta: transaction.TxMetadataBuilder{
+			TransactionIndex:  0,
+			TransactionResult: "tesSUCCESS",
+			AffectedNodes: []transaction.AffectedNode{
+				{
+					CreatedNode: &transaction.CreatedNode{
+						LedgerEntryType: ledger.TicketEntry,
+						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(50)},
+					},
+				},
+			},
+		},
+	}
+
+	msg, err := p.ParseTxResponse(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	expectedTimestamp := time.Unix(784111200+rippleEpochOffset, 0)
+	assert.Equal(t, expectedTimestamp, msg.Timestamp)
+}
+
+// TestParseTxResponse_DateFallbackJsonNumberError tests json.Number that fails to parse
+func TestParseTxResponse_DateFallbackJsonNumberError(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
+	tx := &transactions.TxResponse{
+		Hash:        types.Hash256(txHash),
+		LedgerIndex: 50000,
+		Date:        0,
+		Validated:   true,
+		TxJSON: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+			"date":            json.Number("not-a-number"),
+		},
+		Meta: transaction.TxMetadataBuilder{
+			TransactionIndex:  0,
+			TransactionResult: "tesSUCCESS",
+		},
+	}
+
+	msg, err := p.ParseTxResponse(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "date is zero")
+}
+
+// TestParseNttTransaction_SkipsCoreAccount tests that NTT transactions to the core account are skipped
+func TestParseNttTransaction_SkipsCoreAccount(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	ftx := createValidNTTTransaction()
+	ftx["Destination"] = testCoreAccount
+
+	gtx := GenericTx{
+		Transaction:           ftx,
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaDeliveredAmount:   "1000000",
+	}
+
+	msg, err := p.parseNttTransaction(gtx)
+	require.NoError(t, err)
+	assert.Nil(t, msg, "Should skip NTT transactions to the core account")
+}
+
+// TestParseCoreTransaction_NoDestination tests parseCoreTransaction when Destination is missing
+func TestParseCoreTransaction_NoDestination(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	gtx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+			// No Destination field
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "Destination")
+}
+
+// TestParseCoreTransaction_MemoParseError tests parseCoreTransaction when memo data is malformed
+func TestParseCoreTransaction_MemoParseError(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	gtx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+			"Destination":     testCoreAccount,
+			"Memos": []any{
+				map[string]any{
+					"Memo": map[string]any{
+						"MemoFormat": testCoreMemoFormat,
+						"MemoData":   "ZZZZ", // invalid hex
+					},
+				},
+			},
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "failed to decode core MemoData")
+}
+
+// TestParseCoreTransaction_NoCoreMemo tests parseCoreTransaction when memo is present but not core format
+func TestParseCoreTransaction_NoCoreMemo(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	gtx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+			"Destination":     testCoreAccount,
+			"Memos": []any{
+				map[string]any{
+					"Memo": map[string]any{
+						"MemoFormat": "746578742F706C61696E", // text/plain
+						"MemoData":   "48656C6C6F",
+					},
+				},
+			},
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+	require.NoError(t, err)
+	assert.Nil(t, msg, "Should return nil when no core memo found")
+}
+
+// TestParseCoreTransaction_InvalidSender tests parseCoreTransaction with invalid sender address
+func TestParseCoreTransaction_InvalidSender(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	payload := []byte("test")
+	memoData := createCoreMemoData(1, 1, payload)
+
+	ftx := createFlatTransactionWithCoreMemo(memoData, testCoreAccount)
+	ftx["Account"] = "invalidAddress"
+
+	gtx := GenericTx{
+		Transaction:           ftx,
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+}
+
+// TestParseCoreTransaction_InvalidTxHash tests parseCoreTransaction with invalid tx hash
+func TestParseCoreTransaction_InvalidTxHash(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	payload := []byte("test")
+	memoData := createCoreMemoData(1, 1, payload)
+
+	gtx := GenericTx{
+		Transaction:           createFlatTransactionWithCoreMemo(memoData, testCoreAccount),
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "ZZZZ", // invalid hex
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "failed to decode tx hash")
+}
+
+// TestParseCoreTransaction_TransactionIndexOverflow tests parseCoreTransaction with overflowing tx index
+func TestParseCoreTransaction_TransactionIndexOverflow(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	payload := []byte("test")
+	memoData := createCoreMemoData(1, 1, payload)
+
+	gtx := GenericTx{
+		Transaction:           createFlatTransactionWithCoreMemo(memoData, testCoreAccount),
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  math.MaxUint32 + 1,
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseCoreTransaction(gtx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "invalid transaction index")
+}
+
+// TestParseCoreMessageMemoData_MalformedStructures tests all the early-return branches
+// in parseCoreMessageMemoData for malformed memo structures.
+func TestParseCoreMessageMemoData_MalformedStructures(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	testCases := []struct {
+		name string
+		tx   transaction.FlatTransaction
+	}{
+		{
+			name: "Memos not an array",
+			tx: transaction.FlatTransaction{
+				"Memos": "not an array",
+			},
+		},
+		{
+			name: "Empty memos array",
+			tx: transaction.FlatTransaction{
+				"Memos": []any{},
+			},
+		},
+		{
+			name: "Memo wrapper not a map",
+			tx: transaction.FlatTransaction{
+				"Memos": []any{"not a map"},
+			},
+		},
+		{
+			name: "Memo field missing from wrapper",
+			tx: transaction.FlatTransaction{
+				"Memos": []any{
+					map[string]any{
+						"NotMemo": map[string]any{},
+					},
+				},
+			},
+		},
+		{
+			name: "Memo not a map",
+			tx: transaction.FlatTransaction{
+				"Memos": []any{
+					map[string]any{
+						"Memo": "not a map",
+					},
+				},
+			},
+		},
+		{
+			name: "MemoFormat not a string",
+			tx: transaction.FlatTransaction{
+				"Memos": []any{
+					map[string]any{
+						"Memo": map[string]any{
+							"MemoFormat": 12345,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Wrong MemoFormat",
+			tx: transaction.FlatTransaction{
+				"Memos": []any{
+					map[string]any{
+						"Memo": map[string]any{
+							"MemoFormat": testNTTMemoFormat, // NTT format, not core
+							"MemoData":   "01000000010A",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "MemoData not a string",
+			tx: transaction.FlatTransaction{
+				"Memos": []any{
+					map[string]any{
+						"Memo": map[string]any{
+							"MemoFormat": testCoreMemoFormat,
+							"MemoData":   12345,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := p.parseCoreMessageMemoData(tc.tx)
+			require.NoError(t, err)
+			assert.Nil(t, result)
+		})
+	}
+}
+
+// TestParseCoreMessageMemoData_InvalidHex tests invalid hex in MemoData
+func TestParseCoreMessageMemoData_InvalidHex(t *testing.T) {
+	p := NewParser(testCoreAccount, nil, nil)
+
+	tx := transaction.FlatTransaction{
+		"Memos": []any{
+			map[string]any{
+				"Memo": map[string]any{
+					"MemoFormat": testCoreMemoFormat,
+					"MemoData":   "ZZZZ",
+				},
+			},
+		},
+	}
+
+	result, err := p.parseCoreMessageMemoData(tx)
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to decode core MemoData")
+}
+
+// TestParseTicketCreateTransaction_MissingTransactionType tests early return when TransactionType is missing
+func TestParseTicketCreateTransaction_MissingTransactionType(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"Account": testManagedAccount,
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+// TestParseTicketCreateTransaction_MissingAccount tests early return when Account is missing
+func TestParseTicketCreateTransaction_MissingAccount(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+// TestParseTicketCreateTransaction_AccountNotString tests early return when Account is not a string
+func TestParseTicketCreateTransaction_AccountNotString(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         12345,
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+// TestParseTicketCreateTransaction_AffectedNodeVariants tests different AffectedNode shapes
+func TestParseTicketCreateTransaction_AffectedNodeVariants(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	// Mix of: nil CreatedNode, non-Ticket entry, missing TicketSequence, and valid ticket
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{CreatedNode: nil}, // nil CreatedNode
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: "AccountRoot", // not a Ticket
+					NewFields:       ledger.FlatLedgerObject{},
+				},
+			},
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{}, // missing TicketSequence
+				},
+			},
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(42)},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	ticketStart := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(42), ticketStart)
+	ticketCount := binary.BigEndian.Uint64(msg.Payload[12:20])
+	assert.Equal(t, uint64(1), ticketCount)
+}
+
+// TestParseTicketCreateTransaction_JsonNumberSequence tests TicketSequence as json.Number
+func TestParseTicketCreateTransaction_JsonNumberSequence(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{"TicketSequence": json.Number("100")},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	ticketStart := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(100), ticketStart)
+}
+
+// TestParseTicketCreateTransaction_JsonNumberParseError tests json.Number that fails to parse
+func TestParseTicketCreateTransaction_JsonNumberParseError(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{"TicketSequence": json.Number("not-a-number")},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "failed to parse TicketSequence")
+}
+
+// TestParseTicketCreateTransaction_NegativeJsonNumberSequence tests negative TicketSequence
+func TestParseTicketCreateTransaction_NegativeJsonNumberSequence(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{"TicketSequence": json.Number("-5")},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "negative TicketSequence")
+}
+
+// TestParseTicketCreateTransaction_UnexpectedSequenceType tests unexpected TicketSequence type
+func TestParseTicketCreateTransaction_UnexpectedSequenceType(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{"TicketSequence": "string-not-number"},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "unexpected TicketSequence type")
+}
+
+// TestParseTicketCreateTransaction_NoTicketEntries tests when AffectedNodes has no ticket entries
+func TestParseTicketCreateTransaction_NoTicketEntries(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: "AccountRoot",
+					NewFields:       ledger.FlatLedgerObject{},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "no created Ticket entries")
+}
+
+// TestParseTicketCreateTransaction_InvalidTxHash tests invalid transaction hash
+func TestParseTicketCreateTransaction_InvalidTxHash(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "ZZZZ", // invalid hex
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(100)},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "failed to decode tx hash")
+}
+
+// TestParseTicketCreateTransaction_TransactionIndexOverflow tests tx index > MaxUint32
+func TestParseTicketCreateTransaction_TransactionIndexOverflow(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createTicketCreateTx(testManagedAccount, []float64{100})
+	tx.MetaTransactionIndex = math.MaxUint32 + 1
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "invalid transaction index")
+}
+
+// TestParseTicketCreateTransaction_InvalidAccount tests when the account address is invalid for emitter conversion
+func TestParseTicketCreateTransaction_InvalidAccountAddress(t *testing.T) {
+	// Use an account that passes the string check but fails addressToEmitter
+	invalidAccount := "rInvalidXRPLAddr"
+	p := NewParser("", []string{invalidAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "TicketCreate",
+			"Account":         invalidAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           50000,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaAffectedNodes: []transaction.AffectedNode{
+			{
+				CreatedNode: &transaction.CreatedNode{
+					LedgerEntryType: ledger.TicketEntry,
+					NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(100)},
+				},
+			},
+		},
+		Timestamp: time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC),
+	}
+
+	msg, err := p.parseTicketCreateTransaction(tx)
+	require.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "failed to convert account to emitter")
 }
