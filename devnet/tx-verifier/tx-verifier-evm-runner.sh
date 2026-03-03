@@ -15,8 +15,6 @@ guardiand \
     --logLevel=info \
     2> /tmp/error.log &
 
-sleep 30
-
 # start the test script
 /tx-verifier-evm-tests.sh
 
