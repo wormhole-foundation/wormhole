@@ -82,3 +82,9 @@ test-push0: dependencies
 
 clean:
 	rm -rf .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
+
+
+verifiable-delegated-guardians-build:
+	mkdir -p verifiable-delegated-guardians-build
+	touch -m verifiable-delegated-guardians-build
+	docker build --file ./delegated-guardians-build.Dockerfile . --tag delegated-guardians-evm-build --output type=local,dest=verifiable-delegated-guardians-build
