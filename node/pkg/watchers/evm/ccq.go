@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -154,7 +155,7 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	}
 
 	// Verify all the call results and build the batch of results.
-	results, isFatal, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
+	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call query call request",
 			zap.String("requestId", requestId),
@@ -162,10 +163,6 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 			zap.Any("batch", batch),
 			zap.Error(err),
 		)
-		status := query.QueryRetryNeeded
-		if isFatal {
-			status = query.QueryFatalError
-		}
 		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
@@ -451,7 +448,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	}
 
 	// Verify all the call results and build the batch of results.
-	results, isFatal, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
+	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call_by_timestamp query call request",
 			zap.String("requestId", requestId),
@@ -460,10 +457,6 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 			zap.Any("batch", batch),
 			zap.Error(err),
 		)
-		status := query.QueryRetryNeeded
-		if isFatal {
-			status = query.QueryFatalError
-		}
 		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
@@ -599,7 +592,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	}
 
 	// Verify all the call results and build the batch of results.
-	results, isFatal, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
+	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call_with_finality query call request",
 			zap.String("requestId", requestId),
@@ -610,10 +603,6 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 			zap.String("blockTime", blockResult.Time.String()),
 			zap.Error(err),
 		)
-		status := query.QueryRetryNeeded
-		if isFatal {
-			status = query.QueryFatalError
-		}
 		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
@@ -744,25 +733,57 @@ func (w *Watcher) ccqVerifyBlockResult(blockError error, blockResult connectors.
 	return nil
 }
 
+func ccqIsExecutionRevert(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var rpcErr rpc.Error
+	if errors.As(err, &rpcErr) && rpcErr.ErrorCode() == 3 {
+		return true
+	}
+
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "execution reverted") {
+		return true
+	}
+	if strings.Contains(msg, "reverted") {
+		return true
+	}
+	if strings.Contains(msg, "vm execution error") {
+		return true
+	}
+	if strings.Contains(msg, "invalid opcode") {
+		return true
+	}
+
+	return false
+}
+
 // ccqVerifyAndExtractQueryResults verifies the array of call results and returns a vector of those results to be published.
-// The second return value is true if the failure is fatal and should not be retried (e.g. execution reverted).
-func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, batch []rpc.BatchElem, evmCallData []EvmCallData) ([][]byte, bool, error) {
+// Returns (results, QuerySuccess, nil) on success, or (nil, QueryFatalError|QueryRetryNeeded, error) on failure.
+// QueryFatalError is returned for deterministic failures like execution reverts (no point retrying).
+func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, batch []rpc.BatchElem, evmCallData []EvmCallData) ([][]byte, query.QueryStatus, error) {
 	results := [][]byte{}
 	for idx, evmCD := range evmCallData {
 		// batch[idx].Error is set by go-ethereum's BatchCallContext for per-call failures
 		// (e.g. execution reverted). Note: evmCD.callErr is always nil here because it was
 		// copied by value into the BatchElem at construction time and is never written back.
 		if batch[idx].Error != nil {
-			return nil, ccqBatchHasRevert(batch, len(evmCallData)), fmt.Errorf("call %d failed: %w", idx, batch[idx].Error)
+			status := query.QueryRetryNeeded
+			if ccqIsExecutionRevert(batch[idx].Error) {
+				status = query.QueryFatalError
+			}
+			return nil, status, fmt.Errorf("call %d failed: %w", idx, batch[idx].Error)
 		}
 
 		if evmCD.callErr != nil {
-			return nil, false, fmt.Errorf("call %d failed: %w", idx, evmCD.callErr)
+			return nil, query.QueryRetryNeeded, fmt.Errorf("call %d failed: %w", idx, evmCD.callErr)
 		}
 
 		// Nil or Empty results are not valid eth_call will return empty when the state doesn't exist for a block
 		if len(*evmCD.CallResult) == 0 {
-			return nil, false, fmt.Errorf("call %d failed: result is empty", idx)
+			return nil, query.QueryRetryNeeded, fmt.Errorf("call %d failed: result is empty", idx)
 		}
 
 		w.ccqLogger.Info("query call data result",
@@ -774,30 +795,7 @@ func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, batch []rpc.
 		results = append(results, *evmCD.CallResult)
 	}
 
-	return results, false, nil
-}
-
-// ccqBatchHasRevert checks the first numCalls entries of batch for a revert error.
-// numCalls should be len(evmCallData) to exclude the trailing block-fetch entry that
-// ccqBuildBatchFromCallData appends after the eth_call entries.
-// If any call reverted, retrying is pointless because the result is deterministic.
-func ccqBatchHasRevert(batch []rpc.BatchElem, numCalls int) bool {
-	if numCalls <= 0 || len(batch) == 0 {
-		return false
-	}
-
-	upperBound := numCalls
-	if upperBound > len(batch) {
-		upperBound = len(batch)
-	}
-
-	for i := 0; i < upperBound; i++ {
-		if batch[i].Error != nil && strings.Contains(
-			strings.ToLower(batch[i].Error.Error()), "execution reverted") {
-			return true
-		}
-	}
-	return false
+	return results, query.QuerySuccess, nil
 }
 
 // ccqAddLatestBlock adds the latest block to the timestamp cache. The cache handles rollbacks.
