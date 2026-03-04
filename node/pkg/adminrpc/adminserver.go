@@ -809,10 +809,7 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 }
 
 func suiCallToVaa(suiCall *nodev1.SuiCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	govContractStr := suiCall.GovernanceContract
-	if len(govContractStr) >= 2 && govContractStr[:2] == "0x" {
-		govContractStr = govContractStr[2:]
-	}
+	govContractStr := strings.TrimPrefix(suiCall.GovernanceContract, "0x")
 	address, err := hex.DecodeString(govContractStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode governance contract address: %w", err)

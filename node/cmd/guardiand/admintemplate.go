@@ -1325,12 +1325,8 @@ func runGeneralPurposeGovernanceSuiCallTemplate(cmd *cobra.Command, args []strin
 	if *governanceContractAddress == "" {
 		log.Fatal("--governance-contract must be specified")
 	}
-	// Sui addresses are 0x-prefixed hex, 32 bytes
 	govAddr := *governanceContractAddress
-	stripped := govAddr
-	if len(stripped) >= 2 && stripped[:2] == "0x" {
-		stripped = stripped[2:]
-	}
+	stripped := strings.TrimPrefix(govAddr, "0x")
 	addrBytes, err := hex.DecodeString(stripped)
 	if err != nil {
 		log.Fatal("invalid governance contract address (expected hex)")
