@@ -28,6 +28,10 @@ type PublicRPCServiceClient interface {
 	GovernorGetEnqueuedVAAs(ctx context.Context, in *GovernorGetEnqueuedVAAsRequest, opts ...grpc.CallOption) (*GovernorGetEnqueuedVAAsResponse, error)
 	GovernorIsVAAEnqueued(ctx context.Context, in *GovernorIsVAAEnqueuedRequest, opts ...grpc.CallOption) (*GovernorIsVAAEnqueuedResponse, error)
 	GovernorGetTokenList(ctx context.Context, in *GovernorGetTokenListRequest, opts ...grpc.CallOption) (*GovernorGetTokenListResponse, error)
+	// GetSignedManagerTransaction returns the aggregated manager signatures for a given VAA ID.
+	GetSignedManagerTransaction(ctx context.Context, in *GetSignedManagerTransactionRequest, opts ...grpc.CallOption) (*GetSignedManagerTransactionResponse, error)
+	// GetSignedManagerTransactionByHash returns the aggregated manager signatures for a given VAA hash.
+	GetSignedManagerTransactionByHash(ctx context.Context, in *GetSignedManagerTransactionByHashRequest, opts ...grpc.CallOption) (*GetSignedManagerTransactionByHashResponse, error)
 }
 
 type publicRPCServiceClient struct {
@@ -101,6 +105,24 @@ func (c *publicRPCServiceClient) GovernorGetTokenList(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *publicRPCServiceClient) GetSignedManagerTransaction(ctx context.Context, in *GetSignedManagerTransactionRequest, opts ...grpc.CallOption) (*GetSignedManagerTransactionResponse, error) {
+	out := new(GetSignedManagerTransactionResponse)
+	err := c.cc.Invoke(ctx, "/publicrpc.v1.PublicRPCService/GetSignedManagerTransaction", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *publicRPCServiceClient) GetSignedManagerTransactionByHash(ctx context.Context, in *GetSignedManagerTransactionByHashRequest, opts ...grpc.CallOption) (*GetSignedManagerTransactionByHashResponse, error) {
+	out := new(GetSignedManagerTransactionByHashResponse)
+	err := c.cc.Invoke(ctx, "/publicrpc.v1.PublicRPCService/GetSignedManagerTransactionByHash", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PublicRPCServiceServer is the server API for PublicRPCService service.
 // All implementations must embed UnimplementedPublicRPCServiceServer
 // for forward compatibility
@@ -115,6 +137,10 @@ type PublicRPCServiceServer interface {
 	GovernorGetEnqueuedVAAs(context.Context, *GovernorGetEnqueuedVAAsRequest) (*GovernorGetEnqueuedVAAsResponse, error)
 	GovernorIsVAAEnqueued(context.Context, *GovernorIsVAAEnqueuedRequest) (*GovernorIsVAAEnqueuedResponse, error)
 	GovernorGetTokenList(context.Context, *GovernorGetTokenListRequest) (*GovernorGetTokenListResponse, error)
+	// GetSignedManagerTransaction returns the aggregated manager signatures for a given VAA ID.
+	GetSignedManagerTransaction(context.Context, *GetSignedManagerTransactionRequest) (*GetSignedManagerTransactionResponse, error)
+	// GetSignedManagerTransactionByHash returns the aggregated manager signatures for a given VAA hash.
+	GetSignedManagerTransactionByHash(context.Context, *GetSignedManagerTransactionByHashRequest) (*GetSignedManagerTransactionByHashResponse, error)
 	mustEmbedUnimplementedPublicRPCServiceServer()
 }
 
@@ -142,6 +168,12 @@ func (UnimplementedPublicRPCServiceServer) GovernorIsVAAEnqueued(context.Context
 }
 func (UnimplementedPublicRPCServiceServer) GovernorGetTokenList(context.Context, *GovernorGetTokenListRequest) (*GovernorGetTokenListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GovernorGetTokenList not implemented")
+}
+func (UnimplementedPublicRPCServiceServer) GetSignedManagerTransaction(context.Context, *GetSignedManagerTransactionRequest) (*GetSignedManagerTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSignedManagerTransaction not implemented")
+}
+func (UnimplementedPublicRPCServiceServer) GetSignedManagerTransactionByHash(context.Context, *GetSignedManagerTransactionByHashRequest) (*GetSignedManagerTransactionByHashResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSignedManagerTransactionByHash not implemented")
 }
 func (UnimplementedPublicRPCServiceServer) mustEmbedUnimplementedPublicRPCServiceServer() {}
 
@@ -282,6 +314,42 @@ func _PublicRPCService_GovernorGetTokenList_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PublicRPCService_GetSignedManagerTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSignedManagerTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicRPCServiceServer).GetSignedManagerTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/publicrpc.v1.PublicRPCService/GetSignedManagerTransaction",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicRPCServiceServer).GetSignedManagerTransaction(ctx, req.(*GetSignedManagerTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PublicRPCService_GetSignedManagerTransactionByHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSignedManagerTransactionByHashRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicRPCServiceServer).GetSignedManagerTransactionByHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/publicrpc.v1.PublicRPCService/GetSignedManagerTransactionByHash",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicRPCServiceServer).GetSignedManagerTransactionByHash(ctx, req.(*GetSignedManagerTransactionByHashRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PublicRPCService_ServiceDesc is the grpc.ServiceDesc for PublicRPCService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -316,6 +384,14 @@ var PublicRPCService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GovernorGetTokenList",
 			Handler:    _PublicRPCService_GovernorGetTokenList_Handler,
+		},
+		{
+			MethodName: "GetSignedManagerTransaction",
+			Handler:    _PublicRPCService_GetSignedManagerTransaction_Handler,
+		},
+		{
+			MethodName: "GetSignedManagerTransactionByHash",
+			Handler:    _PublicRPCService_GetSignedManagerTransactionByHash_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
