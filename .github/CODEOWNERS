@@ -131,3 +131,7 @@
 ## Audit Reports
 
 /audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## Code coverage tools
+scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bemic
+.coverage-baseline @evan-gray @kcsongor @panoel @johnsaigle @mdulin2 @pleasew8t @bemic
