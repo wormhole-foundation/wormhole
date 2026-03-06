@@ -82,7 +82,7 @@ func (s *ForwardingCachingServer) ProxyReq(_ *zap.Logger, req *http.Request) (*h
 	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	url := fmt.Sprintf("%s%s", s.upstreamHost, req.RequestURI)
-	proxyReq, err := http.NewRequestWithContext(req.Context(), req.Method, url, bytes.NewReader(reqBody))
+	proxyReq, err := http.NewRequestWithContext(req.Context(), req.Method, url, bytes.NewReader(reqBody)) // #nosec G704 -- Test mock server forwards only to configured upstream.
 	if err != nil {
 		return nil, err
 	}
