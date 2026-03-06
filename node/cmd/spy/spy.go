@@ -126,7 +126,7 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 					return err
 				}
 			}
-			sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
+			sub.ch <- message{vaaBytes: vaaBytes} // Note on channel capacity: Don't want to drop incoming VAAs
 			continue
 		}
 
@@ -146,7 +146,7 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 						return err
 					}
 				}
-				sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
+				sub.ch <- message{vaaBytes: vaaBytes} // Note on channel capacity: Don't want to drop incoming VAAs
 			}
 		}
 
@@ -252,7 +252,7 @@ func newSpyServer(logger *zap.Logger) *spyServer {
 func DoWithTimeout(f func() error, d time.Duration) error {
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- f() //nolint:channelcheck // Has timeout below
+		errChan <- f() // Note on channel capacity: Has timeout below
 		close(errChan)
 	}()
 	t := time.NewTimer(d)
@@ -341,8 +341,12 @@ func runSpy(cmd *cobra.Command, args []string) {
 	}
 
 	// Node's main lifecycle context.
-	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
-	defer rootCtxCancel()
+	// Keep the cancel func in a local var so linters can see
+	// that the WithCancel return value is actually invoked.
+	var cancel context.CancelFunc
+	rootCtx, cancel = context.WithCancel(context.Background())
+	rootCtxCancel = cancel
+	defer cancel()
 
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 1024)

@@ -64,7 +64,7 @@ func NewG(t *testing.T, nodeName string) *G {
 		panic(err)
 	}
 
-	_, rootCtxCancel := context.WithCancel(context.Background())
+	_, rootCtxCancel := context.WithCancel(context.Background()) // #nosec G118 -- Cancel is invoked by p2p.Run when the runnable exits.
 
 	g := &G{
 		batchObsvC:                make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], cs),
