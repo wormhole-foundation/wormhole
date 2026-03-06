@@ -39,6 +39,7 @@ func getValidatorIndexForChain(chainId vaa.ChainID, onlyafter time.Time) (map[ui
 	}
 	req.Header.Add("Accept", "*/*")
 
+	// #nosec G704 -- Maintenance script calling hardcoded WormholeScan API
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err

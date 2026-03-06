@@ -157,9 +157,10 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		}
 
 		httpClient := http.Client{}
+		// #nosec G704 -- Test mock server making requests to configured upstream
 		resp, reqErr := httpClient.Do(proxyReq)
 		if reqErr != nil {
-			http.Error(w, reqErr.Error(), http.StatusBadGateway)
+			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
@@ -170,6 +171,7 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		}
 
 		// cache the result
+		// #nosec G703 -- Test mock server with controlled cache directory, not user input
 		err = os.WriteFile(filename, respBody, 0600)
 		panicIfError(err)
 
