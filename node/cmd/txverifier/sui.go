@@ -297,6 +297,7 @@ func pullDigestsFromWormholeScan(ctx context.Context, logger *zap.Logger) ([]str
 	}
 
 	req.Header.Set("Accept", "application/json")
+	// #nosec G704 -- Hardcoded WormholeScan API URL
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
