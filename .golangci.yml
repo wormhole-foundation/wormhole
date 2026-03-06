@@ -36,6 +36,7 @@ linters:
     # Overwriting predeclared Golang names such as 'len' and 'min'.
     - predeclared
     # Validate common mistakes in Golang, such as invalid time.Parse format, invalid regular expression, etc.
+    - recvcheck
     - staticcheck
     - unparam
     # Unused constants, variables, functions and types
@@ -178,6 +179,21 @@ linters:
       # Enable to require nolint directives to mention the specific linter being suppressed.
       # Default: false
       require-specific: true
+    recvcheck:
+      disable-builtin: false
+      # User-defined method exclusions.
+      # The format is `struct_name.method_name` (ex: `Foo.MethodName`).
+      # A wildcard `*` can use as a struct name (ex: `*.MethodName`).
+      # Default: []
+      exclusions:
+        - "BodyGatewayScheduleUpgrade.Serialize"
+        - "BodyGatewayScheduleUpgrade.Deserialize"
+        - "BodyWormchainWasmAllowlistInstantiate.Serialize"
+        - "BodyWormchainWasmAllowlistInstantiate.Serialize"
+        - "BodyGatewaySlashingParamsUpdate.Serialize"
+        - "BodyGatewaySlashingParamsUpdate.Deserialize"
+        - "BodyGatewayIbcComposabilityMwContract.Serialize"
+        - "BodyGatewayIbcComposabilityMwContract.Deserialize"
     staticcheck:
       checks:
         # All of these lints should eventually be added.
