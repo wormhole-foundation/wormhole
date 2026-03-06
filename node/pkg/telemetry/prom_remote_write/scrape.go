@@ -67,6 +67,7 @@ func ScrapeAndSendLocalMetrics(ctx context.Context, info PromTelemetryInfo, logg
 	req.Header.Set("User-Agent", "Guardian")
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
+	// #nosec G704 -- Prometheus remote write URL from configuration
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		logger.Error("Error creating http request", zap.Error(err))

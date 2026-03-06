@@ -285,7 +285,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	if permWatcherErr != nil {
 		// Cleanup p2p connection.
 		cancel()
-		logger.Fatal("Could not start permissions file watcher", zap.Error(err))
+		logger.Fatal("Could not start permissions file watcher", zap.Error(permWatcherErr))
 	}
 
 	// Star logging cleanup process.
