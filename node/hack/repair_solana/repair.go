@@ -220,6 +220,7 @@ func main() {
 						if err != nil {
 							panic(err)
 						}
+						// #nosec G704 -- Maintenance script calling public Wormhole RPC endpoint
 						resp, err := hc.Do(req)
 						if err != nil {
 							log.Fatalf("verify: %v", err)
@@ -228,6 +229,7 @@ func main() {
 						defer resp.Body.Close()
 
 						if resp.StatusCode != http.StatusOK {
+							// #nosec G706 -- Logging response status code from trusted API
 							log.Printf("status %d, retrying", resp.StatusCode)
 							time.Sleep(5 * time.Second)
 							continue

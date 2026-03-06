@@ -733,6 +733,7 @@ func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte,
 	req.Header.Set("Content-Type", "application/json")
 
 	// Send the request using DefaultClient
+	// #nosec G704 -- Sui RPC URL from operator configuration
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to post: %w", err)
