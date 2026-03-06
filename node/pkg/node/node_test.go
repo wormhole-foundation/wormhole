@@ -291,6 +291,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 			}
 
 			ready := func() bool { // use anonymous function to have proper scope for the defer
+				// #nosec G704 -- Test making requests to local test nodes
 				resp, err := httpClient.Do(requests[i])
 				if err != nil {
 					return false
@@ -380,6 +381,7 @@ var someMsgEmitterChain vaa.ChainID = vaa.ChainIDSolana
 
 func someMessage() *common.MessagePublication {
 	someMsgSequenceCounter++
+	// #nosec G115 -- Test helper creating synthetic data with intentional truncation
 	txID := [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3}
 	return &common.MessagePublication{
 		TxID:             txID[:],
@@ -446,6 +448,7 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 	)
 
 	tokenBridgeSequenceCounter++
+	// #nosec G115 -- Test helper creating synthetic data with intentional truncation
 	txID := [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76}
 	return &common.MessagePublication{
 		TxID:             txID[:],
@@ -485,6 +488,7 @@ func waitForStatusServer(ctx context.Context, logger *zap.Logger, statusAddr str
 		if err != nil {
 			return err
 		}
+		// #nosec G704 -- Test making requests to local test status server
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
@@ -504,6 +508,7 @@ func waitForStatusServer(ctx context.Context, logger *zap.Logger, statusAddr str
 		if err != nil {
 			return err
 		}
+		// #nosec G704 -- Test making requests to local test metrics endpoint
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))

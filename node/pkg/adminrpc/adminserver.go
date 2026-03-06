@@ -938,6 +938,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			return false, fmt.Errorf("failed to create request: %w", err)
 		}
 
+		// #nosec G704 -- Admin RPC: BackfillNodes from authorized admin request
 		resp, err := c.Do(req)
 		if err != nil {
 			s.logger.Warn("failed to fetch missing VAA",
@@ -1514,7 +1515,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		Timeout: 30 * time.Second,
 	}
 
-	// Call the cloud function to get the missing VAAs
+	// #nosec G704 -- Admin RPC: URL from authorized admin request
 	results, err := client.Do(httpRequest)
 	if err != nil {
 		fmt.Printf("GetAndObserveMissingVAAs: error making http request: %s\n", err)
