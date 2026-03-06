@@ -128,6 +128,9 @@
 /docs/transfer-verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t
 /docs/notary.md @djb15 @johnsaigle @mdulin2 @pleasew8t
 
+SECURITY.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+SECURITY_CONTEXT.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+
 ## Audit Reports
 
 /audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
