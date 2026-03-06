@@ -82,7 +82,10 @@ func (s *ForwardingCachingServer) ProxyReq(_ *zap.Logger, req *http.Request) (*h
 	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	url := fmt.Sprintf("%s%s", s.upstreamHost, req.RequestURI)
-	proxyReq, _ := http.NewRequestWithContext(req.Context(), req.Method, url, bytes.NewReader(reqBody))
+	proxyReq, err := http.NewRequestWithContext(req.Context(), req.Method, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, err
+	}
 
 	s.logger.Debug("proxy_req",
 		zap.String("url", url),
