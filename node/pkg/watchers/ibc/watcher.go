@@ -475,6 +475,24 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 				continue
 			}
 
+			// Defense-in-depth: explicitly check the transaction status code.
+			// In the Cosmos SDK, failed transactions (code != 0) should not contain wasm
+			// events because message execution is rolled back. On failure, DeliverTx only
+			// returns ante-handler events (e.g. tx.fee), never message-level events like
+			// wasm. See the failed-tx branch in DeliverTx which returns only anteEvents:
+			// https://github.com/cosmos/cosmos-sdk/blob/v0.47.0/baseapp/abci.go#L401-L404
+			// We check explicitly rather than relying on that invariant, consistent with
+			// the approach taken by the EVM watcher.
+			txCode := gjson.Get(txJSON, "tx_response.code")
+			if txCode.Exists() && txCode.Int() != 0 {
+				w.logger.Error("reobserved tx has failed status, skipping",
+					zap.String("chain", ce.chainName),
+					zap.String("tx_hash", txHashStr),
+					zap.Int64("code", txCode.Int()),
+				)
+				continue
+			}
+
 			events := gjson.Get(txJSON, "tx_response.events")
 			if !events.Exists() {
 				w.logger.Error("tx has no events", zap.String("chain", ce.chainName), zap.String("payload", txJSON))
