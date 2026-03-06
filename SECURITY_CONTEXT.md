@@ -15,11 +15,21 @@
 Before submitting a finding, check whether it matches a pattern below.
 Each entry describes a bug class that researchers commonly report, and
 explains why it does not apply to this codebase (or why the risk is
-accepted). 
+accepted). Bounty submissions that fit the below description will
+be automatically closed.
 
 ## Non-issues
 
-### The Token Bridges (WTT Transfers) do not support tokens that are malicious or attacker-controlled
+### Any impact that assumes control over a quorum of signing keys as a precondition
+
+**Why this is accepted:**
+
+If an attacker can control a quorum of Guardian Keys (or other signing keys depending on the context), they
+would have full control of the protocol. Achieving this would involve simultaneous compromise of heterogeneous
+infrastructure operated by independent parties (i.e. the Guardians). This is invalid as an axiom
+for a proof-of-concept given that it's infeasible without supporting evidence.
+
+### The Token Bridges (Wrapped Token Transfers) do not support tokens that are malicious or attacker-controlled
 
 **Why this is accepted:**
 Registering tokens is permissionless by design. It is trivial for an attacker to create a rug-pull token
@@ -28,7 +38,10 @@ that always revert or lie to the caller about token invariants. As such, these t
 in practice and the ability for an attacker to rug a contract they already controlled is not
 relevant to Wormhole's security.
 
-### Denial-of-service based on normal usage of a rate limiting mechanism
+Findings that rely on an attacker-controlled token, and other users interacting with it are ineligible
+unless they impact the bridge itself.
+
+### Denial-of-service based on linear usage of a rate limiting mechanism
 
 **Why this is accepted:**
 The token bridges have the Governor enabled. NTT implementations may use their own rate limiter.
@@ -39,13 +52,19 @@ scale up their rate limits in case of heavy flows of assets, or else enable flow
 as appropriate. An attacker sending a ton of tokens through a protocol is the same
 case as many users sending a large number of smaller transfers. It is safe and expected.
 
+The term 'linear' here means that an attacker sends an amount of tokens through in order to
+consume an equivalent amount of capacity in a rate limiter. If they can inflate the
+consumed capacity out of proportion to the funds they send, this could be a bug
+that we want to know about.
+
 ### Guardian Sets or indices not being signed or included directly within a VAAs hashed contents
 
 **Why this is accepted:**
 Guardian set and signature validation occur on the consuming chains. They are not expected to be
 part of the VAA. If an attacker modified the Guardian Set info of an in-flight VAA, the consuming 
-chain will fail to sign it during the signature validation step. This is the responsibility
+chain will fail to verify it during the signature validation step. This is the responsibility
 of consumer contracts on the destination chain.
+VAAs are bound to a specific guardian set index; cross-set replay is prevented by on-chain validation.
 
 ### Multiple Guardian Sets may be active for a short time during a guardian set rotation
 
