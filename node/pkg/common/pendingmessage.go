@@ -140,20 +140,20 @@ func NewPendingMessageQueue() *PendingMessageQueue {
 // Push adds an element to the heap. If the pending message's message ID is invalid, or if it already exists in the queue, nothing is added.
 func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
 	// noop if the message is nil or already in the queue.
-	if pMsg == nil {
+	if pMsg == nil || len(pMsg.Msg.MessageID()) < MinMsgIdLen {
 		return
-	}
-	if len(pMsg.Msg.MessageID()) < MinMsgIdLen {
-		return
-	}
-	// FetchMessagePublication acquires and releases a read lock, so we don't need to write lock
-	// until we're inside the if statement.
-	if q.FetchMessagePublication(pMsg.Msg.MessageID()) == nil {
-		q.mu.Lock()
-		heap.Push(&q.heap, pMsg)
-		defer q.mu.Unlock()
 	}
 
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	// Check for duplicates under the write lock
+	for _, existing := range q.heap {
+		if bytes.Equal(existing.Msg.MessageID(), pMsg.Msg.MessageID()) {
+			return
+		}
+	}
+	heap.Push(&q.heap, pMsg)
 }
 
 // Pop removes the last element from the heap and returns its value.
@@ -176,9 +176,13 @@ func (q *PendingMessageQueue) Pop() *PendingMessage {
 
 // Len returns the number of elements in the queue. Returns 0 if the queue is nil.
 func (q *PendingMessageQueue) Len() int {
+
 	if q == nil {
 		return 0
 	}
+
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
 	return q.heap.Len()
 }
@@ -188,6 +192,10 @@ func (q *PendingMessageQueue) Peek() *PendingMessage {
 	if q.heap.Len() == 0 {
 		return nil
 	}
+
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
 	// container/heap stores the "next" element at the first offset.
 	last := *q.heap[0]
 	return &last
