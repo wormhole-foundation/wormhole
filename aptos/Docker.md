@@ -3,7 +3,7 @@
 <!-- cspell:disable -->
 
 ```bash
-cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f aptos/Dockerfile.base -t ghcr.io/wormhole-foundation/aptos:3.1.0 .
+docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile.base -t ghcr.io/wormhole-foundation/aptos:4.5.0 .
 ```
 
 <!-- cspell:enable -->
@@ -11,5 +11,5 @@ cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f aptos/Dockerf
 # push to ghcr
 
 ```bash
-docker push ghcr.io/wormhole-foundation/aptos:3.1.0
+docker push ghcr.io/wormhole-foundation/aptos:4.5.0
 ```
