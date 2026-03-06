@@ -159,12 +159,16 @@ func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
 // Pop removes the last element from the heap and returns its value.
 // Returns nil if the heap is empty or if the value is not a *[PendingMessage].
 func (q *PendingMessageQueue) Pop() *PendingMessage {
-	if q.heap.Len() == 0 {
+	if q == nil {
 		return nil
 	}
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
+
+	if q.heap.Len() == 0 {
+		return nil
+	}
 
 	last, ok := heap.Pop(&q.heap).(*PendingMessage)
 	if !ok {
@@ -176,12 +180,11 @@ func (q *PendingMessageQueue) Pop() *PendingMessage {
 
 // Len returns the number of elements in the queue. Returns 0 if the queue is nil.
 func (q *PendingMessageQueue) Len() int {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
-
 	if q == nil {
 		return 0
 	}
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
 	return q.heap.Len()
 }
