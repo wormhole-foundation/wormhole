@@ -422,16 +422,18 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
-				if r.ChainId > math.MaxUint16 {
-					logger.Error("chain id for observation request is not a valid uint16",
+				chainId, err := vaa.KnownChainIDFromNumber[uint32](r.ChainId)
+				if err != nil {
+					logger.Error("invalid chain id for observation request",
 						zap.Uint32("chainID", r.ChainId),
 						zap.String("txID", hex.EncodeToString(r.TxHash)),
+						zap.Error(err),
 					)
 					continue
 				}
 				numObservations, err := w.handleReobservationRequest(
 					ctx,
-					vaa.ChainID(r.ChainId),
+					chainId,
 					r.TxHash,
 					w.ethConn,
 					atomic.LoadUint64(&w.latestFinalizedBlockNumber),

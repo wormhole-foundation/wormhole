@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"encoding/hex"
-	"math"
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -63,15 +62,17 @@ func handleReobservationRequests(
 				}
 			}
 		case req := <-obsvReqC:
-			if req.ChainId > math.MaxUint16 {
-				logger.Error("chain id is larger than MaxUint16",
+			chainId, err := vaa.KnownChainIDFromNumber[uint32](req.ChainId)
+			if err != nil {
+				logger.Error("invalid chain id in reobservation request",
 					zap.Uint32("chain_id", req.ChainId),
+					zap.Error(err),
 				)
 				continue
 			}
 
 			r := cachedRequest{
-				chainId: vaa.ChainID(req.ChainId),
+				chainId: chainId,
 				txHash:  hex.EncodeToString(req.TxHash),
 			}
 
