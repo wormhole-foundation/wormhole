@@ -164,7 +164,7 @@ func (n *node) reset() {
 	// Mark DN and supervisor in context.
 	ctx := context.WithValue(pCtx, dnKey, n.dn())
 	ctx = context.WithValue(ctx, supervisorKey, n.sup)
-	ctx, ctxC := context.WithCancel(ctx)
+	ctx, ctxC := context.WithCancel(ctx) // #nosec G118 -- Cancel stored on node and invoked by processor.
 	// Set context
 	n.ctx = ctx
 	n.ctxC = ctxC
