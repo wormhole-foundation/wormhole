@@ -401,7 +401,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 }
 
 func runFindMissingMessages(cmd *cobra.Command, args []string) {
-	chainID, err := strconv.Atoi(args[0])
+	chainId, err := vaa.StringToKnownChainID(args[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
@@ -417,12 +417,8 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
-	if chainID > math.MaxUint16 {
-		log.Fatalf("chain ID is not a valid 16 bit unsigned integer: %v", err)
-	}
-
 	msg := nodev1.FindMissingMessagesRequest{
-		EmitterChain:   uint32(chainID), // #nosec G115 -- This conversion is checked above
+		EmitterChain:   uint32(chainId),
 		EmitterAddress: emitterAddress,
 		RpcBackfill:    *shouldBackfill,
 		BackfillNodes:  sdk.PublicRPCEndpoints,
@@ -448,12 +444,9 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	if len(parts) != 3 {
 		log.Fatalf("invalid message ID: %s", args[0])
 	}
-	chainID, err := strconv.ParseUint(parts[0], 10, 32)
+	chainId, err := vaa.StringToKnownChainID(parts[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
-	}
-	if chainID > math.MaxUint16 {
-		log.Fatalf("chain id must not exceed the max uint16: %v", chainID)
 	}
 	emitterAddress := parts[1]
 	seq, err := strconv.ParseUint(parts[2], 10, 64)
@@ -472,7 +465,7 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 
 	msg := publicrpcv1.GetSignedVAARequest{
 		MessageId: &publicrpcv1.MessageID{
-			EmitterChain:   publicrpcv1.ChainID(chainID),
+			EmitterChain:   publicrpcv1.ChainID(chainId),
 			EmitterAddress: emitterAddress,
 			Sequence:       seq,
 		},
@@ -742,13 +735,9 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 }
 
 func runPurgePythNetVaas(cmd *cobra.Command, args []string) {
-	daysOld, err := strconv.Atoi(args[0])
+	daysOld, err := strconv.ParseUint(args[0], 10, 64)
 	if err != nil {
 		log.Fatalf("invalid DAYS_OLD: %v", err)
-	}
-
-	if daysOld < 0 {
-		log.Fatalf("DAYS_OLD may not be negative")
 	}
 
 	logOnly := false
@@ -896,6 +885,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 		}
 		resp, err := c.SignExistingVAA(ctx, &msg)
 		if err != nil {
+			// #nosec G706 -- row[0] is from admin CSV input, err is safe to log
 			log.Printf("signing VAA (%s)[%d] failed - skipping: %v", row[0], i, err)
 			continue
 		}
