@@ -176,25 +176,24 @@ func (q *PendingMessageQueue) Pop() *PendingMessage {
 
 // Len returns the number of elements in the queue. Returns 0 if the queue is nil.
 func (q *PendingMessageQueue) Len() int {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
 	if q == nil {
 		return 0
 	}
-
-	q.mu.RLock()
-	defer q.mu.RUnlock()
 
 	return q.heap.Len()
 }
 
 // Peek returns the element at the top of the heap without removing it.
 func (q *PendingMessageQueue) Peek() *PendingMessage {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
 	if q.heap.Len() == 0 {
 		return nil
 	}
-
-	q.mu.RLock()
-	defer q.mu.RUnlock()
 
 	// container/heap stores the "next" element at the first offset.
 	last := *q.heap[0]
