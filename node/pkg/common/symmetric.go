@@ -37,10 +37,12 @@ func EncryptAESGCM(plaintext, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gcm: %v", err)
 	}
-	nonce := make([]byte, gcm.NonceSize())
+	// Preallocate the output to avoid an extra allocation in append(nonce, out...).
+	out := make([]byte, gcm.NonceSize(), gcm.NonceSize()+len(plaintext)+gcm.Overhead())
+	nonce := out[:gcm.NonceSize()]
 	if _, err = rand.Read(nonce); err != nil {
 		return nil, fmt.Errorf("failed to read random data: %v", err)
 	}
-	out := gcm.Seal(nil, nonce, plaintext, nil)
-	return append(nonce, out...), nil
+	out = gcm.Seal(out, nonce, plaintext, nil)
+	return out, nil
 }

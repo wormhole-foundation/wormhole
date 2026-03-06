@@ -391,7 +391,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
 	)
 
-	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	e.msgC <- observation // Note on channel capacity: The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 }
 
 // logVersion retrieves the Aptos node version and logs it
