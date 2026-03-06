@@ -10,6 +10,7 @@ import (
 )
 
 func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error) {
+	// #nosec G703 -- Path comes from operator configuration, not user input
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -25,6 +26,7 @@ func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error)
 				panic(err)
 			}
 
+			// #nosec G703 -- Path comes from operator configuration, not user input
 			err = os.WriteFile(path, s, 0600)
 			if err != nil {
 				return nil, fmt.Errorf("failed to write node key: %w", err)

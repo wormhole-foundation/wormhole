@@ -144,6 +144,7 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	}
 	req = addUserAgent(req)
 
+	// #nosec G704 -- Maintenance script calling hardcoded or config-provided explorer API
 	resp, err := c.Do(req.WithContext(ctx))
 	if err != nil {
 		return 0, fmt.Errorf("failed to get current height: %w", err)
@@ -188,6 +189,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 	}
 	req = addUserAgent(req)
 
+	// #nosec G704 -- Maintenance script calling hardcoded or config-provided explorer API
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logs: %w", err)
@@ -491,6 +493,7 @@ func main() {
 					panic(err)
 				}
 				req = addUserAgent(req)
+				// #nosec G704 -- Maintenance script calling hardcoded or config-provided explorer API
 				resp, err := c.Do(req)
 				if err != nil {
 					log.Fatalf("verify: %v", err)
@@ -498,6 +501,7 @@ func main() {
 				defer resp.Body.Close()
 
 				if resp.StatusCode != http.StatusOK {
+					// #nosec G706 -- Logging response status code from trusted API
 					log.Printf("status %d, retrying", resp.StatusCode)
 					time.Sleep(5 * time.Second)
 					continue

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -423,16 +422,18 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					return err
 				}
 			case m := <-s.obsvReqC:
-				if m.ChainId > math.MaxUint16 {
-					logger.Error("chain id for observation request is not a valid uint16",
+				chainId, err := vaa.KnownChainIDFromNumber[uint32](m.ChainId)
+				if err != nil {
+					logger.Error("invalid chain id for observation request",
 						zap.Uint32("chainID", m.ChainId),
 						zap.String("txID", hex.EncodeToString(m.TxHash)),
+						zap.Error(err),
 					)
 					continue
 				}
 
 				//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
-				numObservations, err := s.handleReobservationRequest(vaa.ChainID(m.ChainId), m.TxHash, s.rpcClient)
+				numObservations, err := s.handleReobservationRequest(chainId, m.TxHash, s.rpcClient)
 				if err != nil {
 					logger.Error("failed to process observation request",
 						zap.Uint32("chainID", m.ChainId),

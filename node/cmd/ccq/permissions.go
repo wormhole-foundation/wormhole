@@ -31,7 +31,7 @@ type (
 
 	User struct {
 		UserName      string        `json:"userName"`
-		ApiKey        string        `json:"apiKey"`
+		ApiKey        string        `json:"apiKey"` // #nosec G117 -- This is a config field name, not a hardcoded secret
 		AllowUnsigned bool          `json:"allowUnsigned"`
 		AllowAnything bool          `json:"allowAnything"`
 		RateLimit     *float64      `json:"RateLimit"`
