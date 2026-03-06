@@ -794,8 +794,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Node's main lifecycle context.
-	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
-	defer rootCtxCancel()
+	// Keep the cancel func in a local var so linters can see
+	// that the WithCancel return value is actually invoked.
+	var cancel context.CancelFunc
+	rootCtx, cancel = context.WithCancel(context.Background())
+	rootCtxCancel = cancel
+	defer cancel()
 
 	// Create the Guardian Signer
 	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(rootCtx, *guardianSignerUri, env == common.UnsafeDevNet)

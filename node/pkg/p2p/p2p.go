@@ -922,7 +922,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := controlSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on control topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+						errC <- fmt.Errorf("failed to receive pubsub message on control topic: %w", err) // Note on channel capacity: The runnable will exit anyway
 						return
 					}
 
@@ -1080,7 +1080,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := attestationSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on attestation topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+						errC <- fmt.Errorf("failed to receive pubsub message on attestation topic: %w", err) // Note on channel capacity: The runnable will exit anyway
 						return
 					}
 
@@ -1162,7 +1162,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := delegatedAttestationSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on delegated attestation topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+						errC <- fmt.Errorf("failed to receive pubsub message on delegated attestation topic: %w", err) // Note on channel capacity: The runnable will exit anyway
 						return
 					}
 
@@ -1306,7 +1306,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := vaaSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on vaa topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+						errC <- fmt.Errorf("failed to receive pubsub message on vaa topic: %w", err) // Note on channel capacity: The runnable will exit anyway
 						return
 					}
 
