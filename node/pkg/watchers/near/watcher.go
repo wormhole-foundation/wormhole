@@ -266,7 +266,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 
 			if job.hasWormholeMsg {
 				// report how long it took to process this transaction
-				e.eventChanTxProcessedDuration <- time.Since(job.creationTime) //nolint:channelcheck // Only pauses this watcher
+				e.eventChanTxProcessedDuration <- time.Since(job.creationTime) // Note on channel capacity: Only pauses this watcher
 			}
 		}
 
@@ -346,7 +346,7 @@ func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, d
 				select {
 				case <-ctx.Done():
 					return nil
-				case e.transactionProcessingQueue <- job: //nolint:channelcheck // Only blocking this go routine.
+				case e.transactionProcessingQueue <- job: // Note on channel capacity: Only blocking this go routine.
 				}
 			}
 			return nil
