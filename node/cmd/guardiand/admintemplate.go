@@ -236,6 +236,9 @@ func init() {
 	// solana call command
 	AdminClientGeneralPurposeGovernanceSolanaCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
 	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSolanaCallCmd)
+	// sui call command
+	AdminClientGeneralPurposeGovernanceSuiCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSuiCallCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -385,6 +388,12 @@ var AdminClientGeneralPurposeGovernanceSolanaCallCmd = &cobra.Command{
 	Use:   "governance-solana-call",
 	Short: "Generate a 'general purpose solana governance call' template for specified chain and address",
 	Run:   runGeneralPurposeGovernanceSolanaCallTemplate,
+}
+
+var AdminClientGeneralPurposeGovernanceSuiCallCmd = &cobra.Command{
+	Use:   "governance-sui-call",
+	Short: "Generate a 'general purpose sui governance call' template for specified chain and address",
+	Run:   runGeneralPurposeGovernanceSuiCallTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -1296,6 +1305,55 @@ func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []st
 						ChainId:            uint32(chainID),
 						GovernanceContract: *governanceContractAddress,
 						EncodedInstruction: *governanceCallData,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGeneralPurposeGovernanceSuiCallTemplate(cmd *cobra.Command, args []string) {
+	if *governanceCallData == "" {
+		log.Fatal("--call-data must be specified")
+	}
+	if *governanceContractAddress == "" {
+		log.Fatal("--governance-contract must be specified")
+	}
+	govAddr := *governanceContractAddress
+	stripped := strings.TrimPrefix(govAddr, "0x")
+	addrBytes, err := hex.DecodeString(stripped)
+	if err != nil {
+		log.Fatal("invalid governance contract address (expected hex)")
+	}
+	if len(addrBytes) != 32 {
+		log.Fatal("invalid governance contract address length (expected 32 bytes)")
+	}
+	if *governanceTargetChain == "" {
+		log.Fatal("--chain-id must be specified")
+	}
+	chainID, err := parseChainID(*governanceTargetChain)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	seq, nonce := randSeqNonce()
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_SuiCall{
+					SuiCall: &nodev1.SuiCall{
+						ChainId:            uint32(chainID),
+						GovernanceContract: govAddr,
+						EncodedCall:        *governanceCallData,
 					},
 				},
 			},
