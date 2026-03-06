@@ -258,6 +258,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 					panic("invalid chain ID")
 				}
 
+				// SECURITY: Directly using data for URL path is scary.
+				// Potential for directory traversal attacks to return the incorrect data
+				// This is hex encoded so it's acceptable but be careful changing this logic.
 				tx := hex.EncodeToString(r.TxHash)
 
 				logger.Info("received observation request", zap.String("network", e.networkName), zap.String("tx_hash", tx))
@@ -425,8 +428,8 @@ func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger, c *websock
 	)
 }
 
-func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string, b64Encoded bool) []*common.MessagePublication {
-	networkName := chainID.String()
+func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, watcherChainID vaa.ChainID, contractAddressKey string, b64Encoded bool) []*common.MessagePublication {
+	networkName := watcherChainID.String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {
 		if !event.IsObject() {
@@ -434,11 +437,14 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			continue
 		}
 		eventType := gjson.Get(event.String(), "type")
-		if eventType.String() == "recv_packet" && chainID != vaa.ChainIDWormchain {
+
+		// SECURITY: Fix for IBC hallucinations vulnerability. Likely unnecessary now.
+		if eventType.String() == "recv_packet" && watcherChainID != vaa.ChainIDWormchain {
 			logger.Warn("processing ibc-related events is disabled", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			return []*common.MessagePublication{}
 		}
 
+		// SECURITY: Cosmos event type is coming from CosmWasm
 		if eventType.String() != "wasm" {
 			continue
 		}
@@ -465,6 +471,9 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 				continue
 			}
 
+			// SECURITY: Parsing must be more or the other at a time.
+			// Cannot be both. Otherwise, event spoofing would be possible.
+			// Older versions of CosmWasm had this base64 encoded but newer versions don't.
 			var key, value []byte
 			if b64Encoded {
 				var err error
@@ -500,11 +509,16 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			logger.Warn("wasm event without contract address field set", zap.String("network", networkName), zap.String("event", event.String()))
 			continue
 		}
-		// This is not a wormhole message
+
+		// SECURITY: Event emission came from the Wormhole core contract
 		if contractAddress != contract {
 			continue
 		}
 
+		// SECURITY: There is no 'action' attribute to differentiate between types on this message.
+		// In practice, all other events in CosmWasm contract will fail parsing
+		// because they are missing fields. So, there's a type confusion issue here
+		// but it's unexploitable. These contracts are unlikely to change as well.
 		payload, ok := mappedAttributes["message.message"]
 		if !ok {
 			logger.Error("wormhole event does not have a message field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
@@ -515,7 +529,9 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			logger.Error("wormhole event does not have a sender field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
 		}
-		chainId, ok := mappedAttributes["message.chain_id"]
+
+		// Effectively ignored
+		eventChainId, ok := mappedAttributes["message.chain_id"]
 		if !ok {
 			logger.Error("wormhole event does not have a chain_id field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
 			continue
@@ -538,7 +554,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 
 		logger.Info("new message detected on cosmwasm",
 			zap.String("network", networkName),
-			zap.String("chainId", chainId),
+			zap.String("chainId", eventChainId),
 			zap.String("txHash", txHash),
 			zap.String("sender", sender),
 			zap.String("nonce", nonce),
@@ -569,12 +585,12 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 		}
 		nonceInt, err := strconv.ParseUint(nonce, 10, 32)
 		if err != nil {
-			logger.Error("nonce cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
+			logger.Error("nonce cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", nonce))
 			continue
 		}
 		sequenceInt, err := strconv.ParseUint(sequence, 10, 64)
 		if err != nil {
-			logger.Error("sequence cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
+			logger.Error("sequence cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", sequence))
 			continue
 		}
 		messagePublication := &common.MessagePublication{
@@ -582,7 +598,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			Timestamp:        time.Unix(blockTimeInt, 0),
 			Nonce:            uint32(nonceInt),
 			Sequence:         sequenceInt,
-			EmitterChain:     chainID,
+			EmitterChain:     watcherChainID, // SECURITY: Must not be user controllable
 			EmitterAddress:   senderAddress,
 			Payload:          payloadValue,
 			ConsistencyLevel: 0, // Instant finality
