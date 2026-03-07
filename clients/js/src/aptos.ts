@@ -236,6 +236,8 @@ export async function execute_aptos(
     }
     case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Aptos");
+    case "DelegatedManager":
+      throw Error("DelegatedManager governance VAAs are not yet supported");
     default:
       impossible(payload);
   }

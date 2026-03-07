@@ -6,6 +6,7 @@ import { GOVERNANCE_CHAIN, GOVERNANCE_EMITTER } from "../consts";
 import { chainToChain, evm_address } from "../utils";
 import {
   ContractUpgrade,
+  DelegatedManagerSetUpdate,
   Payload,
   PortalRegisterChain,
   RecoverChainId,
@@ -323,6 +324,87 @@ export const builder = function (y: typeof yargs) {
           console.log(serialiseVAA(v));
         }
       )
+      .command(
+        "manager-set-update",
+        "Generate a DelegatedManager manager set update VAA",
+        (yargs) => {
+          return yargs
+            .option("manager-chain-id", {
+              describe:
+                "Wormhole Chain ID for the manager chain (e.g., 65 for Dogecoin)",
+              type: "number",
+              demandOption: true,
+            })
+            .option("manager-set-index", {
+              describe: "Index of the new manager set (must be current + 1)",
+              type: "number",
+              demandOption: true,
+            })
+            .option("manager-set", {
+              describe:
+                "Hex-encoded manager set bytes (without 0x prefix). For secp256k1 multisig, use --threshold, --num-keys, and --public-keys instead.",
+              type: "string",
+              demandOption: false,
+            })
+            .option("threshold", {
+              describe:
+                "Number of required signatures (M) for secp256k1 multisig",
+              type: "number",
+              demandOption: false,
+            })
+            .option("num-keys", {
+              describe:
+                "Total number of public keys (N) for secp256k1 multisig",
+              type: "number",
+              demandOption: false,
+            })
+            .option("public-keys", {
+              describe:
+                "Comma-separated list of compressed secp256k1 public keys (33 bytes each, hex-encoded without 0x prefix)",
+              type: "string",
+              demandOption: false,
+            });
+        },
+        (argv) => {
+          let managerSet: string;
+
+          if (argv["manager-set"]) {
+            // Use raw manager set bytes if provided
+            managerSet = argv["manager-set"].replace(/^0x/, "");
+          } else if (
+            argv["threshold"] !== undefined &&
+            argv["num-keys"] !== undefined &&
+            argv["public-keys"]
+          ) {
+            // Build secp256k1 multisig manager set
+            managerSet = serializeSecp256k1MultisigManagerSet(
+              argv["threshold"],
+              argv["num-keys"],
+              argv["public-keys"].split(",")
+            );
+          } else {
+            throw new Error(
+              "Either --manager-set or (--threshold, --num-keys, --public-keys) must be provided"
+            );
+          }
+
+          const payload: DelegatedManagerSetUpdate = {
+            module: "DelegatedManager",
+            type: "ManagerSetUpdate",
+            chain: 0, // universal
+            managerChainId: argv["manager-chain-id"],
+            managerSetIndex: argv["manager-set-index"],
+            managerSet,
+          };
+          const vaa = makeVAA(
+            GOVERNANCE_CHAIN,
+            GOVERNANCE_EMITTER,
+            argv["guardian-secret"].split(","),
+            payload
+          );
+          console.log(serialiseVAA(vaa));
+        }
+      )
   );
 };
 export const handler = () => {};
@@ -395,4 +477,52 @@ function parseCodeAddress(chain: Chain, address: string): string {
   } else {
     return parseAddress(chain, address);
   }
+}
+
+const MANAGER_SET_TYPE_SECP256K1_MULTISIG = 1;
+const COMPRESSED_SECP256K1_PUBLIC_KEY_LENGTH = 33;
+
+function serializeSecp256k1MultisigManagerSet(
+  m: number,
+  n: number,
+  publicKeys: string[]
+): string {
+  if (publicKeys.length !== n) {
+    throw new Error(
+      `Number of public keys (${publicKeys.length}) does not match n (${n})`
+    );
+  }
+  if (m > n) {
+    throw new Error(`m (${m}) cannot be greater than n (${n})`);
+  }
+  if (m === 0) {
+    throw new Error("m must be at least 1");
+  }
+  if (n > 255) {
+    throw new Error(`n (${n}) cannot exceed 255`);
+  }
+
+  // Validate and normalize public keys
+  const normalizedKeys = publicKeys.map((pk, i) => {
+    const key = pk.replace(/^0x/, "").toLowerCase();
+    if (key.length !== COMPRESSED_SECP256K1_PUBLIC_KEY_LENGTH * 2) {
+      throw new Error(
+        `Public key ${i} has invalid length: expected ${
+          COMPRESSED_SECP256K1_PUBLIC_KEY_LENGTH * 2
+        } hex chars, got ${key.length}`
+      );
+    }
+    return key;
+  });
+
+  // Build the serialized format:
+  // Type (1 byte) + M (1 byte) + N (1 byte) + PublicKeys (N * 33 bytes)
+  const parts = [
+    MANAGER_SET_TYPE_SECP256K1_MULTISIG.toString(16).padStart(2, "0"),
+    m.toString(16).padStart(2, "0"),
+    n.toString(16).padStart(2, "0"),
+    ...normalizedKeys,
+  ];
+
+  return parts.join("");
 }
