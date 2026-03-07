@@ -7,10 +7,10 @@ export class BinaryReader {
   private _buffer: Buffer;
   private _offset: number;
 
-  constructor(
-    arrayBuffer: WithImplicitCoercion<ArrayBuffer | SharedArrayBuffer>
-  ) {
-    this._buffer = Buffer.from(arrayBuffer);
+  constructor(bytes: Uint8Array) {
+    // Buffer.from(Uint8Array) copies data respecting byteOffset, unlike
+    // Buffer.from(arrayBuffer) which reads from byte 0 of the underlying pool.
+    this._buffer = Buffer.from(bytes);
     this._offset = 0;
   }
 

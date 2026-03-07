@@ -1,5 +1,5 @@
 import axios from "axios";
-import base58 from "bs58";
+import * as base58 from "bs58";
 import { Buffer } from "buffer";
 import {
   ChainQueryType,
@@ -21,7 +21,6 @@ import {
   SolanaPdaQueryResponse,
   SolanaPdaResult,
 } from "../query";
-import { BinaryWriter } from "../query/BinaryWriter";
 
 import { getAddressDecoder, getProgramDerivedAddress } from "@solana/addresses";
 
@@ -86,7 +85,7 @@ export class QueryProxyMock {
     public mockPrivateKeys = [
       "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
     ]
-  ) {}
+  ) { }
   sign(serializedResponse: Uint8Array) {
     const digest = QueryResponse.digest(serializedResponse);
     return this.mockPrivateKeys.map(
@@ -97,7 +96,7 @@ export class QueryProxyMock {
    * Usage:
    *
    * ```js
-   * const { bytes, signatures } = await mock.mock(new QueryRequest(nonce, [
+   * const { bytes, signatures } = await mock.mock(new QueryRequest(nonce, timestamp, [
    *   new PerChainQueryRequest(
    *     wormholeChainId,
    *     new EthCallQueryRequest(blockNumber, [
@@ -164,7 +163,7 @@ export class QueryProxyMock {
               BigInt(parseInt(blockResult.number.substring(2), 16)), // block number
               blockResult.hash, // hash
               BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
-                BigInt("1000000"), // time in seconds -> microseconds
+              BigInt("1000000"), // time in seconds -> microseconds
               callResults.map((callResult: any) => callResult.result)
             )
           )
@@ -238,7 +237,7 @@ export class QueryProxyMock {
               BigInt(parseInt(blockResult.number.substring(2), 16)), // block number
               blockResult.hash, // hash
               BigInt(parseInt(blockResult.timestamp.substring(2), 16)) *
-                BigInt("1000000"), // time in seconds -> microseconds
+              BigInt("1000000"), // time in seconds -> microseconds
               callResults.map((callResult: any) => callResult.result)
             )
           )
@@ -485,7 +484,7 @@ export class QueryProxyMock {
             new SolanaAccountQueryResponse(
               BigInt(slotNumber),
               BigInt(blockTime) * BigInt(1000000), // time in seconds -> microseconds,
-              blockHash,
+              new Uint8Array(blockHash),
               results
             )
           )
@@ -599,7 +598,7 @@ export class QueryProxyMock {
             new SolanaPdaQueryResponse(
               BigInt(slotNumber),
               BigInt(blockTime) * BigInt(1000000), // time in seconds -> microseconds,
-              blockHash,
+              new Uint8Array(blockHash),
               results
             )
           )

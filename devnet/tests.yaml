@@ -114,6 +114,15 @@ spec:
             - /bin/sh
             - -c
             - "bash /app/testing/querysdk.sh && touch /app/testing/success"
+          env:
+            - name: STAKING_FACTORY_ADDRESS
+              value: "0x8fed3F9126e7051DeA6c530920cb0BAE5ffa17a8"
+            - name: IPFS_GATEWAY
+              value: "http://kubo:8080/ipfs/"
+            - name: ETH_RPC_URL
+              value: "http://eth-devnet:8545"
+            - name: QUERY_SERVER_URL
+              value: "http://query-server:6069"
           readinessProbe:
             exec:
               command:

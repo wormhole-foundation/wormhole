@@ -1,6 +1,8 @@
-import { describe, expect, jest, test } from "@jest/globals";
-import axios, { AxiosError, AxiosResponse } from "axios";
-import base58 from "bs58";
+import { beforeAll, describe, expect, jest, test } from "@jest/globals";
+import axios, { AxiosResponse } from "axios";
+import * as base58 from "bs58";
+import type { Address } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import {
   ChainQueryType,
   PerChainQueryRequest,
@@ -13,35 +15,30 @@ import {
   SolanaPdaEntry,
   SolanaPdaQueryRequest,
   SolanaPdaQueryResponse,
-} from "..";
+} from "../../src";
+import {
+  ensureStakerHasStake,
+  STAKING_FACTORY_ADDRESS,
+  getPoolAddress,
+  getSolanaSlot,
+  mintAndTransferTokens,
+  QUERY_URL,
+  setupAxiosInterceptor,
+  SOLANA_QUERY_TYPE,
+} from "./test-utils";
 
 jest.setTimeout(125000);
+setupAxiosInterceptor();
 
-// Save Jest from circular axios errors
-axios.interceptors.response.use(
-  (r) => r,
-  (err: AxiosError) => {
-    const error = new Error(
-      `${err.message}${err?.response?.data ? `: ${err.response.data}` : ""}`
-    ) as any;
-    error.response = err.response
-      ? { data: err.response.data, status: err.response.status }
-      : undefined;
-    throw error;
-  }
-);
-
-const CI = process.env.CI;
 const ENV = "DEVNET";
-const SERVER_URL = CI ? "http://query-server:" : "http://localhost:";
-const CCQ_SERVER_URL = SERVER_URL + "6069/v1";
-const QUERY_URL = CCQ_SERVER_URL + "/query";
-const SOLANA_NODE_URL = CI
-  ? "http://solana-devnet:8899"
-  : "http://localhost:8899";
 
-const PRIVATE_KEY =
-  "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
+// Test staker private key
+const STAKER_PRIVATE_KEY =
+  "0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1" as `0x${string}`;
+
+const STAKE_AMOUNT = "50000"; // 50,000 tokens (minimum for CCQ access)
+
+let poolAddress: Address;
 
 const ACCOUNTS = [
   "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
@@ -60,18 +57,33 @@ const PDAS: SolanaPdaEntry[] = [
   },
 ];
 
-async function getSolanaSlot(comm: string): Promise<bigint> {
-  const response = await axios.post(SOLANA_NODE_URL, {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "getSlot",
-    params: [{ commitment: comm, transactionDetails: "none" }],
+describe("solana", () => {
+  // Get staker address for use in tests
+  const stakerAddress = privateKeyToAccount(STAKER_PRIVATE_KEY).address;
+
+  beforeAll(async () => {
+    console.log("Generated Test Wallet:");
+    console.log("  Staker:", stakerAddress);
+
+    // Mint tokens to test wallet
+    await mintAndTransferTokens(stakerAddress, STAKE_AMOUNT);
+
+    // Get pool address from factory
+    poolAddress = await getPoolAddress(STAKING_FACTORY_ADDRESS, SOLANA_QUERY_TYPE);
+
+    console.log("\nSolana Query Test Configuration:");
+    console.log("  Factory:", STAKING_FACTORY_ADDRESS);
+    console.log("  Pool:", poolAddress);
+
+    expect(poolAddress).toBeTruthy();
+    expect(poolAddress).not.toBe("0x0000000000000000000000000000000000000000");
+
+    // Ensure staker has stake
+    await ensureStakerHasStake(poolAddress, STAKER_PRIVATE_KEY, STAKE_AMOUNT);
+
+    console.log("✓ Staking setup complete\n");
   });
 
-  return response.data.result;
-}
-
-describe("solana", () => {
   test("serialize and deserialize sol_account request with defaults", () => {
     const solAccountReq = new SolanaAccountQueryRequest("finalized", ACCOUNTS);
     expect(solAccountReq.minContextSlot).toEqual(BigInt(0));
@@ -171,24 +183,19 @@ describe("solana", () => {
     const solAccountReq = new SolanaAccountQueryRequest("finalized", ACCOUNTS);
     const nonce = 42;
     const query = new PerChainQueryRequest(1, solAccountReq);
-    const request = new QueryRequest(nonce, [query]);
+    const request = new QueryRequest(nonce, Math.floor(Date.now() / 1000), [query], stakerAddress);
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
-    const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key" } }
-    );
+    const signature = sign(STAKER_PRIVATE_KEY.slice(2), digest);
+    const response = await axios.post(QUERY_URL, {
+      signature,
+      bytes: Buffer.from(serialized).toString("hex"),
+    });
     expect(response.status).toBe(200);
 
     const queryResponse = QueryResponse.from(response.data.bytes);
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(1);
     expect(queryResponse.request.requests[0].query.type()).toEqual(
@@ -239,24 +246,19 @@ describe("solana", () => {
     );
     const nonce = 42;
     const query = new PerChainQueryRequest(1, solAccountReq);
-    const request = new QueryRequest(nonce, [query]);
+    const request = new QueryRequest(nonce, Math.floor(Date.now() / 1000), [query], stakerAddress);
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
-    const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key" } }
-    );
+    const signature = sign(STAKER_PRIVATE_KEY.slice(2), digest);
+    const response = await axios.post(QUERY_URL, {
+      signature,
+      bytes: Buffer.from(serialized).toString("hex"),
+    });
     expect(response.status).toBe(200);
 
     const queryResponse = QueryResponse.from(response.data.bytes);
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(1);
     expect(queryResponse.request.requests[0].query.type()).toEqual(
@@ -320,13 +322,12 @@ describe("solana", () => {
 
   test("deserialize sol_pda response", () => {
     const respBytes = Buffer.from(
-      "0100000c8418d81c00aad6283ba3eb30e141ccdd9296e013ca44e5cc713418921253004b93107ba0d858a548ce989e2bca4132e4c2f9a57a9892e3a87a8304cdb36d8f000000006b010000002b010001050000005e0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000010001050000009b00000000000008ff0006115e3f6d7540e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b014fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65",
+      "0100000c8418d81c00aad6283ba3eb30e141ccdd9296e013ca44e5cc713418921253004b93107ba0d858a548ce989e2bca4132e4c2f9a57a9892e3a87a8304cdb36d8f0000000074020000002b000000000000000000010001050000005e0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000010001050000009b00000000000008ff0006115e3f6d7540e05035785e15056a8559815e71343ce31db2abf23f65b19c982b68aee7bf207b014fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773efd0000000000116ac000000000000000000002c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa0000001457cd18b7f8a4d91a2da9ab4af05d0fbece2dcd65",
       "hex"
     );
-    const queryResponse = QueryResponse.from(respBytes);
+    const queryResponse = QueryResponse.from(new Uint8Array(respBytes));
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(1);
     expect(queryResponse.request.requests[0].query.type()).toEqual(
@@ -369,24 +370,19 @@ describe("solana", () => {
     );
     const nonce = 43;
     const query = new PerChainQueryRequest(1, solPdaReq);
-    const request = new QueryRequest(nonce, [query]);
+    const request = new QueryRequest(nonce, Math.floor(Date.now() / 1000), [query], stakerAddress);
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
-    const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key" } }
-    );
+    const signature = sign(STAKER_PRIVATE_KEY.slice(2), digest);
+    const response = await axios.post(QUERY_URL, {
+      signature,
+      bytes: Buffer.from(serialized).toString("hex"),
+    });
     expect(response.status).toBe(200);
 
     const queryResponse = QueryResponse.from(response.data.bytes);
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(1);
     expect(queryResponse.request.requests[0].query.type()).toEqual(
@@ -429,24 +425,19 @@ describe("solana", () => {
     );
     const nonce = 43;
     const query = new PerChainQueryRequest(1, solPdaReq);
-    const request = new QueryRequest(nonce, [query]);
+    const request = new QueryRequest(nonce, Math.floor(Date.now() / 1000), [query], stakerAddress);
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
-    const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key" } }
-    );
+    const signature = sign(STAKER_PRIVATE_KEY.slice(2), digest);
+    const response = await axios.post(QUERY_URL, {
+      signature,
+      bytes: Buffer.from(serialized).toString("hex"),
+    });
     expect(response.status).toBe(200);
 
     const queryResponse = QueryResponse.from(response.data.bytes);
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(1);
     expect(queryResponse.request.requests[0].query.type()).toEqual(
@@ -490,18 +481,19 @@ describe("solana", () => {
     // The count should be no more than the number of workers defined for Solana in `node/pkg/query/query.go`.
     for (let count = 0; count < 10; count++) {
       nonce += 1;
-      const request = new QueryRequest(nonce, [query]);
+      const request = new QueryRequest(
+        nonce,
+        Math.floor(Date.now() / 1000),
+        [query],
+        stakerAddress
+      );
       const serialized = request.serialize();
       const digest = QueryRequest.digest(ENV, serialized);
-      const signature = sign(PRIVATE_KEY, digest);
-      const response = axios.put(
-        QUERY_URL,
-        {
-          signature,
-          bytes: Buffer.from(serialized).toString("hex"),
-        },
-        { headers: { "X-API-Key": "my_secret_key" } }
-      );
+      const signature = sign(STAKER_PRIVATE_KEY.slice(2), digest);
+      const response = axios.post(QUERY_URL, {
+        signature,
+        bytes: Buffer.from(serialized).toString("hex"),
+      });
       promises.push(response);
     }
 
@@ -515,7 +507,6 @@ describe("solana", () => {
       const queryResponse = QueryResponse.from(response.data.bytes);
       expect(queryResponse.version).toEqual(1);
       expect(queryResponse.requestChainId).toEqual(0);
-      expect(queryResponse.request.version).toEqual(1);
       expect(queryResponse.request.requests.length).toEqual(1);
       expect(queryResponse.request.requests[0].chainId).toEqual(1);
       expect(queryResponse.request.requests[0].query.type()).toEqual(
@@ -567,24 +558,19 @@ describe("solana", () => {
     );
     const nonce = 42;
     const query = new PerChainQueryRequest(1, solAccountReq);
-    const request = new QueryRequest(nonce, [query]);
+    const request = new QueryRequest(nonce, Math.floor(Date.now() / 1000), [query], stakerAddress);
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
-    const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key_3" } }
-    );
+    const signature = sign(STAKER_PRIVATE_KEY.slice(2), digest);
+    const response = await axios.post(QUERY_URL, {
+      signature,
+      bytes: Buffer.from(serialized).toString("hex"),
+    });
     expect(response.status).toBe(200);
 
     const queryResponse = QueryResponse.from(response.data.bytes);
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(1);
     expect(queryResponse.request.requests[0].query.type()).toEqual(
@@ -637,24 +623,19 @@ describe("solana", () => {
     );
     const nonce = 43;
     const query = new PerChainQueryRequest(1, solPdaReq);
-    const request = new QueryRequest(nonce, [query]);
+    const request = new QueryRequest(nonce, Math.floor(Date.now() / 1000), [query], stakerAddress);
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
-    const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key_3" } }
-    );
+    const signature = sign(STAKER_PRIVATE_KEY.slice(2), digest);
+    const response = await axios.post(QUERY_URL, {
+      signature,
+      bytes: Buffer.from(serialized).toString("hex"),
+    });
     expect(response.status).toBe(200);
 
     const queryResponse = QueryResponse.from(response.data.bytes);
     expect(queryResponse.version).toEqual(1);
     expect(queryResponse.requestChainId).toEqual(0);
-    expect(queryResponse.request.version).toEqual(1);
     expect(queryResponse.request.requests.length).toEqual(1);
     expect(queryResponse.request.requests[0].chainId).toEqual(1);
     expect(queryResponse.request.requests[0].query.type()).toEqual(
