@@ -32,6 +32,7 @@ import {
   uint8ArrayToNativeStringAlgorand,
 } from "@certusone/wormhole-sdk/lib/esm/algorand";
 import { isValidSuiType } from "@certusone/wormhole-sdk/lib/esm/sui";
+import { castChainToOldSdk } from "../utils";
 
 /**
  *
@@ -103,17 +104,6 @@ export const tryUint8ArrayToNative = (
     return hexZeroPad(hexValue(a), 20);
   } else if (chainToPlatform(chainName) === "Solana") {
     return new PublicKey(a).toString();
-  } else if (chainName === "Terra" || chainName === "Terra2") {
-    const h = uint8ArrayToHex(a);
-    if (isHexNativeTerra(h)) {
-      return nativeTerraHexToDenom(h);
-    } else {
-      if (chainName === "Terra2" && !isLikely20ByteCosmwasm(h)) {
-        // terra 2 has 32 byte addresses for contracts and 20 for wallets
-        return humanAddress("terra", a);
-      }
-      return humanAddress("terra", a.slice(-20));
-    }
   } else if (chainName === "Injective") {
     const h = uint8ArrayToHex(a);
     return humanAddress("inj", isLikely20ByteCosmwasm(h) ? a.slice(-20) : a);
@@ -125,9 +115,6 @@ export const tryUint8ArrayToNative = (
       "wormhole",
       isLikely20ByteCosmwasm(h) ? a.slice(-20) : a
     );
-  } else if (chainName === "Xpla") {
-    const h = uint8ArrayToHex(a);
-    return humanAddress("xpla", isLikely20ByteCosmwasm(h) ? a.slice(-20) : a);
   } else if (chainName === "Sei") {
     const h = uint8ArrayToHex(a);
     return humanAddress("sei", isLikely20ByteCosmwasm(h) ? a.slice(-20) : a);
@@ -177,7 +164,7 @@ export const tryHexToNativeAssetString = (h: string, c: ChainId): string =>
   c === chainToChainId("Algorand")
     ? // Algorand assets are represented by their asset ids, not an address
       new UniversalAddress(h).toNative("Algorand").toBigInt().toString()
-    : new UniversalAddress(h).toNative(toChain(c)).toString();
+    : new UniversalAddress(h).toNative(toChain(c) as any).toString();
 
 /**
  *
@@ -195,21 +182,8 @@ export const tryNativeToHexString = (
     return uint8ArrayToHex(zeroPad(arrayify(address), 32));
   } else if (chainToPlatform(chainName) === "Solana") {
     return uint8ArrayToHex(zeroPad(new PublicKey(address).toBytes(), 32));
-  } else if (chainName === "Terra") {
-    if (chainToNativeDenoms("Mainnet", chainName) === address) {
-      return (
-        "01" +
-        uint8ArrayToHex(
-          zeroPad(new Uint8Array(Buffer.from(address, "ascii")), 31)
-        )
-      );
-    } else {
-      return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
-    }
   } else if (
-    chainName === "Terra2" ||
     chainName === "Injective" ||
-    chainName === "Xpla" ||
     chainName === "Sei"
   ) {
     return buildTokenId(chainName, address);
