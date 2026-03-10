@@ -155,6 +155,10 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	}
 
 	// Verify all the call results and build the batch of results.
+	// Must preserve batch[i] <-> evmCallData[i] alignment for call entries:
+	// ccqVerifyAndExtractQueryResults reads per-call RPC errors from batch[idx].Error.
+	// This is safe because calls are built together via ccqBuildBatchFromCallData and
+	// only non-call RPC items are appended to batch after that.
 	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call query call request",
@@ -448,6 +452,10 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	}
 
 	// Verify all the call results and build the batch of results.
+	// Must preserve batch[i] <-> evmCallData[i] alignment for call entries:
+	// ccqVerifyAndExtractQueryResults reads per-call RPC errors from batch[idx].Error.
+	// This is safe because calls are built together via ccqBuildBatchFromCallData and
+	// only non-call RPC items are appended to batch after that.
 	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call_by_timestamp query call request",
@@ -592,6 +600,10 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	}
 
 	// Verify all the call results and build the batch of results.
+	// Must preserve batch[i] <-> evmCallData[i] alignment for call entries:
+	// ccqVerifyAndExtractQueryResults reads per-call RPC errors from batch[idx].Error.
+	// This is safe because calls are built together via ccqBuildBatchFromCallData and
+	// only non-call RPC items are appended to batch after that.
 	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call_with_finality query call request",
