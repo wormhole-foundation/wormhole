@@ -254,6 +254,8 @@ func (c *ManagerService) handleVAA(v *vaa.VAA) {
 		c.handleXRPLPayload(v)
 	case vaa.XRPLTicketRefillPrefix:
 		c.handleXRPLTicketRefill(v)
+	case vaa.XRPLBurnTicketPrefix:
+		c.handleXRPLBurnTicket(v)
 	default:
 		c.logger.Warn("unknown payload prefix",
 			zap.String("message_id", v.MessageID()),
@@ -353,6 +355,8 @@ func (c *ManagerService) validateEmitter(v *vaa.VAA) bool {
 	case vaa.XRPLPayloadPrefix:
 		return c.isXRPLSequencer(v.EmitterChain, v.EmitterAddress)
 	case vaa.XRPLTicketRefillPrefix:
+		return c.isXRPLSequencer(v.EmitterChain, v.EmitterAddress)
+	case vaa.XRPLBurnTicketPrefix:
 		return c.isXRPLSequencer(v.EmitterChain, v.EmitterAddress)
 	case vaa.UTXOPayloadPrefix:
 		return c.isKnownEmitter(v.EmitterChain, v.EmitterAddress)
@@ -672,6 +676,110 @@ func (c *ManagerService) signXRPLTicketRefillTransaction(
 	ethSig, err := signer.Sign(c.ctx, hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign XRPL ticket refill transaction: %w", err)
+	}
+
+	// Convert Ethereum-style signature to XRPL DER format (without sighash type byte)
+	derSig, err := convertEthSigToXRPLDER(ethSig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert signature to XRPL DER: %w", err)
+	}
+
+	return &ManagerSignature{
+		VAAHash:          v.SigningDigest().Bytes(),
+		VAAID:            v.MessageID(),
+		DestinationChain: vaa.ChainIDXRPL,
+		ManagerSetIndex:  managerSet.Index,
+		SignerIndex:      managerSet.SignerIndex,
+		InputSignatures:  [][]byte{derSig},
+	}, nil
+}
+
+// handleXRPLBurnTicket processes an XRPL burn ticket payload from a VAA.
+func (c *ManagerService) handleXRPLBurnTicket(v *vaa.VAA) {
+	payload, err := vaa.DeserializeXRPLBurnTicketPayload(v.Payload)
+	if err != nil {
+		c.logger.Error("failed to parse XRPL burn ticket payload",
+			zap.String("message_id", v.MessageID()),
+			zap.Error(err),
+		)
+		return
+	}
+
+	c.logger.Info("parsed XRPL burn ticket payload",
+		zap.String("message_id", v.MessageID()),
+		zap.Uint64("ticket_id", payload.TicketID),
+	)
+
+	// Check if we have an XRPL signer
+	signer, ok := c.signers[vaa.ChainIDXRPL]
+	if !ok {
+		c.logger.Warn("no signer configured for XRPL",
+			zap.String("message_id", v.MessageID()),
+		)
+		return
+	}
+
+	// Sign the XRPL AccountSet (burn) transaction
+	sig, err := c.signXRPLBurnTicketTransaction(v, payload, signer)
+	if err != nil {
+		c.logger.Error("failed to sign XRPL burn ticket transaction",
+			zap.String("message_id", v.MessageID()),
+			zap.Error(err),
+		)
+		return
+	}
+
+	c.logger.Info("signed XRPL burn ticket transaction",
+		zap.String("message_id", v.MessageID()),
+		zap.Stringer("destination_chain", sig.DestinationChain),
+	)
+
+	if c.managerTxSendC != nil {
+		c.broadcastSignature(sig)
+	}
+	c.storeSignature(sig)
+}
+
+// signXRPLBurnTicketTransaction signs an XRPL AccountSet no-op transaction for the given burn ticket payload.
+func (c *ManagerService) signXRPLBurnTicketTransaction(
+	v *vaa.VAA,
+	payload *vaa.XRPLBurnTicketPayload,
+	signer guardiansigner.GuardianSigner,
+) (*ManagerSignature, error) {
+	// Get the current manager set for XRPL (XBRN payload doesn't embed a manager set index)
+	managerSet, err := c.getCurrentManagerSet(c.ctx, vaa.ChainIDXRPL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current manager set for XRPL: %w", err)
+	}
+
+	// Verify this node is part of the manager set
+	if !managerSet.IsSigner {
+		return nil, fmt.Errorf("this node is not part of the XRPL manager set")
+	}
+
+	// Build the XRPL AccountSet (burn) transaction
+	flatTx, err := xrpl.BuildBurnTicketTransaction(payload, managerSet.M)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build XRPL burn ticket transaction: %w", err)
+	}
+
+	// Derive this signer's XRPL address from compressed public key
+	signerPubKey := c.signerPubKeys[vaa.ChainIDXRPL]
+	signerAddress, err := xrpl.CompressedPubKeyToAddress(signerPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive signer XRPL address: %w", err)
+	}
+
+	// Compute the multisign hash for this signer
+	hash, err := xrpl.ComputeMultisignHash(flatTx, signerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute multisign hash: %w", err)
+	}
+
+	// Sign the hash using the guardian signer
+	ethSig, err := signer.Sign(c.ctx, hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign XRPL burn ticket transaction: %w", err)
 	}
 
 	// Convert Ethereum-style signature to XRPL DER format (without sighash type byte)

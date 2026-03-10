@@ -3813,3 +3813,88 @@ func TestParseXACKTransaction_InvalidJsonNumber(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, msg)
 }
+
+func TestParseXACKTransaction_BurnSuccess(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx(testManagedAccount, "AccountSet", 77, "tesSUCCESS")
+	msg, err := p.parseXACKTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+
+	// Verify payload length
+	assert.Equal(t, 14, len(msg.Payload))
+
+	// Verify ticket_id
+	ticketID := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(77), ticketID)
+
+	// Verify success = 1
+	assert.Equal(t, uint8(1), msg.Payload[12])
+
+	// Verify tx_type = 2 (Burn)
+	assert.Equal(t, uint8(2), msg.Payload[13])
+}
+
+func TestParseXACKTransaction_BurnFailure(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx(testManagedAccount, "AccountSet", 77, "tecNO_PERMISSION")
+	msg, err := p.parseXACKTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+
+	// Verify ticket_id
+	ticketID := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(77), ticketID)
+
+	// Verify success = 0 (failed)
+	assert.Equal(t, uint8(0), msg.Payload[12])
+
+	// Verify tx_type = 2 (Burn)
+	assert.Equal(t, uint8(2), msg.Payload[13])
+}
+
+func TestParseXACKTransaction_NonNoOpAccountSetSkipped(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	// An AccountSet with SetFlag is not a no-op burn — should be skipped
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "AccountSet",
+			"Account":         testManagedAccount,
+			"TicketSequence":  float64(77),
+			"SetFlag":         float64(8), // asfDefaultRipple
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           60000,
+		MetaTransactionIndex:  5,
+		MetaTransactionResult: "tesSUCCESS",
+		Timestamp:             time.Date(2024, 7, 1, 12, 0, 0, 0, time.UTC),
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseXACKTransaction_BurnDispatch(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	// An AccountSet with TicketSequence should produce XACK through parseTransaction
+	tx := createXACKTx(testManagedAccount, "AccountSet", 77, "tesSUCCESS")
+	msg, err := p.parseTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+
+	// Verify tx_type = 2 (Burn)
+	assert.Equal(t, uint8(2), msg.Payload[13])
+}
