@@ -439,6 +439,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 		eventType := gjson.Get(event.String(), "type")
 
 		// SECURITY: Fix for IBC hallucinations vulnerability. Likely unnecessary now.
+		// https://jumpcrypto.com/resources/huckleberry-ibc-event-hallucinations
 		if eventType.String() == "recv_packet" && watcherChainID != vaa.ChainIDWormchain {
 			logger.Warn("processing ibc-related events is disabled", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
 			return []*common.MessagePublication{}
@@ -471,7 +472,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 				continue
 			}
 
-			// SECURITY: Parsing must be more or the other at a time.
+			// SECURITY: Parsing must be one or the other at a time.
 			// Cannot be both. Otherwise, event spoofing would be possible.
 			// Older versions of CosmWasm had this base64 encoded but newer versions don't.
 			var key, value []byte
@@ -518,7 +519,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 		// SECURITY: There is no 'action' attribute to differentiate between types on this message.
 		// In practice, all other events in CosmWasm contract will fail parsing
 		// because they are missing fields. So, there's a type confusion issue here
-		// but it's unexploitable. These contracts are unlikely to change as well.
+		// but it's unexploitable. This code should be revisited if the underlying CosmWasm contracts change.
 		payload, ok := mappedAttributes["message.message"]
 		if !ok {
 			logger.Error("wormhole event does not have a message field", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
