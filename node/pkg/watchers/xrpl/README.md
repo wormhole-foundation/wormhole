@@ -210,6 +210,33 @@ Total: 20 bytes
 
 > 🚧 If the [Batch](https://xrpl.org/resources/known-amendments#batch) amendment is accepted, an additional Payment to the Core account with a particular memo can be batched with the TicketCreate to trigger this message.
 
+<!-- cspell:ignore XACK -->
+
+### Ticket Acknowledgement (XACK)
+
+Transaction Acknowledgement payload — emitted by guardians after observing the result of an XRPL transaction they submitted.
+
+The XRPL account is identified by the VAA emitter, not a payload field.
+
+| Offset | Size | Field                        |
+| ------ | ---- | ---------------------------- |
+| 0      | 4    | prefix ("XACK" = 0x5841434B) |
+| 4      | 8    | ticket_id                    |
+| 12     | 1    | success [bool]               |
+| 13     | 1    | tx_type [enum]               |
+
+Transaction type in an XACK payload is an enum.
+
+| Value | Name          | Note                                                                                                                       |
+| ----- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Release       |                                                                                                                            |
+| 1     | Ticket Create | This is only for TicketCreate failures. successes are encoded in the TicketConfirmation payload, which has its own prefix. |
+| 2     | Burn          |                                                                                                                            |
+
+Total: 14 bytes
+
+> 🚧 If the [Batch](https://xrpl.org/resources/known-amendments#batch) amendment is accepted, an additional Payment to the Core account with a particular memo can be batched with a transaction to trigger this message.
+
 ## Protocol Integration
 
 Other than the watcher implementation described above, this design requires no other changes to Wormhole software or protocols.
