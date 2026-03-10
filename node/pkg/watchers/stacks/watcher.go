@@ -498,8 +498,8 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 	}
 
 	stableBitcoinBlockHeight := w.stableBitcoinHeight.Load()
-	if replay.BlockHeight > stableBitcoinBlockHeight {
-		return 0, fmt.Errorf("block replay height %d is greater than stable Bitcoin (burn) block height %d", replay.BlockHeight, stableBitcoinBlockHeight)
+	if replay.BurnBlockHeight > stableBitcoinBlockHeight {
+		return 0, fmt.Errorf("block burn height %d is greater than stable Bitcoin (burn) block height %d", replay.BurnBlockHeight, stableBitcoinBlockHeight)
 	}
 
 	var tx *StacksV3TenureBlockTransaction

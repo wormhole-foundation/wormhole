@@ -185,7 +185,7 @@
   (let ((registration (try! (contract-call? .addr32 register emitter)))
         (sequence (default-to u0 (emitter-sequence-get emitter))))
     ;; If `sequence` has reached its limit we cannot continue
-    (asserts! (<= sequence MAX_VALUE_U64) ERR_STATE_OVERFLOW_SEQUENCE)
+    (asserts! (< sequence MAX_VALUE_U64) ERR_STATE_OVERFLOW_SEQUENCE)
     (map-set emitter-sequence emitter (+ sequence u1))
     (ok (merge
       registration

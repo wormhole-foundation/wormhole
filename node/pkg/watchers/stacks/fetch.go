@@ -65,6 +65,7 @@ type (
 		BlockId         string                           `json:"block_id"`
 		BlockHash       string                           `json:"block_hash"`
 		BlockHeight     uint64                           `json:"block_height"`
+		BurnBlockHeight uint64                           `json:"burn_block_height"`
 		ParentBlockId   string                           `json:"parent_block_id"`
 		ConsensusHash   string                           `json:"consensus_hash"`
 		TxMerkleRoot    string                           `json:"tx_merkle_root"`

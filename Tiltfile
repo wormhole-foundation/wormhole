@@ -1213,7 +1213,7 @@ if stacks:
     k8s_yaml_with_ns("stacks/stacks-test.yaml")
     k8s_resource(
         "stacks-test",
-        resource_deps = ["stacks-broadcaster"], # After Nakamoto
+        resource_deps = ["spy", "stacks-broadcaster"], # After Nakamoto
         labels = ["stacks"],
         trigger_mode = trigger_mode,
     )
