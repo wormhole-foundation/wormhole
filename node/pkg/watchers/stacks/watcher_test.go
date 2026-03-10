@@ -57,9 +57,9 @@ func TestReobservation(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch {
 			case strings.HasPrefix(r.URL.Path, "/v3/transaction/"):
-				json.NewEncoder(w).Encode(makeTxResponse())
+				require.NoError(t, json.NewEncoder(w).Encode(makeTxResponse()))
 			case strings.HasPrefix(r.URL.Path, "/v3/blocks/replay/"):
-				json.NewEncoder(w).Encode(replayResp)
+				require.NoError(t, json.NewEncoder(w).Encode(replayResp))
 			default:
 				http.NotFound(w, r)
 			}
@@ -84,9 +84,9 @@ func TestReobservation(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch {
 			case strings.HasPrefix(r.URL.Path, "/v3/transaction/"):
-				json.NewEncoder(w).Encode(makeTxResponse())
+				require.NoError(t, json.NewEncoder(w).Encode(makeTxResponse()))
 			case strings.HasPrefix(r.URL.Path, "/v3/blocks/replay/"):
-				json.NewEncoder(w).Encode(replayResp)
+				require.NoError(t, json.NewEncoder(w).Encode(replayResp))
 			default:
 				http.NotFound(w, r)
 			}
