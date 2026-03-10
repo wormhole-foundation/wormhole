@@ -607,7 +607,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 	// SECURITY: The ibc watcher is the only watcher that can handle multiple chain IDs
 	// To make this safe, it has a mapping from channel ID to chain IDs that it uses
 	// This prevents chains like Solana and Ethereum from being emitted from.
-	// Prevents cross-chain attacks where Osmosis can emit an event for Injective as well.
+	// For example, this prevents cross-chain attacks where Osmosis can emit an event for Injective as well.
 	mappedChainID, err := w.getChainIdFromChannelID(evt.ChannelID)
 	if err != nil {
 		w.logger.Error("query for IBC channel ID failed",
