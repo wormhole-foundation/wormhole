@@ -36,6 +36,20 @@ var nttPrefix = [4]byte{0x99, 0x4E, 0x54, 0x54}
 // xtcfPrefix is the 4-byte prefix for XRPL ticket refill confirmation payloads
 var xtcfPrefix = [4]byte{'X', 'T', 'C', 'F'}
 
+// xackPrefix is the 4-byte prefix for XRPL transaction acknowledgement payloads
+var xackPrefix = [4]byte{'X', 'A', 'C', 'K'}
+
+// xackPayloadLen is the length of an XACK payload (14 bytes):
+// prefix(4) + ticket_id(8) + success(1) + tx_type(1)
+const xackPayloadLen = 14
+
+// XACK transaction type constants
+const (
+	xackTxTypeRelease      = 0
+	xackTxTypeTicketCreate = 1
+	// xackTxTypeBurn = 2 // not yet implemented
+)
+
 // NTT constants
 const (
 	memoDataLength        = 72 // Length of memo data: prefix(4) + recipientNTTManager(32) + recipientAddress(32) + recipientChain(2) + fromDecimals(1) + toDecimals(1)
@@ -249,20 +263,10 @@ func (p *Parser) parseNttTransaction(
 		return nil, fmt.Errorf("scaled amount is zero (original amount too small for decimal conversion)")
 	}
 
-	// Extract transaction hash (32 bytes)
-	txHash, err := hex.DecodeString(tx.Hash)
+	txHash, sequence, err := p.extractTxHashAndSequence(tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
+		return nil, err
 	}
-
-	// This should never happen based on the current rippled implementation
-	// https://github.com/XRPLF/rippled/blob/677758b1cc9d8afc190582a75160425096708f54/include/xrpl/protocol/detail/sfields.macro#L77
-	if tx.MetaTransactionIndex > math.MaxUint32 {
-		return nil, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
-	}
-
-	// Calculate sequence: (ledgerIndex << 32) | txIndex
-	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
 
 	// Convert destination (payment recipient) to source NTT manager (32-byte left-padded)
 	sourceNTTManager, err := p.addressToEmitter(destination)
@@ -305,6 +309,11 @@ func (p *Parser) parseNttTransaction(
 // Returns (nil, nil) if none matched.
 func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, error) {
 	msg, err := p.parseTicketCreateTransaction(tx)
+	if msg != nil || err != nil {
+		return msg, err
+	}
+
+	msg, err = p.parseXACKTransaction(tx)
 	if msg != nil || err != nil {
 		return msg, err
 	}
@@ -358,18 +367,10 @@ func (p *Parser) parseCoreTransaction(tx GenericTx) (*common.MessagePublication,
 		return nil, err
 	}
 
-	// Extract transaction hash
-	txHash, err := hex.DecodeString(tx.Hash)
+	txHash, sequence, err := p.extractTxHashAndSequence(tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
+		return nil, err
 	}
-
-	if tx.MetaTransactionIndex > math.MaxUint32 {
-		return nil, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
-	}
-
-	// Calculate sequence: (ledgerIndex << 32) | txIndex
-	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
 
 	return &common.MessagePublication{
 		TxID:             txHash,
@@ -489,8 +490,10 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 	}
 
 	// Validate transaction result is tesSUCCESS
+	// Only handle successful TicketCreate here (XTCF).
+	// Failed TicketCreate falls through to parseXACKTransaction.
 	if err := p.validateTransactionResult(tx); err != nil {
-		return nil, err
+		return nil, nil //nolint:nilerr // Intentional: failed TicketCreate falls through to XACK handler
 	}
 
 	// Extract created ticket sequences from AffectedNodes metadata
@@ -544,18 +547,108 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 	binary.BigEndian.PutUint64(payload[4:12], ticketStart)
 	binary.BigEndian.PutUint64(payload[12:20], ticketCount)
 
-	// Extract transaction hash
-	txHash, err := hex.DecodeString(tx.Hash)
+	txHash, sequence, err := p.extractTxHashAndSequence(tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
+		return nil, err
 	}
 
-	if tx.MetaTransactionIndex > math.MaxUint32 {
-		return nil, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
+	// Emitter is the managed account (left-padded to 32 bytes)
+	emitterAddress, err := p.addressToEmitter(account)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert account to emitter: %w", err)
 	}
 
-	// Calculate sequence: (ledgerIndex << 32) | txIndex
-	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
+	return &common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        tx.Timestamp,
+		Nonce:            0,
+		Sequence:         sequence,
+		EmitterChain:     vaa.ChainIDXRPL,
+		EmitterAddress:   emitterAddress,
+		Payload:          payload,
+		ConsistencyLevel: 0,
+		IsReobservation:  false,
+	}, nil
+}
+
+// parseXACKTransaction parses a ticket-based transaction on a managed account and emits
+// an XACK (transaction acknowledgement) message. This handles:
+// - Failed TicketCreate (tx_type=1, success=false)
+// - Release Payments (tx_type=0, success=true/false)
+// Returns (nil, nil) if this is not an XACK-eligible transaction.
+func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication, error) {
+	// Check the Account is a managed account
+	accountRaw, ok := tx.Transaction["Account"]
+	if !ok {
+		return nil, nil
+	}
+	account, ok := accountRaw.(string)
+	if !ok {
+		return nil, nil
+	}
+	if !p.managedAccounts[account] {
+		return nil, nil
+	}
+
+	// Check transaction has a TicketSequence field (ticket-based transactions only)
+	ticketSeqRaw, ok := tx.Transaction["TicketSequence"]
+	if !ok {
+		return nil, nil
+	}
+	var ticketSequence uint64
+	switch v := ticketSeqRaw.(type) {
+	case float64:
+		ticketSequence = uint64(v)
+	case json.Number:
+		n, err := v.Int64()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse TicketSequence from json.Number: %w", err)
+		}
+		if n < 0 {
+			return nil, fmt.Errorf("negative TicketSequence: %d", n)
+		}
+		ticketSequence = uint64(n) // #nosec G115 -- validated non-negative above
+	default:
+		return nil, fmt.Errorf("unexpected TicketSequence type: %T", ticketSeqRaw)
+	}
+
+	// Determine tx_type from TransactionType
+	txTypeRaw, ok := tx.Transaction["TransactionType"]
+	if !ok {
+		return nil, nil
+	}
+	txTypeStr, ok := txTypeRaw.(string)
+	if !ok {
+		return nil, nil
+	}
+
+	var txType uint8
+	switch txTypeStr {
+	case "Payment":
+		txType = xackTxTypeRelease
+	case "TicketCreate":
+		txType = xackTxTypeTicketCreate
+	default:
+		return nil, nil // Unknown transaction type, skip
+	}
+
+	// Determine success
+	var success uint8
+	if tx.MetaTransactionResult == tesSUCCESS {
+		success = 1
+	}
+
+	// Build 14-byte XACK payload
+	payload := make([]byte, xackPayloadLen)
+	copy(payload[0:4], xackPrefix[:])
+	binary.BigEndian.PutUint64(payload[4:12], ticketSequence)
+	payload[12] = success
+	payload[13] = txType
+
+	txHash, sequence, err := p.extractTxHashAndSequence(tx)
+	if err != nil {
+		return nil, err
+	}
 
 	// Emitter is the managed account (left-padded to 32 bytes)
 	emitterAddress, err := p.addressToEmitter(account)
@@ -579,6 +672,24 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 // =============================================================================
 // Transaction validation helpers
 // =============================================================================
+
+// extractTxHashAndSequence decodes the transaction hash and computes the sequence number
+// from the ledger index and transaction index: (ledgerIndex << 32) | txIndex.
+func (p *Parser) extractTxHashAndSequence(tx GenericTx) ([]byte, uint64, error) {
+	txHash, err := hex.DecodeString(tx.Hash)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to decode tx hash: %w", err)
+	}
+
+	// This should never happen based on the current rippled implementation
+	// https://github.com/XRPLF/rippled/blob/677758b1cc9d8afc190582a75160425096708f54/include/xrpl/protocol/detail/sfields.macro#L77
+	if tx.MetaTransactionIndex > math.MaxUint32 {
+		return nil, 0, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
+	}
+
+	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
+	return txHash, sequence, nil
+}
 
 // validateTransactionResult checks that the transaction result is tesSUCCESS.
 // Returns nil if valid, or an error describing why the transaction should be skipped.

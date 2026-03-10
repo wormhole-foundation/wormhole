@@ -2645,8 +2645,9 @@ func TestParseTicketCreateTransaction_FailedTx(t *testing.T) {
 	tx := createTicketCreateTx(testManagedAccount, []float64{100})
 	tx.MetaTransactionResult = "tecNO_PERMISSION"
 
+	// Failed TicketCreate returns (nil, nil) to fall through to XACK handler
 	msg, err := p.parseTicketCreateTransaction(tx)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	assert.Nil(t, msg)
 }
 
@@ -3498,4 +3499,317 @@ func TestParseTicketCreateTransaction_InvalidAccountAddress(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, msg)
 	assert.Contains(t, err.Error(), "failed to convert account to emitter")
+}
+
+// --- XACK (Transaction Acknowledgement) Tests ---
+
+func createXACKTx(account, txType string, ticketSequence float64, result string) GenericTx {
+	return GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": txType,
+			"Account":         account,
+			"TicketSequence":  ticketSequence,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           60000,
+		MetaTransactionIndex:  5,
+		MetaTransactionResult: result,
+		Timestamp:             time.Date(2024, 7, 1, 12, 0, 0, 0, time.UTC),
+	}
+}
+
+func TestParseXACKTransaction_ReleasePaymentSuccess(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx(testManagedAccount, "Payment", 42, "tesSUCCESS")
+	msg, err := p.parseXACKTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+
+	// Verify payload length
+	assert.Equal(t, 14, len(msg.Payload))
+
+	// Verify ticket_id
+	ticketID := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(42), ticketID)
+
+	// Verify success = 1
+	assert.Equal(t, uint8(1), msg.Payload[12])
+
+	// Verify tx_type = 0 (Release)
+	assert.Equal(t, uint8(0), msg.Payload[13])
+
+	// Verify chain and sequence
+	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
+	expectedSequence := (uint64(60000) << 32) | 5
+	assert.Equal(t, expectedSequence, msg.Sequence)
+
+	// Verify nonce and consistency level
+	assert.Equal(t, uint32(0), msg.Nonce)
+	assert.Equal(t, uint8(0), msg.ConsistencyLevel)
+}
+
+func TestParseXACKTransaction_ReleasePaymentFailure(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx(testManagedAccount, "Payment", 99, "tecPATH_DRY")
+	msg, err := p.parseXACKTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+
+	// Verify ticket_id
+	ticketID := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(99), ticketID)
+
+	// Verify success = 0 (failed)
+	assert.Equal(t, uint8(0), msg.Payload[12])
+
+	// Verify tx_type = 0 (Release)
+	assert.Equal(t, uint8(0), msg.Payload[13])
+}
+
+func TestParseXACKTransaction_TicketCreateFailure(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx(testManagedAccount, "TicketCreate", 50, "tecNO_PERMISSION")
+	msg, err := p.parseXACKTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+
+	// Verify ticket_id
+	ticketID := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(50), ticketID)
+
+	// Verify success = 0 (failed)
+	assert.Equal(t, uint8(0), msg.Payload[12])
+
+	// Verify tx_type = 1 (TicketCreate)
+	assert.Equal(t, uint8(1), msg.Payload[13])
+}
+
+func TestParseXACKTransaction_NotManagedAccount(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx("rDifferentAccount1234567890123456", "Payment", 42, "tesSUCCESS")
+	msg, err := p.parseXACKTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseXACKTransaction_NoTicketSequence(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         testManagedAccount,
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           60000,
+		MetaTransactionIndex:  5,
+		MetaTransactionResult: "tesSUCCESS",
+		Timestamp:             time.Date(2024, 7, 1, 12, 0, 0, 0, time.UTC),
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseXACKTransaction_UnknownTransactionType(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx(testManagedAccount, "TrustSet", 42, "tesSUCCESS")
+	msg, err := p.parseXACKTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseXACKTransaction_TicketSequenceJsonNumber(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         testManagedAccount,
+			"TicketSequence":  json.Number("77"),
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           60000,
+		MetaTransactionIndex:  5,
+		MetaTransactionResult: "tesSUCCESS",
+		Timestamp:             time.Date(2024, 7, 1, 12, 0, 0, 0, time.UTC),
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	ticketID := binary.BigEndian.Uint64(msg.Payload[4:12])
+	assert.Equal(t, uint64(77), ticketID)
+}
+
+func TestParseXACKTransaction_TransactionIndexOverflow(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := createXACKTx(testManagedAccount, "Payment", 42, "tesSUCCESS")
+	tx.MetaTransactionIndex = math.MaxUint32 + 1
+
+	msg, err := p.parseXACKTransaction(tx)
+	assert.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "invalid transaction index")
+}
+
+func TestParseXACKTransaction_DispatchedFromParseTransaction(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	// A Release Payment with TicketSequence should produce XACK through parseTransaction
+	tx := createXACKTx(testManagedAccount, "Payment", 42, "tesSUCCESS")
+	msg, err := p.parseTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix (not XTCF)
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+}
+
+func TestParseXACKTransaction_FailedTicketCreateDispatch(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	// A failed TicketCreate with TicketSequence should fall through XTCF and produce XACK
+	tx := createXACKTx(testManagedAccount, "TicketCreate", 50, "tecNO_PERMISSION")
+	msg, err := p.parseTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XACK prefix (not XTCF)
+	assert.Equal(t, xackPrefix[:], msg.Payload[0:4])
+
+	// Verify tx_type = 1 (TicketCreate)
+	assert.Equal(t, uint8(1), msg.Payload[13])
+
+	// Verify success = 0
+	assert.Equal(t, uint8(0), msg.Payload[12])
+}
+
+func TestParseXACKTransaction_SuccessfulTicketCreateStillXTCF(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	// A successful TicketCreate should still be handled by XTCF, not XACK
+	tx := createTicketCreateTx(testManagedAccount, []float64{200, 201, 202})
+	msg, err := p.parseTransaction(tx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	// Verify XTCF prefix (not XACK)
+	assert.Equal(t, xtcfPrefix[:], msg.Payload[0:4])
+}
+
+func TestParseXACKTransaction_MissingAccount(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"TicketSequence":  float64(42),
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseXACKTransaction_MissingTransactionType(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"Account":        testManagedAccount,
+			"TicketSequence": float64(42),
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.NoError(t, err)
+	assert.Nil(t, msg)
+}
+
+func TestParseXACKTransaction_InvalidAccountAddress(t *testing.T) {
+	p := NewParser("", []string{"invalid-address"}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         "invalid-address",
+			"TicketSequence":  float64(42),
+		},
+		Hash:                  "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233",
+		LedgerIndex:           60000,
+		MetaTransactionIndex:  5,
+		MetaTransactionResult: "tesSUCCESS",
+		Timestamp:             time.Date(2024, 7, 1, 12, 0, 0, 0, time.UTC),
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "failed to convert account to emitter")
+}
+
+func TestParseXACKTransaction_UnexpectedTicketSequenceType(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         testManagedAccount,
+			"TicketSequence":  "not-a-number",
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "unexpected TicketSequence type")
+}
+
+func TestParseXACKTransaction_NegativeJsonNumberSequence(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         testManagedAccount,
+			"TicketSequence":  json.Number("-5"),
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "negative TicketSequence")
+}
+
+func TestParseXACKTransaction_InvalidJsonNumber(t *testing.T) {
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	tx := GenericTx{
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         testManagedAccount,
+			"TicketSequence":  json.Number("abc"),
+		},
+		MetaTransactionResult: "tesSUCCESS",
+	}
+	msg, err := p.parseXACKTransaction(tx)
+	assert.Error(t, err)
+	assert.Nil(t, msg)
 }
