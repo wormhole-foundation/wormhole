@@ -278,6 +278,21 @@ Emitted when tickets are running low and need refilling. Guardians observe this 
 
 Total: 40 bytes
 
+<!-- cspell:ignore XBRN -->
+
+#### Burn Ticket Request Payload (XBRN)
+
+Burn Ticket Request payload — emitted to tell guardians to submit a no-op
+XRPL transaction using the specified ticket, consuming it.
+
+| Offset | Size | Field        |
+| ------ | ---- | ------------ |
+| 0      | 4    | prefix       |
+| 4      | 20   | xrpl_address |
+| 24     | 8    | ticket_id    |
+
+Total: 32 bytes
+
 #### Manager Service API
 
 The Manager Service will expose two public endpoints.
