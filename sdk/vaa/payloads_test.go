@@ -1834,3 +1834,63 @@ func TestDeserializeXRPLTicketRefillPayloadTrailingBytes(t *testing.T) {
 	_, err = DeserializeXRPLTicketRefillPayload(buf)
 	require.ErrorContains(t, err, "trailing bytes")
 }
+
+var testXRPLBurnTicketAccount = [20]byte{
+	0xB5, 0xF7, 0x62, 0x79, 0x8A, 0x53, 0xD5, 0x43, 0xA0, 0x14,
+	0xCA, 0xF8, 0xB2, 0x97, 0xCF, 0xF8, 0xF2, 0xF9, 0x37, 0xE8,
+}
+
+func TestXRPLBurnTicketPrefix(t *testing.T) {
+	assert.Equal(t, [4]byte{'X', 'B', 'R', 'N'}, XRPLBurnTicketPrefix)
+	assert.Equal(t, [4]byte{0x58, 0x42, 0x52, 0x4E}, XRPLBurnTicketPrefix)
+}
+
+func TestXRPLBurnTicketPayloadSerializeDeserialize(t *testing.T) {
+	payload := &XRPLBurnTicketPayload{
+		Account:  testXRPLBurnTicketAccount,
+		TicketID: 42,
+	}
+
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Expected size: prefix (4) + account (20) + ticket_id (8) = 32
+	assert.Equal(t, 32, len(buf))
+
+	// Verify prefix
+	assert.Equal(t, XRPLBurnTicketPrefix[:], buf[0:4])
+
+	// Deserialize and verify round-trip
+	deserialized, err := DeserializeXRPLBurnTicketPayload(buf)
+	require.NoError(t, err)
+
+	assert.Equal(t, payload.Account, deserialized.Account)
+	assert.Equal(t, payload.TicketID, deserialized.TicketID)
+}
+
+func TestDeserializeXRPLBurnTicketPayloadTooShort(t *testing.T) {
+	// Less than 32 bytes
+	_, err := DeserializeXRPLBurnTicketPayload([]byte{0x58, 0x42, 0x52, 0x4E, 0x00})
+	require.ErrorContains(t, err, "too short")
+}
+
+func TestDeserializeXRPLBurnTicketPayloadInvalidPrefix(t *testing.T) {
+	buf := make([]byte, 32)
+	copy(buf[0:4], []byte("XREL")) // Wrong prefix
+	_, err := DeserializeXRPLBurnTicketPayload(buf)
+	require.ErrorContains(t, err, "invalid XRPL burn ticket payload prefix")
+}
+
+func TestDeserializeXRPLBurnTicketPayloadTrailingBytes(t *testing.T) {
+	payload := &XRPLBurnTicketPayload{
+		Account:  testXRPLBurnTicketAccount,
+		TicketID: 1,
+	}
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Add trailing byte
+	buf = append(buf, 0x00)
+	_, err = DeserializeXRPLBurnTicketPayload(buf)
+	require.ErrorContains(t, err, "trailing bytes")
+}

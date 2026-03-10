@@ -825,6 +825,9 @@ var XRPLPayloadPrefix = [4]byte{'X', 'R', 'E', 'L'}
 // XRPLTicketRefillPrefix is the 4-byte prefix for XRPL ticket refill payloads (0x5852464C)
 var XRPLTicketRefillPrefix = [4]byte{'X', 'R', 'F', 'L'}
 
+// XRPLBurnTicketPrefix is the 4-byte prefix for XRPL burn ticket payloads (0x5842524E)
+var XRPLBurnTicketPrefix = [4]byte{'X', 'B', 'R', 'N'}
+
 // XRPLTokenType represents the type of token in an XRPL release payload.
 type XRPLTokenType uint8
 
@@ -1419,6 +1422,64 @@ func (p *XRPLTicketRefillPayload) Serialize() ([]byte, error) {
 
 	// RequestCount
 	MustWrite(buf, binary.BigEndian, p.RequestCount)
+
+	return buf.Bytes(), nil
+}
+
+// XRPLBurnTicketPayload represents a VAA payload for burning (consuming) a ticket on the XRP Ledger.
+// This payload is emitted by the XRPL sequencer to consume a ticket via a no-op AccountSet transaction.
+type XRPLBurnTicketPayload struct {
+	// Account is the 20-byte XRPL account ID that owns the ticket
+	Account [20]byte
+	// TicketID is the ticket sequence to consume
+	TicketID uint64
+}
+
+// DeserializeXRPLBurnTicketPayload deserializes an XRPLBurnTicketPayload from bytes.
+// Expected format: prefix (4) + account (20) + ticket_id (8) = 32 bytes
+func DeserializeXRPLBurnTicketPayload(bz []byte) (*XRPLBurnTicketPayload, error) {
+	const expectedSize = 4 + 20 + 8
+
+	if len(bz) < expectedSize {
+		return nil, fmt.Errorf("XRPL burn ticket payload too short: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	// Check prefix
+	if !bytes.Equal(bz[0:4], XRPLBurnTicketPrefix[:]) {
+		return nil, fmt.Errorf("invalid XRPL burn ticket payload prefix: expected %s, got %s", string(XRPLBurnTicketPrefix[:]), string(bz[0:4]))
+	}
+
+	if len(bz) > expectedSize {
+		return nil, fmt.Errorf("XRPL burn ticket payload has trailing bytes: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	payload := &XRPLBurnTicketPayload{}
+	offset := 4
+
+	// Account (20 bytes)
+	copy(payload.Account[:], bz[offset:offset+20])
+	offset += 20
+
+	// TicketID (8 bytes)
+	payload.TicketID = binary.BigEndian.Uint64(bz[offset : offset+8])
+
+	return payload, nil
+}
+
+// Serialize serializes an XRPLBurnTicketPayload to bytes.
+//
+//nolint:unparam // error is always nil but kept for consistency with other Serialize methods.
+func (p *XRPLBurnTicketPayload) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Prefix
+	buf.Write(XRPLBurnTicketPrefix[:])
+
+	// Account
+	buf.Write(p.Account[:])
+
+	// TicketID
+	MustWrite(buf, binary.BigEndian, p.TicketID)
 
 	return buf.Bytes(), nil
 }

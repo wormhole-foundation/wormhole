@@ -495,3 +495,52 @@ func TestBuildTicketCreateTransactionFee(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildBurnTicketTransaction(t *testing.T) {
+	payload := &vaa.XRPLBurnTicketPayload{
+		Account:  testCustodyAccountID,
+		TicketID: 42,
+	}
+
+	flatTx, err := BuildBurnTicketTransaction(payload, testManagerSetM)
+	require.NoError(t, err)
+
+	assert.Equal(t, "AccountSet", flatTx["TransactionType"])
+	assert.Equal(t, uint32(0), flatTx["Sequence"])
+	assert.Equal(t, "", flatTx["SigningPubKey"])
+	assert.Equal(t, uint32(42), flatTx["TicketSequence"])
+
+	// Fee = 15 * (M+1) = 15 * 8 = 120
+	assert.Equal(t, "120", flatTx["Fee"])
+
+	// Verify the account address
+	expectedAddr, err := AccountIDToAddress(testCustodyAccountID[:])
+	require.NoError(t, err)
+	assert.Equal(t, expectedAddr, flatTx["Account"])
+}
+
+func TestBuildBurnTicketTransactionFee(t *testing.T) {
+	tests := []struct {
+		name        string
+		m           uint8
+		expectedFee string
+	}{
+		{"m=1", 1, "30"},    // 15 * (1+1) = 30
+		{"m=2", 2, "45"},    // 15 * (2+1) = 45
+		{"m=7", 7, "120"},   // 15 * (7+1) = 120
+		{"m=10", 10, "165"}, // 15 * (10+1) = 165
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := &vaa.XRPLBurnTicketPayload{
+				Account:  testCustodyAccountID,
+				TicketID: 1,
+			}
+
+			flatTx, err := BuildBurnTicketTransaction(payload, tc.m)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedFee, flatTx["Fee"])
+		})
+	}
+}

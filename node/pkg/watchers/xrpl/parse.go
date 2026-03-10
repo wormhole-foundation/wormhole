@@ -47,7 +47,7 @@ const xackPayloadLen = 14
 const (
 	xackTxTypeRelease      = 0
 	xackTxTypeTicketCreate = 1
-	// xackTxTypeBurn = 2 // not yet implemented
+	xackTxTypeBurn         = 2
 )
 
 // NTT constants
@@ -571,10 +571,29 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 	}, nil
 }
 
+// accountSetOptionalFields lists the optional fields on an XRPL AccountSet transaction.
+// A no-op burn AccountSet must have none of these set.
+var accountSetOptionalFields = []string{
+	"ClearFlag", "SetFlag", "Domain", "EmailHash", "MessageKey",
+	"NFTokenMinter", "TransferRate", "TickSize", "WalletLocator", "WalletSize",
+}
+
+// isNoOpAccountSet returns true if the transaction contains no optional AccountSet fields,
+// meaning it is a no-op used purely to consume a ticket (burn).
+func isNoOpAccountSet(tx transaction.FlatTransaction) bool {
+	for _, field := range accountSetOptionalFields {
+		if _, ok := tx[field]; ok {
+			return false
+		}
+	}
+	return true
+}
+
 // parseXACKTransaction parses a ticket-based transaction on a managed account and emits
 // an XACK (transaction acknowledgement) message. This handles:
-// - Failed TicketCreate (tx_type=1, success=false)
 // - Release Payments (tx_type=0, success=true/false)
+// - Failed TicketCreate (tx_type=1, success=false)
+// - Burn/AccountSet (tx_type=2, success=true/false)
 // Returns (nil, nil) if this is not an XACK-eligible transaction.
 func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication, error) {
 	// Check the Account is a managed account
@@ -628,6 +647,11 @@ func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication,
 		txType = xackTxTypeRelease
 	case "TicketCreate":
 		txType = xackTxTypeTicketCreate
+	case "AccountSet":
+		if !isNoOpAccountSet(tx.Transaction) {
+			return nil, nil // Non-empty AccountSet is not a burn no-op
+		}
+		txType = xackTxTypeBurn
 	default:
 		return nil, nil // Unknown transaction type, skip
 	}

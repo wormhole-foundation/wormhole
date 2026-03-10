@@ -141,6 +141,43 @@ func BuildTicketCreateTransaction(payload *vaa.XRPLTicketRefillPayload, m uint8)
 	return flatTx, nil
 }
 
+// BuildBurnTicketTransaction builds and flattens an XRPL AccountSet no-op transaction
+// that consumes a ticket. The m parameter is the required number of signers in the
+// manager set (used for fee calculation). The returned map is ready for binary-codec encoding.
+func BuildBurnTicketTransaction(payload *vaa.XRPLBurnTicketPayload, m uint8) (transaction.FlatTransaction, error) {
+	// Convert 20-byte account ID to r-address
+	accountAddress, err := AccountIDToAddress(payload.Account[:])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert account ID to address: %w", err)
+	}
+
+	// Deterministic fee: 15 drops base fee * (M+1) for multisig
+	// NOTE: this must be at least 25% higher than the fee of the transaction being replaced
+	fee := uint64(m+1) * 15
+
+	// Build AccountSet no-op transaction (no flags or fields set)
+	accountSet := &transaction.AccountSet{
+		BaseTx: transaction.BaseTx{
+			Account:        types.Address(accountAddress),
+			Fee:            types.XRPCurrencyAmount(fee),
+			TicketSequence: uint32(payload.TicketID), // #nosec G115 -- TicketID is bounded by XRPL protocol
+		},
+	}
+
+	// Flatten the transaction
+	flatTx := accountSet.Flatten()
+
+	// Manually set fields that Flatten() skips when zero-valued:
+	// Sequence must be 0 when using TicketSequence
+	flatTx["Sequence"] = uint32(0)
+	// SigningPubKey must be empty string for multisig
+	flatTx["SigningPubKey"] = ""
+	// Fee as string (override in case Flatten used a different format)
+	flatTx["Fee"] = strconv.FormatUint(fee, 10)
+
+	return flatTx, nil
+}
+
 // ComputeMultisignHash computes the hash that a signer must sign for XRPL multisigning.
 // It encodes the transaction with the signer's account ID appended, then returns SHA512Half.
 func ComputeMultisignHash(flatTx transaction.FlatTransaction, signerAddress string) ([]byte, error) {
