@@ -683,6 +683,8 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 	var shimFound bool
 
 	// SECURITY: Mapping of AccountKeys matches the indexes associated with the original transaction.
+	// This is filled via a helper function. The ordering is AccountKeys (static accounts), Writable Account Lookup Table (ALT) entries, and Readable ALT entries.
+	//
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
 			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
@@ -968,7 +970,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 
 	value := (*res.Params).Result.Value
 
-	// SECURITY: Account ownership must be Wormhole core
+	// SECURITY: Account ownership must be the SVM core bridge.
 	if value.Account.Owner != s.rawContract {
 		// We got a message for the wrong contract on the websocket... uncomfortable...
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "invalid_websocket_account").Inc()
@@ -1064,7 +1066,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
 		Nonce:            proposal.Nonce,
 		Sequence:         proposal.Sequence,
-		EmitterChain:     s.chainID, // SECURITY: Chain ID must be the hardcoded chain ID of the watcher
+		EmitterChain:     s.chainID, // SECURITY: The message must be emitted from the chain this watcher is observing. This prevents mix-ups between different SVM chains.
 		EmitterAddress:   proposal.EmitterAddress,
 		Payload:          proposal.Payload,
 		ConsistencyLevel: proposal.ConsistencyLevel,

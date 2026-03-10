@@ -260,7 +260,6 @@ func (s *SolanaWatcher) shimProcessInnerInstruction(
 // the core and the MessageEvent from the shim. Note that the startIdx parameter tells us where to start looking for these events. In the direct case, this
 // will be zero. In the integrator case, it is one after the shim PostMessage event.
 // SECURITY: Shim Program ID with process_post_message, WH core post_message and self CPI event must be the order of calls.
-// SECURITY: Indexing of inner instructions is done correctly.
 // Be careful modifying the code handling the index processing; this code is very complicated to reason about.
 func (s *SolanaWatcher) shimProcessRest(
 	logger *zap.Logger,
@@ -302,7 +301,11 @@ func (s *SolanaWatcher) shimProcessRest(
 				verifiedCoreEvent = true
 			}
 		} else if inst.ProgramIDIndex == shimProgramIndex {
-			// SECURITY: Proper identification of shim program self CPI for event data
+			// SECURITY: Validate the event type and event data.
+			// The EVENT contains two pieces of information: the function discriminator and the event data.
+			// The shim contract makes a self cross program invocation (self CPI) in the context of `post_message`.
+			// The function discriminator is effectively the event type. It's a contract call that can only be made by the
+			// shim contract because of the PDA signer that is required.
 			thisEvent, err := shimParseMessageEvent(s.shimMessageEventDiscriminator, inst.Data)
 			if err != nil {
 				return fmt.Errorf("failed to parse inner shim message event instruction for shim instruction %d, %d: %w", outerIdx, idx, err)
