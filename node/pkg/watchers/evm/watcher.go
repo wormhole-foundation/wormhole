@@ -610,7 +610,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					// This should never happen - if we got this far, it means that logs were emitted,
 					// which is only possible if the transaction succeeded. We check it anyway just
 					// in case the EVM implementation is buggy.
-					if tx.Status != 1 {
+					if tx.Status != gethTypes.ReceiptStatusSuccessful {
 						logger.Error("transaction receipt with non-success status",
 							zap.String("msgId", pLock.message.MessageIDString()),
 							zap.String("txHash", pLock.message.TxIDString()),
@@ -703,6 +703,16 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						logger.Error("log index is beyond the last log in the receipt",
 							zap.String("msgId", pLock.message.MessageIDString()),
 							zap.String("txHash", pLock.message.TxIDString()),
+						)
+						delete(w.pending, key)
+						continue
+					}
+
+					if tx.Logs[pos].Index != pLock.logIndex {
+						logger.Error("log index mismatch — receipt logs are not contiguous",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.Uint64("expected", uint64(pLock.logIndex)),
+							zap.Uint64("actual", uint64(tx.Logs[pos].Index)),
 						)
 						delete(w.pending, key)
 						continue
@@ -999,7 +1009,7 @@ func (w *Watcher) postMessage(
 
 		// SECURITY: Defense-in-depth check of transaction status.
 		// The EVM invariant is that failed transactions cannot emit logs, but we verify
-		// explicitly in case an EVM-compatible chain breaks this contract.
+		// explicitly in case an EVM-compatible chain breaks this invariant.
 		msm := time.Now()
 		receiptCtx, receiptCancel := context.WithTimeout(parentCtx, 5*time.Second)
 		receipt, err := w.ethConn.TransactionReceipt(receiptCtx, ev.Raw.TxHash)
@@ -1013,7 +1023,7 @@ func (w *Watcher) postMessage(
 			)
 			return
 		}
-		if receipt.Status != 1 {
+		if receipt.Status != gethTypes.ReceiptStatusSuccessful {
 			w.logger.Error("instant message transaction has non-success status",
 				zap.String("msgId", msg.MessageIDString()),
 				zap.String("txHash", msg.TxIDString()),

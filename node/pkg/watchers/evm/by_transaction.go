@@ -30,7 +30,7 @@ func isLogValid(l types.Log, contract eth_common.Address) bool {
 	if l.Removed {
 		return false
 	}
-	// SECURITY: Verify the log was produced by our contract.
+	// SECURITY: Verify the log was produced by the supplied contract.
 	if l.Address != contract {
 		return false
 	}
