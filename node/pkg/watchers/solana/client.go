@@ -910,6 +910,13 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		return 0, true
 	}
 
+	if info.Value == nil {
+		s.logger.Warn("account does not exist",
+			zap.Uint64("slot", slot),
+			zap.Stringer("account", acc))
+		return 0, true
+	}
+
 	// SECURITY: Wormhole must own the account. Otherwise, this would lead to an arbitrary event emission issue.
 	if !info.Value.Owner.Equals(s.contract) {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
