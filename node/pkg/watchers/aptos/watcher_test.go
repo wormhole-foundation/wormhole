@@ -121,9 +121,9 @@ func TestObserveData(t *testing.T) {
 			expectError: "payload missing 0x prefix",
 		},
 		{
-			name:        "payload 0x only",
-			json:        eventWith("payload", "0x", false),
-			expectMsg:   true, // empty payload is valid
+			name:      "payload 0x only",
+			json:      eventWith("payload", "0x", false),
+			expectMsg: true, // empty payload is valid
 		},
 		{
 			name:        "payload invalid hex",
