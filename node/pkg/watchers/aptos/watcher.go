@@ -325,11 +325,12 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 	}
 
 	s := v.String()
-	if !strings.HasPrefix(s, "0x") {
+	trimmed := strings.TrimPrefix(s, "0x")
+	if len(trimmed) == len(s) {
 		logger.Error("payload missing 0x prefix", zap.String("payload", s))
 		return
 	}
-	pl, err := hex.DecodeString(s[2:])
+	pl, err := hex.DecodeString(trimmed)
 	if err != nil {
 		logger.Error("payload decode", zap.Error(err))
 		return
