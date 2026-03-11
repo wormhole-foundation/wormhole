@@ -643,7 +643,7 @@ func ccqCreateBlockRequest(block string) (string, interface{}, error) {
 	if !strings.HasPrefix(block, "0x") {
 		return blockMethod, callBlockArg, fmt.Errorf("block id must start with 0x")
 	}
-	blk := strings.Trim(block, "0x")
+	blk := strings.TrimPrefix(block, "0x")
 
 	// Devnet can give us block IDs like this: "0x365".
 	if len(blk)%2 != 0 {
