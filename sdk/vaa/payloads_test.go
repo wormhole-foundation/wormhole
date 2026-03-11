@@ -456,6 +456,24 @@ func TestBodyRecoverChainIdModuleTooLong(t *testing.T) {
 	assert.Nil(t, buf)
 }
 
+func TestBodyGeneralPurposeGovernanceSuiSerialize(t *testing.T) {
+	govContract := addr // 0x00...04
+	payload, _ := hex.DecodeString("deadbeef")
+	body := BodyGeneralPurposeGovernanceSui{
+		ChainID:            ChainIDSui,
+		GovernanceContract: govContract,
+		Payload:            payload,
+	}
+	expected := "000000000000000047656e6572616c507572706f7365476f7665726e616e6365" + // module
+		"03" + // action SuiCall= 3
+		"0015" + // chain Sui = 21
+		"0000000000000000000000000000000000000000000000000000000000000004" + // governance contract
+		"deadbeef" // payload
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}
+
 func TestBodyCoreBridgeSetMessageFeeSerialize(t *testing.T) {
 	expected := "00000000000000000000000000000000000000000000000000000000436f72650304560000000000000000000000000000000000000000000000000000000000000123"
 	bodyCoreBridgeSetMessageFee := BodyCoreBridgeSetMessageFee{
@@ -463,6 +481,33 @@ func TestBodyCoreBridgeSetMessageFeeSerialize(t *testing.T) {
 		MessageFee: uint256.NewInt(0x123),
 	}
 	buf, err := bodyCoreBridgeSetMessageFee.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}
+
+func TestBodyDelegatedGuardianSetConfig(t *testing.T) {
+	expected := "000000000000000000000000000044656c656761746564477561726469616e73010000000000000000000000000000000000000000000000000000000000000000000102000302031111111111111111111111111111111111111111222222222222222222222222222222222222222233333333333333333333333333333333333333330004010244444444444444444444444444444444444444445555555555555555555555555555555555555555"
+	bodyDelegatedGuardianSetConfig := BodyDelegatedGuardiansSetConfig{
+		ConfigIndex: uint256.NewInt(1),
+		Config: map[ChainID]DelegatedGuardianConfig{
+			3: {
+				Threshold: 2,
+				Keys: []common.Address{
+					common.HexToAddress("0x1111111111111111111111111111111111111111"),
+					common.HexToAddress("0x2222222222222222222222222222222222222222"),
+					common.HexToAddress("0x3333333333333333333333333333333333333333"),
+				},
+			},
+			4: {
+				Threshold: 1,
+				Keys: []common.Address{
+					common.HexToAddress("0x4444444444444444444444444444444444444444"),
+					common.HexToAddress("0x5555555555555555555555555555555555555555"),
+				},
+			},
+		},
+	}
+	buf, err := bodyDelegatedGuardianSetConfig.Serialize()
 	require.NoError(t, err)
 	assert.Equal(t, expected, hex.EncodeToString(buf))
 }

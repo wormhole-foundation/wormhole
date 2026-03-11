@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -65,6 +66,13 @@ var GeneralPurposeGovernanceModule = [32]byte{
 }
 var GeneralPurposeGovernanceModuleStr = string(GeneralPurposeGovernanceModule[:])
 
+// DelegatedGuardiansModule is the identifier of the DelegatedGuardians module (which is used for governance messages).
+var DelegatedGuardiansModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44, 0x65,
+	0x6C, 0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6E, 0x73,
+}
+var DelegatedGuardiansModuleStr = string(DelegatedGuardiansModule[:])
+
 type GovernanceAction uint8
 
 var (
@@ -114,6 +122,10 @@ var (
 	// General purpose governance
 	GeneralPurposeGovernanceEvmAction    GovernanceAction = 1
 	GeneralPurposeGovernanceSolanaAction GovernanceAction = 2
+	GeneralPurposeGovernanceSuiAction    GovernanceAction = 3
+
+	// Delegated Guardians governance actions
+	DelegatedGuardiansSetConfigAction GovernanceAction = 1
 )
 
 type (
@@ -276,10 +288,25 @@ type (
 		Instruction []byte
 	}
 
+	// BodyGeneralPurposeGovernanceSui is a general purpose governance message for Sui chains
+	BodyGeneralPurposeGovernanceSui struct {
+		ChainID            ChainID
+		GovernanceContract Address
+		// Like Solana, the payload is opaque and self-describing.
+		// The Sui governance contract parses it to dispatch the action.
+		Payload []byte
+	}
+
 	// BodyCoreBridgeSetMessageFee is a governance message to set the message fee for the core bridge.
 	BodyCoreBridgeSetMessageFee struct {
 		ChainID    ChainID
 		MessageFee *uint256.Int
+	}
+
+	// BodyDelegatedGuardiansSetConfig is a governance message to set delegated guardian configurations for multiple chains.
+	BodyDelegatedGuardiansSetConfig struct {
+		ConfigIndex *uint256.Int
+		Config      map[ChainID]DelegatedGuardianConfig
 	}
 )
 
@@ -513,6 +540,48 @@ func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
 }
 
+func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	// Serialize ConfigIndex as 32-byte big-endian uint256
+	configIndexBytes := r.ConfigIndex.Bytes()
+	if len(configIndexBytes) > 32 {
+		return nil, fmt.Errorf("config index too large")
+	}
+	padded := make([]byte, 32)
+	copy(padded[32-len(configIndexBytes):], configIndexBytes)
+	payload.Write(padded)
+
+	// write config len as uint8
+	if len(r.Config) > math.MaxUint8 {
+		return nil, fmt.Errorf("config too long; expected at most %d bytes", math.MaxUint8)
+	}
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Config))) // #nosec G115 -- This is checked above
+
+	// Sort chainIds to get deterministic output
+	chainIds := make([]ChainID, 0, len(r.Config))
+	for k := range r.Config {
+		chainIds = append(chainIds, k)
+	}
+	sort.Slice(chainIds, func(i, j int) bool {
+		return chainIds[i] < chainIds[j]
+	})
+
+	for _, chainId := range chainIds {
+		cfg := r.Config[chainId]
+		MustWrite(payload, binary.BigEndian, uint16(chainId))
+		MustWrite(payload, binary.BigEndian, cfg.Threshold)
+		MustWrite(payload, binary.BigEndian, uint8(len(cfg.Keys))) // #nosec G115 -- There will never be 256 guardians
+		for _, addr := range cfg.Keys {
+			addrBytes := addr.Bytes()
+			if len(addrBytes) != 20 {
+				return nil, fmt.Errorf("address must be 20 bytes")
+			}
+			payload.Write(addrBytes)
+		}
+	}
+	return serializeBridgeGovernanceVaa(DelegatedGuardiansModuleStr, DelegatedGuardiansSetConfigAction, 0, payload.Bytes())
+}
+
 func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	payload.Write(r.GovernanceContract[:])
@@ -536,6 +605,15 @@ func (r BodyGeneralPurposeGovernanceSolana) Serialize() ([]byte, error) {
 	// the relevant dynamic fields.
 	payload.Write(r.Instruction)
 	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceSolanaAction, r.ChainID, payload.Bytes())
+}
+
+func (r BodyGeneralPurposeGovernanceSui) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	payload.Write(r.GovernanceContract[:])
+	// Like Solana, the payload is opaque and self-describing.
+	// The Sui governance contract parses it to dispatch the action.
+	payload.Write(r.Payload)
+	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceSuiAction, r.ChainID, payload.Bytes())
 }
 
 func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) ([]byte, error) {

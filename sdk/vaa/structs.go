@@ -81,6 +81,12 @@ type (
 		TargetChain   ChainID
 	}
 
+	// DelegatedGuardianConfig contains the threshold and keys for delegated guardians on a specific chain
+	DelegatedGuardianConfig struct {
+		Threshold uint8
+		Keys      []common.Address
+	}
+
 	// Attestation interface contains the methods common to all VAA types
 	Attestation interface {
 		encoding.BinaryMarshaler

@@ -13,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	dgAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/delegated_guardians"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,6 +43,10 @@ func (m mockEVMConnector) GetGuardianSet(ctx context.Context, index uint32) (eth
 		Keys:           m.guardianAddrs,
 		ExpirationTime: 0,
 	}, nil
+}
+
+func (m mockEVMConnector) GetDelegatedGuardianConfig(ctx context.Context) ([]dgAbi.WormholeDelegatedGuardiansDelegatedGuardianSet, error) {
+	panic("unimplemented")
 }
 
 func (m mockEVMConnector) NetworkName() string {
@@ -435,4 +440,70 @@ func TestChainGovernorResetReleaseTimer(t *testing.T) {
 		})
 	}
 
+}
+
+func TestDelegatedGuardiansConfigToVaa(t *testing.T) {
+	configJSON := `{
+		"3": {
+			"keys": [
+				"0x1111111111111111111111111111111111111111",
+				"0x2222222222222222222222222222222222222222",
+				"0x3333333333333333333333333333333333333333"
+			],
+			"threshold": 2
+		},
+		"4": {
+			"keys": [
+				"0x4444444444444444444444444444444444444444",
+				"0x5555555555555555555555555555555555555555"
+			],
+			"threshold": 1
+		}
+	}`
+
+	req := &nodev1.DelegatedGuardiansConfig{
+		ConfigIndex: 5,
+		Config:      configJSON,
+	}
+
+	nonce := uint32(12345)
+	sequence := uint64(67890)
+
+	v, err := delegatedGuardiansConfigToVaa(req, govTimestamp, govGuardianSetIndex, nonce, sequence)
+	require.NoError(t, err)
+	require.NotNil(t, v)
+
+	verifyGovernanceVAA(t, v, sequence, nonce)
+	assert.NotEmpty(t, v.Payload)
+}
+
+func TestDelegatedGuardiansConfigToVaa_InvalidJSON(t *testing.T) {
+	configJSON := `not valid json`
+
+	req := &nodev1.DelegatedGuardiansConfig{
+		ConfigIndex: 5,
+		Config:      configJSON,
+	}
+
+	_, err := delegatedGuardiansConfigToVaa(req, time.Now(), 4, 12345, 67890)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+}
+
+func TestDelegatedGuardiansConfigToVaa_InvalidChainID(t *testing.T) {
+	configJSON := `{
+		"not_a_number": {
+			"keys": ["0x1111111111111111111111111111111111111111"],
+			"threshold": 1
+		}
+	}`
+
+	req := &nodev1.DelegatedGuardiansConfig{
+		ConfigIndex: 5,
+		Config:      configJSON,
+	}
+
+	_, err := delegatedGuardiansConfigToVaa(req, time.Now(), 4, 12345, 67890)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid chain ID")
 }

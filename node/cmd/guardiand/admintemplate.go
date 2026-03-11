@@ -80,6 +80,9 @@ var governanceCallData *string
 var coreBridgeSetMessageFeeChainId *string
 var coreBridgeSetMessageFeeMessageFee *string
 
+var delegatedGuardiansConfigJson *string
+var delegatedGuardiansConfigId *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -214,6 +217,13 @@ func init() {
 	AdminClientCoreBridgeSetMessageFeeCmd.Flags().AddFlagSet(coreBridgeSetMessageFeeFlagSet)
 	TemplateCmd.AddCommand(AdminClientCoreBridgeSetMessageFeeCmd)
 
+	// flags for delegated guardian set configuration command
+	delegatedGuardiansConfigFlagSet := pflag.NewFlagSet("delegated-guardians-config", pflag.ExitOnError)
+	delegatedGuardiansConfigJson = delegatedGuardiansConfigFlagSet.String("config", "", "Delegated guardians configuration JSON. ex: '{\"chainId\": {\"keys\": [\"0x123\", \"0x456\"], \"threshold\": 2}}'")
+	delegatedGuardiansConfigId = delegatedGuardiansConfigFlagSet.String("config-id", "", "ID of the configuration (must be sequential - query nextConfigIndex())")
+	AdminClientDelegatedGuardiansConfigCmd.Flags().AddFlagSet(delegatedGuardiansConfigFlagSet)
+	TemplateCmd.AddCommand(AdminClientDelegatedGuardiansConfigCmd)
+
 	// flags for general-purpose governance call command
 	generalPurposeGovernanceFlagSet := pflag.NewFlagSet("general-purpose-governance", pflag.ExitOnError)
 	governanceContractAddress = generalPurposeGovernanceFlagSet.String("governance-contract", "", "Governance contract address")
@@ -226,6 +236,9 @@ func init() {
 	// solana call command
 	AdminClientGeneralPurposeGovernanceSolanaCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
 	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSolanaCallCmd)
+	// sui call command
+	AdminClientGeneralPurposeGovernanceSuiCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSuiCallCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -359,6 +372,12 @@ var AdminClientCoreBridgeSetMessageFeeCmd = &cobra.Command{
 	Run:   runCoreBridgeSetMessageFeeTemplate,
 }
 
+var AdminClientDelegatedGuardiansConfigCmd = &cobra.Command{
+	Use:   "delegated-guardians-config",
+	Short: "Generate a 'delegated guardians config' template from a JSON file",
+	Run:   runDelegatedGuardiansConfigTemplate,
+}
+
 var AdminClientGeneralPurposeGovernanceEvmCallCmd = &cobra.Command{
 	Use:   "governance-evm-call",
 	Short: "Generate a 'general purpose evm governance call' template for specified chain and address",
@@ -369,6 +388,12 @@ var AdminClientGeneralPurposeGovernanceSolanaCallCmd = &cobra.Command{
 	Use:   "governance-solana-call",
 	Short: "Generate a 'general purpose solana governance call' template for specified chain and address",
 	Run:   runGeneralPurposeGovernanceSolanaCallTemplate,
+}
+
+var AdminClientGeneralPurposeGovernanceSuiCallCmd = &cobra.Command{
+	Use:   "governance-sui-call",
+	Short: "Generate a 'general purpose sui governance call' template for specified chain and address",
+	Run:   runGeneralPurposeGovernanceSuiCallTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -1158,6 +1183,45 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 	fmt.Print(string(b))
 }
 
+func runDelegatedGuardiansConfigTemplate(cmd *cobra.Command, args []string) {
+	if *delegatedGuardiansConfigId == "" {
+		log.Fatal("--config-id must be specified")
+	}
+	if *delegatedGuardiansConfigJson == "" {
+		log.Fatal("--config must be specified")
+	}
+
+	// Parse config ID from string to uint32
+	configID, err := strconv.ParseUint(*delegatedGuardiansConfigId, 10, 32)
+	if err != nil {
+		log.Fatal("invalid config-id: ", err)
+	}
+
+	seq, nonce := randSeqNonce()
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_DelegatedGuardiansConfig{
+					DelegatedGuardiansConfig: &nodev1.DelegatedGuardiansConfig{
+						ConfigIndex: uint32(configID),
+						Config:      *delegatedGuardiansConfigJson,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
 func runGeneralPurposeGovernanceEvmCallTemplate(cmd *cobra.Command, args []string) {
 	if *governanceTargetAddress == "" {
 		log.Fatal("--target-address must be specified")
@@ -1241,6 +1305,55 @@ func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []st
 						ChainId:            uint32(chainID),
 						GovernanceContract: *governanceContractAddress,
 						EncodedInstruction: *governanceCallData,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+func runGeneralPurposeGovernanceSuiCallTemplate(cmd *cobra.Command, args []string) {
+	if *governanceCallData == "" {
+		log.Fatal("--call-data must be specified")
+	}
+	if *governanceContractAddress == "" {
+		log.Fatal("--governance-contract must be specified")
+	}
+	govAddr := *governanceContractAddress
+	stripped := strings.TrimPrefix(govAddr, "0x")
+	addrBytes, err := hex.DecodeString(stripped)
+	if err != nil {
+		log.Fatal("invalid governance contract address (expected hex)")
+	}
+	if len(addrBytes) != 32 {
+		log.Fatal("invalid governance contract address length (expected 32 bytes)")
+	}
+	if *governanceTargetChain == "" {
+		log.Fatal("--chain-id must be specified")
+	}
+	chainID, err := parseChainID(*governanceTargetChain)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	seq, nonce := randSeqNonce()
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_SuiCall{
+					SuiCall: &nodev1.SuiCall{
+						ChainId:            uint32(chainID),
+						GovernanceContract: govAddr,
+						EncodedCall:        *governanceCallData,
 					},
 				},
 			},

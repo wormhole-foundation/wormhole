@@ -12,6 +12,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	"github.com/certusone/wormhole/node/pkg/notary"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -29,6 +30,9 @@ const (
 	// gossipAttestationSendBufferSize configures the size of the gossip network send buffer
 	gossipAttestationSendBufferSize = 5000
 
+	// gossipDelegatedAttestationSendBufferSize configures the size of the gossip network send buffer
+	gossipDelegatedAttestationSendBufferSize = 5000
+
 	// gossipVaaSendBufferSize configures the size of the gossip network send buffer
 	gossipVaaSendBufferSize = 5000
 
@@ -36,6 +40,9 @@ const (
 	// Since a batch contains many observations, the guardians should not be publishing too many of these. With 19 guardians, we would expect 19 messages
 	// per second during normal operations. However, since some messages get published immediately, we need to allow extra room.
 	inboundBatchObservationBufferSize = 1000
+
+	// delegateObservationInboundBufferSize configures the size of delegateObsvC channel that contains delegate observations from other Guardians.
+	delegateObservationInboundBufferSize = 1000
 
 	// inboundMessageBufferSize configures the size of the msgC channel used to publish new observations from the watcher to the processor.
 	// This channel is shared across all the watchers so we don't want to hang up other watchers while the processor is handling an observation from one.
@@ -89,6 +96,7 @@ type G struct {
 	// components
 	db                 *db.Database
 	gst                *common.GuardianSetState
+	dgc                *processor.DelegatedGuardianConfig
 	acct               *accountant.Accountant
 	gov                *governor.ChainGovernor
 	notary             *notary.Notary
@@ -104,15 +112,20 @@ type G struct {
 
 	// various channels
 	// Outbound gossip message queues (need to be read/write because p2p needs read/write)
-	gossipControlSendC     chan []byte
-	gossipAttestationSendC chan []byte
-	gossipVaaSendC         chan []byte
+	gossipControlSendC              chan []byte
+	gossipAttestationSendC          chan []byte
+	gossipDelegatedAttestationSendC chan []byte
+	gossipVaaSendC                  chan []byte
 	// Inbound observation batches.
 	batchObsvC channelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]]
+	// Inbound delegate observations from the p2p service
+	delegateObsvC channelPair[*gossipv1.SignedDelegateObservation]
 	// Finalized guardian observations aggregated across all chains
 	msgC channelPair[*common.MessagePublication]
 	// Ethereum incoming guardian set updates
 	setC channelPair[*common.GuardianSet]
+	// Delegated guardian config updates
+	dgConfigC channelPair[*processor.DelegatedGuardianConfig]
 	// Inbound signed VAAs
 	signedInC channelPair[*gossipv1.SignedVAAWithQuorum]
 	// Inbound observation requests from the p2p service (for all chains)
@@ -147,10 +160,13 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	// Setup various channels...
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
+	g.gossipDelegatedAttestationSendC = make(chan []byte, gossipDelegatedAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
+	g.delegateObsvC = makeChannelPair[*gossipv1.SignedDelegateObservation](delegateObservationInboundBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
+	g.dgConfigC = makeChannelPair[*processor.DelegatedGuardianConfig](1)
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
 	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
@@ -163,6 +179,9 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 
 	// Guardian set state managed by processor
 	g.gst = common.NewGuardianSetState(nil)
+
+	// Delegated guardian config
+	g.dgc = processor.NewDelegatedGuardianConfig()
 
 	// allocate maps
 	g.runnablesWithScissors = make(map[string]supervisor.Runnable)

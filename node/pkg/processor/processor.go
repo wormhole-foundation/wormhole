@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"slices"
+	"sort"
 	"sync"
 	"time"
 
@@ -86,6 +88,30 @@ type (
 	aggregationState struct {
 		signatures observationMap
 	}
+
+	// delegateState represents the local view of a given delegate observation
+	delegateState struct {
+		// First time this digest was seen.
+		firstObserved time.Time
+
+		// Map of delegate observations sent by guardian.
+		observations map[ethcommon.Address]*gossipv1.DelegateObservation
+
+		// Flag set after reaching quorum and submitting the VAA.
+		submitted bool
+
+		// Copy of the delegated guardian config valid at first observation time.
+		// This ensures that during delegated guardian set updates, quorum is checked
+		// against the config that was active when the message was first observed
+		cfg *DelegatedGuardianChainConfig
+	}
+
+	delegateObservationMap map[string]*delegateState
+
+	// delegateAggregationState represents the node's aggregation of delegated guardian signatures.
+	delegateAggregationState struct {
+		observations delegateObservationMap
+	}
 )
 
 // LoggingID can be used to identify a state object in a log message. Note that it should not
@@ -110,14 +136,27 @@ type Processor struct {
 	// setC is a channel of guardian set updates
 	setC <-chan *common.GuardianSet
 
+	// dgConfigC is a channel of delegated guardian config updates
+	dgConfigC <-chan *DelegatedGuardianConfig
+
 	// gossipAttestationSendC is a channel of outbound observation messages to broadcast on p2p
 	gossipAttestationSendC chan<- []byte
+
+	// gossipDelegatedAttestationSendC is a channel of outbound marshaled delegate observation messages to broadcast on p2p
+	gossipDelegatedAttestationSendC chan<- []byte
 
 	// gossipVaaSendC is a channel of outbound VAA messages to broadcast on p2p
 	gossipVaaSendC chan<- []byte
 
 	// batchObsvC is a channel of inbound decoded batches of observations from p2p
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
+
+	// delegateObsvC is a channel of inbound signed delegate observations from p2p
+	//
+	// NOTE: The delegate observation flow mirrors the batched observation flow, but without batching.
+	// Delegate observations carry the full payload, so the maximum delegated message size is already constrained by p2p
+	// (see common.DelegatedPayloadLenMax). Introducing batching would further reduce the effective size limit.
+	delegateObsvC <-chan *gossipv1.SignedDelegateObservation
 
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
 	obsvReqSendC chan<- *gossipv1.ObservationRequest
@@ -142,8 +181,13 @@ type Processor struct {
 	// guardian set by other components.
 	gst *common.GuardianSetState
 
+	// dgc is the per-chain delegated guardian config
+	dgc *DelegatedGuardianConfig
+
 	// state is the current runtime VAA view
 	state *aggregationState
+	// delegateState is the current delegate observation view
+	delegateState *delegateAggregationState
 	// gk pk as eth address
 	ourAddr ethcommon.Address
 
@@ -159,6 +203,10 @@ type Processor struct {
 
 	// batchObsvPubC is the internal channel used to publish observations to the batch processor for publishing.
 	batchObsvPubC chan *gossipv1.Observation
+
+	// delegatedGuardiansEnabled gates the delegated guardians protocol. When false, the processor
+	// always uses canonical guardian behavior and ignores incoming delegate observations.
+	delegatedGuardiansEnabled bool
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -188,6 +236,12 @@ var (
 			Help: "Total number of times a write to the batch observation publish channel failed",
 		}, []string{"channel"})
 
+	delegateObservationChannelOverflow = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_observation_channel_overflow",
+			Help: "Total number of times a write to the delegate observation publish channel failed",
+		}, []string{"channel"})
+
 	vaaPublishChannelOverflow = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_vaa_publish_channel_overflow",
@@ -214,6 +268,14 @@ var (
 			Name: "wormhole_unusual_msg_verification_states_total",
 			Help: "Total number of message verification state changes to unusual values",
 		}, []string{"verification_state", "emitter_chain"})
+
+	channelNilReceive = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_processor_channel_nil_receive_total",
+			Help: "Total number of nil receives on processor channels.",
+		},
+		[]string{"channel"},
+	)
 )
 
 // batchObsvPubChanSize specifies the size of the channel used to publish observation batches. Allow five seconds worth.
@@ -224,13 +286,17 @@ func NewProcessor(
 	db *guardianDB.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
+	dgConfigC <-chan *DelegatedGuardianConfig,
 	gossipAttestationSendC chan<- []byte,
+	gossipDelegatedAttestationSendC chan<- []byte,
 	gossipVaaSendC chan<- []byte,
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
+	delegateObsvC <-chan *gossipv1.SignedDelegateObservation,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	guardianSigner guardiansigner.GuardianSigner,
 	gst *common.GuardianSetState,
+	dgc *DelegatedGuardianConfig,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
@@ -238,33 +304,40 @@ func NewProcessor(
 	gatewayRelayer *gwrelayer.GatewayRelayer,
 	networkID string,
 	alternatePublisher *altpub.AlternatePublisher,
+	delegatedGuardiansEnabled bool,
 ) *Processor {
 
 	return &Processor{
-		msgC:                   msgC,
-		setC:                   setC,
-		gossipAttestationSendC: gossipAttestationSendC,
-		gossipVaaSendC:         gossipVaaSendC,
-		batchObsvC:             batchObsvC,
-		obsvReqSendC:           obsvReqSendC,
-		signedInC:              signedInC,
-		guardianSigner:         guardianSigner,
-		gst:                    gst,
-		db:                     db,
-		alternatePublisher:     alternatePublisher,
+		msgC:                            msgC,
+		setC:                            setC,
+		dgConfigC:                       dgConfigC,
+		gossipAttestationSendC:          gossipAttestationSendC,
+		gossipDelegatedAttestationSendC: gossipDelegatedAttestationSendC,
+		gossipVaaSendC:                  gossipVaaSendC,
+		batchObsvC:                      batchObsvC,
+		delegateObsvC:                   delegateObsvC,
+		obsvReqSendC:                    obsvReqSendC,
+		signedInC:                       signedInC,
+		guardianSigner:                  guardianSigner,
+		gst:                             gst,
+		db:                              db,
+		alternatePublisher:              alternatePublisher,
 
-		logger:         supervisor.Logger(ctx),
-		state:          &aggregationState{observationMap{}},
-		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
-		governor:       g,
-		acct:           acct,
-		acctReadC:      acctReadC,
-		notary:         notary,
-		pythnetVaas:    make(map[string]PythNetVaaEntry),
-		gatewayRelayer: gatewayRelayer,
-		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
-		updatedVAAs:    make(map[string]*updateVaaEntry),
-		networkID:      networkID,
+		logger:                    supervisor.Logger(ctx),
+		state:                     &aggregationState{observationMap{}},
+		delegateState:             &delegateAggregationState{delegateObservationMap{}},
+		ourAddr:                   crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
+		governor:                  g,
+		acct:                      acct,
+		acctReadC:                 acctReadC,
+		notary:                    notary,
+		pythnetVaas:               make(map[string]PythNetVaaEntry),
+		gatewayRelayer:            gatewayRelayer,
+		batchObsvPubC:             make(chan *gossipv1.Observation, batchObsvPubChanSize),
+		updatedVAAs:               make(map[string]*updateVaaEntry),
+		networkID:                 networkID,
+		dgc:                       dgc,
+		delegatedGuardiansEnabled: delegatedGuardiansEnabled,
 	}
 }
 
@@ -290,91 +363,219 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case p.gs = <-p.setC:
-			p.logger.Info("guardian set updated",
-				zap.Strings("set", p.gs.KeysAsHexStrings()),
-				zap.Uint32("index", p.gs.Index),
-				zap.Int("quorum", p.gs.Quorum()),
-			)
+			if p.gs == nil {
+				p.logger.Error("received nil GuardianSet from setC channel")
+				channelNilReceive.WithLabelValues("setC").Inc()
+				continue
+			}
+
+			oldSize := 0
+			oldGs := p.gst.Get()
+			if oldGs != nil {
+				oldSize = len(oldGs.Keys)
+			}
+			newSize := len(p.gs.Keys)
+
+			// Log guardian set changes
+			switch {
+			case oldSize == 0 && newSize > 0:
+				p.logger.Warn("guardian set populated",
+					zap.Strings("set", p.gs.KeysAsHexStrings()),
+					zap.Uint32("index", p.gs.Index),
+					zap.Int("quorum", p.gs.Quorum()),
+				)
+			case oldSize > 0 && newSize == 0:
+				p.logger.Error("guardian set emptied",
+					zap.Int("old_size", oldSize),
+					zap.Uint32("index", p.gs.Index),
+				)
+			case oldSize != newSize:
+				p.logger.Warn("guardian set size changed",
+					zap.Int("old_size", oldSize),
+					zap.Int("new_size", newSize),
+					zap.Strings("set", p.gs.KeysAsHexStrings()),
+					zap.Uint32("index", p.gs.Index),
+					zap.Int("quorum", p.gs.Quorum()),
+				)
+			default:
+				p.logger.Info("guardian set updated",
+					zap.Strings("set", p.gs.KeysAsHexStrings()),
+					zap.Uint32("index", p.gs.Index),
+					zap.Int("quorum", p.gs.Quorum()),
+				)
+			}
+
 			p.gst.Set(p.gs)
+		case dgConfig := <-p.dgConfigC:
+			if dgConfig == nil {
+				p.logger.Error("received nil DelegatedGuardianConfig from dgConfigC channel")
+				channelNilReceive.WithLabelValues("dgConfigC").Inc()
+				continue
+			}
+
+			var oldChains map[vaa.ChainID]DelegatedGuardianChainConfig
+			oldDgc := p.dgc
+			if oldDgc != nil {
+				oldChains = oldDgc.ReadAll()
+			}
+
+			dgConfig.mu.Lock()
+			defer dgConfig.mu.Unlock()
+
+			chains := dgConfig.Chains
+
+			// Log details for removed chain configs
+			for chain := range oldChains {
+				if _, ok := chains[chain]; !ok {
+					p.logger.Warn("delegated guardian config chain removed",
+						zap.Stringer("chainID", chain),
+					)
+				}
+			}
+
+			// Sort chains to get deterministic map iteration
+			chainIds := make([]vaa.ChainID, 0, len(chains))
+			for k := range chains {
+				chainIds = append(chainIds, k)
+			}
+			sort.Slice(chainIds, func(i, j int) bool {
+				return chainIds[i] < chainIds[j]
+			})
+
+			// Log details for new/updated chain configs
+			for _, chain := range chainIds {
+				cfg := chains[chain]
+				if _, isNonDelegable := nonDelegableChains[chain]; isNonDelegable {
+					p.logger.Error("attempted to set config for non-delegable chain; ignoring",
+						zap.Stringer("chainID", chain),
+					)
+					delete(chains, chain)
+					continue
+				}
+
+				oldSize, oldQuorum := 0, 0
+				oldCfg, oldCfgExists := oldChains[chain]
+				if oldCfgExists {
+					oldSize = len(oldCfg.Keys)
+					oldQuorum = oldCfg.Quorum()
+				}
+				newSize := len(cfg.Keys)
+				newQuorum := cfg.Quorum()
+
+				switch {
+				case !oldCfgExists:
+					p.logger.Warn("delegated guardian config chain added",
+						zap.Stringer("chainID", chain),
+						zap.Strings("set", cfg.KeysAsHexStrings()),
+						zap.Int("quorum", newQuorum),
+					)
+				case oldSize != newSize:
+					p.logger.Warn("delegated guardian config chain set size changed",
+						zap.Stringer("chainID", chain),
+						zap.Int("old_size", oldSize),
+						zap.Int("new_size", newSize),
+						zap.Strings("old_set", oldCfg.KeysAsHexStrings()),
+						zap.Strings("new_set", cfg.KeysAsHexStrings()),
+						zap.Int("quorum", newQuorum),
+					)
+				case oldQuorum != newQuorum:
+					p.logger.Warn("delegated guardian config chain threshold changed",
+						zap.Stringer("chainID", chain),
+						zap.Int("old_quorum", oldQuorum),
+						zap.Int("new_quorum", newQuorum),
+						zap.Strings("set", cfg.KeysAsHexStrings()),
+					)
+				case !slices.Equal(oldCfg.Keys, cfg.Keys):
+					p.logger.Warn("delegated guardian config chain set changed",
+						zap.Stringer("chainID", chain),
+						zap.Strings("old_set", oldCfg.KeysAsHexStrings()),
+						zap.Strings("new_set", cfg.KeysAsHexStrings()),
+						zap.Int("quorum", newQuorum),
+					)
+				default:
+					p.logger.Debug("delegated guardian config chain unchanged",
+						zap.Stringer("chainID", chain),
+						zap.Strings("set", cfg.KeysAsHexStrings()),
+						zap.Int("quorum", newQuorum),
+					)
+				}
+			}
+
+			if err := p.dgc.Set(chains); err != nil {
+				p.logger.Error("delegate guardian config update failed", zap.Error(err))
+			}
 		case k := <-p.msgC:
-			// This is the main message processing loop. It is responsible for handling messages that are
-			// received on the message channel. Depending on the configuration, a message may be processed
-			// by the Notary, the Governor, and/or the Accountant.
-			// This loop effectively causes each of these components to process messages in a modular
-			// manner. The Notary, Governor, and Accountant can be enabled or disabled independently.
-			// As a consequence of this loop, each of these components updates its internal state, tracking
-			// whether a message is ready to be processed from its perspective. This state is used by the
-			// processor to determine whether a message should be processed or not. This occurs elsewhere
-			// in the processor code.
+			if k == nil {
+				p.logger.Error("received nil MessagePublication from msgC channel")
+				channelNilReceive.WithLabelValues("msgC").Inc()
+				continue
+			}
 
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
 
-			// Track transfer verification states for analytics and log unusual states
-			p.trackVerificationState(k)
-
-			// Notary: check whether a message is well-formed.
-			// Send messages to the Notary first. If messages are not approved, they should not continue
-			// to the Governor or the Accountant.
-			if p.notary != nil {
-				p.logger.Debug("processor: sending message to notary for evaluation", k.ZapFields()...)
-
-				// NOTE: Always returns Approve for messages that are not token transfers.
-				verdict, err := p.notary.ProcessMsg(k)
-				if err != nil {
-					// TODO: The error is deliberately ignored so that the processor does not panic and restart.
-					// In contrast, the Accountant does not ignore the error and restarts the processor if it fails.
-					// The error-handling strategy can be revisited once the Notary is considered stable.
-					p.logger.Error("notary failed to process message", zap.Error(err), zap.String("messageID", k.MessageIDString()))
-					continue
+			if !p.delegatedGuardiansEnabled {
+				if err := p.handleMessagePublication(ctx, k); err != nil {
+					return err
 				}
+				continue
+			}
 
-				// Based on the verdict, we can decide what to do with the message.
-				switch verdict {
-				case guardianNotary.Blackhole, guardianNotary.Delay:
-					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
+			cfg, cfgExists := p.dgc.ReadChainConfig(k.EmitterChain)
+			p.logger.Info("processor: checking delegation config for chain",
+				zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+				zap.Bool("has_config", cfgExists),
+				zap.String("our_addr", p.ourAddr.Hex()),
+			)
+			// len(cfg.Keys) > 0 is redundant, kept for extra safety
+			if cfgExists && len(cfg.Keys) > 0 {
+				_, ok := cfg.KeyIndex(p.ourAddr)
+				p.logger.Info("processor: delegation check result",
+					zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+					zap.Bool("is_delegated_guardian", ok),
+					zap.Int("chain_quorum", cfg.Quorum()),
+					zap.Strings("delegated_keys", cfg.KeysAsHexStrings()),
+				)
+				if ok {
+					p.logger.Info("processor: process message publication using main processing loop")
 
-					if verdict == guardianNotary.Blackhole {
-						// Black-holed messages should not be processed.
-						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
-					} else {
-						// Delayed messages are added to a separate queue and processed elsewhere.
-						p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					// Send messages to the Notary first. If messages are not approved, they should not continue
+					// to the Governor or the Accountant.
+					if !p.processWithNotary(k) {
+						continue
 					}
-					// We're done processing the message.
-					continue
-				case guardianNotary.Unknown:
-					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
 
-				case guardianNotary.Approve:
-					// no-op: process normally
-					p.logger.Debug("notary evaluated message as approved", k.ZapFields(zap.String("verdict", verdict.String()))...)
-				default:
-					p.logger.Error("notary returned unrecognized verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					p.logger.Info("processor: sending delegate observation as delegated guardian", k.ZapFields()...)
+					p.handleDelegateMessagePublication(k)
+
+					// Send messages to the Governor and/or the Accountant
+					if !p.processWithGovernor(k) {
+						continue
+					}
+
+					if err := p.processWithAccountant(ctx, k); err != nil {
+						return err
+					}
+				} else {
+					p.logger.Info("processor: skipping message publication and delegate observation - not a delegated guardian for this chain",
+						zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+					)
+				}
+			} else {
+				p.logger.Info("processor: no delegation config found for chain",
+					zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+				)
+				p.logger.Info("processor: process message publication using main processing loop")
+				if err := p.handleMessagePublication(ctx, k); err != nil {
+					return err
 				}
 			}
-
-			// Governor: check if a message is ready to be published.
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
-					// We're done processing the message.
-					continue
-				}
-			}
-
-			// Accountant: check if a message is ready to be published (i.e. if it has enough observations).
-			if p.acct != nil {
-				shouldPub, err := p.acct.SubmitObservation(k)
-				if err != nil {
-					return fmt.Errorf("accountant: failed to process message `%s`: %w", k.MessageIDString(), err)
-				}
-				if !shouldPub {
-					// We're done processing the message.
-					continue
-				}
-			}
-			p.handleMessage(ctx, k)
-
 		case k := <-p.acctReadC:
+			if k == nil {
+				p.logger.Error("received nil MessagePublication from acctReadC channel")
+				channelNilReceive.WithLabelValues("acctReadC").Inc()
+				continue
+			}
+
 			if p.acct == nil {
 				return fmt.Errorf("received an accountant event when accountant is not configured")
 			}
@@ -384,9 +585,34 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 			p.handleMessage(ctx, k)
 		case m := <-p.batchObsvC:
+			if m == nil {
+				p.logger.Error("received nil MsgWithTimeStamp[SignedObservationBatch] from batchObsvC channel")
+				channelNilReceive.WithLabelValues("batchObsvC").Inc()
+				continue
+			}
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleBatchObservation(m)
+		case m := <-p.delegateObsvC:
+			if m == nil {
+				p.logger.Error("received nil SignedDelegateObservation from delegateObsvC channel")
+				channelNilReceive.WithLabelValues("delegateObsvC").Inc()
+				continue
+			}
+			if !p.delegatedGuardiansEnabled {
+				p.logger.Debug("processor: ignoring delegate observation, delegated guardians disabled")
+				continue
+			}
+
+			// SECURITY: handleSignedDelegateObservation assumes p2p signature verification is completed by p2p.
+			if err := p.handleSignedDelegateObservation(ctx, m); err != nil {
+				return err
+			}
 		case m := <-p.signedInC:
+			if m == nil {
+				p.logger.Error("received nil SignedVAAWithQuorum from signedInC channel")
+				channelNilReceive.WithLabelValues("signedInC").Inc()
+				continue
+			}
 			p.handleInboundSignedVAAWithQuorum(m)
 		case <-cleanup.C:
 			p.handleCleanup(ctx)
@@ -409,27 +635,27 @@ func (p *Processor) Run(ctx context.Context) error {
 					// idea to refactor how we handle combinations of Notary, Governor, and Accountant being
 					// enabled.
 
-					// Hand-off to governor
-					if p.governor != nil {
-						if !p.governor.ProcessMsg(msg) {
-							continue
+					// Publish DelegateObservation if we are a delegated guardian for the chain
+					cfg, cfgExists := p.dgc.ReadChainConfig(msg.EmitterChain)
+					// len(cfg.Keys) > 0 is redundant, kept for extra safety
+					if cfgExists && len(cfg.Keys) > 0 {
+						_, ok := cfg.KeyIndex(p.ourAddr)
+						if ok {
+							p.logger.Info("processor: sending delegate observation as delegated guardian", msg.ZapFields()...)
+							p.handleDelegateMessagePublication(msg)
 						}
+					}
+
+					// Hand-off to governor
+					if !p.processWithGovernor(msg) {
+						continue
 					}
 
 					// Hand-off to accountant. If we get here, both the Notary and the Governor
 					// have signalled that the message is OK to publish.
-					if p.acct != nil {
-						shouldPub, err := p.acct.SubmitObservation(msg)
-						if err != nil {
-							return fmt.Errorf("accountant: failed to process message `%s`: %w", msg.MessageIDString(), err)
-						}
-						if !shouldPub {
-							continue
-						}
+					if err := p.processWithAccountant(ctx, msg); err != nil {
+						return err
 					}
-
-					// Notary, Governor, and Accountant have all approved.
-					p.handleMessage(ctx, msg)
 				}
 			}
 
@@ -446,16 +672,9 @@ func (p *Processor) Run(ctx context.Context) error {
 						} else if !msgIsGoverned {
 							return fmt.Errorf("governor published a message that should not be governed: `%s`", k.MessageIDString())
 						}
-						if p.acct != nil {
-							shouldPub, err := p.acct.SubmitObservation(k)
-							if err != nil {
-								return fmt.Errorf("failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
-							}
-							if !shouldPub {
-								continue
-							}
+						if err := p.processWithAccountant(ctx, k); err != nil {
+							return err
 						}
-						p.handleMessage(ctx, k)
 					}
 				}
 			}
