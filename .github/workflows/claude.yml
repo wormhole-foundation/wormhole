@@ -17,9 +17,16 @@ concurrency:
 
 jobs:
   claude:
-    # TEMPORARY: hardcode actor to debug author_association values in the
-    # wormhole repo.  Will be reverted once we know the correct association.
-    if: github.actor == 'evgeniko'
+    # GitHub's live review/review_comment event payloads can report a trusted
+    # repo user as CONTRIBUTOR even when later REST reads show MEMBER, so keep
+    # CONTRIBUTOR in the workflow gate to avoid false-negative skips.
+    # Keep the @claude phrase check in the workflow too so we avoid starting the
+    # Claude action on unrelated trusted comments/reviews.
+    if: |
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association))
     runs-on: ubuntu-latest
     permissions:
       contents: read # Required to checkout and read repository files
@@ -34,16 +41,6 @@ jobs:
           echo "sha=$sha" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Debug trigger payload
-        id: debug-payload
-        run: |
-          echo "event_name=$GITHUB_EVENT_NAME"
-          echo "comment_author_association=$(jq -r '.comment.author_association // ""' "$GITHUB_EVENT_PATH")"
-          echo "review_author_association=$(jq -r '.review.author_association // ""' "$GITHUB_EVENT_PATH")"
-          echo "pull_request_author_association=$(jq -r '.pull_request.author_association // ""' "$GITHUB_EVENT_PATH")"
-          echo "comment_body=$(jq -r '.comment.body // ""' "$GITHUB_EVENT_PATH")"
-          echo "review_body=$(jq -r '.review.body // ""' "$GITHUB_EVENT_PATH")"
 
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
