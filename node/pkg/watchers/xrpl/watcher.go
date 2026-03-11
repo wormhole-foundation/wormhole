@@ -250,7 +250,8 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 	defer cancel()
 
 	// Subscribe to the core account and any NTT accounts
-	accounts := []types.Address{types.Address(w.contract)}
+	accounts := make([]types.Address, 0, 1+len(w.nttAccounts))
+	accounts = append(accounts, types.Address(w.contract))
 	for _, nttAccount := range w.nttAccounts {
 		accounts = append(accounts, types.Address(nttAccount))
 	}
