@@ -262,6 +262,10 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 		case <-resp.Context().Done():
 			return resp.Context().Err()
 		case msg := <-sub.ch:
+			// DoWithTimeout spawns a goroutine for resp.Send and races it against
+			// sendTimeout. If the timeout wins, the goroutine is not cancelled, but
+			// it will exit on its own once gRPC completes or tears down the stream
+			// (which happens when this handler returns). This is not a permanent leak.
 			if err := DoWithTimeout(func() error {
 				return resp.Send(&spyv1.SubscribeSignedVAAResponse{VaaBytes: msg.vaaBytes})
 			}, *sendTimeout); err != nil {
