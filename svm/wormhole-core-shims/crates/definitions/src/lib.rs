@@ -33,7 +33,7 @@ mod defs {
             #[cfg(any(feature = "testnet"))]
             panic!("The 'testnet' feature is meaningless without the 'solana' or 'fogo' feature.");
             #[cfg(any(feature = "localnet"))]
-            panic!("The 'localnet' feature is meaningless without the 'solana' or 'fogo' feature.");
+            panic!("The 'localnet' feature is meaningless without the 'solana' feature.");
 
             use super::*;
 
