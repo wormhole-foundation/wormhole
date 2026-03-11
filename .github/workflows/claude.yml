@@ -30,18 +30,16 @@ jobs:
       pull-requests: write # Required to post review comments and inline comments on PRs
       issues: write # Required to post comments on issues when triggered via issue_comment
     steps:
-      - name: Check org membership
+      - name: Check repo access
         id: auth
         run: |
-          org_status=$(gh api -i orgs/wormhole-foundation/members/${{ github.actor }} 2>&1 | head -1 | awk '{print $2}')
-          repo_status=$(gh api -i repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission 2>&1 | head -1 | awk '{print $2}')
-          echo "org_membership_status=$org_status"
-          echo "repo_collaborator_status=$repo_status"
-          if [ "$org_status" = "204" ]; then
+          permission=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission' 2>/dev/null || echo "none")
+          echo "permission=$permission"
+          if [ "$permission" = "write" ] || [ "$permission" = "admin" ]; then
             echo "authorized=true" >> "$GITHUB_OUTPUT"
           else
             echo "authorized=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Actor ${{ github.actor }} is not a member of wormhole-foundation (org=$org_status, repo=$repo_status)"
+            echo "::warning::Actor ${{ github.actor }} has no access to this repository"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
