@@ -17,22 +17,35 @@ concurrency:
 
 jobs:
   claude:
-    # GitHub's live review/review_comment event payloads can report a trusted
-    # repo user as CONTRIBUTOR even when later REST reads show MEMBER, so keep
-    # CONTRIBUTOR in the workflow gate to avoid false-negative skips.
-    # Keep the @claude phrase check in the workflow too so we avoid starting the
-    # Claude action on unrelated trusted comments/reviews.
+    # Only start the job when @claude is mentioned. Org membership is verified
+    # in the "Check org membership" step before running Claude.
     if: |
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.comment.author_association)) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.comment.author_association)) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.review.author_association)) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '@claude') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association))
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.body, '@claude'))
     runs-on: ubuntu-latest
     permissions:
       contents: read # Required to checkout and read repository files
       pull-requests: write # Required to post review comments and inline comments on PRs
       issues: write # Required to post comments on issues when triggered via issue_comment
     steps:
+      - name: Check org membership
+        id: auth
+        run: |
+          org_status=$(gh api -i orgs/wormhole-foundation/members/${{ github.actor }} 2>&1 | head -1 | awk '{print $2}')
+          repo_status=$(gh api -i repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission 2>&1 | head -1 | awk '{print $2}')
+          echo "org_membership_status=$org_status"
+          echo "repo_collaborator_status=$repo_status"
+          if [ "$org_status" = "204" ]; then
+            echo "authorized=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Actor ${{ github.actor }} is not a member of wormhole-foundation (org=$org_status, repo=$repo_status)"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Resolve PR head SHA for issue_comment events
         id: pr-sha
         if: github.event_name == 'issue_comment'
@@ -53,6 +66,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
+        if: steps.auth.outputs.authorized == 'true'
         uses: anthropics/claude-code-action@ade221fd1c400376a4799977d683a4eda09f9d7c # v1.0.60
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
