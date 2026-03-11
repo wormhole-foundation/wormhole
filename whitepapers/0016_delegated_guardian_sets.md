@@ -235,9 +235,23 @@ A critical property of this design is that Canonical Guardians must wait for del
 
 The final VAA still requires a supermajority of the full Guardian Set (Delegated + Canonical), preserving the end-to-end security guarantees of the protocol.
 
+### Transfer Verifier
+
+Delegated Guardians run the Notary (Transfer Verifier) on observed messages before broadcasting a `DelegateObservation`. If the Notary rejects a message, the `DelegateObservation` is never published, and Canonical Guardians will not receive it.
+
+### Governor and Accountant
+
+All Guardians — Delegated and Canonical — run the Governor and Accountant independently, ensuring that rate limits and accountant quorum are unaffected by delegation.
+After the Notary approves a message, Delegated Guardians publish the `DelegateObservation` and then pass the message through the Governor and Accountant as part of the standard message processing loop.
+After delegate quorum is reached, Canonical Guardians reconstruct a `MessagePublication` from one of the agreeing `DelegateObservation` messages and pass it through the standard message processing loop, including the Notary, Governor, and Accountant. Governor rate limits and Accountant checks may therefore delay or block messages on either side.
+
 ### Governance Security
 
 Configuration updates to the `WormholeDelegatedGuardians` contract require a valid governance VAA signed by the current Guardian Set. The contract enforces replay protection via `governanceActionsConsumed` and ordered submission via sequential `nextConfigIndex`, ensuring configuration updates are applied in the correct order.
+
+### Configuration Validation
+
+The `WormholeDelegatedGuardians` contract performs limited on-chain validation of submitted configurations. Correctness of guardian addresses, threshold values, and other config parameters is enforced off-chain via the `delegated-guardians-config` `guardiand` admin command, Guardian node checks, and the governance VAA process.
 
 ### Canonical Guardian Isolation
 
