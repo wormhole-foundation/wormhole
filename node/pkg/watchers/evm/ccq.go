@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -154,7 +155,11 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	}
 
 	// Verify all the call results and build the batch of results.
-	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
+	// Must preserve batch[i] <-> evmCallData[i] alignment for call entries:
+	// ccqVerifyAndExtractQueryResults reads per-call RPC errors from batch[idx].Error.
+	// This is safe because calls are built together via ccqBuildBatchFromCallData and
+	// only non-call RPC items are appended to batch after that.
+	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call query call request",
 			zap.String("requestId", requestId),
@@ -162,7 +167,7 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 			zap.Any("batch", batch),
 			zap.Error(err),
 		)
-		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
+		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
 
@@ -447,7 +452,11 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	}
 
 	// Verify all the call results and build the batch of results.
-	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
+	// Must preserve batch[i] <-> evmCallData[i] alignment for call entries:
+	// ccqVerifyAndExtractQueryResults reads per-call RPC errors from batch[idx].Error.
+	// This is safe because calls are built together via ccqBuildBatchFromCallData and
+	// only non-call RPC items are appended to batch after that.
+	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call_by_timestamp query call request",
 			zap.String("requestId", requestId),
@@ -456,7 +465,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 			zap.Any("batch", batch),
 			zap.Error(err),
 		)
-		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
+		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
 
@@ -591,7 +600,11 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	}
 
 	// Verify all the call results and build the batch of results.
-	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
+	// Must preserve batch[i] <-> evmCallData[i] alignment for call entries:
+	// ccqVerifyAndExtractQueryResults reads per-call RPC errors from batch[idx].Error.
+	// This is safe because calls are built together via ccqBuildBatchFromCallData and
+	// only non-call RPC items are appended to batch after that.
+	results, status, err := w.ccqVerifyAndExtractQueryResults(requestId, batch, evmCallData)
 	if err != nil {
 		w.ccqLogger.Info("failed to process eth_call_with_finality query call request",
 			zap.String("requestId", requestId),
@@ -602,7 +615,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 			zap.String("blockTime", blockResult.Time.String()),
 			zap.Error(err),
 		)
-		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
+		w.ccqSendQueryResponse(queryRequest, status, nil)
 		return
 	}
 
@@ -643,7 +656,7 @@ func ccqCreateBlockRequest(block string) (string, interface{}, error) {
 	if !strings.HasPrefix(block, "0x") {
 		return blockMethod, callBlockArg, fmt.Errorf("block id must start with 0x")
 	}
-	blk := strings.Trim(block, "0x")
+	blk := strings.TrimPrefix(block, "0x")
 
 	// Devnet can give us block IDs like this: "0x365".
 	if len(blk)%2 != 0 {
@@ -732,18 +745,57 @@ func (w *Watcher) ccqVerifyBlockResult(blockError error, blockResult connectors.
 	return nil
 }
 
+func ccqIsExecutionRevert(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var rpcErr rpc.Error
+	if errors.As(err, &rpcErr) && rpcErr.ErrorCode() == 3 {
+		return true
+	}
+
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "execution reverted") {
+		return true
+	}
+	if strings.Contains(msg, "reverted") {
+		return true
+	}
+	if strings.Contains(msg, "vm execution error") {
+		return true
+	}
+	if strings.Contains(msg, "invalid opcode") {
+		return true
+	}
+
+	return false
+}
+
 // ccqVerifyAndExtractQueryResults verifies the array of call results and returns a vector of those results to be published.
-func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, evmCallData []EvmCallData) ([][]byte, error) {
-	var err error
+// Returns (results, QuerySuccess, nil) on success, or (nil, QueryFatalError|QueryRetryNeeded, error) on failure.
+// QueryFatalError is returned for deterministic failures like execution reverts (no point retrying).
+func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, batch []rpc.BatchElem, evmCallData []EvmCallData) ([][]byte, query.QueryStatus, error) {
 	results := [][]byte{}
 	for idx, evmCD := range evmCallData {
+		// batch[idx].Error is set by go-ethereum's BatchCallContext for per-call failures
+		// (e.g. execution reverted). Note: evmCD.callErr is always nil here because it was
+		// copied by value into the BatchElem at construction time and is never written back.
+		if batch[idx].Error != nil {
+			status := query.QueryRetryNeeded
+			if ccqIsExecutionRevert(batch[idx].Error) {
+				status = query.QueryFatalError
+			}
+			return nil, status, fmt.Errorf("call %d failed: %w", idx, batch[idx].Error)
+		}
+
 		if evmCD.callErr != nil {
-			return nil, fmt.Errorf("call %d failed: %w", idx, evmCD.callErr)
+			return nil, query.QueryRetryNeeded, fmt.Errorf("call %d failed: %w", idx, evmCD.callErr)
 		}
 
 		// Nil or Empty results are not valid eth_call will return empty when the state doesn't exist for a block
 		if len(*evmCD.CallResult) == 0 {
-			return nil, fmt.Errorf("call %d failed: result is empty", idx)
+			return nil, query.QueryRetryNeeded, fmt.Errorf("call %d failed: result is empty", idx)
 		}
 
 		w.ccqLogger.Info("query call data result",
@@ -755,7 +807,7 @@ func (w *Watcher) ccqVerifyAndExtractQueryResults(requestId string, evmCallData 
 		results = append(results, *evmCD.CallResult)
 	}
 
-	return results, err
+	return results, query.QuerySuccess, nil
 }
 
 // ccqAddLatestBlock adds the latest block to the timestamp cache. The cache handles rollbacks.

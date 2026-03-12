@@ -75,6 +75,7 @@ config.define_bool("redis", False, "Enable a redis instance")
 config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
 config.define_bool("query_server", False, "Enable cross-chain query server")
 config.define_bool("stacks", False, "Enable Stacks component")
+config.define_bool("manager_service", False, "Enable manager service for UTXO chains (Dogecoin)")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -102,6 +103,7 @@ redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
 stacks = cfg.get("stacks", ci)
+manager_service = cfg.get("manager_service", False)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -419,6 +421,13 @@ def build_node_yaml():
                     "12345",
                     "--stacksBitcoinBlockPollInterval",
                     "2s"
+                ]
+
+            if manager_service:
+                container["command"] += [
+                    "--managerServiceEnabled",
+                    "--dogecoinManagerSignerUri",
+                    "file:///tmp/bridge.key"
                 ]
 
             # Wrap the command with a shell script for per-guardian configuration

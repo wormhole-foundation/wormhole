@@ -43,6 +43,7 @@ governor_status_000000000000000000| // gossip governor status
 heartbeat|                          // gossip heartbeat
 signed_observation_request|         // gossip signed observation request
 signed_delegate_observation_000000| // gossip signed delegate observation
+signed_manager_transaction_0000000| // gossip signed manager transaction
 mainnet_query_request_000000000000| // query request (mainnet, not signed by guardian)
 testnet_query_request_000000000000| // query request (testnet, not signed by guardian)
 devnet_query_request_0000000000000| // query request (devnet, not signed by guardian)
