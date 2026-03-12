@@ -1,14 +1,18 @@
 package manager
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
 	"math/big"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 )
 
 // TestCompressPublicKey_LeadingZeroCoordinate tests that compressPublicKey
@@ -53,4 +57,81 @@ func TestCompressPublicKey_LeadingZeroCoordinate(t *testing.T) {
 
 	expected, _ := hex.DecodeString("02139ae46a1133f1f9d23f25efba0f6dd87bf7ddaf568a5fb9e0a3bfda73176237")
 	assert.Equal(t, expected, result, "compressed key must match expected value")
+}
+
+// mockGuardianSigner is a minimal mock of guardiansigner.GuardianSigner for testing.
+type mockGuardianSigner struct {
+	pubKey ecdsa.PublicKey
+}
+
+func (m *mockGuardianSigner) Sign(_ context.Context, _ []byte) ([]byte, error) {
+	return make([]byte, 65), nil
+}
+
+func (m *mockGuardianSigner) PublicKey(_ context.Context) ecdsa.PublicKey {
+	return m.pubKey
+}
+
+func (m *mockGuardianSigner) Verify(_ context.Context, _ []byte, _ []byte) (bool, error) {
+	return true, nil
+}
+
+func (m *mockGuardianSigner) TypeAsString() string {
+	return "mock"
+}
+
+// TestSignDogecoinTransaction_EmptyInputs verifies that signDogecoinTransaction
+// returns a clear error when the payload has no inputs, rather than panicking
+// on a nil pointer dereference when accessing redeemScripts[0].
+func TestSignDogecoinTransaction_EmptyInputs(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	// Create a dummy compressed public key (33 bytes)
+	dummyPubKey, _ := hex.DecodeString("02139ae46a1133f1f9d23f25efba0f6dd87bf7ddaf568a5fb9e0a3bfda73176237")
+
+	// Pre-populate the reader cache so no RPC call is needed
+	reader := &ManagerSetReader{
+		logger: logger,
+		cache:  make(map[vaa.ChainID]map[uint32]*ManagerSetConfig),
+	}
+	reader.cache[vaa.ChainIDDogecoin] = map[uint32]*ManagerSetConfig{
+		0: {
+			Index:       0,
+			M:           2,
+			N:           3,
+			PublicKeys:  [][]byte{dummyPubKey, dummyPubKey, dummyPubKey},
+			IsSigner:    true,
+			SignerIndex: 0,
+		},
+	}
+
+	signer := &mockGuardianSigner{}
+
+	svc := &ManagerService{
+		ctx:    ctx,
+		logger: logger,
+		signers: map[vaa.ChainID]guardiansigner.GuardianSigner{
+			vaa.ChainIDDogecoin: signer,
+		},
+		reader: reader,
+	}
+
+	v := &vaa.VAA{
+		EmitterChain:   vaa.ChainIDSolana,
+		EmitterAddress: vaa.Address{},
+	}
+
+	payload := &vaa.UTXOUnlockPayload{
+		DestinationChain:         vaa.ChainIDDogecoin,
+		DelegatedManagerSetIndex: 0,
+		Inputs:                   []vaa.UTXOInput{}, // empty — triggers the guard
+		Outputs: []vaa.UTXOOutput{
+			{Amount: 100000, AddressType: vaa.UTXOAddressTypeP2PKH, Address: make([]byte, 20)},
+		},
+	}
+
+	_, err := svc.signDogecoinTransaction(v, payload, signer)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid redeemScripts length")
 }

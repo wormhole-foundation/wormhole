@@ -516,6 +516,10 @@ func (c *ManagerService) signDogecoinTransaction(
 		redeemScripts[i] = redeemScript
 	}
 
+	if len(redeemScripts) < 1 {
+		return nil, fmt.Errorf("invalid redeemScripts length, must have at least 1")
+	}
+
 	// For transaction building, we use the first input's redeem script
 	// (they should all produce the same P2SH address if from the same manager address)
 	unsignedTx, err := dogecoin.BuildUnsignedTransaction(payload, redeemScripts[0])
