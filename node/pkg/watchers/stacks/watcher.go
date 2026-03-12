@@ -302,7 +302,7 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 						logger.Error("Failed to fetch Bitcoin (burn) block",
 							zap.Uint64("height", height),
 							zap.Error(err))
-						break
+						continue // Keep processing following Bitcoin blocks
 					}
 
 					w.processBitcoinBlock(ctx, tenure, logger)
