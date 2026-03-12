@@ -34,10 +34,10 @@ type SignedResponse struct {
 }
 
 type P2PSub struct {
-	sub        *pubsub.Subscription
-	topic_req  *pubsub.Topic
-	topic_resp *pubsub.Topic
-	host       host.Host
+	sub       *pubsub.Subscription
+	topicReq  *pubsub.Topic
+	topicResp *pubsub.Topic
+	host      host.Host
 }
 
 func runP2P(
@@ -46,7 +46,7 @@ func runP2P(
 	port uint,
 	networkID string,
 	bootstrapPeers string,
-	ethRpcUrl string,
+	ethRPCURL string,
 	ethCoreAddr string,
 	pendingResponses *PendingResponses,
 	logger *zap.Logger,
@@ -66,21 +66,21 @@ func runP2P(
 	}
 
 	if len(protectedPeers) != 0 {
-		for _, peerId := range protectedPeers {
-			decodedPeerId, err := peer.Decode(peerId)
+		for _, peerID := range protectedPeers {
+			decodedPeerID, err := peer.Decode(peerID)
 			if err != nil {
-				logger.Error("error decoding protected ccq ID", zap.String("peerId", peerId), zap.Error(err))
+				logger.Error("error decoding protected ccq ID", zap.String("peerID", peerID), zap.Error(err))
 				continue
 			}
-			logger.Info("protecting ccq peer", zap.String("peerId", peerId))
-			components.ConnMgr.Protect(decodedPeerId, "configured")
+			logger.Info("protecting ccq peer", zap.String("peerID", peerID))
+			components.ConnMgr.Protect(decodedPeerID, "configured")
 		}
 	}
 
-	topic_req := fmt.Sprintf("%s/%s", networkID, "ccq_req")
-	topic_resp := fmt.Sprintf("%s/%s", networkID, "ccq_resp")
+	topicReq := fmt.Sprintf("%s/%s", networkID, "ccq_req")
+	topicResp := fmt.Sprintf("%s/%s", networkID, "ccq_resp")
 
-	logger.Info("Subscribing pubsub topic", zap.String("topic_req", topic_req), zap.String("topic_resp", topic_resp))
+	logger.Info("Subscribing pubsub topic", zap.String("topicReq", topicReq), zap.String("topicResp", topicResp))
 
 	// Comment from security team in PR #2981: CCQServers should have a parameter of D = 36, Dlo = 19, Dhi = 40, Dout = 18 such that they can reach all Guardians directly.
 	gossipParams := pubsub.DefaultGossipSubParams()
@@ -95,19 +95,19 @@ func runP2P(
 		return nil, err
 	}
 
-	th_req, err := ps.Join(topic_req)
+	thReq, err := ps.Join(topicReq)
 	if err != nil {
-		logger.Error("failed to join request topic", zap.String("topic_req", topic_req), zap.Error(err))
+		logger.Error("failed to join request topic", zap.String("topicReq", topicReq), zap.Error(err))
 		return nil, err
 	}
 
-	th_resp, err := ps.Join(topic_resp)
+	thResp, err := ps.Join(topicResp)
 	if err != nil {
-		logger.Error("failed to join response topic", zap.String("topic_resp", topic_resp), zap.Error(err))
+		logger.Error("failed to join response topic", zap.String("topicResp", topicResp), zap.Error(err))
 		return nil, err
 	}
 
-	sub, err := th_resp.Subscribe()
+	sub, err := thResp.Subscribe()
 	if err != nil {
 		logger.Error("failed to subscribe to response topic", zap.Error(err))
 		return nil, err
@@ -123,7 +123,7 @@ func runP2P(
 	// Wait for peers
 	logger.Info("Waiting for peers")
 	count := 0
-	for len(th_req.ListPeers()) < 1 {
+	for len(thReq.ListPeers()) < 1 {
 		count++
 		if count > 600 {
 			logger.Warn("Still waiting for peers")
@@ -131,7 +131,7 @@ func runP2P(
 		}
 		time.Sleep(time.Millisecond * 100)
 	}
-	logger.Info("Found peers", zap.Int("numPeers", len(th_req.ListPeers())))
+	logger.Info("Found peers", zap.Int("numPeers", len(thReq.ListPeers())))
 
 	if monitorPeers {
 		logger.Info("Will monitor for missing peers once per minute.")
@@ -142,7 +142,7 @@ func runP2P(
 				case <-ctx.Done():
 					logger.Info("Context cancelled, exiting peer monitoring.")
 				case <-t.C:
-					peers := th_req.ListPeers()
+					peers := thReq.ListPeers()
 					logger.Info("current peers", zap.Int("numPeers", len(peers)), zap.Any("peers", peers))
 					peerMap := map[string]struct{}{}
 					for _, peer := range peers {
@@ -166,7 +166,7 @@ func runP2P(
 	}
 
 	// Fetch the initial current guardian set
-	guardianSet, err := FetchCurrentGuardianSet(ctx, ethRpcUrl, ethCoreAddr)
+	guardianSet, err := FetchCurrentGuardianSet(ctx, ethRPCURL, ethCoreAddr)
 	if err != nil {
 		logger.Fatal("Failed to fetch current guardian set", zap.Error(err))
 	}
@@ -194,8 +194,8 @@ func runP2P(
 			switch m := msg.Message.(type) {
 			case *gossipv1.GossipMessage_SignedQueryResponse:
 				logger.Debug("query response received", zap.Any("response", m.SignedQueryResponse))
-				peerId := envelope.GetFrom().String()
-				queryResponsesReceived.WithLabelValues(peerId).Inc()
+				peerID := envelope.GetFrom().String()
+				queryResponsesReceived.WithLabelValues(peerID).Inc()
 				var queryResponse query.QueryResponsePublication
 				err := queryResponse.Unmarshal(m.SignedQueryResponse.QueryResponse)
 				if err != nil {
@@ -204,16 +204,16 @@ func runP2P(
 					continue
 				}
 				for _, pcr := range queryResponse.PerChainResponses {
-					queryResponsesReceivedByChainAndPeerID.WithLabelValues(pcr.ChainId.String(), peerId).Inc()
+					queryResponsesReceivedByChainAndPeerID.WithLabelValues(pcr.ChainId.String(), peerID).Inc()
 				}
 				requestSignature := hex.EncodeToString(queryResponse.Request.Signature)
-				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
+				logger.Info("query response received from gossip", zap.String("peerID", peerID), zap.Any("requestId", requestSignature))
 				if loggingMap.ShouldLogResponse(requestSignature) {
 					var queryRequest query.QueryRequest
 					if err := queryRequest.Unmarshal(queryResponse.Request.QueryRequest); err == nil {
-						logger.Info("logging response", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("request", queryRequest), zap.Any("response", queryResponse))
+						logger.Info("logging response", zap.String("peerID", peerID), zap.Any("requestId", requestSignature), zap.Any("request", queryRequest), zap.Any("response", queryResponse))
 					} else {
-						logger.Error("logging response (failed to unmarshal request)", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
+						logger.Error("logging response (failed to unmarshal request)", zap.String("peerID", peerID), zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
 					}
 				}
 				// Check that we're handling the request for this response
@@ -271,14 +271,14 @@ func runP2P(
 						select {
 						case pendingResponse.ch <- s:
 							logger.Info("quorum reached, forwarded query response",
-								zap.String("peerId", peerId),
+								zap.String("peerID", peerID),
 								zap.String("userId", pendingResponse.userName),
 								zap.Any("requestId", requestSignature),
 								zap.Int("numSigners", numSigners),
 								zap.Int("quorum", quorum),
 							)
 						default:
-							logger.Error("failed to write query response to channel, dropping it", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
+							logger.Error("failed to write query response to channel, dropping it", zap.String("peerID", peerID), zap.Any("requestId", requestSignature))
 							// Leave the request in the pending map. It will get cleaned up if it times out.
 						}
 					} else {
@@ -299,7 +299,7 @@ func runP2P(
 							select {
 							case pendingResponse.errCh <- &ErrorEntry{err: errors.New("quorum not met"), status: http.StatusBadRequest}:
 								logger.Info("query failed, quorum not met",
-									zap.String("peerId", peerId),
+									zap.String("peerID", peerID),
 									zap.String("userId", pendingResponse.userName),
 									zap.Any("requestId", requestSignature),
 									zap.Int("numSigners", numSigners),
@@ -308,12 +308,12 @@ func runP2P(
 									zap.Int("quorum", quorum),
 								)
 							default:
-								logger.Error("failed to write query error response to channel, dropping it", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
+								logger.Error("failed to write query error response to channel, dropping it", zap.String("peerID", peerID), zap.Any("requestId", requestSignature))
 								// Leave the request in the pending map. It will get cleaned up if it times out.
 							}
 						} else {
 							logger.Info("waiting for more query responses",
-								zap.String("peerId", peerId),
+								zap.String("peerID", peerID),
 								zap.String("userId", pendingResponse.userName),
 								zap.Any("requestId", requestSignature),
 								zap.Int("numSigners", numSigners),
@@ -338,9 +338,9 @@ func runP2P(
 	}()
 
 	return &P2PSub{
-		sub:        sub,
-		topic_req:  th_req,
-		topic_resp: th_resp,
-		host:       h,
+		sub:       sub,
+		topicReq:  thReq,
+		topicResp: thResp,
+		host:      h,
 	}, nil
 }
