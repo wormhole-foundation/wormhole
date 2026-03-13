@@ -8,7 +8,7 @@ Introduce delegated guardian sets that allow a configurable subset of Guardians 
 
 The Wormhole protocol relies on a set of 19 Guardian nodes to observe on-chain events across all connected chains and attest to them via Verifiable Action Approvals (VAAs). In the current architecture, every Guardian node is expected to maintain full-node infrastructure for each connected chain, placing a symmetric operational burden on every Guardian regardless of chain-specific requirements.
 
-This design proposal introduces the concept of a delegated guardian set — a configurable subset of Guardians designated to observe events on specific chains. The remaining Guardians (referred to as Canonical Guardians for that chain) rely on attested observations gossiped by Delegated Guardians to participate in VAA signing.
+This proposal introduces delegated guardian sets, where a configurable subset of Guardians is designated to observe events on specific chains. The remaining Guardians (referred to as Canonical Guardians for that chain) rely on attested observations gossiped by Delegated Guardians to participate in VAA signing.
 
 Readers should be familiar with the core Wormhole message passing protocol and the Guardian observation pipeline.
 
@@ -28,7 +28,7 @@ Readers should be familiar with the core Wormhole message passing protocol and t
 
 ## Overview
 
-Delegated guardian sets introduce an asymmetry in chain observation responsibilities within the Guardian network. For a given chain, a subset of Guardians is designated as Delegated — they run watchers and gossip their observations via a new `DelegateObservation` gossip message to a dedicated p2p topic, signed with their Guardian key to ensure authenticity. The remaining Canonical Guardians subscribe to this topic.
+Delegated guardian sets introduce an asymmetry in chain observation responsibilities within the Guardian network. For a given chain, a subset of Guardians is designated as Delegated. They run watchers and gossip their observations via a new `DelegateObservation` gossip message to a dedicated p2p topic, signed with their Guardian key to ensure authenticity. The remaining Canonical Guardians subscribe to this topic.
 
 Once a sufficient number of `DelegateObservation` messages agree on a message, Canonical Guardians reconstruct the corresponding `MessagePublication` and proceed through the standard VAA signing pipeline.
 
@@ -205,7 +205,7 @@ Delayed messages and reobservations follow the same delegated flow. Cumulative d
 
 ### Separate Guardian Network per Chain
 
-One alternative was to deploy a new core bridge contract on selected chains and operate an entirely separate Guardian network with its own keys, gossip network, and bootstrap nodes to observe those chains. This was rejected because it would fragment the trust model — integrators would need to verify VAAs against a different Guardian Set depending on the emitting chain, requiring changes to all downstream consumers.
+One alternative was to deploy a new core bridge contract on selected chains and operate an entirely separate Guardian network with its own keys, gossip network, and bootstrap nodes to observe those chains. This was rejected because it would fragment the trust model and integrators would need to verify VAAs against a different Guardian Set depending on the emitting chain, requiring changes to all downstream consumers.
 
 ### Reduced Verification Threshold at the Integrator Layer
 
@@ -213,7 +213,7 @@ Another alternative was to keep the existing core bridge contracts unchanged and
 
 ### Shared RPC Infrastructure
 
-A third alternative was to maintain the full Guardian Set for all chains but reduce infrastructure costs by having a subset of Guardians share a small number of RPC endpoints for lower-priority chains. This was rejected because it introduces additional trust assumptions — a coordinated RPC provider and a small number of Guardians would be sufficient to produce a fraudulent observation, reducing the effective security threshold below the intended level.
+A third alternative was to maintain the full Guardian Set for all chains but reduce infrastructure costs by having a subset of Guardians share a small number of RPC endpoints for lower-priority chains. This was rejected because it introduces additional trust assumptions. For instance, a coordinated RPC provider and a small number of Guardians would be sufficient to produce a fraudulent observation, reducing the effective security threshold below the intended level.
 
 ### Separate Guardian Sets per Chain with Contract Upgrades
 
@@ -229,9 +229,9 @@ Both Delegated and Canonical Guardians sign the final VAA using their existing G
 
 ### Trust Model
 
-The delegate observation mechanism introduces a new trust boundary: Canonical Guardians are trusting that the Delegated Guardians are faithfully reporting on-chain events. The trust conferred on delegate observations is bounded in two ways. First, Delegated Guardians may be members of the Canonical Guardian Set but are not required to be; Canonical Guardians verify delegate observations against the delegated guardian configuration stored in the `WormholeDelegatedGuardians` contract. Second, a configurable delegate threshold of Delegated Guardians must agree on an observation before Canonical Guardians act on it, preventing a single Delegated Guardian from unilaterally influencing Canonical Guardian behavior.
+The delegate observation mechanism introduces a new trust boundary: Canonical Guardians trust that Delegated Guardians are faithfully reporting on-chain events. This trust is bounded in two ways. First, Canonical Guardians verify delegate observations against the delegated guardian configuration stored in the `WormholeDelegatedGuardians` contract. Second, a configurable delegate threshold of Delegated Guardians must agree on an observation before Canonical Guardians act on it, preventing a single Delegated Guardian from unilaterally influencing Canonical Guardian behavior.
 
-A critical property of this design is that Canonical Guardians must wait for delegate quorum to be reached before publishing their own observations. Consider a delegated guardian set of N Guardians with a delegate threshold of ⌈2/3 × N⌉: if Canonical Guardians were to sign and broadcast observations without first waiting for delegate quorum, a small number of colluding Delegated Guardians could produce fraudulent observations that Canonical Guardians would then co-sign, resulting in a valid 13/19 VAA whose effective security is far below the intended delegate threshold. By requiring delegate quorum first, the security of the final VAA is bounded by the delegate threshold rather than the number of colluding Delegated Guardians.
+A critical property of this design is that Canonical Guardians must wait for delegate quorum before publishing their own observations. Consider a delegated guardian set of N Guardians with a delegate threshold of ⌈2/3 × N⌉: if Canonical Guardians were to sign and broadcast observations without first waiting for delegate quorum, a small number of colluding Delegated Guardians could produce fraudulent observations that Canonical Guardians would then co-sign, resulting in a valid 13/19 VAA whose effective security is far below the intended delegate threshold. By requiring delegate quorum first, the security of the final VAA is bounded by the delegate threshold rather than the number of colluding Delegated Guardians.
 
 The final VAA still requires a supermajority of the full Guardian Set (Delegated + Canonical), preserving the end-to-end security guarantees of the protocol.
 
@@ -241,8 +241,10 @@ Delegated Guardians run the Notary (Transfer Verifier) on observed messages befo
 
 ### Governor and Accountant
 
-All Guardians — Delegated and Canonical — run the Governor and Accountant independently, ensuring that rate limits and accountant quorum are unaffected by delegation.
+Both Delegated and Canonical Guardians run the Governor and Accountant independently, ensuring that rate limits and accountant quorum are unaffected by delegation.
+
 After the Notary approves a message, Delegated Guardians publish the `DelegateObservation` and then pass the message through the Governor and Accountant as part of the standard message processing loop.
+
 After delegate quorum is reached, Canonical Guardians reconstruct a `MessagePublication` from one of the agreeing `DelegateObservation` messages and pass it through the standard message processing loop, including the Notary, Governor, and Accountant. Governor rate limits and Accountant checks may therefore delay or block messages on either side.
 
 ### Governance Security
