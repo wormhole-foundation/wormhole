@@ -469,6 +469,7 @@ func (ap *AlternatePublisher) httpPost(ctx context.Context, client *http.Client,
 	r.Header.Add("Content-Type", "application/octet-stream")
 
 	start := time.Now()
+	// #nosec G704 -- URL configured at startup, not user input
 	resp, err := client.Do(r)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
