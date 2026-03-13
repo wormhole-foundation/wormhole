@@ -72,7 +72,7 @@ func TestCheckCommitment(t *testing.T) {
 	}
 }
 
-const whLogPrefix = "Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+const whLogPrefixSolana = "Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 
 func TestIsPossibleWormholeMessageSuccess(t *testing.T) {
 	logs := []string{
@@ -99,7 +99,7 @@ func TestIsPossibleWormholeMessageSuccess(t *testing.T) {
 		"Program BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY success",
 	}
 
-	require.True(t, isPossibleWormholeMessage(whLogPrefix, logs))
+	require.True(t, isPossibleWormholeMessage(whLogPrefixSolana, logs))
 }
 
 func TestIsPossibleWormholeMessageFail(t *testing.T) {
@@ -119,7 +119,7 @@ func TestIsPossibleWormholeMessageFail(t *testing.T) {
 		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth success",
 	}
 
-	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
+	require.False(t, isPossibleWormholeMessage(whLogPrefixSolana, logs))
 }
 
 func TestIsPossibleWormholeMessageSequenceBeforePrefixFail(t *testing.T) {
@@ -131,7 +131,7 @@ func TestIsPossibleWormholeMessageSequenceBeforePrefixFail(t *testing.T) {
 		"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth success",
 	}
 
-	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
+	require.False(t, isPossibleWormholeMessage(whLogPrefixSolana, logs))
 }
 
 func TestIsPossibleWormholeMessageMultiplePrefixesNoSequenceFail(t *testing.T) {
@@ -146,7 +146,7 @@ func TestIsPossibleWormholeMessageMultiplePrefixesNoSequenceFail(t *testing.T) {
 		"Program BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY success",
 	}
 
-	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
+	require.False(t, isPossibleWormholeMessage(whLogPrefixSolana, logs))
 }
 
 func TestIsPossibleWormholeMessageMissingPrefixFail(t *testing.T) {
@@ -158,7 +158,7 @@ func TestIsPossibleWormholeMessageMissingPrefixFail(t *testing.T) {
 		"Program BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY success",
 	}
 
-	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
+	require.False(t, isPossibleWormholeMessage(whLogPrefixSolana, logs))
 }
 
 func Test_validateTransactionMeta(t *testing.T) {
@@ -312,6 +312,15 @@ func TestProcessMessageAccount(t *testing.T) {
 			wantCount:        1,
 		},
 		{
+			name:             "publishes_reliable_fogo",
+			chainID:          vaa.ChainIDFogo,
+			commitment:       rpc.CommitmentFinalized,
+			prefix:           accountPrefixReliable,
+			payload:          []byte("hello"),
+			consistencyLevel: 32,
+			wantCount:        1,
+		},
+		{
 			name:             "skips_unfinalized",
 			chainID:          vaa.ChainIDSolana,
 			commitment:       rpc.CommitmentFinalized,
@@ -373,6 +382,16 @@ func TestProcessMessageAccount(t *testing.T) {
 		{
 			name:             "publishes_unreliable",
 			chainID:          vaa.ChainIDSolana,
+			commitment:       rpc.CommitmentFinalized,
+			prefix:           accountPrefixUnreliable,
+			payload:          []byte("hello"),
+			consistencyLevel: 32,
+			wantCount:        1,
+			wantUnreliable:   true,
+		},
+		{
+			name:             "publishes_unreliable_fogo",
+			chainID:          vaa.ChainIDFogo,
 			commitment:       rpc.CommitmentFinalized,
 			prefix:           accountPrefixUnreliable,
 			payload:          []byte("hello"),
