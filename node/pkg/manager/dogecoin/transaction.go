@@ -208,6 +208,15 @@ func EncodeDERSignature(r, s []byte, hashType txscript.SigHashType) []byte {
 	sLen := len(s)
 	totalLen := 4 + rLen + sLen // 0x02 + rLen + r + 0x02 + sLen + s
 
+	// Bounds checks for DER encoding (max single-byte length is 255)
+	// Prevents truncation when casting to `byte()` below.
+	if totalLen > 255 || rLen > 255 || sLen > 255 {
+		return nil
+	}
+	if hashType > 255 {
+		return nil
+	}
+
 	// Build DER signature
 	sig := make([]byte, 0, totalLen+3) // +3 for 0x30, totalLen, and hashType
 	sig = append(sig, 0x30)            // DER sequence tag
