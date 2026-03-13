@@ -1623,6 +1623,11 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		// First check to see if this VAA has already been signed
 		// Convert vaaKey to VAAID
 		splits := strings.Split(missingVAA.VaaKey, "/")
+		if len(splits) != 3 {
+			errMsgs += fmt.Sprintf("\ninvalid vaaKey format [%s], expected chain/emitter/sequence", missingVAA.VaaKey)
+			errCounter++
+			continue
+		}
 		chainID, err := strconv.Atoi(splits[0])
 		if err != nil {
 			errMsgs += fmt.Sprintf("\nerror converting chainID [%s] to int", missingVAA.VaaKey)
