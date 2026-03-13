@@ -31,7 +31,7 @@ type (
 
 	User struct {
 		UserName      string        `json:"userName"`
-		ApiKey        string        `json:"apiKey"`
+		APIKey        string        `json:"apiKey"`
 		AllowUnsigned bool          `json:"allowUnsigned"`
 		AllowAnything bool          `json:"allowAnything"`
 		RateLimit     *float64      `json:"RateLimit"`
@@ -187,7 +187,7 @@ func (perms *Permissions) GetUserEntry(apiKey string) (*permissionEntry, bool) {
 	return userEntry, exists
 }
 
-const ETH_CALL_SIG_LENGTH = 4
+const EthCallSigLength = 4
 
 // parseConfigFile parses the permissions config file into a map keyed by API key.
 func parseConfigFile(fileName string, env common.Environment) (PermissionsMap, error) {
@@ -235,7 +235,7 @@ func parseConfig(byteValue []byte, env common.Environment) (PermissionsMap, erro
 		}
 		userNames[user.UserName] = struct{}{}
 
-		apiKey := strings.ToLower(user.ApiKey)
+		apiKey := strings.ToLower(user.APIKey)
 		if _, exists := ret[apiKey]; exists {
 			return nil, fmt.Errorf(`API key "%s" is a duplicate`, apiKey)
 		}
@@ -346,8 +346,8 @@ func parseConfig(byteValue []byte, env common.Environment) (PermissionsMap, erro
 				if err != nil {
 					return nil, fmt.Errorf(`invalid eth call "%s" for user "%s"`, callStr, user.UserName)
 				}
-				if len(call) != ETH_CALL_SIG_LENGTH {
-					return nil, fmt.Errorf(`eth call "%s" for user "%s" has an invalid length, must be %d bytes`, callStr, user.UserName, ETH_CALL_SIG_LENGTH)
+				if len(call) != EthCallSigLength {
+					return nil, fmt.Errorf(`eth call "%s" for user "%s" has an invalid length, must be %d bytes`, callStr, user.UserName, EthCallSigLength)
 				}
 
 				// The permission key is the chain, contract address and call formatted as a colon separated string.

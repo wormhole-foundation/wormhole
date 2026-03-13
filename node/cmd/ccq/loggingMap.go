@@ -49,9 +49,9 @@ func (lm *LoggingMap) Start(ctx context.Context, _ *zap.Logger, errC chan error)
 func (lm *LoggingMap) CleanUp() {
 	lm.loggingLock.Lock()
 	defer lm.loggingLock.Unlock()
-	for requestId, cleanUpTime := range lm.loggingMap {
+	for requestID, cleanUpTime := range lm.loggingMap {
 		if time.Now().After(cleanUpTime) {
-			delete(lm.loggingMap, requestId)
+			delete(lm.loggingMap, requestID)
 		}
 	}
 }
