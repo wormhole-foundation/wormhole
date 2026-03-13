@@ -104,6 +104,7 @@ Keccak
 kevm
 KEVM
 keymap
+keypair
 keytool
 klaytn
 Klaytn
