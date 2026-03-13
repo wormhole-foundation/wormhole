@@ -49,7 +49,7 @@ module token_bridge::token_bridge_scenario {
             x"0000000000000000000000000000000000000000000000000000000000000004";
 
         // Finally share `State`.
-        setup::complete(
+        setup::complete_test_only(
             test_scenario::take_from_sender<DeployerCap>(scenario),
             upgrade_cap,
             emitter_cap,

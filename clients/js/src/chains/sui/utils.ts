@@ -1,24 +1,25 @@
-import {
-  Connection,
-  Ed25519Keypair,
-  JsonRpcProvider,
-  PaginatedObjectsResponse,
-  RawSigner,
-  SUI_CLOCK_OBJECT_ID,
-  SuiTransactionBlockResponse,
-  TransactionBlock,
-  fromB64,
-  getPublishedObjectChanges,
-  normalizeSuiAddress,
-} from "@mysten/sui.js";
-import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
+import { SuiClient, SuiTransactionBlockResponse } from "@mysten/sui/client";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { Transaction } from "@mysten/sui/transactions";
+import { fromB64, toB64 } from "@mysten/bcs";
 import { NETWORKS } from "../../consts";
 import { Payload, VAA, parse, serialiseVAA } from "../../vaa";
 import { SuiRpcValidationError } from "./error";
 import { Network } from "@wormhole-foundation/sdk";
 import { isValidSuiAddress } from "../../sdk/sui";
 
+const SUI_CLOCK_OBJECT_ID =
+  "0x0000000000000000000000000000000000000000000000000000000000000006";
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
+
+// Re-export for other modules
+export { SUI_CLOCK_OBJECT_ID };
+
+// Type for signer - combines keypair and client
+export interface SuiSigner {
+  keypair: Ed25519Keypair;
+  client: SuiClient;
+}
 
 export const assertSuccess = (
   res: SuiTransactionBlockResponse,
@@ -30,18 +31,12 @@ export const assertSuccess = (
 };
 
 export const executeTransactionBlock = async (
-  signer: RawSigner,
-  transactionBlock: TransactionBlock
+  signer: SuiSigner,
+  transaction: Transaction
 ): Promise<SuiTransactionBlockResponse> => {
-  // As of version 0.32.2, Sui SDK outputs a RPC validation warning when the
-  // SDK falls behind the Sui version used by the RPC. We silence these
-  // warnings since the SDK is often out of sync with the RPC.
-  const consoleWarnTemp = console.warn;
-  console.warn = () => {};
-
-  // Let caller handle parsing and logging info
-  const res = await signer.signAndExecuteTransactionBlock({
-    transactionBlock,
+  const res = await signer.client.signAndExecuteTransaction({
+    signer: signer.keypair,
+    transaction,
     options: {
       showInput: true,
       showEffects: true,
@@ -50,17 +45,16 @@ export const executeTransactionBlock = async (
     },
   });
 
-  console.warn = consoleWarnTemp;
   return res;
 };
 
 export const findOwnedObjectByType = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   owner: string,
   type: string,
   cursor?: string
 ): Promise<string | null> => {
-  const res: PaginatedObjectsResponse = await provider.getOwnedObjects({
+  const res = await client.getOwnedObjects({
     owner,
     filter: undefined, // Filter must be undefined to avoid 504 responses
     cursor: cursor || undefined,
@@ -76,12 +70,7 @@ export const findOwnedObjectByType = async (
   const object = res.data.find((d) => d.data?.type === type);
 
   if (!object && res.hasNextPage) {
-    return findOwnedObjectByType(
-      provider,
-      owner,
-      type,
-      res.nextCursor as string
-    );
+    return findOwnedObjectByType(client, owner, type, res.nextCursor as string);
   } else if (!object && !res.hasNextPage) {
     return null;
   } else {
@@ -112,7 +101,7 @@ export const getCreatedObjects = (
   }) ?? [];
 
 export const getOwnedObjectId = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   owner: string,
   packageId: string,
   moduleName: string,
@@ -128,7 +117,7 @@ export const getOwnedObjectId = async (
   }
 
   try {
-    const res = await provider.getOwnedObjects({
+    const res = await client.getOwnedObjects({
       owner,
       filter: { StructType: type },
       options: {
@@ -154,7 +143,7 @@ export const getOwnedObjectId = async (
     // Handle 504 error by using findOwnedObjectByType method
     const is504HttpError = `${error}`.includes("504 Gateway Time-out");
     if (error && is504HttpError) {
-      return findOwnedObjectByType(provider, owner, type);
+      return findOwnedObjectByType(client, owner, type);
     } else {
       throw error;
     }
@@ -163,19 +152,18 @@ export const getOwnedObjectId = async (
 
 // TODO(kp): remove this once it's in the sdk
 export const getPackageId = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   objectId: string
 ): Promise<string> => {
   let currentPackage;
-  let nextCursor;
+  let nextCursor: string | null | undefined;
   do {
-    const dynamicFields: DynamicFieldPage = await provider.getDynamicFields({
+    const dynamicFields = await client.getDynamicFields({
       parentId: objectId,
       cursor: nextCursor,
     });
-    currentPackage = dynamicFields.data.find(
-      (field: DynamicFieldPage["data"][number]) =>
-        field.name.type.endsWith("CurrentPackage")
+    currentPackage = dynamicFields.data.find((field) =>
+      field.name.type.endsWith("CurrentPackage")
     );
     nextCursor = dynamicFields.hasNextPage ? dynamicFields.nextCursor : null;
   } while (nextCursor && !currentPackage);
@@ -183,15 +171,16 @@ export const getPackageId = async (
     throw new Error("CurrentPackage not found");
   }
 
-  const obj = await provider.getObject({
+  const obj = await client.getObject({
     id: currentPackage.objectId,
     options: {
       showContent: true,
     },
   });
+  const content = obj.data?.content;
   const packageId =
-    obj.data?.content && "fields" in obj.data.content
-      ? obj.data.content.fields.value?.fields?.package
+    content && "fields" in content
+      ? (content.fields as any).value?.fields?.package
       : null;
   if (!packageId) {
     throw new Error("Unable to get current package");
@@ -200,10 +189,7 @@ export const getPackageId = async (
   return packageId;
 };
 
-export const getProvider = (
-  network?: Network,
-  rpc?: string
-): JsonRpcProvider => {
+export const getProvider = (network?: Network, rpc?: string): SuiClient => {
   if (!network && !rpc) {
     throw new Error("Must provide network or RPC to initialize provider");
   }
@@ -213,13 +199,13 @@ export const getProvider = (
     throw new Error(`No default RPC found for Sui ${network}`);
   }
 
-  return new JsonRpcProvider(new Connection({ fullnode: rpc }));
+  return new SuiClient({ url: rpc });
 };
 
 export const getPublishedPackageId = (
   res: SuiTransactionBlockResponse
 ): string => {
-  const publishEvents = getPublishedObjectChanges(res);
+  const publishEvents = res.objectChanges?.filter(isSuiPublishEvent) ?? [];
   if (publishEvents.length !== 1) {
     throw new Error(
       "Unexpected number of publish events found:" +
@@ -231,10 +217,10 @@ export const getPublishedPackageId = (
 };
 
 export const getSigner = (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   network: Network,
   customPrivateKey?: string
-): RawSigner => {
+): SuiSigner => {
   const privateKey: string | undefined =
     customPrivateKey || NETWORKS[network].Sui.key;
   if (!privateKey) {
@@ -252,7 +238,7 @@ export const getSigner = (
     bytes = bytes.subarray(1);
   }
   const keypair = Ed25519Keypair.fromSecretKey(bytes);
-  return new RawSigner(keypair, provider);
+  return { keypair, client };
 };
 
 /**
@@ -262,17 +248,17 @@ export const getSigner = (
  * Structs created by the Sui framework such as `UpgradeCap`s all have the same
  * type (e.g. `0x2::package::UpgradeCap`) and have a special field, `package`,
  * we can use to differentiate them.
- * @param provider Sui RPC provider
+ * @param client Sui RPC client
  * @param owner Address of the current owner of the `UpgradeCap`
  * @param packageId ID of the package that the `UpgradeCap` was created for
  * @returns The object ID of the `UpgradeCap` if it exists, otherwise `null`
  */
 export const getUpgradeCapObjectId = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   owner: string,
   packageId: string
 ): Promise<string | null> => {
-  const res = await provider.getOwnedObjects({
+  const res = await client.getOwnedObjects({
     owner,
     filter: { StructType: UPGRADE_CAP_TYPE },
     options: {
@@ -287,7 +273,7 @@ export const getUpgradeCapObjectId = async (
     (o) =>
       o.data?.objectId &&
       o.data?.content?.dataType === "moveObject" &&
-      o.data?.content?.fields?.package === packageId
+      (o.data?.content?.fields as any)?.package === packageId
   );
   if (objects.length === 1) {
     // We've found the object we're looking for
@@ -324,6 +310,13 @@ export const isSuiPublishEvent = <
   event: T
 ): event is K => event?.type === "published";
 
+// Normalize Sui address
+export const normalizeSuiAddress = (address: string): string => {
+  // Remove 0x prefix, pad to 64 chars, add 0x back
+  const hex = address.replace(/^0x/, "").padStart(64, "0");
+  return `0x${hex}`;
+};
+
 // todo(aki): this needs to correctly handle types such as
 // 0x2::dynamic_field::Field<0x3c6d386861470e6f9cb35f3c91f69e6c1f1737bd5d217ca06a15f582e1dc1ce3::state::MigrationControl, bool>
 export const normalizeSuiType = (type: string): string => {
@@ -336,13 +329,13 @@ export const normalizeSuiType = (type: string): string => {
 };
 
 export const registerChain = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   network: Network,
   vaa: Buffer,
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
-  transactionBlock?: TransactionBlock
-): Promise<TransactionBlock> => {
+  transaction?: Transaction
+): Promise<Transaction> => {
   if (network === "Devnet") {
     // Modify the VAA to only have 1 guardian signature
     // TODO: remove this when we can deploy the devnet core contract
@@ -355,18 +348,18 @@ export const registerChain = async (
 
   // Get package IDs
   const coreBridgePackageId = await getPackageId(
-    provider,
+    client,
     coreBridgeStateObjectId
   );
   const tokenBridgePackageId = await getPackageId(
-    provider,
+    client,
     tokenBridgeStateObjectId
   );
 
   // Register chain
-  let tx = transactionBlock;
+  let tx = transaction;
   if (!tx) {
-    tx = new TransactionBlock();
+    tx = new Transaction();
     tx.setGasBudget(1000000);
   }
 
@@ -375,7 +368,7 @@ export const registerChain = async (
     target: `${coreBridgePackageId}::vaa::parse_and_verify`,
     arguments: [
       tx.object(coreBridgeStateObjectId),
-      tx.pure([...vaa]),
+      tx.pure("vector<u8>", [...vaa]),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });
@@ -412,10 +405,7 @@ export const registerChain = async (
  * @param network
  * @param tx
  */
-export const setMaxGasBudgetDevnet = (
-  network: Network,
-  tx: TransactionBlock
-) => {
+export const setMaxGasBudgetDevnet = (network: Network, tx: Transaction) => {
   if (network === "Devnet" || network === "Testnet") {
     // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
     tx.setGasBudget(10000000000);
