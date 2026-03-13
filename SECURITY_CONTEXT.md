@@ -112,3 +112,17 @@ deployment steps to hijack the process. This atomic execution model prevents fro
 attacks that might be possible in environments where deployment occurs across multiple
 transactions or time-separated steps.
 
+### Abuse of wormchain-related Cosmos SDK governance
+
+**Justification:**
+The wormchain network uses a custom Proof of Authority system based on a modified version
+of Cosmos SDK. As a consequence: there is no circulating supply of tokens, votes cannot be proposed,
+tokens cannot be staked, etc.
+
+Any reports that suggest an issue in the Guardian network based on manipulating wormchain-related
+governance must take the above into account. In practice, Cosmos's `x/gov`-related functionality
+should be totally inoperative.
+
+This can be validated by examining the genesis config for wormchain, as well as by inspecting
+the mainnet state which should show that none of the validators within wormchain have any
+stake.
