@@ -123,11 +123,7 @@ For reference, guardians must already set [the following flags].
 The Wormhole Foundation should work with Guardians and the community to
 establish an acceptable and recommended SLA.
 
-> 🚧 TODO: investigate the flags / process necessary to store the required data
-for a longer period of time. Perhaps it is
-`--enable-extended-tx-metadata-storage` or `--limit-ledger-size`?
-
-</aside>
+The required CLI flags to support the Shim are detailed in [the Guardian operating instructions](https://github.com/wormhole-foundation/wormhole/blob/main/docs/operations.md).
 
 ### Protocol Integration
 
