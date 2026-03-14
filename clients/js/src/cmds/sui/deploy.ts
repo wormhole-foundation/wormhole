@@ -19,7 +19,7 @@ import {
 } from "../../consts";
 import { checkBinary, getNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
-import { Network } from "@wormhole-foundation/sdk";
+import { Network } from "@wormhole-foundation/sdk-base";
 
 const README_URL =
   "https://github.com/wormhole-foundation/wormhole/blob/main/sui/README.md";

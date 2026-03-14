@@ -25,6 +25,7 @@ import {
   contracts,
 } from "@wormhole-foundation/sdk-base";
 import { tryNativeToUint8Array } from "./sdk/array";
+import { castChainIdToOldSdk } from "./utils";
 
 const _IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
@@ -118,7 +119,7 @@ export async function query_contract_evm(
           .filter((c_name) => c_name !== chain)
           .map(async (c_name) => [
             c_name,
-            await tb.bridgeContracts(chainToChainId(c_name)),
+            await tb.bridgeContracts(castChainIdToOldSdk(chainToChainId(c_name))),
           ])
       );
       const [
@@ -180,7 +181,7 @@ export async function query_contract_evm(
           .filter(([c_name, _]) => c_name !== chain)
           .map(async (c_name) => [
             c_name,
-            await nb.bridgeContracts(chainToChainId(c_name)),
+            await nb.bridgeContracts(castChainIdToOldSdk(chainToChainId(c_name))),
           ])
       );
       const [
@@ -290,9 +291,7 @@ async function getSigner(
   // NOTE: some of these might have only been tested on mainnet. If it fails in
   // testnet (or devnet), they might require additional guards
   let overrides: ethers.Overrides = {};
-  if (chain === "Karura" || chain == "Acala") {
-    overrides = await getKaruraGasParams(rpc);
-  } else if (chain === "Polygon") {
+  if (chain === "Polygon") {
     const feeData = await provider.getFeeData();
     overrides = {
       maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
@@ -522,7 +521,7 @@ export async function transferEVM(
       token_bridge,
       signer,
       amount,
-      chainToChainId(dstChain),
+      castChainIdToOldSdk(chainToChainId(dstChain)),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
     );
   } else {
@@ -535,7 +534,7 @@ export async function transferEVM(
       signer,
       tokenAddress,
       amount,
-      chainToChainId(dstChain),
+      castChainIdToOldSdk(chainToChainId(dstChain)),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
       undefined,
       overrides
@@ -874,7 +873,7 @@ export async function queryRegistrationsEvm(
       .filter((cname) => cname !== chain)
       .map(async (cname) => [
         cname,
-        await contract.bridgeContracts(chainToChainId(cname)),
+        await contract.bridgeContracts(castChainIdToOldSdk(chainToChainId(cname))),
       ])
   );
 
