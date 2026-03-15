@@ -1,0 +1,9 @@
+[submodule "deps/spl-token"]
+	path = deps/spl-token
+	url = https://github.com/wormhole-foundation/spl-token.git
+[submodule "deps/metaplex-program-library"]
+	path = deps/metaplex-program-library
+	url = https://github.com/wormhole-foundation/metaplex-program-library.git
+[submodule "deps/example-native-token-transfers"]
+	path = deps/example-native-token-transfers
+	url = https://github.com/wormhole-foundation/example-native-token-transfers.git
