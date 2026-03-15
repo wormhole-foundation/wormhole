@@ -8,7 +8,6 @@ members = [
     "contracts/mock-bridge-integration",
     "packages/accountant",
     "contracts/global-accountant",
-    "contracts/ntt-global-accountant",
     "packages/wormhole-bindings",
     "packages/cw_transcode",
     "contracts/wormhole-ibc",
@@ -47,7 +46,6 @@ cw_transcode = { path = "packages/cw_transcode" }
 cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
 token-bridge-cosmwasm = { path = "contracts/token-bridge" }
 global-accountant = { path = "contracts/global-accountant" }
-ntt-global-accountant = { path = "contracts/ntt-global-accountant" }
 wormhole-bindings = { path = "packages/wormhole-bindings" }
 wormhole-cosmwasm = { path = "contracts/wormhole" }
 wormchain-ibc-receiver = { path = "contracts/wormchain-ibc-receiver" }
