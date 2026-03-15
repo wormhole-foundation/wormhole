@@ -8,11 +8,11 @@
         "rust-analyzer-src": "rust-analyzer-src"
       },
       "locked": {
-        "lastModified": 1773471952,
-        "narHash": "sha256-kIRggXyT8RzijtfvyRIzj+zIDWM2fnCp8t0X4BkkTVc=",
+        "lastModified": 1773558621,
+        "narHash": "sha256-QugHMIPPW2yVeJHnGnhD+Fe0ClekbcF5E1hG6WyUb3E=",
         "owner": "nix-community",
         "repo": "fenix",
-        "rev": "a1b770adbc3f6c27485d03b90462ec414d4e1ce5",
+        "rev": "3dd9d31a486f3a46dd211086c6094403c55a4c1b",
         "type": "github"
       },
       "original": {
@@ -42,6 +42,18 @@
         "repo": "fenix",
         "type": "github"
       }
+    },
+    "metaplex": {
+      "flake": false,
+      "locked": {
+        "path": "./deps/metaplex-program-library",
+        "type": "path"
+      },
+      "original": {
+        "path": "./deps/metaplex-program-library",
+        "type": "path"
+      },
+      "parent": []
     },
     "naersk": {
       "inputs": {
@@ -80,21 +92,36 @@
         "type": "github"
       }
     },
+    "ntt": {
+      "flake": false,
+      "locked": {
+        "path": "./deps/example-native-token-transfers",
+        "type": "path"
+      },
+      "original": {
+        "path": "./deps/example-native-token-transfers",
+        "type": "path"
+      },
+      "parent": []
+    },
     "root": {
       "inputs": {
         "fenix": "fenix",
+        "metaplex": "metaplex",
         "naersk": "naersk",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "ntt": "ntt",
+        "spl-token": "spl-token"
       }
     },
     "rust-analyzer-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1773326183,
-        "narHash": "sha256-tj3piRd9RnnP36HwHmQD4O4XZeowsH/rvMeyp9Pmot0=",
+        "lastModified": 1773505415,
+        "narHash": "sha256-KqErTOj3DYdAlgUaOTs61Y5Q/fzQ4+ZmgcifX/b/8+g=",
         "owner": "rust-lang",
         "repo": "rust-analyzer",
-        "rev": "6254616e97f358e67b70dfc0463687f5f7911c1a",
+        "rev": "6aa169dff77f0098adc4926fa4c84ab92fe3f2a1",
         "type": "github"
       },
       "original": {
@@ -120,6 +147,18 @@
         "repo": "rust-analyzer",
         "type": "github"
       }
+    },
+    "spl-token": {
+      "flake": false,
+      "locked": {
+        "path": "./deps/spl-token",
+        "type": "path"
+      },
+      "original": {
+        "path": "./deps/spl-token",
+        "type": "path"
+      },
+      "parent": []
     }
   },
   "root": "root",
