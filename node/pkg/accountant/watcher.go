@@ -187,6 +187,8 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 		EmitterAddress:   xfer.EmitterAddress,
 		Payload:          xfer.Payload,
 		ConsistencyLevel: xfer.ConsistencyLevel,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 
 	msgId := msg.MessageIDString()
