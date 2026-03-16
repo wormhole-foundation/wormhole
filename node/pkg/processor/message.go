@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -107,10 +107,18 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	s := p.state.signatures[hash]
 	if s == nil {
 		s = &state{
-			firstObserved: time.Now(),
-			nextRetry:     time.Now().Add(nextRetryDuration(0)),
-			signatures:    map[ethCommon.Address][]byte{},
-			source:        "loopback",
+			firstObserved:  time.Now(),
+			nextRetry:      time.Now().Add(nextRetryDuration(0)),
+			retryCtr:       0,
+			ourObservation: nil,
+			signatures:     map[ethcommon.Address][]byte{},
+			submitted:      false,
+			settled:        false,
+			source:         "loopback",
+			ourObs:         nil,
+			ourMsg:         nil,
+			txHash:         nil,
+			gs:             nil,
 		}
 
 		p.state.signatures[hash] = s
