@@ -245,6 +245,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		Payload:          pl,
 		ConsistencyLevel: 0,
 		IsReobservation:  job.isReobservation,
+		Unreliable:       false,
 	}
 
 	if job.isReobservation {

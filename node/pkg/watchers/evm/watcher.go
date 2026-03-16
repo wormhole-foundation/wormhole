@@ -925,6 +925,8 @@ func (w *Watcher) postMessage(
 		EmitterAddress:   PadAddress(ev.Sender),
 		Payload:          ev.Payload,
 		ConsistencyLevel: ev.ConsistencyLevel,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 
 	ethMessagesObserved.WithLabelValues(w.networkName).Inc()
