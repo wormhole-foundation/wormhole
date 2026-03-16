@@ -379,10 +379,18 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 		observationsUnknownTotal.Inc()
 
 		s = &state{
-			firstObserved: time.Now(),
-			nextRetry:     time.Now().Add(nextRetryDuration(0)),
-			signatures:    map[common.Address][]byte{},
-			source:        "unknown",
+			firstObserved:  time.Now(),
+			nextRetry:      time.Now().Add(nextRetryDuration(0)),
+			retryCtr:       0,
+			ourObservation: nil,
+			signatures:     map[common.Address][]byte{},
+			submitted:      false,
+			settled:        false,
+			source:         "unknown",
+			ourObs:         nil,
+			ourMsg:         nil,
+			txHash:         nil,
+			gs:             nil,
 		}
 
 		p.state.signatures[hash] = s
@@ -764,6 +772,7 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 		s = &delegateState{
 			firstObserved: time.Now(),
 			observations:  map[common.Address]*gossipv1.DelegateObservation{},
+			submitted:     false,
 			cfg:           cfg, // Store the config at first observation time
 		}
 		p.delegateState.observations[hash] = s
