@@ -78,9 +78,9 @@ func main() {
 		msgs := make([]*db.VAAID, len(resp.MissingMessages))
 		for i, id := range resp.MissingMessages {
 			fmt.Println(id)
-			vId, err := db.VaaIDFromString(id)
-			if err != nil {
-				log.Fatalf("failed to parse VAAID: %v", err)
+			vId, parseErr := db.VaaIDFromString(id)
+			if parseErr != nil {
+				log.Fatalf("failed to parse VAAID: %v", parseErr)
 			}
 			msgs[i] = vId
 		}

@@ -99,9 +99,9 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	}
 
 	if *verifyPermissions {
-		_, err := parseConfigFile(*permFile, env)
-		if err != nil {
-			fmt.Println(err)
+		_, parseErr := parseConfigFile(*permFile, env)
+		if parseErr != nil {
+			fmt.Println(parseErr)
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -151,9 +151,9 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			"version":   version.Version(),
 		}
 
-		tm, err := telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "ccq_server", true, labels)
-		if err != nil {
-			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+		tm, lokiErr := telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "ccq_server", true, labels)
+		if lokiErr != nil {
+			logger.Fatal("Failed to initialize telemetry", zap.Error(lokiErr))
 		}
 
 		defer tm.Close()
@@ -215,9 +215,8 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	go func() {
 		s := NewHTTPServer(*listenAddr, p2pSub.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
-		err := s.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Server closed unexpectedly", zap.Error(err))
+		if serveErr := s.ListenAndServe(); serveErr != nil && serveErr != http.ErrServerClosed {
+			logger.Fatal("Server closed unexpectedly", zap.Error(serveErr))
 		}
 	}()
 
@@ -227,9 +226,8 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		statServer = NewStatusServer(*statusAddr, logger, env)
 		go func() {
 			logger.Sugar().Infof("Status server listening on %s", *statusAddr)
-			err := statServer.httpServer.ListenAndServe()
-			if err != nil && err != http.ErrServerClosed {
-				logger.Fatal("Status server closed unexpectedly", zap.Error(err))
+			if serveErr := statServer.httpServer.ListenAndServe(); serveErr != nil && serveErr != http.ErrServerClosed {
+				logger.Fatal("Status server closed unexpectedly", zap.Error(serveErr))
 			}
 		}()
 	}
