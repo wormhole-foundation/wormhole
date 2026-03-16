@@ -171,19 +171,19 @@ func TestSpyHandleGossipVAA(t *testing.T) {
 	go func() {
 		defer close(doneCh)
 		// receive is a blocking call, it will keep receiving/looping until the pipe breaks.
-		signedVAA, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
+		signedVAA, recvErr := stream.Recv()
+		if errors.Is(recvErr, io.EOF) {
 			t.Log("the SignedVAA stream has closed, err == io.EOF. going to break.")
 			t.Fail()
 			return
 		}
-		if err != nil {
+		if recvErr != nil {
 			t.Log("SubscribeSignedVAA returned an error.")
 			t.Fail()
 			return
 		}
-		parsedRes, err := vaa.Unmarshal(signedVAA.VaaBytes)
-		if err != nil {
+		parsedRes, unmarshalErr := vaa.Unmarshal(signedVAA.VaaBytes)
+		if unmarshalErr != nil {
 			t.Log("failed unmarshaling VAA from response")
 			t.Fail()
 			return
@@ -236,19 +236,19 @@ func TestSpyHandleEmitterFilter(t *testing.T) {
 	go func() {
 		defer close(doneCh)
 		// receive is a blocking call, it will keep receiving/looping until the pipe breaks.
-		signedVAA, err := emitterFilterStream.Recv()
-		if errors.Is(err, io.EOF) {
+		signedVAA, recvErr := emitterFilterStream.Recv()
+		if errors.Is(recvErr, io.EOF) {
 			t.Log("the SignedVAA stream has closed, err == io.EOF. going to break.")
 			t.Fail()
 			return
 		}
-		if err != nil {
+		if recvErr != nil {
 			t.Log("SubscribeSignedVAA returned an error.")
 			t.Fail()
 			return
 		}
-		_, err = vaa.Unmarshal(signedVAA.VaaBytes)
-		if err != nil {
+		_, unmarshalErr := vaa.Unmarshal(signedVAA.VaaBytes)
+		if unmarshalErr != nil {
 			t.Log("failed unmarshaling VAA from response")
 			t.Fail()
 			return

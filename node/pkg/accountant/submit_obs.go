@@ -434,8 +434,8 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	}
 
 	var msg sdktypes.TxMsgData
-	if err := msg.Unmarshal(data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
+	if unmarshalErr := msg.Unmarshal(data); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal data: %w", unmarshalErr)
 	}
 
 	if len(msg.Data) == 0 {
@@ -443,8 +443,8 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	}
 
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
-	if err := execContractResp.Unmarshal(msg.Data[0].Data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse: %w", err)
+	if unmarshalErr := execContractResp.Unmarshal(msg.Data[0].Data); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse: %w", unmarshalErr)
 	}
 
 	var responses ObservationResponses
