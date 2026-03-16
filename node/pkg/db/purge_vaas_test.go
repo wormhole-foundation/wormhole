@@ -33,10 +33,10 @@ func countVAAs(d *Database, chainId vaa.ChainID) (numThisChain int, numOtherChai
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
 			key := item.Key()
-			err := item.Value(func(val []byte) error {
-				v, err := vaa.Unmarshal(val)
-				if err != nil {
-					return fmt.Errorf("failed to unmarshal VAA for %s: %v", string(key), err)
+			valueErr := item.Value(func(val []byte) error {
+				v, unmarshalErr := vaa.Unmarshal(val)
+				if unmarshalErr != nil {
+					return fmt.Errorf("failed to unmarshal VAA for %s: %v", string(key), unmarshalErr)
 				}
 
 				if v.EmitterChain == chainId {
@@ -47,8 +47,8 @@ func countVAAs(d *Database, chainId vaa.ChainID) (numThisChain int, numOtherChai
 
 				return nil
 			})
-			if err != nil {
-				return err
+			if valueErr != nil {
+				return valueErr
 			}
 		}
 		return nil

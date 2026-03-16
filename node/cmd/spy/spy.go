@@ -300,14 +300,14 @@ func runSpy(cmd *cobra.Command, args []string) {
 		if *p2pNetworkID != "" || *p2pBootstrap != "" {
 			logger.Fatal(`If "--env" is specified, "--network" and "--bootstrap" may not be specified`)
 		}
-		env, err := common.ParseEnvironment(*envStr)
-		if err != nil || (env != common.MainNet && env != common.TestNet) {
+		env, envErr := common.ParseEnvironment(*envStr)
+		if envErr != nil || (env != common.MainNet && env != common.TestNet) {
 			logger.Fatal(`Invalid value for "--env", should be "mainnet" or "testnet"`)
 		}
 		*p2pNetworkID = p2p.GetNetworkId(env)
-		*p2pBootstrap, err = p2p.GetBootstrapPeers(env)
-		if err != nil {
-			logger.Fatal("failed to determine p2p bootstrap peers", zap.String("env", string(env)), zap.Error(err))
+		*p2pBootstrap, envErr = p2p.GetBootstrapPeers(env)
+		if envErr != nil {
+			logger.Fatal("failed to determine p2p bootstrap peers", zap.String("env", string(env)), zap.Error(envErr))
 		}
 	} else {
 		// If they don't specify --env, then --network and --bootstrap are required.
@@ -363,8 +363,8 @@ func runSpy(cmd *cobra.Command, args []string) {
 			logger.Fatal(`If "--ethRPC" is specified, "--ethContract" must also be specified`)
 		}
 		s.vaaVerifier = NewVaaVerifier(logger, *ethRPC, *ethContract)
-		if err := s.vaaVerifier.GetInitialGuardianSet(); err != nil {
-			logger.Fatal(`Failed to read initial guardian set for VAA verification`, zap.Error(err))
+		if verifierErr := s.vaaVerifier.GetInitialGuardianSet(); verifierErr != nil {
+			logger.Fatal(`Failed to read initial guardian set for VAA verification`, zap.Error(verifierErr))
 		}
 	}
 
@@ -377,8 +377,8 @@ func runSpy(cmd *cobra.Command, args []string) {
 			case v := <-signedInC:
 				logger.Info("Received signed VAA",
 					zap.Any("vaa", v.Vaa))
-				if err := s.PublishSignedVAA(v.Vaa); err != nil {
-					logger.Error("failed to publish signed VAA", zap.Error(err), zap.Any("vaa", v.Vaa))
+				if pubErr := s.PublishSignedVAA(v.Vaa); pubErr != nil {
+					logger.Error("failed to publish signed VAA", zap.Error(pubErr), zap.Any("vaa", v.Vaa))
 				}
 			}
 		}

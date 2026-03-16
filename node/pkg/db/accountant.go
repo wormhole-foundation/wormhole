@@ -77,16 +77,16 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 			for it.Seek(prefixBytes); it.ValidForPrefix(prefixBytes); it.Next() {
 				item := it.Item()
 				key := item.Key()
-				val, err := item.ValueCopy(nil)
-				if err != nil {
-					return err
+				val, copyErr := item.ValueCopy(nil)
+				if copyErr != nil {
+					return copyErr
 				}
 
 				if acctIsPendingTransfer(key) {
 					var pt common.MessagePublication
-					err := json.Unmarshal(val, &pt)
-					if err != nil {
-						logger.Error("failed to unmarshal pending transfer for key", zap.String("key", string(key[:])), zap.Error(err))
+					unmarshalErr := json.Unmarshal(val, &pt)
+					if unmarshalErr != nil {
+						logger.Error("failed to unmarshal pending transfer for key", zap.String("key", string(key[:])), zap.Error(unmarshalErr))
 						continue
 					}
 

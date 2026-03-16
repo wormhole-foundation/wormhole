@@ -481,8 +481,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					rangeEnd := slot
 
 					// Requesting each slot
-					for slot := rangeStart; slot <= rangeEnd; slot++ {
-						_slot := slot
+					for slotIdx := rangeStart; slotIdx <= rangeEnd; slotIdx++ {
+						_slot := slotIdx
 						common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
 							s.retryFetchBlock(ctx, logger, _slot, 0, false)
 							return nil

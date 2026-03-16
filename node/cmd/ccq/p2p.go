@@ -67,9 +67,9 @@ func runP2P(
 
 	if len(protectedPeers) != 0 {
 		for _, peerId := range protectedPeers {
-			decodedPeerId, err := peer.Decode(peerId)
-			if err != nil {
-				logger.Error("error decoding protected ccq ID", zap.String("peerId", peerId), zap.Error(err))
+			decodedPeerId, peerErr := peer.Decode(peerId)
+			if peerErr != nil {
+				logger.Error("error decoding protected ccq ID", zap.String("peerId", peerId), zap.Error(peerErr))
 				continue
 			}
 			logger.Info("protecting ccq peer", zap.String("peerId", peerId))
@@ -151,7 +151,7 @@ func runP2P(
 					for _, p := range bootstrappers {
 						if _, exists := peerMap[p.ID.String()]; !exists {
 							logger.Info("attempting to reconnect to peer", zap.String("peer", p.ID.String()))
-							if err := h.Connect(ctx, p); err != nil {
+							if err = h.Connect(ctx, p); err != nil {
 								logger.Error("failed to reconnect to peer", zap.String("peer", p.ID.String()), zap.Error(err))
 							} else {
 								logger.Info("Reconnected to peer", zap.String("peer", p.ID.String()))
@@ -210,7 +210,7 @@ func runP2P(
 				logger.Info("query response received from gossip", zap.String("peerId", peerId), zap.Any("requestId", requestSignature))
 				if loggingMap.ShouldLogResponse(requestSignature) {
 					var queryRequest query.QueryRequest
-					if err := queryRequest.Unmarshal(queryResponse.Request.QueryRequest); err == nil {
+					if unmarshalErr := queryRequest.Unmarshal(queryResponse.Request.QueryRequest); unmarshalErr == nil {
 						logger.Info("logging response", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("request", queryRequest), zap.Any("response", queryResponse))
 					} else {
 						logger.Error("logging response (failed to unmarshal request)", zap.String("peerId", peerId), zap.Any("requestId", requestSignature), zap.Any("response", queryResponse))
