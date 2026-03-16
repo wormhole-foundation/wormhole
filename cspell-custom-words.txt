@@ -225,7 +225,9 @@ undercollateralization
 unforgeable
 unichain
 Unichain
+undelegated
 unmarshal
+unmarshals
 unnormalize
 untampered
 upserted
