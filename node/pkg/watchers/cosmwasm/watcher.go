@@ -586,6 +586,8 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			EmitterAddress:   senderAddress,
 			Payload:          payloadValue,
 			ConsistencyLevel: 0, // Instant finality
+			IsReobservation:  false,
+			Unreliable:       false,
 		}
 		msgs = append(msgs, messagePublication)
 	}
