@@ -836,8 +836,8 @@ func TestSafeRead(t *testing.T) {
 
 			// Fill slice with zeroes.
 			data := make([]byte, tt.size)
-			if _, err := f.Write(data); err != nil {
-				require.NoError(t, err)
+			if _, writeErr := f.Write(data); writeErr != nil {
+				require.NoError(t, writeErr)
 			}
 
 			// File pointer is at EOF at this point. Reset to the start.

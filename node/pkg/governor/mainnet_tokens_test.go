@@ -37,9 +37,9 @@ func TestTokenListAddressSize(t *testing.T) {
 }
 
 func TestTokensHaveGovernedChains(t *testing.T) {
-	chainList := ChainList()
+	localChainList := ChainList()
 	chains := []vaa.ChainID{}
-	for _, chainConfigEntry := range chainList {
+	for _, chainConfigEntry := range localChainList {
 		chains = append(chains, chainConfigEntry.EmitterChainID)
 	}
 

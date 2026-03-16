@@ -144,6 +144,11 @@ linters:
         - sloppyLen
         - underef
         - unslice
+    # TODO: Add this later.
+    # gosec:
+    #   config:
+    #     global:
+    #       audit: true
     govet:
       # The following list includes all the linters that are disabled by default.
       # Uncomment any of these to enable them:
@@ -159,7 +164,7 @@ linters:
         - lostcancel           # Check that context cancel functions are called
         - nilness              # Check for redundant or impossible nil comparisons
         - reflectvaluecompare  # Check for comparing reflect.Value values with == or reflect.DeepEqual
-        # - shadow               # Check for possible unintended shadowing of variables
+        - shadow               # Check for possible unintended shadowing of variables
         - sigchanyzer          # Check for unbuffered channels with signal.Notify
         - slog                 # Check for invalid structured logging calls
         - sortslice            # Check the argument type of sort.Slice

@@ -27,13 +27,13 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	}
 
 	var account auth.AccountI
-	if err := c.encCfg.InterfaceRegistry.UnpackAny(resp.Account, &account); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal account info: %w", err)
+	if unpackErr := c.encCfg.InterfaceRegistry.UnpackAny(resp.Account, &account); unpackErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal account info: %w", unpackErr)
 	}
 
 	builder := c.encCfg.TxConfig.NewTxBuilder()
-	if err := builder.SetMsgs(msg); err != nil {
-		return nil, fmt.Errorf("failed to add message to builder: %w", err)
+	if setErr := builder.SetMsgs(msg); setErr != nil {
+		return nil, fmt.Errorf("failed to add message to builder: %w", setErr)
 	}
 	builder.SetGasLimit(2000000) // TODO: Maybe simulate and use the result
 
@@ -48,8 +48,8 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 		},
 		Sequence: sequence,
 	}
-	if err := builder.SetSignatures(sig); err != nil {
-		return nil, fmt.Errorf("failed to set SignerInfo: %w", err)
+	if sigErr := builder.SetSignatures(sig); sigErr != nil {
+		return nil, fmt.Errorf("failed to set SignerInfo: %w", sigErr)
 	}
 
 	signerData := authsigning.SignerData{
@@ -69,8 +69,8 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign tx: %w", err)
 	}
-	if err := builder.SetSignatures(sig); err != nil {
-		return nil, fmt.Errorf("failed to update tx signature: %w", err)
+	if sigErr := builder.SetSignatures(sig); sigErr != nil {
+		return nil, fmt.Errorf("failed to update tx signature: %w", sigErr)
 	}
 
 	txBytes, err := c.encCfg.TxConfig.TxEncoder()(builder.GetTx())

@@ -1413,18 +1413,18 @@ func runDelegatedManagerSetUpdateTemplate(cmd *cobra.Command, args []string) {
 		// Use raw manager set bytes if provided
 		managerSet = strings.TrimPrefix(*delegatedManagerSet, "0x")
 		// Validate it's valid hex
-		if _, err := hex.DecodeString(managerSet); err != nil {
-			log.Fatal("invalid manager-set (expected hex): ", err)
+		if _, hexErr := hex.DecodeString(managerSet); hexErr != nil {
+			log.Fatal("invalid manager-set (expected hex): ", hexErr)
 		}
 	} else if *delegatedManagerThreshold != "" && *delegatedManagerNumKeys != "" && *delegatedManagerPublicKeys != "" {
 		// Build secp256k1 multisig manager set from components
-		threshold, err := strconv.ParseUint(*delegatedManagerThreshold, 10, 8)
-		if err != nil {
-			log.Fatal("failed to parse threshold as uint8: ", err)
+		threshold, thresholdErr := strconv.ParseUint(*delegatedManagerThreshold, 10, 8)
+		if thresholdErr != nil {
+			log.Fatal("failed to parse threshold as uint8: ", thresholdErr)
 		}
-		numKeys, err := strconv.ParseUint(*delegatedManagerNumKeys, 10, 8)
-		if err != nil {
-			log.Fatal("failed to parse num-keys as uint8: ", err)
+		numKeys, numKeysErr := strconv.ParseUint(*delegatedManagerNumKeys, 10, 8)
+		if numKeysErr != nil {
+			log.Fatal("failed to parse num-keys as uint8: ", numKeysErr)
 		}
 		publicKeyStrs := strings.Split(*delegatedManagerPublicKeys, ",")
 
@@ -1432,9 +1432,9 @@ func runDelegatedManagerSetUpdateTemplate(cmd *cobra.Command, args []string) {
 		publicKeys := make([][vaa.CompressedSecp256k1PublicKeyLength]byte, len(publicKeyStrs))
 		for i, pkStr := range publicKeyStrs {
 			pkHex := strings.TrimPrefix(strings.TrimSpace(pkStr), "0x")
-			pkBytes, err := hex.DecodeString(pkHex)
-			if err != nil {
-				log.Fatalf("public key %d is not valid hex: %v", i, err)
+			pkBytes, pkErr := hex.DecodeString(pkHex)
+			if pkErr != nil {
+				log.Fatalf("public key %d is not valid hex: %v", i, pkErr)
 			}
 			if len(pkBytes) != vaa.CompressedSecp256k1PublicKeyLength {
 				log.Fatalf("public key %d has invalid length: expected %d bytes, got %d", i, vaa.CompressedSecp256k1PublicKeyLength, len(pkBytes))
@@ -1447,9 +1447,9 @@ func runDelegatedManagerSetUpdateTemplate(cmd *cobra.Command, args []string) {
 			N:          uint8(numKeys),
 			PublicKeys: publicKeys,
 		}
-		managerSetBytes, err := managerSetStruct.Serialize()
-		if err != nil {
-			log.Fatal("failed to serialize manager set: ", err)
+		managerSetBytes, serializeErr := managerSetStruct.Serialize()
+		if serializeErr != nil {
+			log.Fatal("failed to serialize manager set: ", serializeErr)
 		}
 		managerSet = hex.EncodeToString(managerSetBytes)
 	} else {

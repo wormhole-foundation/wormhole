@@ -107,12 +107,12 @@ func (e *mockConnectorForBatchPoller) RawCallContext(ctx context.Context, result
 func (e *mockConnectorForBatchPoller) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) (err error) {
 	e.mutex.Lock()
 	if e.err != nil {
-		err := e.err
+		retErr := e.err
 		if !e.persistentError {
 			e.err = nil
 		}
 		e.mutex.Unlock()
-		return err
+		return retErr
 	}
 
 	for i, entry := range b {

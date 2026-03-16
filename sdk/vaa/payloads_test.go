@@ -424,35 +424,35 @@ func TestBodySlashingParamsUpdateDeserializeFailureTooLong(t *testing.T) {
 
 func TestBodyCoreRecoverChainIdSerialize(t *testing.T) {
 	expected := "00000000000000000000000000000000000000000000000000000000436f72650500000000000000000000000000000000000000000000000000000000000000010fa0"
-	BodyRecoverChainId := BodyRecoverChainId{
+	bodyRecoverChainID := BodyRecoverChainId{
 		Module:     "Core",
 		EvmChainID: uint256.NewInt(1),
 		NewChainID: 4000,
 	}
-	buf, err := BodyRecoverChainId.Serialize()
+	buf, err := bodyRecoverChainID.Serialize()
 	require.NoError(t, err)
 	assert.Equal(t, expected, hex.EncodeToString(buf))
 }
 
 func TestBodyTokenBridgeRecoverChainIdSerialize(t *testing.T) {
 	expected := "000000000000000000000000000000000000000000546f6b656e4272696467650300000000000000000000000000000000000000000000000000000000000000010fa0"
-	BodyRecoverChainId := BodyRecoverChainId{
+	bodyRecoverChainID := BodyRecoverChainId{
 		Module:     "TokenBridge",
 		EvmChainID: uint256.NewInt(1),
 		NewChainID: 4000,
 	}
-	buf, err := BodyRecoverChainId.Serialize()
+	buf, err := bodyRecoverChainID.Serialize()
 	require.NoError(t, err)
 	assert.Equal(t, expected, hex.EncodeToString(buf))
 }
 
 func TestBodyRecoverChainIdModuleTooLong(t *testing.T) {
-	BodyRecoverChainId := BodyRecoverChainId{
+	bodyRecoverChainID := BodyRecoverChainId{
 		Module:     "ModuleNameIsMoreThanThirtyTwoCharacters",
 		EvmChainID: uint256.NewInt(1),
 		NewChainID: 4000,
 	}
-	buf, err := BodyRecoverChainId.Serialize()
+	buf, err := bodyRecoverChainID.Serialize()
 	require.ErrorContains(t, err, "failed to left pad module: payload longer than 32 bytes")
 	assert.Nil(t, buf)
 }
