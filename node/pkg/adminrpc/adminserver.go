@@ -1439,9 +1439,9 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 			return nil, fmt.Errorf("internal error")
 		}
 	} else {
-		evmGs, err := s.evmConnector.GetGuardianSet(ctx, v.GuardianSetIndex)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load guardian set [%d]: %w", v.GuardianSetIndex, err)
+		evmGs, gsErr := s.evmConnector.GetGuardianSet(ctx, v.GuardianSetIndex)
+		if gsErr != nil {
+			return nil, fmt.Errorf("failed to load guardian set [%d]: %w", v.GuardianSetIndex, gsErr)
 		}
 		gs = &common.GuardianSet{
 			Keys:  evmGs.Keys,

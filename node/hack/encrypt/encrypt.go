@@ -18,8 +18,8 @@ func main() {
 
 	// Generate 128-bit key
 	key := make([]byte, 16)
-	if _, err := rand.Read(key); err != nil {
-		log.Fatalf("failed to generate key: %v", err)
+	if _, keyErr := rand.Read(key); keyErr != nil {
+		log.Fatalf("failed to generate key: %v", keyErr)
 	}
 
 	// Log key as base64 string

@@ -267,12 +267,13 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 	// check & render address once for use in the AddrsFactory below
 	var gossipAdvertiseAddress multiaddr.Multiaddr
 	if components.GossipAdvertiseAddress != "" {
-		gossipAdvertiseAddress, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d", components.GossipAdvertiseAddress, components.Port))
-		if err != nil {
+		var addrErr error
+		gossipAdvertiseAddress, addrErr = multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d", components.GossipAdvertiseAddress, components.Port))
+		if addrErr != nil {
 			// If the multiaddr is specified incorrectly, blow up
 			logger.Fatal("error with the specified gossip address",
 				zap.String("GossipAdvertiseAddress", components.GossipAdvertiseAddress),
-				zap.Error(err),
+				zap.Error(addrErr),
 			)
 		}
 		logger.Info("Overriding the advertised p2p address",
@@ -373,16 +374,16 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		defer func() {
-			if err := h.Close(); err != nil {
-				logger.Error("error closing the host", zap.Error(err))
+			if closeErr := h.Close(); closeErr != nil {
+				logger.Error("error closing the host", zap.Error(closeErr))
 			}
 		}()
 
 		if len(params.protectedPeers) != 0 {
 			for _, peerId := range params.protectedPeers {
-				decodedPeerId, err := peer.Decode(peerId)
-				if err != nil {
-					logger.Error("error decoding protected peer ID", zap.String("peerId", peerId), zap.Error(err))
+				decodedPeerId, peerErr := peer.Decode(peerId)
+				if peerErr != nil {
+					logger.Error("error decoding protected peer ID", zap.String("peerId", peerId), zap.Error(peerErr))
 					continue
 				}
 				logger.Info("protecting peer", zap.String("peerId", peerId))
@@ -432,8 +433,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 
 			defer func() {
-				if err := controlPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
-					logger.Error("Error closing the control topic", zap.Error(err))
+				if closeErr := controlPubsubTopic.Close(); closeErr != nil && !errors.Is(closeErr, context.Canceled) {
+					logger.Error("Error closing the control topic", zap.Error(closeErr))
 				}
 			}()
 
@@ -457,8 +458,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 
 			defer func() {
-				if err := attestationPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
-					logger.Error("Error closing the attestation topic", zap.Error(err))
+				if closeErr := attestationPubsubTopic.Close(); closeErr != nil && !errors.Is(closeErr, context.Canceled) {
+					logger.Error("Error closing the attestation topic", zap.Error(closeErr))
 				}
 			}()
 
@@ -482,8 +483,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 
 			defer func() {
-				if err := delegatedAttestationPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
-					logger.Error("Error closing the delegated attestation topic", zap.Error(err))
+				if closeErr := delegatedAttestationPubsubTopic.Close(); closeErr != nil && !errors.Is(closeErr, context.Canceled) {
+					logger.Error("Error closing the delegated attestation topic", zap.Error(closeErr))
 				}
 			}()
 
@@ -507,8 +508,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 
 			defer func() {
-				if err := vaaPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
-					logger.Error("Error closing the vaa topic", zap.Error(err))
+				if closeErr := vaaPubsubTopic.Close(); closeErr != nil && !errors.Is(closeErr, context.Canceled) {
+					logger.Error("Error closing the vaa topic", zap.Error(closeErr))
 				}
 			}()
 
@@ -532,8 +533,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 
 			defer func() {
-				if err := managerPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
-					logger.Error("Error closing the manager topic", zap.Error(err))
+				if closeErr := managerPubsubTopic.Close(); closeErr != nil && !errors.Is(closeErr, context.Canceled) {
+					logger.Error("Error closing the manager topic", zap.Error(closeErr))
 				}
 			}()
 
@@ -567,8 +568,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		if params.ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
-			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, params.ccqProtectedPeers, ccqErrC); err != nil {
-				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
+			if runErr := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, params.ccqProtectedPeers, ccqErrC); runErr != nil {
+				return fmt.Errorf("failed to start p2p for CCQ: %w", runErr)
 			}
 			defer ccq.close()
 			go func() {
@@ -658,8 +659,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								heartbeat.P2PNodeId = nodeIdBytes
 							}
 
-							if err := params.gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
-								panic(err)
+							if hbErr := params.gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); hbErr != nil {
+								panic(hbErr)
 							}
 							collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
@@ -673,9 +674,9 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								},
 							}
 
-							b, err := proto.Marshal(&msg)
-							if err != nil {
-								panic(err)
+							b, marshalErr := proto.Marshal(&msg)
+							if marshalErr != nil {
+								panic(marshalErr)
 							}
 							return b
 						}()

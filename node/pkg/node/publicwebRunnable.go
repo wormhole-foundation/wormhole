@@ -57,17 +57,17 @@ func publicwebServiceRunnable(
 	tlsCacheDir string,
 ) supervisor.Runnable {
 	return func(ctx context.Context) error {
-		conn, err := grpc.DialContext(
+		conn, dialErr := grpc.DialContext(
 			ctx,
 			fmt.Sprintf("unix:///%s", upstreamAddr),
 			grpc.WithBlock(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return fmt.Errorf("failed to dial upstream: %s", err)
+		if dialErr != nil {
+			return fmt.Errorf("failed to dial upstream: %s", dialErr)
 		}
 
 		gwmux := runtime.NewServeMux()
-		err = publicrpcv1.RegisterPublicRPCServiceHandler(ctx, gwmux, conn)
+		err := publicrpcv1.RegisterPublicRPCServiceHandler(ctx, gwmux, conn)
 		if err != nil {
 			panic(err)
 		}
@@ -115,13 +115,13 @@ func publicwebServiceRunnable(
 
 		// If listenAddr is prefixed by "sd:", look for a matching systemd socket.
 		if strings.HasPrefix(listenAddr, "sd:") {
-			listeners, err := getSDListeners()
-			if err != nil {
-				return fmt.Errorf("failed to get systemd listeners: %w", err)
+			sdListeners, sdErr := getSDListeners()
+			if sdErr != nil {
+				return fmt.Errorf("failed to get systemd listeners: %w", sdErr)
 			}
 
 			addr := listenAddr[3:]
-			for _, v := range listeners {
+			for _, v := range sdListeners {
 				logger.Debug("found systemd socket", zap.String("addr", v.Addr().String()))
 				if v.Addr().String() == addr {
 					listener = v
@@ -129,9 +129,9 @@ func publicwebServiceRunnable(
 			}
 
 			if listener == nil {
-				all := make([]string, len(listeners))
-				for i := range listeners {
-					all[i] = listeners[i].Addr().String()
+				all := make([]string, len(sdListeners))
+				for i := range sdListeners {
+					all[i] = sdListeners[i].Addr().String()
 				}
 				return fmt.Errorf("no valid systemd listeners, got: %s", strings.Join(all, ","))
 			}

@@ -214,17 +214,17 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 		)
 	}
 
-	transfer, err := newTransferFromDbTransfer(xfer)
+	transferFromDb, err := newTransferFromDbTransfer(xfer)
 	if err != nil {
 		return err
 	}
-	ce.transfers = append(ce.transfers, transfer)
+	ce.transfers = append(ce.transfers, transferFromDb)
 
 	// Reload flow-cancel transfers for the TargetChain. This is important when the node restarts so that a corresponding,
 	// inverse transfer is added to the TargetChain. This is already done during the `ProcessMsgForTime` and
 	// `CheckPending` loops but those functions do not capture flow-cancelling when the node is restarted.
 	if gov.flowCancelEnabled {
-		_, err := gov.tryAddFlowCancelTransfer(&transfer)
+		_, err := gov.tryAddFlowCancelTransfer(&transferFromDb)
 		if err != nil {
 			return err
 		}
