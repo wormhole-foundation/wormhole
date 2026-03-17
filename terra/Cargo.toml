@@ -17,3 +17,6 @@ panic = 'abort'
 incremental = false
 overflow-checks = true
 
+
+[patch.crates-io]
+cw20-legacy = { path = "deps/cw20-legacy" }

@@ -13,3 +13,6 @@
 [submodule "solana/deps/metaplex-program-library"]
 	path = solana/deps/metaplex-program-library
 	url = https://github.com/wormhole-foundation/metaplex-program-library.git
+[submodule "deps/cw20-legacy"]
+	path = deps/cw20-legacy
+	url = https://github.com/meta-introspector/cw20-legacy.git

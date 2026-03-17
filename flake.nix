@@ -9,9 +9,10 @@
     # Dep sources
     spl-token-src = { url = "github:wormhole-foundation/spl-token/7ae1b553adb5889e57e7afb054e557ab7dd0d873"; flake = false; };
     metaplex-src = { url = "github:wormhole-foundation/metaplex-program-library/a7ab32ab0defd89c98f205c80ebdaf77ed60152d"; flake = false; };
+    cw20-legacy-src = { url = "github:meta-introspector/cw20-legacy/d12724701ffb9920cb1fdf1eee49efdcc20048e5"; flake = false; };
   };
 
-  outputs = { self, nixpkgs, fenix, naersk, spl-token-src, metaplex-src }:
+  outputs = { self, nixpkgs, fenix, naersk, spl-token-src, metaplex-src, cw20-legacy-src }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -36,6 +37,14 @@
       };
 
       buildInputs = with pkgs; [ pkg-config openssl protobuf ];
+
+      # Assemble terra source with cw20-legacy dep
+      terraSrc = pkgs.runCommand "wormhole-terra-src" {} ''
+        cp -r ${./terra} $out
+        chmod -R u+w $out
+        mkdir -p $out/deps
+        cp -r ${cw20-legacy-src} $out/deps/cw20-legacy
+      '';
 
       solanaSrc = pkgs.runCommand "wormhole-solana-src" {} ''
         cp -r ${./solana} $out
@@ -67,7 +76,7 @@
         terra = stableNaersk.buildPackage {
           pname = "wormhole-terra";
           version = "0.1.0";
-          src = ./terra;
+          src = terraSrc;
           nativeBuildInputs = buildInputs;
           doCheck = false;
         };
