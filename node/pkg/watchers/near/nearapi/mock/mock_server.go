@@ -157,15 +157,15 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		}
 
 		httpClient := http.Client{}
-		resp, err := httpClient.Do(proxyReq)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+		resp, reqErr := httpClient.Do(proxyReq)
+		if reqErr != nil {
+			http.Error(w, reqErr.Error(), http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
-		respBody, err := common.SafeRead(resp.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+		respBody, readErr := common.SafeRead(resp.Body)
+		if readErr != nil {
+			http.Error(w, readErr.Error(), http.StatusBadGateway)
 			return
 		}
 
