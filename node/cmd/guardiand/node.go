@@ -687,7 +687,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.UnsafeDevNet {
 		g0key, keyErr := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
 		if keyErr != nil {
-			panic(err)
+			panic(keyErr)
 		}
 
 		// Use the first guardian node as bootstrap
