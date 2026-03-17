@@ -24,7 +24,7 @@ jobs:
       - uses: cachix/cachix-action@v15
         with:
           name: meta-introspector
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
         continue-on-error: true
 
       - name: Build ${{ matrix.package }}
