@@ -7,8 +7,8 @@
     naersk = { url = "github:nix-community/naersk"; inputs.nixpkgs.follows = "nixpkgs"; };
     
     # Dep sources
-    spl-token-src = { url = "github:wormhole-foundation/spl-token/7ae1b553adb5889e57e7afb054e557ab7dd0d873"; flake = false; };
-    metaplex-src = { url = "github:wormhole-foundation/metaplex-program-library/a7ab32ab0defd89c98f205c80ebdaf77ed60152d"; flake = false; };
+    spl-token-src = { url = "github:meta-introspector/spl-token/7ae1b553adb5889e57e7afb054e557ab7dd0d873"; flake = false; };
+    metaplex-src = { url = "github:meta-introspector/metaplex-program-library/a7ab32ab0defd89c98f205c80ebdaf77ed60152d"; flake = false; };
     cw20-legacy-src = { url = "github:meta-introspector/cw20-legacy/d12724701ffb9920cb1fdf1eee49efdcc20048e5"; flake = false; };
   };
 

@@ -1,18 +1,9 @@
 [submodule "deps/spl-token"]
 	path = deps/spl-token
-	url = https://github.com/wormhole-foundation/spl-token.git
+	url = https://github.com/meta-introspector/spl-token.git
 [submodule "deps/metaplex-program-library"]
 	path = deps/metaplex-program-library
-	url = https://github.com/wormhole-foundation/metaplex-program-library.git
-[submodule "deps/example-native-token-transfers"]
-	path = deps/example-native-token-transfers
-	url = https://github.com/wormhole-foundation/example-native-token-transfers.git
-[submodule "solana/deps/spl-token"]
-	path = solana/deps/spl-token
-	url = https://github.com/wormhole-foundation/spl-token.git
-[submodule "solana/deps/metaplex-program-library"]
-	path = solana/deps/metaplex-program-library
-	url = https://github.com/wormhole-foundation/metaplex-program-library.git
+	url = https://github.com/meta-introspector/metaplex-program-library.git
 [submodule "deps/cw20-legacy"]
 	path = deps/cw20-legacy
 	url = https://github.com/meta-introspector/cw20-legacy.git
