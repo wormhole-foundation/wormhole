@@ -124,4 +124,4 @@ var KnownTestnetManagerEmitters = []struct {
 var KnownTestnetXRPLSequencer = struct {
 	ChainId vaa.ChainID
 	Addr    string
-}{ChainId: vaa.ChainIDSolana, Addr: "1807dddbb4866e81bb8251384aed026de5496fc8b383f8399d1de5d844b14271"}
+}{ChainId: vaa.ChainIDSolana, Addr: "06f61a8a5a95c2444ef630196a09200603d92ba77103c7f34e09948e54e96d62"} // https://explorer.solana.com/address/XRP2GHZUbUrn49bJhDRDRmy9fjUTGKLMESFpL1B4jGA?cluster=devnet
