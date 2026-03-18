@@ -8,7 +8,6 @@
 /// For inbound transfers, this amount will be denormalized (scaled by the same
 /// decimal difference).
 module token_bridge::normalized_amount {
-    use sui::math::{Self};
     use wormhole::bytes32::{Self};
     use wormhole::cursor::{Cursor};
 
@@ -62,7 +61,7 @@ module token_bridge::normalized_amount {
         if (amount == 0) {
             default()
         } else if (decimals > MAX_DECIMALS) {
-            new(amount / math::pow(10, decimals - MAX_DECIMALS))
+            new(amount / std::u64::pow(10, decimals - MAX_DECIMALS))
         } else {
             new(amount)
         }
@@ -73,7 +72,7 @@ module token_bridge::normalized_amount {
         let value = take_value(norm);
 
         if (value > 0 && decimals > MAX_DECIMALS) {
-            value * math::pow(10, decimals - MAX_DECIMALS)
+            value * std::u64::pow(10, decimals - MAX_DECIMALS)
         } else {
             value
         }

@@ -99,7 +99,7 @@ module wormhole::fee_collector_tests {
         assert!(fee_collector::balance_value(&collector) == fee_amount, 0);
 
         // Now deposit nine more times and check the aggregate balance.
-        let i = 0;
+        let i = 0u64;
         while (i < 9) {
             let fee = coin::mint_for_testing(fee_amount, ctx);
             fee_collector::deposit(&mut collector, fee);

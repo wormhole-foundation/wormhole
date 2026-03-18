@@ -1,6 +1,6 @@
 -include ../../Makefile.help
 
-VERSION = $(shell grep -Po "version = \"\K[^\"]*" Move.toml | sed "s/\./_/g")
+VERSION = $(shell sed -n 's/^version = "\([^"]*\)".*/\1/p' Move.toml | tr '.' '_')
 
 .PHONY: clean
 clean:
@@ -9,7 +9,7 @@ clean:
 .PHONY: check
 ## Build contract
 check:
-	sui move build -d
+	sui move build
 
 .PHONY: test
 ## Run tests
