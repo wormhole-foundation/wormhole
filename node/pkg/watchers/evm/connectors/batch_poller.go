@@ -174,6 +174,10 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlo
 	}
 
 	for idx, newBlock := range newBlocks {
+
+		// SECURITY: Assumptions about block finalization.
+		// If block X is a specific consistency level (CL), and X+2 is a CL, assumes that X+1 is a CL too.
+		// Finalization should theoretically be linear. So, this should be safe.
 		if newBlock.Number.Cmp(prevBlocks[idx].Number) > 0 {
 			// If there is a gap between prev and new, we have to look up the hashes for the missing ones. Do that in batches.
 			newBlockNum := newBlock.Number.Uint64()
