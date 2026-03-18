@@ -22,12 +22,14 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
+	managerxrpl "github.com/certusone/wormhole/node/pkg/manager/xrpl"
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
 	"github.com/certusone/wormhole/node/pkg/watchers/aptos"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
+	"github.com/certusone/wormhole/node/pkg/watchers/xrpl"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
@@ -217,6 +219,10 @@ var (
 	xrplEvmRPC      *string
 	xrplEvmContract *string
 
+	xrplRPC         *string
+	xrplContract    *string
+	xrplNttAccounts *[]string
+
 	plasmaRPC      *string
 	plasmaContract *string
 
@@ -313,6 +319,7 @@ var (
 
 	managerServiceEnabled    *bool
 	dogecoinManagerSignerUri *string
+	xrplManagerSignerUri     *string
 )
 
 func init() {
@@ -483,6 +490,10 @@ func init() {
 	xrplEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplEvmRPC", "XRPLEVM RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xrplEvmContract = NodeCmd.Flags().String("xrplEvmContract", "", "XRPLEVM contract address")
 
+	xrplRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplRPC", "XRPL RPC URL", "ws://xrpl:6006", []string{"ws", "wss"})
+	xrplContract = NodeCmd.Flags().String("xrplContract", "", "XRPL contract address")
+	xrplNttAccounts = NodeCmd.Flags().StringSlice("xrplNttAccounts", []string{}, "XRPL NTT manager accounts to subscribe to")
+
 	plasmaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plasmaRPC", "PLASMA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	plasmaContract = NodeCmd.Flags().String("plasmaContract", "", "Plasma contract address")
 
@@ -562,6 +573,7 @@ func init() {
 
 	managerServiceEnabled = NodeCmd.Flags().Bool("managerServiceEnabled", false, "Run the manager service")
 	dogecoinManagerSignerUri = NodeCmd.Flags().String("dogecoinManagerSignerUri", "", "Dogecoin manager signer URI")
+	xrplManagerSignerUri = NodeCmd.Flags().String("xrplManagerSignerUri", "", "XRPL manager signer URI")
 }
 
 var (
@@ -978,6 +990,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --suiRPC and --suiMoveEventType must all be set or all unset")
 	}
 
+	if !argsConsistent([]string{*xrplRPC, *xrplContract}) {
+		logger.Fatal("Either --xrplRPC and --xrplContract must all be set or all unset")
+	}
+
 	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
 		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
 	}
@@ -1087,6 +1103,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["xrplevmRPC"] = *xrplEvmRPC
 	rpcMap["plasmaRPC"] = *plasmaRPC
 	rpcMap["creditcoinRPC"] = *creditCoinRPC
+	rpcMap["xrplRPC"] = *xrplRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1774,6 +1791,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(xrplRPC) {
+		wc := &xrpl.WatcherConfig{
+			NetworkID:   "xrpl",
+			ChainID:     vaa.ChainIDXRPL,
+			Rpc:         *xrplRPC,
+			Contract:    *xrplContract,
+			NttAccounts: *xrplNttAccounts,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(solanaRPC) {
 		// confirmed watcher
 		wc := &solana.WatcherConfig{
@@ -2003,6 +2031,29 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		compressedPubKey := btcecPubKey.SerializeCompressed()
 		logger.Info("initialized dogecoin manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", compressedPubKey)))
+	}
+	if *xrplManagerSignerUri != "" {
+		if env != common.UnsafeDevNet && *xrplManagerSignerUri == *guardianSignerUri {
+			logger.Fatal("xrplManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+		}
+		xrplSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, *xrplManagerSignerUri, env == common.UnsafeDevNet, "manager-xrpl")
+		if err != nil {
+			logger.Fatal("failed to create XRPL manager signer", zap.Error(err))
+		}
+		managerSigners[vaa.ChainIDXRPL] = xrplSigner
+
+		// Log the XRPL r-address
+		xrplPubKey := xrplSigner.PublicKey(rootCtx)
+		xrplBtcecPubKey, err := btcec.ParsePubKey(ethcrypto.FromECDSAPub(&xrplPubKey))
+		if err != nil {
+			logger.Fatal("failed to parse XRPL public key", zap.Error(err))
+		}
+		xrplCompressedPubKey := xrplBtcecPubKey.SerializeCompressed()
+		xrplAddress, err := managerxrpl.CompressedPubKeyToAddress(xrplCompressedPubKey)
+		if err != nil {
+			logger.Fatal("failed to derive XRPL address from public key", zap.Error(err))
+		}
+		logger.Info("initialized XRPL manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", xrplCompressedPubKey)), zap.String("xrpl_address", xrplAddress))
 	}
 
 	guardianOptions := []*node.GuardianOption{
