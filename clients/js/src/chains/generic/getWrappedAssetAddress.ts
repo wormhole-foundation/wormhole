@@ -5,8 +5,6 @@ import {
   getForeignAssetNear,
   getForeignAssetSolana,
   getForeignAssetSui,
-  getForeignAssetTerra,
-  getForeignAssetXpla,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getForeignAsset";
 import { getForeignAssetInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
 import { impossible } from "../../vaa";
@@ -21,6 +19,7 @@ import {
   toChainId,
 } from "@wormhole-foundation/sdk-base";
 import { tryNativeToUint8Array } from "../../sdk/array";
+import { castChainIdToOldSdk } from "../../utils";
 
 export const getWrappedAssetAddress = async (
   chain: ChainId | Chain,
@@ -47,35 +46,26 @@ export const getWrappedAssetAddress = async (
       return getForeignAssetSolana(
         provider,
         tokenBridgeAddress,
-        toChainId(originChain),
+        castChainIdToOldSdk(toChainId(originChain)),
         originAddressUint8Array
       );
     }
-    case "Acala":
     case "Arbitrum":
-    case "Aurora":
     case "Avalanche":
     case "Base":
     case "Bsc":
     case "Celo":
     case "Ethereum":
     case "Fantom":
-    case "Gnosis":
-    case "Karura":
     case "Klaytn":
     case "Moonbeam":
-    case "Neon":
-    case "Oasis":
     case "Optimism":
     case "Polygon":
-    // case "Rootstock":
     case "Scroll":
     case "Mantle":
-    case "Blast":
     case "Xlayer":
     case "Linea":
     case "Berachain":
-    case "Snaxchain":
     case "Seievm":
     case "Sepolia":
     case "ArbitrumSepolia":
@@ -87,17 +77,7 @@ export const getWrappedAssetAddress = async (
       return getForeignAssetEth(
         tokenBridgeAddress,
         provider,
-        toChainId(originChain),
-        originAddressUint8Array
-      );
-    }
-    case "Terra":
-    case "Terra2": {
-      const provider = getProviderForChain(chainName, network, { rpc });
-      return getForeignAssetTerra(
-        tokenBridgeAddress,
-        provider,
-        toChainId(originChain),
+        castChainIdToOldSdk(toChainId(originChain)),
         originAddressUint8Array
       );
     }
@@ -106,7 +86,7 @@ export const getWrappedAssetAddress = async (
       return getForeignAssetInjective(
         tokenBridgeAddress,
         provider,
-        toChainId(originChain),
+        castChainIdToOldSdk(toChainId(originChain)),
         originAddressUint8Array
       );
     }
@@ -119,21 +99,12 @@ export const getWrappedAssetAddress = async (
         originAddressUint8Array
       );
     }
-    case "Xpla": {
-      const provider = getProviderForChain(chainName, network, { rpc });
-      return getForeignAssetXpla(
-        tokenBridgeAddress,
-        provider,
-        toChainId(originChain),
-        originAddressUint8Array
-      );
-    }
     case "Algorand": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetAlgorand(
         provider,
         BigInt(tokenBridgeAddress),
-        toChainId(originChain),
+        castChainIdToOldSdk(toChainId(originChain)),
         originAddress
       ).then((x) => x?.toString() ?? null);
     }
@@ -142,7 +113,7 @@ export const getWrappedAssetAddress = async (
       return getForeignAssetNear(
         provider,
         tokenBridgeAddress,
-        toChainId(originChain),
+        castChainIdToOldSdk(toChainId(originChain)),
         originAddress
       );
     }
@@ -151,7 +122,7 @@ export const getWrappedAssetAddress = async (
       return getForeignAssetAptos(
         provider,
         tokenBridgeAddress,
-        toChainId(originChain),
+        castChainIdToOldSdk(toChainId(originChain)),
         originAddress
       );
     }
@@ -160,7 +131,7 @@ export const getWrappedAssetAddress = async (
       return getForeignAssetSui(
         provider,
         tokenBridgeAddress,
-        toChainId(originChain),
+        castChainIdToOldSdk(toChainId(originChain)),
         originAddressUint8Array
       );
     }
@@ -173,11 +144,25 @@ export const getWrappedAssetAddress = async (
     case "Kujira":
     case "Neutron":
     case "Celestia":
-    case "Rootstock":
     case "Stargaze":
     case "Seda":
     case "Dymension":
     case "Provenance":
+    case "Fogo":
+    case "Unichain":
+    case "HyperCore":
+    case "Worldchain":
+    case "Ink":
+    case "HyperEVM":
+    case "Monad":
+    case "Mezo":
+    case "Sonic":
+    case "Converge":
+    case "Plume":
+    case "XRPLEVM":
+    case "Plasma":
+    case "CreditCoin":
+    case "Noble":
       throw new Error(`${chainName} not supported`);
     default:
       impossible(chainName);

@@ -12,6 +12,7 @@ import {
   contracts,
 } from "@wormhole-foundation/sdk-base";
 import { tryNativeToUint8Array } from "../../sdk/array";
+import { castChainIdToOldSdk } from "../../utils";
 
 export async function transferSui(
   dstChain: Chain,
@@ -46,7 +47,7 @@ export async function transferSui(
     coins,
     coinType,
     BigInt(amount),
-    chainToChainId(dstChain),
+    castChainIdToOldSdk(chainToChainId(dstChain)),
     tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
   );
   setMaxGasBudgetDevnet(network, tx);
