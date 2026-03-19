@@ -143,6 +143,8 @@ export async function execute_xpla(
     }
     case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Xpla");
+    case "DelegatedManager":
+      throw Error("DelegatedManager governance VAAs are not yet supported");
     default:
       target_contract = impossible(payload);
       execute_msg = impossible(payload);

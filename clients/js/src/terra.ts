@@ -146,6 +146,8 @@ export async function execute_terra(
     }
     case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Terra");
+    case "DelegatedManager":
+      throw Error("DelegatedManager governance VAAs are not yet supported");
     default:
       target_contract = impossible(payload);
       execute_msg = impossible(payload);

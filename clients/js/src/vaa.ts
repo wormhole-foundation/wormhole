@@ -75,7 +75,8 @@ export type Payload =
   | CoreContractRecoverChainId
   | PortalContractRecoverChainId<"TokenBridge">
   | PortalContractRecoverChainId<"NFTBridge">
-  | WormholeRelayerSetDefaultDeliveryProvider;
+  | WormholeRelayerSetDefaultDeliveryProvider
+  | DelegatedManagerSetUpdate;
 
 export type ContractUpgrade =
   | CoreContractUpgrade
@@ -279,6 +280,16 @@ function vaaBody(vaa: VAA<Payload | Other>) {
           case "SetDefaultDeliveryProvider":
             payload_str =
               serialiseWormholeRelayerSetDefaultDeliveryProvider(payload);
+            break;
+          default:
+            impossible(payload);
+            break;
+        }
+        break;
+      case "DelegatedManager":
+        switch (payload.type) {
+          case "ManagerSetUpdate":
+            payload_str = serialiseDelegatedManagerSetUpdate(payload);
             break;
           default:
             impossible(payload);
@@ -986,6 +997,32 @@ function serialiseWormholeRelayerSetDefaultDeliveryProvider(
     encode("uint8", 3),
     encode("uint16", payload.chain),
     encode("bytes32", hex(payload.relayProviderAddress)),
+  ];
+  return body.join("");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DelegatedManager
+
+export interface DelegatedManagerSetUpdate {
+  module: "DelegatedManager";
+  type: "ManagerSetUpdate";
+  chain: number;
+  managerChainId: number;
+  managerSetIndex: number;
+  managerSet: string; // hex-encoded manager set bytes
+}
+
+function serialiseDelegatedManagerSetUpdate(
+  payload: DelegatedManagerSetUpdate
+): string {
+  const body = [
+    encode("bytes32", encodeString(payload.module)),
+    encode("uint8", 1), // ActionManagerSetUpdate
+    encode("uint16", payload.chain),
+    encode("uint16", payload.managerChainId),
+    encode("uint32", payload.managerSetIndex),
+    payload.managerSet, // raw hex bytes (no encoding needed)
   ];
   return body.join("");
 }
