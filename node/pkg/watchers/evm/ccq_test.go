@@ -47,8 +47,8 @@ func TestCcqCreateBlockRequest(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.blockMethod, blockMethod)
 
-				bytes, err := json.Marshal(callBlockArg)
-				require.NoError(t, err)
+				bytes, marshalErr := json.Marshal(callBlockArg)
+				require.NoError(t, marshalErr)
 				assert.Equal(t, tc.callBlockArgAsJSON, string(bytes))
 			} else {
 				assert.EqualError(t, err, tc.errMsg)

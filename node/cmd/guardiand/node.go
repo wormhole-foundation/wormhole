@@ -665,9 +665,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.UnsafeDevNet {
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
+		hostname, hostErr := os.Hostname()
+		if hostErr != nil {
+			panic(hostErr)
 		}
 		*nodeName = hostname
 
@@ -685,9 +685,9 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
 	if env == common.UnsafeDevNet {
-		g0key, err := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
-		if err != nil {
-			panic(err)
+		g0key, keyErr := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
+		if keyErr != nil {
+			panic(keyErr)
 		}
 
 		// Use the first guardian node as bootstrap
@@ -774,8 +774,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.UnsafeDevNet {
 		// Only if the signer is file-based should we generate the deterministic key and write it to disk
 		if st, _, _ := guardiansigner.ParseSignerUri(*guardianSignerUri); st == guardiansigner.FileSignerType {
-			err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
-			if err != nil {
+			genErr := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
+			if genErr != nil {
 				logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
 			}
 		}
@@ -797,22 +797,22 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
 	if env == common.UnsafeDevNet {
-		idx, err := devnet.GetDevnetIndex()
-		if err != nil {
+		idx, idxErr := devnet.GetDevnetIndex()
+		if idxErr != nil {
 			logger.Fatal("Failed to parse hostname - are we running in devnet?")
 		}
 		p2pKey = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
 
 		if idx != 0 {
-			firstGuardianName, err := devnet.GetFirstGuardianNameFromBootstrapPeers(*p2pBootstrap)
-			if err != nil {
-				logger.Fatal("failed to get first guardian name from bootstrap peers", zap.String("bootstrapPeers", *p2pBootstrap), zap.Error(err))
+			firstGuardianName, lookupErr := devnet.GetFirstGuardianNameFromBootstrapPeers(*p2pBootstrap)
+			if lookupErr != nil {
+				logger.Fatal("failed to get first guardian name from bootstrap peers", zap.String("bootstrapPeers", *p2pBootstrap), zap.Error(lookupErr))
 			}
 			// try to connect to guardian-0
 			for {
 				//nolint:noctx // TODO: this should be refactored to use context.
-				_, err := net.LookupIP(firstGuardianName)
-				if err == nil {
+				_, resolveErr := net.LookupIP(firstGuardianName)
+				if resolveErr == nil {
 					break
 				}
 				logger.Info(fmt.Sprintf("Error resolving %s. Trying again...", firstGuardianName))

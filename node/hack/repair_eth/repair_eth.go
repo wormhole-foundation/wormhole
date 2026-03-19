@@ -308,17 +308,17 @@ func main() {
 			RpcBackfill:    true,
 			BackfillNodes:  sdk.PublicRPCEndpoints,
 		}
-		resp, err := admin.FindMissingMessages(ctx, &msg)
-		if err != nil {
-			log.Fatalf("failed to run find FindMissingMessages RPC: %v", err)
+		resp, rpcErr := admin.FindMissingMessages(ctx, &msg)
+		if rpcErr != nil {
+			log.Fatalf("failed to run find FindMissingMessages RPC: %v", rpcErr)
 		}
 
 		msgs := []*db.VAAID{}
 		for _, id := range resp.MissingMessages {
 			fmt.Println(id)
-			vId, err := db.VaaIDFromString(id)
-			if err != nil {
-				log.Fatalf("failed to parse VAAID: %v", err)
+			vId, parseErr := db.VaaIDFromString(id)
+			if parseErr != nil {
+				log.Fatalf("failed to parse VAAID: %v", parseErr)
 			}
 			if *vId == polygonIgnoredVaa {
 				log.Printf("Ignored message: %+v", &polygonIgnoredVaa)
@@ -348,9 +348,9 @@ func main() {
 	// Press enter to continue if not in dryRun mode
 	if !*dryRun {
 		fmt.Println("Press enter to continue")
-		_, err := fmt.Scanln()
-		if err != nil {
-			log.Printf("Scanln error: %s\n", err)
+		_, scanErr := fmt.Scanln()
+		if scanErr != nil {
+			log.Printf("Scanln error: %s\n", scanErr)
 		}
 	}
 
@@ -437,8 +437,8 @@ func main() {
 			}
 
 			var seq uint64
-			if m, err := ethAbi.Unpack("LogMessagePublished", b); err != nil {
-				log.Fatalf("failed to unpack log data for %s: %v", l.TransactionHash, err)
+			if m, unpackErr := ethAbi.Unpack("LogMessagePublished", b); unpackErr != nil {
+				log.Fatalf("failed to unpack log data for %s: %v", l.TransactionHash, unpackErr)
 			} else {
 				seq = m[0].(uint64)
 			}
