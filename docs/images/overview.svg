@@ -5,8 +5,30 @@
    width="795.7854418073384"
    height="439.333282470703"
    id="svg84"
+   sodipodi:docname="overview 2.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="2.7655542"
+     inkscape:cx="397.93109"
+     inkscape:cy="219.66664"
+     inkscape:window-width="2484"
+     inkscape:window-height="1401"
+     inkscape:window-x="-7"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg84" />
   <!-- svg-source:excalidraw -->
   <defs
      id="defs1">
@@ -23,7 +45,7 @@
     </style>
   </defs>
   <rect
-     style="fill:#cccccc;fill-opacity:1"
+     style="fill:#f2f2f2;fill-opacity:1"
      id="rect84"
      width="788.01678"
      height="432.10526"
@@ -447,104 +469,125 @@
   </g>
   <g
      stroke-linecap="round"
-     id="g52">
+     id="g52"
+     style="fill:#9b1c48;fill-opacity:1">
     <g
        transform="translate(172.41975007065685 146.7619192940848) rotate(0 44.00581900729168 24.90887386639065)"
-       id="g49">
+       id="g49"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M2.41 0.16 C16.3 8.63, 68.76 40.35, 82.45 49.06 M0.28 -2.22 C15.12 6.78, 73.98 43.67, 87.74 52.04"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path48" />
+         id="path48"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
     <g
        transform="translate(172.41975007065685 146.7619192940848) rotate(0 44.00581900729168 24.90887386639065)"
-       id="g50">
+       id="g50"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M58.59 43 C64.5 47.15, 77.14 50.21, 85.34 49.02 M59.92 45.68 C63.71 48.5, 72.61 47, 86.84 53.12"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path49" />
+         id="path49"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
     <g
        transform="translate(172.41975007065685 146.7619192940848) rotate(0 44.00581900729168 24.90887386639065)"
-       id="g51">
+       id="g51"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M69.39 25.55 C72.18 34.59, 81.91 42.34, 85.34 49.02 M70.72 28.23 C72.02 34.92, 78.51 37.3, 86.84 53.12"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path50" />
+         id="path50"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
   </g>
   <g
      stroke-linecap="round"
-     id="g56">
+     id="g56"
+     style="fill:#9b1c48;fill-opacity:1">
     <g
        transform="translate(370 77.3333740234375) rotate(0 -7.059218419492254 37.9153373366222)"
-       id="g53">
+       id="g53"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M-2.05 -1.19 C-4.78 12.14, -12.12 67.21, -13.94 80.13 M2.03 -4.3 C-1.28 8.25, -13.44 62.47, -16.15 76.27"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path52" />
+         id="path52"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
     <g
        transform="translate(370 77.3333740234375) rotate(0 -7.059218419492254 37.9153373366222)"
-       id="g54">
+       id="g54"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M-22.01 46.65 C-15.63 59.59, -19.46 66.55, -19.24 75.32 M-21.49 47.71 C-17.47 53.42, -18.34 64.77, -17.34 77.21"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path53" />
+         id="path53"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
     <g
        transform="translate(370 77.3333740234375) rotate(0 -7.059218419492254 37.9153373366222)"
-       id="g55">
+       id="g55"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M-1.94 50.92 C-3.32 61.92, -14.9 67.23, -19.24 75.32 M-1.42 51.98 C-3.25 56.41, -9.91 66.53, -17.34 77.21"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path54" />
+         id="path54"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
   </g>
   <g
      stroke-linecap="round"
-     id="g60">
+     id="g60"
+     style="fill:#9b1c48;fill-opacity:1">
     <g
        transform="translate(367.99993896484375 362) rotate(0 -6.221754011549137 -36.45663416024297)"
-       id="g57">
+       id="g57"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M2.79 1.33 C0.38 -10.53, -11.48 -57.84, -14.28 -70.2 M0.85 -0.42 C-1.73 -13.15, -12.68 -62.6, -15.23 -74.24"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path56" />
+         id="path56"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
     <g
        transform="translate(367.99993896484375 362) rotate(0 -6.221754011549137 -36.45663416024297)"
-       id="g58">
+       id="g58"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M2.75 -45.51 C-1.67 -52.63, -10.4 -64.18, -11.82 -75.06 M2.23 -48.62 C-1.49 -56.47, -6.79 -61.19, -17.08 -74.81"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path57" />
+         id="path57"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
     <g
        transform="translate(367.99993896484375 362) rotate(0 -6.221754011549137 -36.45663416024297)"
-       id="g59">
+       id="g59"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M-17.29 -41.1 C-15.6 -49.97, -18.21 -62.87, -11.82 -75.06 M-17.81 -44.2 C-16.19 -53.56, -16.16 -59.45, -17.08 -74.81"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path58" />
+         id="path58"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
   </g>
   <g
@@ -552,13 +595,15 @@
      id="g64">
     <g
        transform="translate(154.66668701171875 318.7719210533862) rotate(0 54.675212132080844 -20.604492870536262)"
-       id="g61">
+       id="g61"
+       style="fill:#9b1c48;fill-opacity:1">
       <path
          d="M0.06 2.13 C19.18 -4.9, 94.46 -35.68, 112.7 -43.34 M-3.35 0.82 C15.68 -5.77, 91.27 -33.5, 111.03 -40.62"
          stroke="#a61e4d"
          stroke-width="1"
          fill="none"
-         id="path60" />
+         id="path60"
+         style="fill:#9b1c48;fill-opacity:1" />
     </g>
     <g
        transform="translate(154.66668701171875 318.7719210533862) rotate(0 54.675212132080844 -20.604492870536262)"
@@ -591,7 +636,7 @@
        font-size="20px"
        fill="#a61e4d"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#9b1c48;fill-opacity:1"
        direction="ltr"
        id="text64">Message</text>
     <text
@@ -601,7 +646,7 @@
        font-size="20px"
        fill="#a61e4d"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#9b1c48;fill-opacity:1"
        direction="ltr"
        id="text65">observations</text>
   </g>
@@ -624,36 +669,43 @@
   </g>
   <g
      stroke-linecap="round"
-     id="g70">
+     id="g70"
+     style="fill:none;stroke:#3046b1;stroke-opacity:1">
     <g
        transform="translate(418.02574487522315 262.1670832819268) rotate(0 78.74151594717546 -13.522699473143291)"
-       id="g67">
+       id="g67"
+       style="fill:none;stroke:#3046b1;stroke-opacity:1">
       <path
          d="M-1.92 -2.51 C9.99 -3.27, 47.12 2.55, 74 -2.11 C100.89 -6.77, 145.17 -25.22, 159.4 -30.49 M2.24 2.3 C13.76 3.04, 47.11 5.26, 73.13 0.36 C99.14 -4.54, 143.72 -21.6, 158.31 -27.09"
          stroke="#364fc7"
          stroke-width="1"
          fill="none"
-         id="path67" />
+         id="path67"
+         style="fill:none;stroke:#3046b1;stroke-opacity:1" />
     </g>
     <g
        transform="translate(418.02574487522315 262.1670832819268) rotate(0 78.74151594717546 -13.522699473143291)"
-       id="g68">
+       id="g68"
+       style="fill:none;stroke:#3046b1;stroke-opacity:1">
       <path
          d="M131.9 -4.05 C141.03 -13.04, 153.8 -20.65, 154.49 -28.51 M134.21 -8.63 C140.54 -12.26, 148.61 -16.18, 158.34 -28.61"
          stroke="#364fc7"
          stroke-width="1"
          fill="none"
-         id="path68" />
+         id="path68"
+         style="fill:none;stroke:#3046b1;stroke-opacity:1" />
     </g>
     <g
        transform="translate(418.02574487522315 262.1670832819268) rotate(0 78.74151594717546 -13.522699473143291)"
-       id="g69">
+       id="g69"
+       style="fill:none;stroke:#3046b1;stroke-opacity:1">
       <path
          d="M124.73 -23.28 C137.02 -24.64, 152.59 -24.72, 154.49 -28.51 M127.05 -27.86 C135.67 -25.99, 145.75 -24.53, 158.34 -28.61"
          stroke="#364fc7"
          stroke-width="1"
          fill="none"
-         id="path69" />
+         id="path69"
+         style="fill:none;stroke:#3046b1;stroke-opacity:1" />
     </g>
   </g>
   <g
@@ -692,41 +744,49 @@
   </g>
   <g
      stroke-linecap="round"
-     id="g78">
+     id="g78"
+     style="stroke:#3046b1;stroke-opacity:1">
     <g
        transform="translate(586.6922487814732 196.83377029364556) rotate(0 -141.4191655401837 -45.193060776037726)"
-       id="g75">
+       id="g75"
+       style="stroke:#3046b1;stroke-opacity:1">
       <path
          d="M-2.36 -2.45 C-14.25 -7.28, -47.05 -16.38, -72.5 -27.89 C-97.95 -39.4, -119.75 -60.68, -155.06 -71.5 C-190.38 -82.31, -263.08 -89.74, -284.4 -92.78 M1.56 2.39 C-10.42 -2.11, -47.11 -12.72, -73.65 -24.57 C-100.19 -36.43, -122.74 -57.71, -157.69 -68.74 C-192.64 -79.77, -262.09 -87.6, -283.35 -90.76"
          stroke="#364fc7"
          stroke-width="1"
          fill="none"
-         id="path74" />
+         id="path74"
+         style="stroke:#3046b1;stroke-opacity:1" />
     </g>
     <g
        transform="translate(586.6922487814732 196.83377029364556) rotate(0 -141.4191655401837 -45.193060776037726)"
-       id="g76">
+       id="g76"
+       style="stroke:#3046b1;stroke-opacity:1">
       <path
          d="M-257.53 -94.27 C-262.42 -98.13, -270.14 -93.08, -284.89 -87.54 M-253.04 -95.93 C-264.87 -94, -274.12 -92.92, -282.98 -88.91"
          stroke="#364fc7"
          stroke-width="1"
          fill="none"
-         id="path75" />
+         id="path75"
+         style="stroke:#3046b1;stroke-opacity:1" />
     </g>
     <g
        transform="translate(586.6922487814732 196.83377029364556) rotate(0 -141.4191655401837 -45.193060776037726)"
-       id="g77">
+       id="g77"
+       style="stroke:#3046b1;stroke-opacity:1">
       <path
          d="M-260.29 -73.94 C-264.63 -83.03, -271.63 -83.26, -284.89 -87.54 M-255.81 -75.6 C-266.22 -81.19, -274.44 -87.64, -282.98 -88.91"
          stroke="#364fc7"
          stroke-width="1"
          fill="none"
-         id="path76" />
+         id="path76"
+         style="stroke:#3046b1;stroke-opacity:1" />
     </g>
   </g>
   <g
      transform="translate(656.7854418073384 185.3808637346542) rotate(0 64.5 25.5)"
-     id="g79">
+     id="g79"
+     style="fill:#5838b8;fill-opacity:1">
     <text
        x="64.5"
        y="18.5"
@@ -734,7 +794,7 @@
        font-size="20px"
        fill="#5f3dc4"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#5838b8;fill-opacity:1"
        direction="ltr"
        id="text78">User agent /</text>
     <text
@@ -744,13 +804,14 @@
        font-size="20px"
        fill="#5f3dc4"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#5838b8;fill-opacity:1"
        direction="ltr"
        id="text79">wallet</text>
   </g>
   <g
      transform="translate(427.45194571358843 285.38080269949796) rotate(0 83.5 20)"
-     id="g81">
+     id="g81"
+     style="fill:#3046b1;fill-opacity:1">
     <text
        x="83.5"
        y="14"
@@ -758,7 +819,7 @@
        font-size="16px"
        fill="#364fc7"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#3046b1;fill-opacity:1"
        direction="ltr"
        id="text80">Signed message</text>
     <text
@@ -768,13 +829,14 @@
        font-size="16px"
        fill="#364fc7"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#3046b1;fill-opacity:1"
        direction="ltr"
        id="text81">published by Wormhole</text>
   </g>
   <g
      transform="translate(529.4523119245259 63.38086373465427) rotate(0 73.5 30)"
-     id="g84">
+     id="g84"
+     style="fill:#3046b1;fill-opacity:1">
     <text
        x="73.5"
        y="14"
@@ -782,7 +844,7 @@
        font-size="16px"
        fill="#364fc7"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#3046b1;fill-opacity:1"
        direction="ltr"
        id="text82">Signed message</text>
     <text
@@ -792,7 +854,7 @@
        font-size="16px"
        fill="#364fc7"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#3046b1;fill-opacity:1"
        direction="ltr"
        id="text83">published to chains</text>
     <text
@@ -802,7 +864,7 @@
        font-size="16px"
        fill="#364fc7"
        text-anchor="middle"
-       style="white-space: pre;"
+       style="white-space:pre;fill:#3046b1;fill-opacity:1"
        direction="ltr"
        id="text84">(fee paid by user)</text>
   </g>
