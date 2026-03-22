@@ -425,7 +425,6 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 
 			dgConfig.mu.Lock()
-			defer dgConfig.mu.Unlock()
 
 			chains := dgConfig.Chains
 
@@ -509,6 +508,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			if err := p.dgc.Set(chains); err != nil {
 				p.logger.Error("delegate guardian config update failed", zap.Error(err))
 			}
+			dgConfig.mu.Unlock()
 		case k := <-p.msgC:
 			if k == nil {
 				p.logger.Error("received nil MessagePublication from msgC channel")
