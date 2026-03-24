@@ -64,11 +64,45 @@ type ManagerSetConfig struct {
 	N uint8
 	// PublicKeys are the compressed secp256k1 public keys of the manager signers
 	PublicKeys [][]byte
-	// IsSigner indicates whether this node is part of the manager set
-	IsSigner bool
-	// SignerIndex is this node's index within the manager set (0-based)
-	// Only valid if IsSigner is true
-	SignerIndex uint8
+}
+
+// SignerMatch represents a local signer that is part of a manager set.
+type SignerMatch struct {
+	// ManagerSetIndex is this signer's index within the manager set (0-based)
+	ManagerSetIndex uint8
+	// LocalSignerIndex is the index into the local signers slice for this chain
+	LocalSignerIndex int
+}
+
+// FindSignerByPubKey checks if a compressed public key is in this manager set.
+// Returns the manager set index and true if found, or 0 and false otherwise.
+func (c *ManagerSetConfig) FindSignerByPubKey(compressedPubKey []byte) (uint8, bool) {
+	for i, pk := range c.PublicKeys {
+		if bytes.Equal(compressedPubKey, pk) {
+			return uint8(i), true // #nosec G115 -- i < N which is uint8
+		}
+	}
+	return 0, false
+}
+
+// FindSigners checks which of the given signers' public keys are in this manager set.
+// Returns a SignerMatch for each local signer found in the set.
+func (c *ManagerSetConfig) FindSigners(ctx context.Context, signers []guardiansigner.GuardianSigner) []SignerMatch {
+	var matches []SignerMatch
+	for localIdx, signer := range signers {
+		signerPubKey := signer.PublicKey(ctx)
+		signerCompressed := compressPublicKey(&signerPubKey)
+		for i, pk := range c.PublicKeys {
+			if bytes.Equal(signerCompressed, pk) {
+				matches = append(matches, SignerMatch{
+					ManagerSetIndex:  uint8(i), // #nosec G115 -- i < N which is uint8
+					LocalSignerIndex: localIdx,
+				})
+				break
+			}
+		}
+	}
+	return matches
 }
 
 // ManagerService manages manager-related processing of VAAs.
@@ -78,9 +112,9 @@ type ManagerService struct {
 	vaaC     <-chan *vaa.VAA
 	env      common.Environment
 	emitters []emitterEntry
-	signers  map[vaa.ChainID]guardiansigner.GuardianSigner
-	// signerPubKeys stores the compressed secp256k1 public keys for each chain's signer.
-	signerPubKeys map[vaa.ChainID][]byte
+	signers  map[vaa.ChainID][]guardiansigner.GuardianSigner
+	// signerPubKeys stores the compressed secp256k1 public keys for each chain's signers.
+	signerPubKeys map[vaa.ChainID][][]byte
 	// managerTxSendC is the channel for sending manager transactions to be signed and broadcast via gossip.
 	managerTxSendC chan<- *gossipv1.ManagerTransaction
 	// managerTxRecvC receives verified manager transactions from other manager nodes via gossip.
@@ -103,7 +137,7 @@ func NewManagerService(
 	logger *zap.Logger,
 	vaaC <-chan *vaa.VAA,
 	env common.Environment,
-	signers map[vaa.ChainID]guardiansigner.GuardianSigner,
+	signers map[vaa.ChainID][]guardiansigner.GuardianSigner,
 	managerTxSendC chan<- *gossipv1.ManagerTransaction,
 	managerTxRecvC <-chan *gossipv1.ManagerTransaction,
 	database *db.Database,
@@ -128,10 +162,14 @@ func NewManagerService(
 	}
 
 	// Compute compressed public keys for each signer
-	signerPubKeys := make(map[vaa.ChainID][]byte)
-	for chainID, signer := range signers {
-		pubKey := signer.PublicKey(ctx)
-		signerPubKeys[chainID] = compressPublicKey(&pubKey)
+	signerPubKeys := make(map[vaa.ChainID][][]byte)
+	for chainID, chainSigners := range signers {
+		keys := make([][]byte, len(chainSigners))
+		for i, signer := range chainSigners {
+			pubKey := signer.PublicKey(ctx)
+			keys[i] = compressPublicKey(&pubKey)
+		}
+		signerPubKeys[chainID] = keys
 	}
 
 	// Create reader for dynamic manager set loading
@@ -199,8 +237,7 @@ func parseEmitters(sdkEmitters []struct {
 
 // getManagerSet retrieves a manager set by chain ID and index.
 func (c *ManagerService) getManagerSet(ctx context.Context, chainID vaa.ChainID, index uint32) (*ManagerSetConfig, error) {
-	signer := c.signers[chainID]
-	return c.reader.GetManagerSet(ctx, chainID, index, signer)
+	return c.reader.GetManagerSet(ctx, chainID, index)
 }
 
 // Run starts the manager service and begins processing incoming VAAs.
@@ -509,9 +546,9 @@ func (c *ManagerService) handleUTXOPayload(v *vaa.VAA) {
 		zap.Int("num_outputs", len(payload.Outputs)),
 	)
 
-	// Check if we have a signer for the destination chain
-	signer, ok := c.signers[payload.DestinationChain]
-	if !ok {
+	// Check if we have signers for the destination chain
+	chainSigners, ok := c.signers[payload.DestinationChain]
+	if !ok || len(chainSigners) == 0 {
 		c.logger.Warn("no signer configured for destination chain",
 			zap.String("message_id", v.MessageID()),
 			zap.Stringer("destination_chain", payload.DestinationChain),
@@ -519,26 +556,31 @@ func (c *ManagerService) handleUTXOPayload(v *vaa.VAA) {
 		return
 	}
 
-	// Sign the transaction inputs
-	sig, err := c.signUTXOTransaction(v, payload, signer)
-	if err != nil {
-		c.logger.Error("failed to sign UTXO transaction",
+	chainPubKeys := c.signerPubKeys[payload.DestinationChain]
+
+	// Sign with each signer configured for this chain
+	for i, signer := range chainSigners {
+		sig, err := c.signUTXOTransaction(v, payload, signer, chainPubKeys[i])
+		if err != nil {
+			c.logger.Error("failed to sign UTXO transaction",
+				zap.String("message_id", v.MessageID()),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		c.logger.Info("signed manager transaction",
 			zap.String("message_id", v.MessageID()),
-			zap.Error(err),
+			zap.Stringer("destination_chain", sig.DestinationChain),
+			zap.Uint8("signer_index", sig.SignerIndex),
+			zap.Int("num_signatures", len(sig.InputSignatures)),
 		)
-		return
-	}
 
-	c.logger.Info("signed manager transaction",
-		zap.String("message_id", v.MessageID()),
-		zap.Stringer("destination_chain", sig.DestinationChain),
-		zap.Int("num_signatures", len(sig.InputSignatures)),
-	)
-
-	if c.managerTxSendC != nil {
-		c.broadcastSignature(sig)
+		if c.managerTxSendC != nil {
+			c.broadcastSignature(sig)
+		}
+		c.storeSignature(sig)
 	}
-	c.storeSignature(sig)
 }
 
 // handleXRPLPayload processes an XRPL release payload from a VAA.
@@ -559,34 +601,39 @@ func (c *ManagerService) handleXRPLPayload(v *vaa.VAA) {
 		zap.Uint8("token_type", uint8(payload.Token.Type)),
 	)
 
-	// Check if we have an XRPL signer
-	signer, ok := c.signers[vaa.ChainIDXRPL]
-	if !ok {
+	// Check if we have XRPL signers
+	chainSigners, ok := c.signers[vaa.ChainIDXRPL]
+	if !ok || len(chainSigners) == 0 {
 		c.logger.Warn("no signer configured for XRPL",
 			zap.String("message_id", v.MessageID()),
 		)
 		return
 	}
 
-	// Sign the XRPL transaction
-	sig, err := c.signXRPLTransaction(v, payload, signer)
-	if err != nil {
-		c.logger.Error("failed to sign XRPL transaction",
+	chainPubKeys := c.signerPubKeys[vaa.ChainIDXRPL]
+
+	// Sign with each signer configured for XRPL
+	for i, signer := range chainSigners {
+		sig, err := c.signXRPLTransaction(v, payload, signer, chainPubKeys[i])
+		if err != nil {
+			c.logger.Error("failed to sign XRPL transaction",
+				zap.String("message_id", v.MessageID()),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		c.logger.Info("signed XRPL manager transaction",
 			zap.String("message_id", v.MessageID()),
-			zap.Error(err),
+			zap.Stringer("destination_chain", sig.DestinationChain),
+			zap.Uint8("signer_index", sig.SignerIndex),
 		)
-		return
-	}
 
-	c.logger.Info("signed XRPL manager transaction",
-		zap.String("message_id", v.MessageID()),
-		zap.Stringer("destination_chain", sig.DestinationChain),
-	)
-
-	if c.managerTxSendC != nil {
-		c.broadcastSignature(sig)
+		if c.managerTxSendC != nil {
+			c.broadcastSignature(sig)
+		}
+		c.storeSignature(sig)
 	}
-	c.storeSignature(sig)
 }
 
 // handleXRPLTicketRefill processes an XRPL ticket refill payload from a VAA.
@@ -606,34 +653,39 @@ func (c *ManagerService) handleXRPLTicketRefill(v *vaa.VAA) {
 		zap.Uint64("request_count", payload.RequestCount),
 	)
 
-	// Check if we have an XRPL signer
-	signer, ok := c.signers[vaa.ChainIDXRPL]
-	if !ok {
+	// Check if we have XRPL signers
+	chainSigners, ok := c.signers[vaa.ChainIDXRPL]
+	if !ok || len(chainSigners) == 0 {
 		c.logger.Warn("no signer configured for XRPL",
 			zap.String("message_id", v.MessageID()),
 		)
 		return
 	}
 
-	// Sign the XRPL TicketCreate transaction
-	sig, err := c.signXRPLTicketRefillTransaction(v, payload, signer)
-	if err != nil {
-		c.logger.Error("failed to sign XRPL ticket refill transaction",
+	chainPubKeys := c.signerPubKeys[vaa.ChainIDXRPL]
+
+	// Sign with each signer configured for XRPL
+	for i, signer := range chainSigners {
+		sig, err := c.signXRPLTicketRefillTransaction(v, payload, signer, chainPubKeys[i])
+		if err != nil {
+			c.logger.Error("failed to sign XRPL ticket refill transaction",
+				zap.String("message_id", v.MessageID()),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		c.logger.Info("signed XRPL ticket refill transaction",
 			zap.String("message_id", v.MessageID()),
-			zap.Error(err),
+			zap.Stringer("destination_chain", sig.DestinationChain),
+			zap.Uint8("signer_index", sig.SignerIndex),
 		)
-		return
-	}
 
-	c.logger.Info("signed XRPL ticket refill transaction",
-		zap.String("message_id", v.MessageID()),
-		zap.Stringer("destination_chain", sig.DestinationChain),
-	)
-
-	if c.managerTxSendC != nil {
-		c.broadcastSignature(sig)
+		if c.managerTxSendC != nil {
+			c.broadcastSignature(sig)
+		}
+		c.storeSignature(sig)
 	}
-	c.storeSignature(sig)
 }
 
 // signXRPLTicketRefillTransaction signs an XRPL TicketCreate transaction for the given ticket refill payload.
@@ -641,6 +693,7 @@ func (c *ManagerService) signXRPLTicketRefillTransaction(
 	v *vaa.VAA,
 	payload *vaa.XRPLTicketRefillPayload,
 	signer guardiansigner.GuardianSigner,
+	signerPubKey []byte,
 ) (*ManagerSignature, error) {
 	// Get the current manager set for XRPL (XRFL payload doesn't embed a manager set index)
 	managerSet, err := c.getCurrentManagerSet(c.ctx, vaa.ChainIDXRPL)
@@ -648,9 +701,10 @@ func (c *ManagerService) signXRPLTicketRefillTransaction(
 		return nil, fmt.Errorf("failed to get current manager set for XRPL: %w", err)
 	}
 
-	// Verify this node is part of the manager set
-	if !managerSet.IsSigner {
-		return nil, fmt.Errorf("this node is not part of the XRPL manager set")
+	// Verify this signer is part of the manager set
+	signerIndex, ok := managerSet.FindSignerByPubKey(signerPubKey)
+	if !ok {
+		return nil, fmt.Errorf("this signer is not part of the XRPL manager set")
 	}
 
 	// Build the XRPL TicketCreate transaction
@@ -660,7 +714,6 @@ func (c *ManagerService) signXRPLTicketRefillTransaction(
 	}
 
 	// Derive this signer's XRPL address from compressed public key
-	signerPubKey := c.signerPubKeys[vaa.ChainIDXRPL]
 	signerAddress, err := xrpl.CompressedPubKeyToAddress(signerPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive signer XRPL address: %w", err)
@@ -689,7 +742,7 @@ func (c *ManagerService) signXRPLTicketRefillTransaction(
 		VAAID:            v.MessageID(),
 		DestinationChain: vaa.ChainIDXRPL,
 		ManagerSetIndex:  managerSet.Index,
-		SignerIndex:      managerSet.SignerIndex,
+		SignerIndex:      signerIndex,
 		InputSignatures:  [][]byte{derSig},
 	}, nil
 }
@@ -710,34 +763,39 @@ func (c *ManagerService) handleXRPLBurnTicket(v *vaa.VAA) {
 		zap.Uint64("ticket_id", payload.TicketID),
 	)
 
-	// Check if we have an XRPL signer
-	signer, ok := c.signers[vaa.ChainIDXRPL]
-	if !ok {
+	// Check if we have XRPL signers
+	chainSigners, ok := c.signers[vaa.ChainIDXRPL]
+	if !ok || len(chainSigners) == 0 {
 		c.logger.Warn("no signer configured for XRPL",
 			zap.String("message_id", v.MessageID()),
 		)
 		return
 	}
 
-	// Sign the XRPL AccountSet (burn) transaction
-	sig, err := c.signXRPLBurnTicketTransaction(v, payload, signer)
-	if err != nil {
-		c.logger.Error("failed to sign XRPL burn ticket transaction",
+	chainPubKeys := c.signerPubKeys[vaa.ChainIDXRPL]
+
+	// Sign with each signer configured for XRPL
+	for i, signer := range chainSigners {
+		sig, err := c.signXRPLBurnTicketTransaction(v, payload, signer, chainPubKeys[i])
+		if err != nil {
+			c.logger.Error("failed to sign XRPL burn ticket transaction",
+				zap.String("message_id", v.MessageID()),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		c.logger.Info("signed XRPL burn ticket transaction",
 			zap.String("message_id", v.MessageID()),
-			zap.Error(err),
+			zap.Stringer("destination_chain", sig.DestinationChain),
+			zap.Uint8("signer_index", sig.SignerIndex),
 		)
-		return
-	}
 
-	c.logger.Info("signed XRPL burn ticket transaction",
-		zap.String("message_id", v.MessageID()),
-		zap.Stringer("destination_chain", sig.DestinationChain),
-	)
-
-	if c.managerTxSendC != nil {
-		c.broadcastSignature(sig)
+		if c.managerTxSendC != nil {
+			c.broadcastSignature(sig)
+		}
+		c.storeSignature(sig)
 	}
-	c.storeSignature(sig)
 }
 
 // signXRPLBurnTicketTransaction signs an XRPL AccountSet no-op transaction for the given burn ticket payload.
@@ -745,6 +803,7 @@ func (c *ManagerService) signXRPLBurnTicketTransaction(
 	v *vaa.VAA,
 	payload *vaa.XRPLBurnTicketPayload,
 	signer guardiansigner.GuardianSigner,
+	signerPubKey []byte,
 ) (*ManagerSignature, error) {
 	// Get the current manager set for XRPL (XBRN payload doesn't embed a manager set index)
 	managerSet, err := c.getCurrentManagerSet(c.ctx, vaa.ChainIDXRPL)
@@ -752,9 +811,10 @@ func (c *ManagerService) signXRPLBurnTicketTransaction(
 		return nil, fmt.Errorf("failed to get current manager set for XRPL: %w", err)
 	}
 
-	// Verify this node is part of the manager set
-	if !managerSet.IsSigner {
-		return nil, fmt.Errorf("this node is not part of the XRPL manager set")
+	// Verify this signer is part of the manager set
+	signerIndex, ok := managerSet.FindSignerByPubKey(signerPubKey)
+	if !ok {
+		return nil, fmt.Errorf("this signer is not part of the XRPL manager set")
 	}
 
 	// Build the XRPL AccountSet (burn) transaction
@@ -764,7 +824,6 @@ func (c *ManagerService) signXRPLBurnTicketTransaction(
 	}
 
 	// Derive this signer's XRPL address from compressed public key
-	signerPubKey := c.signerPubKeys[vaa.ChainIDXRPL]
 	signerAddress, err := xrpl.CompressedPubKeyToAddress(signerPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive signer XRPL address: %w", err)
@@ -793,7 +852,7 @@ func (c *ManagerService) signXRPLBurnTicketTransaction(
 		VAAID:            v.MessageID(),
 		DestinationChain: vaa.ChainIDXRPL,
 		ManagerSetIndex:  managerSet.Index,
-		SignerIndex:      managerSet.SignerIndex,
+		SignerIndex:      signerIndex,
 		InputSignatures:  [][]byte{derSig},
 	}, nil
 }
@@ -804,10 +863,11 @@ func (c *ManagerService) signUTXOTransaction(
 	v *vaa.VAA,
 	payload *vaa.UTXOUnlockPayload,
 	signer guardiansigner.GuardianSigner,
+	signerPubKey []byte,
 ) (*ManagerSignature, error) {
 	switch payload.DestinationChain {
 	case vaa.ChainIDDogecoin:
-		return c.signDogecoinTransaction(v, payload, signer)
+		return c.signDogecoinTransaction(v, payload, signer, signerPubKey)
 	default:
 		return nil, fmt.Errorf("unsupported UTXO destination chain: %s", payload.DestinationChain)
 	}
@@ -819,6 +879,7 @@ func (c *ManagerService) signDogecoinTransaction(
 	v *vaa.VAA,
 	payload *vaa.UTXOUnlockPayload,
 	signer guardiansigner.GuardianSigner,
+	signerPubKey []byte,
 ) (*ManagerSignature, error) {
 	// Look up the specific manager set by index from the payload (fetch dynamically if needed)
 	managerSet, err := c.getManagerSet(c.ctx, vaa.ChainIDDogecoin, payload.DelegatedManagerSetIndex)
@@ -826,9 +887,10 @@ func (c *ManagerService) signDogecoinTransaction(
 		return nil, fmt.Errorf("failed to get manager set for Dogecoin: %w", err)
 	}
 
-	// Verify this node is part of the manager set
-	if !managerSet.IsSigner {
-		return nil, fmt.Errorf("this node is not part of the Dogecoin manager set (index %d)", payload.DelegatedManagerSetIndex)
+	// Verify this signer is part of the manager set
+	signerIndex, ok := managerSet.FindSignerByPubKey(signerPubKey)
+	if !ok {
+		return nil, fmt.Errorf("this signer is not part of the Dogecoin manager set (index %d)", payload.DelegatedManagerSetIndex)
 	}
 
 	// Build redeem scripts for each input
@@ -893,7 +955,7 @@ func (c *ManagerService) signDogecoinTransaction(
 		VAAID:            v.MessageID(),
 		DestinationChain: payload.DestinationChain,
 		ManagerSetIndex:  payload.DelegatedManagerSetIndex,
-		SignerIndex:      uint8(managerSet.SignerIndex),
+		SignerIndex:      signerIndex,
 		InputSignatures:  inputSignatures,
 	}, nil
 }
@@ -941,6 +1003,7 @@ func (c *ManagerService) signXRPLTransaction(
 	v *vaa.VAA,
 	payload *vaa.XRPLReleasePayload,
 	signer guardiansigner.GuardianSigner,
+	signerPubKey []byte,
 ) (*ManagerSignature, error) {
 	// Get the current manager set for XRPL (XREL payload doesn't embed a manager set index)
 	managerSet, err := c.getCurrentManagerSet(c.ctx, vaa.ChainIDXRPL)
@@ -948,9 +1011,10 @@ func (c *ManagerService) signXRPLTransaction(
 		return nil, fmt.Errorf("failed to get current manager set for XRPL: %w", err)
 	}
 
-	// Verify this node is part of the manager set
-	if !managerSet.IsSigner {
-		return nil, fmt.Errorf("this node is not part of the XRPL manager set")
+	// Verify this signer is part of the manager set
+	signerIndex, ok := managerSet.FindSignerByPubKey(signerPubKey)
+	if !ok {
+		return nil, fmt.Errorf("this signer is not part of the XRPL manager set")
 	}
 
 	// Build the XRPL Payment transaction
@@ -960,7 +1024,6 @@ func (c *ManagerService) signXRPLTransaction(
 	}
 
 	// Derive this signer's XRPL address from compressed public key
-	signerPubKey := c.signerPubKeys[vaa.ChainIDXRPL]
 	signerAddress, err := xrpl.CompressedPubKeyToAddress(signerPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive signer XRPL address: %w", err)
@@ -989,7 +1052,7 @@ func (c *ManagerService) signXRPLTransaction(
 		VAAID:            v.MessageID(),
 		DestinationChain: vaa.ChainIDXRPL,
 		ManagerSetIndex:  managerSet.Index,
-		SignerIndex:      managerSet.SignerIndex,
+		SignerIndex:      signerIndex,
 		InputSignatures:  [][]byte{derSig},
 	}, nil
 }
@@ -1007,8 +1070,7 @@ func convertEthSigToXRPLDER(ethSig []byte) ([]byte, error) {
 // getCurrentManagerSet retrieves the current manager set for a chain by first looking up
 // the current index from the contract.
 func (c *ManagerService) getCurrentManagerSet(ctx context.Context, chainID vaa.ChainID) (*ManagerSetConfig, error) {
-	signer := c.signers[chainID]
-	return c.reader.GetCurrentManagerSet(ctx, chainID, signer)
+	return c.reader.GetCurrentManagerSet(ctx, chainID)
 }
 
 // compressPublicKey converts an ECDSA public key to compressed secp256k1 format (33 bytes).
@@ -1068,8 +1130,9 @@ func (c *ManagerService) GetPendingTransactionByID(vaaID string) *db.AggregatedT
 }
 
 // GetFeatureString returns the feature flag string for heartbeat messages.
-// Format: "manager:CHAIN_ID/COMPRESSED_PUBKEY_HEX" for single chain
-// or "manager:CHAIN_ID1/PUBKEY1|CHAIN_ID2/PUBKEY2" for multiple chains.
+// Format: "manager:CHAIN_ID/COMPRESSED_PUBKEY_HEX" for single chain/signer
+// or "manager:CHAIN_ID1/PUBKEY1|CHAIN_ID2/PUBKEY2" for multiple chains/signers.
+// When a chain has multiple signers, each is listed as a separate entry.
 func (c *ManagerService) GetFeatureString() string {
 	if len(c.signerPubKeys) == 0 {
 		return ""
@@ -1083,10 +1146,12 @@ func (c *ManagerService) GetFeatureString() string {
 	sort.Ints(chainIDs)
 
 	// Build the feature string with chain ID and public key
-	parts := make([]string, 0, len(chainIDs))
+	var parts []string
 	for _, id := range chainIDs {
-		pubKey := c.signerPubKeys[vaa.ChainID(id)] // #nosec G115 -- id was converted from ChainID (uint16) above
-		parts = append(parts, fmt.Sprintf("%d/%s", id, hex.EncodeToString(pubKey)))
+		pubKeys := c.signerPubKeys[vaa.ChainID(id)] // #nosec G115 -- id was converted from ChainID (uint16) above
+		for _, pubKey := range pubKeys {
+			parts = append(parts, fmt.Sprintf("%d/%s", id, hex.EncodeToString(pubKey)))
+		}
 	}
 
 	return "manager:" + strings.Join(parts, "|")

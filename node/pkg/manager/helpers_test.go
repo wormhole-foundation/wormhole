@@ -296,8 +296,8 @@ func TestGetFeatureString_Empty(t *testing.T) {
 func TestGetFeatureString_SingleChain(t *testing.T) {
 	pubKey := bytes.Repeat([]byte{0x01}, 33)
 	c := &ManagerService{
-		signerPubKeys: map[vaa.ChainID][]byte{
-			vaa.ChainIDXRPL: pubKey,
+		signerPubKeys: map[vaa.ChainID][][]byte{
+			vaa.ChainIDXRPL: {pubKey},
 		},
 	}
 	expected := "manager:" + chainIDFeaturePart(vaa.ChainIDXRPL, pubKey)
@@ -308,9 +308,9 @@ func TestGetFeatureString_MultipleChainsSorted(t *testing.T) {
 	xrplKey := bytes.Repeat([]byte{0xaa}, 33)
 	dogeKey := bytes.Repeat([]byte{0xbb}, 33)
 	c := &ManagerService{
-		signerPubKeys: map[vaa.ChainID][]byte{
-			vaa.ChainIDXRPL:     xrplKey,
-			vaa.ChainIDDogecoin: dogeKey,
+		signerPubKeys: map[vaa.ChainID][][]byte{
+			vaa.ChainIDXRPL:     {xrplKey},
+			vaa.ChainIDDogecoin: {dogeKey},
 		},
 	}
 

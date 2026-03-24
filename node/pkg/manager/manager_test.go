@@ -97,12 +97,10 @@ func TestSignDogecoinTransaction_EmptyInputs(t *testing.T) {
 	}
 	reader.cache[vaa.ChainIDDogecoin] = map[uint32]*ManagerSetConfig{
 		0: {
-			Index:       0,
-			M:           2,
-			N:           3,
-			PublicKeys:  [][]byte{dummyPubKey, dummyPubKey, dummyPubKey},
-			IsSigner:    true,
-			SignerIndex: 0,
+			Index:      0,
+			M:          2,
+			N:          3,
+			PublicKeys: [][]byte{dummyPubKey, dummyPubKey, dummyPubKey},
 		},
 	}
 
@@ -111,8 +109,8 @@ func TestSignDogecoinTransaction_EmptyInputs(t *testing.T) {
 	svc := &ManagerService{
 		ctx:    ctx,
 		logger: logger,
-		signers: map[vaa.ChainID]guardiansigner.GuardianSigner{
-			vaa.ChainIDDogecoin: signer,
+		signers: map[vaa.ChainID][]guardiansigner.GuardianSigner{
+			vaa.ChainIDDogecoin: {signer},
 		},
 		reader: reader,
 	}
@@ -131,7 +129,7 @@ func TestSignDogecoinTransaction_EmptyInputs(t *testing.T) {
 		},
 	}
 
-	_, err := svc.signDogecoinTransaction(v, payload, signer)
+	_, err := svc.signDogecoinTransaction(v, payload, signer, dummyPubKey)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid redeemScripts length")
 }

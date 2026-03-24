@@ -291,7 +291,7 @@ func GuardianOptionNotary(notaryEnabled bool) *GuardianOption {
 // The delegatedManagerSetRPC is the Ethereum RPC URL for fetching manager sets from the
 // DelegatedManagerSet contract.
 // Dependencies: db
-func GuardianOptionManagerService(managerServiceEnabled bool, signers map[vaa.ChainID]guardiansigner.GuardianSigner, delegatedManagerSetRPC string) *GuardianOption {
+func GuardianOptionManagerService(managerServiceEnabled bool, signers map[vaa.ChainID][]guardiansigner.GuardianSigner, delegatedManagerSetRPC string) *GuardianOption {
 	return &GuardianOption{
 		name:         "manager",
 		dependencies: []string{"db"},

@@ -115,7 +115,7 @@ type G struct {
 	publicrpcServer    *grpc.Server
 	alternatePublisher *altpub.AlternatePublisher
 	managerService     *manager.ManagerService
-	managerSigners     map[vaa.ChainID]guardiansigner.GuardianSigner
+	managerSigners     map[vaa.ChainID][]guardiansigner.GuardianSigner
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable

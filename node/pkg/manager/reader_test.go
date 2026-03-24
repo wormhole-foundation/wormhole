@@ -20,7 +20,7 @@ func TestGetManagerSet_Dogecoin_Index1(t *testing.T) {
 	reader, err := NewManagerSetReader(logger, common.TestNet, rpcURL)
 	require.NoError(t, err)
 
-	set, err := reader.GetManagerSet(ctx, vaa.ChainIDDogecoin, 1, nil)
+	set, err := reader.GetManagerSet(ctx, vaa.ChainIDDogecoin, 1)
 	require.NoError(t, err)
 
 	// Verify basic properties
@@ -31,10 +31,9 @@ func TestGetManagerSet_Dogecoin_Index1(t *testing.T) {
 	for i, pk := range set.PublicKeys {
 		assert.Len(t, pk, 33, "expected compressed secp256k1 public key at index %d", i)
 	}
-	assert.False(t, set.IsSigner, "expected IsSigner=false when no signer provided")
 
 	// Verify caching works
-	set2, err := reader.GetManagerSet(ctx, vaa.ChainIDDogecoin, 1, nil)
+	set2, err := reader.GetManagerSet(ctx, vaa.ChainIDDogecoin, 1)
 	require.NoError(t, err)
 	assert.Equal(t, set, set2, "expected cached result")
 }

@@ -1,13 +1,11 @@
 package manager
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"sync"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/manager/delegatedmanagersetabi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -57,12 +55,10 @@ func NewManagerSetReader(
 
 // GetManagerSet retrieves a manager set by chain ID and index.
 // It first checks the cache; on cache miss, it fetches from the contract and caches the result.
-// The signer parameter is used to determine if this node is part of the manager set.
 func (r *ManagerSetReader) GetManagerSet(
 	ctx context.Context,
 	chainID vaa.ChainID,
 	index uint32,
-	signer guardiansigner.GuardianSigner,
 ) (*ManagerSetConfig, error) {
 	// Check cache first
 	r.mu.RLock()
@@ -106,7 +102,7 @@ func (r *ManagerSetReader) GetManagerSet(
 	}
 
 	// Parse the manager set bytes
-	set, err := r.parseManagerSetBytes(ctx, data, index, signer)
+	set, err := r.parseManagerSetBytes(data, index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse manager set bytes: %w", err)
 	}
@@ -124,7 +120,6 @@ func (r *ManagerSetReader) GetManagerSet(
 		zap.Uint32("index", index),
 		zap.Uint8("m", set.M),
 		zap.Uint8("n", set.N),
-		zap.Bool("is_signer", set.IsSigner),
 	)
 
 	return set, nil
@@ -136,7 +131,6 @@ func (r *ManagerSetReader) GetManagerSet(
 func (r *ManagerSetReader) GetCurrentManagerSet(
 	ctx context.Context,
 	chainID vaa.ChainID,
-	signer guardiansigner.GuardianSigner,
 ) (*ManagerSetConfig, error) {
 	// Create a fresh connection for this call
 	client, err := ethclient.DialContext(ctx, r.rpcURL)
@@ -165,16 +159,14 @@ func (r *ManagerSetReader) GetCurrentManagerSet(
 	)
 
 	// Reuse the existing GetManagerSet method (which handles caching)
-	return r.GetManagerSet(ctx, chainID, index, signer)
+	return r.GetManagerSet(ctx, chainID, index)
 }
 
 // parseManagerSetBytes parses the raw bytes from the contract into a ManagerSetConfig.
 // Format: Type (1 byte) | M (1 byte) | N (1 byte) | PublicKeys (N * 33 bytes)
 func (r *ManagerSetReader) parseManagerSetBytes(
-	ctx context.Context,
 	data []byte,
 	index uint32,
-	signer guardiansigner.GuardianSigner,
 ) (*ManagerSetConfig, error) {
 	var set vaa.Secp256k1MultisigManagerSet
 	if err := set.Deserialize(data); err != nil {
@@ -187,27 +179,10 @@ func (r *ManagerSetReader) parseManagerSetBytes(
 		pubKeys[i] = pk[:]
 	}
 
-	// Determine if this node is a signer
-	var isSigner bool
-	var signerIndex uint8
-	if signer != nil && ctx != nil {
-		signerPubKey := signer.PublicKey(ctx)
-		signerCompressed := compressPublicKey(&signerPubKey)
-		for i, pk := range pubKeys {
-			if bytes.Equal(signerCompressed, pk) {
-				isSigner = true
-				signerIndex = uint8(i) // #nosec G115 -- i < n which is uint8
-				break
-			}
-		}
-	}
-
 	return &ManagerSetConfig{
-		Index:       index,
-		M:           set.M,
-		N:           set.N,
-		PublicKeys:  pubKeys,
-		IsSigner:    isSigner,
-		SignerIndex: signerIndex,
+		Index:      index,
+		M:          set.M,
+		N:          set.N,
+		PublicKeys: pubKeys,
 	}, nil
 }
