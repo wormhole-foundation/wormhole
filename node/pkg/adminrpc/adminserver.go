@@ -747,6 +747,31 @@ func delegatedGuardiansConfigToVaa(req *nodev1.DelegatedGuardiansConfig, timesta
 	return v, nil
 }
 
+// delegatedManagerSetUpdateToVaa converts a nodev1.DelegatedManagerSetUpdate message to its canonical VAA representation.
+// Returns an error if the data is invalid.
+func delegatedManagerSetUpdateToVaa(req *nodev1.DelegatedManagerSetUpdate, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.ManagerChainId > math.MaxUint16 {
+		return nil, errors.New("invalid manager_chain_id")
+	}
+
+	managerSetBytes, err := hex.DecodeString(req.ManagerSet)
+	if err != nil {
+		return nil, fmt.Errorf("invalid manager_set encoding (expected hex): %w", err)
+	}
+
+	body, err := vaa.BodyManagerSetUpdate{
+		ManagerChainID:     vaa.ChainID(req.ManagerChainId),
+		NewManagerSetIndex: req.ManagerSetIndex,
+		NewManagerSet:      managerSetBytes,
+	}.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+	return v, nil
+}
+
 func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	governanceContract := ethcommon.HexToAddress(evmCall.GovernanceContract)
 	targetContract := ethcommon.HexToAddress(evmCall.TargetContract)
@@ -808,6 +833,41 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 	return v, nil
 }
 
+func suiCallToVaa(suiCall *nodev1.SuiCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	govContractStr := strings.TrimPrefix(suiCall.GovernanceContract, "0x")
+	address, err := hex.DecodeString(govContractStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode governance contract address: %w", err)
+	}
+	if len(address) != 32 {
+		return nil, errors.New("invalid governance contract address length (expected 32 bytes)")
+	}
+
+	var governanceContract [32]byte
+	copy(governanceContract[:], address)
+
+	callData, err := hex.DecodeString(suiCall.EncodedCall)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode call data: %w", err)
+	}
+	if suiCall.ChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", suiCall.ChainId)
+	}
+
+	body, err := vaa.BodyGeneralPurposeGovernanceSui{
+		ChainID:            vaa.ChainID(suiCall.ChainId),
+		GovernanceContract: governanceContract,
+		Payload:            callData,
+	}.Serialize()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+	return v, nil
+}
+
 func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, timestamp time.Time) (*vaa.VAA, error) {
 	var (
 		v   *vaa.VAA
@@ -855,10 +915,14 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = evmCallToVaa(payload.EvmCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_SolanaCall:
 		v, err = solanaCallToVaa(payload.SolanaCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_SuiCall:
+		v, err = suiCallToVaa(payload.SuiCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CoreBridgeSetMessageFee:
 		v, err = coreBridgeSetMessageFeeToVaa(payload.CoreBridgeSetMessageFee, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_DelegatedGuardiansConfig:
 		v, err = delegatedGuardiansConfigToVaa(payload.DelegatedGuardiansConfig, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_DelegatedManagerSetUpdate:
+		v, err = delegatedManagerSetUpdateToVaa(payload.DelegatedManagerSetUpdate, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:
 		err = fmt.Errorf("unsupported VAA type: %T", payload)
 	}

@@ -160,6 +160,12 @@ message GovernanceMessage {
 
     // Delegated Guardians
     DelegatedGuardiansConfig delegated_guardians_config = 31;
+
+    // Generic Sui governance
+    SuiCall sui_call = 32;
+
+    // Delegated Manager
+    DelegatedManagerSetUpdate delegated_manager_set_update = 33;
   }
 }
 
@@ -591,6 +597,18 @@ message SolanaCall {
   string encoded_instruction = 3;
 }
 
+// SuiCall represents a generic Sui call that can be executed by the generalized governance contract.
+message SuiCall {
+  // ID of the chain where the action should be executed (uint16).
+  uint32 chain_id = 1;
+
+  // Address of the governance contract (0x-prefixed hex, 32 bytes)
+  string governance_contract = 2;
+
+  // Encoded call data to be passed on to the governed contract (hex encoded)
+  string encoded_call = 3;
+}
+
 message CoreBridgeSetMessageFee {
   // ID of the chain of the core bridge contract where the message fee should be updated (uint16).
   uint32 chain_id = 1;
@@ -601,4 +619,16 @@ message CoreBridgeSetMessageFee {
 message DelegatedGuardiansConfig {
   string config = 1;
   uint32 config_index = 2;
+}
+
+message DelegatedManagerSetUpdate {
+  // Wormhole Chain ID for the manager chain (e.g., 65 for Dogecoin).
+  uint32 manager_chain_id = 1;
+
+  // Index of the new manager set (must be current + 1).
+  uint32 manager_set_index = 2;
+
+  // Hex-encoded manager set bytes (without leading 0x).
+  // For secp256k1 multisig format: Type (1 byte) + M (1 byte) + N (1 byte) + PublicKeys (N * 33 bytes)
+  string manager_set = 3;
 }

@@ -2703,6 +2703,45 @@ func TestDontReloadDuplicates(t *testing.T) {
 	assert.Equal(t, uint64(4436), valuePending)
 }
 
+// TestReloadClearsMsgsSeen verifies that Reload() clears the msgsSeen map so that
+// transfers reloaded from the database are not incorrectly rejected as duplicates.
+func TestReloadClearsMsgsSeen(t *testing.T) {
+	ctx := context.Background()
+	gov := newChainGovernorForTest(t, ctx)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+
+	msg := common.MessagePublication{
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   gov.chains[vaa.ChainIDEthereum].emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			1.25,
+		),
+	}
+
+	// Process a transfer so msgsSeen is populated.
+	canPost, err := gov.processMsgForTime(&msg, time.Now())
+	require.NoError(t, err)
+	assert.True(t, canPost)
+	assert.Equal(t, 1, len(gov.msgsSeen))
+
+	// Reload should clear msgsSeen.
+	result, err := gov.Reload()
+	require.NoError(t, err)
+	assert.Contains(t, result, "reset and reloaded")
+	assert.Equal(t, 0, len(gov.msgsSeen))
+}
+
 // With the addition of the flow-cancel feature, it's possible to in a way "exceed the daily limit" of outflow from a
 // Governor as long as there is corresponding inflow of a flow-canceling asset to allow for additional outflow.
 // When the node is restarted, it reloads all transfers and pending transfers. If the actual outflow is greater than
