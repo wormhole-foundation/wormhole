@@ -37,6 +37,7 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 30, Addr: "0000000000000000000000004eB92702bA4cfbF80561BAd64D89C706Ac824960", Symbol: "RED", CoinGeckoId: "redstone-oracles", Decimals: 18, Price: 0.2404},    // https://www.coingecko.com/en/coins/redstone-oracles
 		{Chain: 30, Addr: "00000000000000000000000060a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42", Symbol: "EURC", CoinGeckoId: "euro-coin", Decimals: 6, Price: 1.15},             // https://www.coingecko.com/en/coins/euro-coin
 		{Chain: 30, Addr: "00000000000000000000000055cD6469F597452B5A7536e2CD98fDE4c1247ee4", Symbol: "LUNA", CoinGeckoId: "luna-by-virtuals", Decimals: 18, Price: 0.006844}, // https://www.coingecko.com/en/coins/luna-by-virtuals
+		{Chain: 30, Addr: "000000000000000000000000Aa6Cccdce193698D33deb9ffd4be74eAa74c4898", Symbol: "ELONRWA", CoinGeckoId: "elonrwa", Decimals: 18, Price: 0.000016},       // https://www.coingecko.com/en/coins/elonrwa
 		{Chain: 32, Addr: "01881043998ff2b738519d444d2dd0da3da4545de08290c1076746538d5333df", Symbol: "SEI", CoinGeckoId: "sei-network", Decimals: 6, Price: 0.3},
 		// SCROLL (tokens over $50,000 24h volume)
 		{Chain: 34, Addr: "0000000000000000000000000018d96c579121a94307249d47f053e2d687b5e7", Symbol: "MVX", CoinGeckoId: "metavault-trade", Decimals: 18, Price: 2.06},
