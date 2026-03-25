@@ -5,9 +5,8 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
-	"math"
-	"math/big"
 	"strconv"
+	"strings"
 
 	addresscodec "github.com/Peersyst/xrpl-go/address-codec"
 	binarycodec "github.com/Peersyst/xrpl-go/binary-codec"
@@ -43,7 +42,7 @@ func BuildPaymentTransaction(payload *vaa.XRPLReleasePayload, m uint8) (transact
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert IOU issuer account ID to address: %w", err)
 		}
-		value := formatDecimalAmount(payload.Amount, payload.TokenDecimals)
+		value := formatDecimalAmountForIOU(payload.Amount, payload.TokenDecimals)
 		amount = types.IssuedCurrencyAmount{
 			Currency: encodeCurrency(payload.Token.Currency),
 			Issuer:   types.Address(issuerAddr),
@@ -258,20 +257,70 @@ func SHA512Half(data []byte) []byte {
 	return hash[:32]
 }
 
-// formatDecimalAmount converts an integer amount and decimals count to a decimal string.
-// For example, formatDecimalAmount(12345, 3) returns "12.345".
-func formatDecimalAmount(amount uint64, decimals uint8) string {
+// xrplMaxSignificantDigits is the maximum number of significant digits
+// allowed in an XRPL IOU amount value.
+const xrplMaxSignificantDigits = 15
+
+// formatDecimalAmountForIOU converts an integer amount and decimals count to a decimal string.
+// For example, formatDecimalAmountForIOU(12345, 3) returns "12.345".
+// It uses string-based manipulation (not floating-point arithmetic) to avoid
+// precision loss, and truncates the result to 15 significant digits as required
+// by the XRPL IOU format.
+func formatDecimalAmountForIOU(amount uint64, decimals uint8) string {
 	if decimals == 0 {
 		return strconv.FormatUint(amount, 10)
 	}
 
-	// Use big.Float for precision
-	f := new(big.Float).SetUint64(amount)
-	divisor := new(big.Float).SetFloat64(math.Pow10(int(decimals)))
-	f.Quo(f, divisor)
+	// Convert to string and insert the decimal point via string manipulation.
+	digits := strconv.FormatUint(amount, 10)
+	d := int(decimals)
 
-	// Format with exact number of decimal places
-	return f.Text('f', int(decimals))
+	var intPart, fracPart string
+	if len(digits) <= d {
+		// Entire value is fractional: pad with leading zeros.
+		intPart = "0"
+		fracPart = strings.Repeat("0", d-len(digits)) + digits
+	} else {
+		intPart = digits[:len(digits)-d]
+		fracPart = digits[len(digits)-d:]
+	}
+
+	// Truncate to xrplMaxSignificantDigits significant digits.
+	full := intPart + fracPart
+	sigCount := 0
+	started := false
+	truncAt := len(full) // index at which to stop keeping digits
+	for i, c := range full {
+		if c != '0' {
+			started = true
+		}
+		if started {
+			sigCount++
+			if sigCount == xrplMaxSignificantDigits {
+				truncAt = i + 1
+				break
+			}
+		}
+	}
+
+	// Rebuild intPart and fracPart from the truncated digit string.
+	if truncAt < len(full) {
+		truncated := full[:truncAt]
+		if truncAt <= len(intPart) {
+			intPart = truncated + strings.Repeat("0", len(intPart)-truncAt)
+			fracPart = ""
+		} else {
+			fracPart = truncated[len(intPart):]
+		}
+	}
+
+	// Remove trailing zeros from fractional part.
+	fracPart = strings.TrimRight(fracPart, "0")
+
+	if fracPart == "" {
+		return intPart
+	}
+	return intPart + "." + fracPart
 }
 
 // encodeCurrency converts a 20-byte XRPL currency code to the string representation.

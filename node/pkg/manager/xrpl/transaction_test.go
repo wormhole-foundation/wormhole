@@ -92,7 +92,7 @@ func TestBuildPaymentTransactionIOU(t *testing.T) {
 	amountMap, ok := flatTx["Amount"].(map[string]interface{})
 	require.True(t, ok, "Amount should be a map for IOU")
 	assert.Equal(t, "USD", amountMap["currency"])
-	assert.Equal(t, "123.45678", amountMap["value"])
+	assert.Equal(t, "123.45678", amountMap["value"]) // 8 sig digits, within 15 limit
 }
 
 func TestBuildPaymentTransactionMPT(t *testing.T) {
@@ -356,16 +356,32 @@ func TestFormatDecimalAmount(t *testing.T) {
 		expected string
 	}{
 		{"zero decimals", 12345, 0, "12345"},
-		{"6 decimals", 1000000, 6, "1.000000"},
+		{"6 decimals whole number", 1000000, 6, "1"},
 		{"6 decimals fractional", 1234567, 6, "1.234567"},
-		{"8 decimals", 100000000, 8, "1.00000000"},
+		{"8 decimals whole number", 100000000, 8, "1"},
 		{"small amount", 1, 6, "0.000001"},
-		{"zero amount", 0, 6, "0.000000"},
+		{"zero amount", 0, 6, "0"},
+		// Large values: truncated to 15 significant digits
+		{"large amount 15 decimals", 18446744073709551615, 15, "18446.7440737095"},
+		{"large amount 6 decimals", 18446744073709551615, 6, "18446744073709.5"},
+		{"17 digit amount 15 decimals", 12345678901234567, 15, "12.3456789012345"},
+		{"18 sig digits 15 decimals", 999999999999999999, 15, "999.999999999999"},
+		// Small and exact values (within 15 sig digits)
+		{"small amount 15 decimals", 1, 15, "0.000000000000001"},
+		{"powers of ten 15 decimals", 1000000000000000, 15, "1"},
+		// XRPL IOUs support max 15 significant digits; excess should be truncated (not rounded)
+		{"max uint64 18 decimals", 18446744073709551615, 18, "18.4467440737095"},
+		{"max uint64 15 decimals truncated to 15 sig digits", 18446744073709551615, 15, "18446.7440737095"},
+		{"20 sig digits 6 decimals truncated", 18446744073709551615, 6, "18446744073709.5"},
+		// Amount 1 with varying decimals
+		{"1 with 0 decimals", 1, 0, "1"},
+		{"1 with 15 decimals", 1, 15, "0.000000000000001"},
+		{"1 with 18 decimals", 1, 18, "0.000000000000000001"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := formatDecimalAmount(tc.amount, tc.decimals)
+			result := formatDecimalAmountForIOU(tc.amount, tc.decimals)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
