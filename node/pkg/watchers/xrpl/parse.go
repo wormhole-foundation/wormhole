@@ -1003,38 +1003,132 @@ func (p *Parser) parseIssuedCurrencyAmount(issued types.IssuedCurrencyAmount, fr
 
 // parseDecimalToUint64 parses a decimal string value (possibly in scientific notation)
 // and returns the value scaled to the specified number of decimal places as uint64.
-// This avoids overflow issues that could occur if we first parsed to the string's
-// natural precision (could be 15 decimals) before scaling down.
+// It uses string-based decimal manipulation (not binary floating-point arithmetic)
+// so that exact decimal values are preserved and truncation of excess precision
+// never rounds up.
 func (p *Parser) parseDecimalToUint64(valueStr string, targetDecimals uint8) (uint64, error) {
-	// Use big.Float for precise parsing of decimal values including scientific notation
-	f, _, err := big.ParseFloat(valueStr, 10, 256, big.ToNearestEven)
+	// Normalize scientific notation (e.g. "1.5e-3") to plain decimal form ("0.0015").
+	decStr, negative, err := normalizeDecimal(valueStr)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse decimal value %q: %w", valueStr, err)
 	}
-
-	// Check for negative values
-	if f.Sign() < 0 {
+	if negative {
 		return 0, fmt.Errorf("negative values not allowed: %s", valueStr)
 	}
 
-	// Scale directly to target decimals
-	// This avoids overflow from parsing at high precision first
-	multiplier := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(targetDecimals)), nil))
-	result := new(big.Float).Mul(f, multiplier)
+	// Split into integer and fractional parts.
+	intPart, fracPart := decStr, ""
+	if dot := strings.IndexByte(decStr, '.'); dot >= 0 {
+		intPart = decStr[:dot]
+		fracPart = decStr[dot+1:]
+	}
 
-	// Truncate to integer (floor) - any fractional part beyond targetDecimals is dust
-	intVal, _ := result.Int(nil)
-	// COVERAGE: This branch is mathematically unreachable. We check for negative input above (line 545),
-	// and multiplying a non-negative number by a positive power of 10 cannot produce a negative result.
-	// This check exists as defensive programming against potential floating-point edge cases.
-	if intVal.Sign() < 0 {
-		return 0, fmt.Errorf("negative result after scaling: %s", valueStr)
+	// Truncate or zero-pad the fractional part to exactly targetDecimals digits.
+	// This is pure string manipulation: no binary float rounding can occur.
+	td := int(targetDecimals)
+	if len(fracPart) > td {
+		fracPart = fracPart[:td]
+	} else {
+		fracPart += strings.Repeat("0", td-len(fracPart))
+	}
+
+	// Combine integer + truncated fraction and parse as a whole number.
+	combined := strings.TrimLeft(intPart+fracPart, "0")
+	if combined == "" {
+		return 0, nil
+	}
+
+	intVal, ok := new(big.Int).SetString(combined, 10)
+	if !ok {
+		return 0, fmt.Errorf("failed to parse decimal value %q: invalid number", valueStr)
 	}
 	if !intVal.IsUint64() {
 		return 0, fmt.Errorf("value %s at %d decimals exceeds uint64 max", valueStr, targetDecimals)
 	}
 
 	return intVal.Uint64(), nil
+}
+
+// normalizeDecimal converts a decimal string (possibly in scientific notation)
+// to plain decimal form. It returns the absolute value string and whether the
+// value was negative. All manipulation is string-based to avoid binary float
+// rounding artifacts.
+func normalizeDecimal(s string) (string, bool, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", false, fmt.Errorf("empty string")
+	}
+
+	// Extract sign.
+	negative := false
+	if s[0] == '-' {
+		negative = true
+		s = s[1:]
+	} else if s[0] == '+' {
+		s = s[1:]
+	}
+
+	// Split on 'e'/'E' for scientific notation.
+	eIdx := strings.IndexAny(s, "eE")
+	if eIdx < 0 {
+		// Plain decimal — validate digits and at most one '.'.
+		if !isValidDecimal(s) {
+			return "", false, fmt.Errorf("invalid decimal %q", s)
+		}
+		return s, negative, nil
+	}
+
+	mantissa := s[:eIdx]
+	if !isValidDecimal(mantissa) {
+		return "", false, fmt.Errorf("invalid mantissa %q", mantissa)
+	}
+	exp, err := strconv.Atoi(s[eIdx+1:])
+	if err != nil {
+		return "", false, fmt.Errorf("invalid exponent in %q: %w", s, err)
+	}
+
+	// Separate mantissa digits from its decimal point position.
+	parts := strings.SplitN(mantissa, ".", 2)
+	intDigits := parts[0]
+	fracDigits := ""
+	if len(parts) == 2 {
+		fracDigits = parts[1]
+	}
+
+	// All digits concatenated; the decimal point sits after intDigits.
+	allDigits := intDigits + fracDigits
+	// dotPos is where the decimal point should be (counting from the left of allDigits).
+	dotPos := len(intDigits) + exp
+
+	switch {
+	case dotPos <= 0:
+		// Entirely fractional: e.g. 1.5e-3 → "0." + "00" + "15"
+		return "0." + strings.Repeat("0", -dotPos) + allDigits, negative, nil
+	case dotPos >= len(allDigits):
+		// Entirely integer: e.g. 1.23e6 → "1230000"
+		return allDigits + strings.Repeat("0", dotPos-len(allDigits)), negative, nil
+	default:
+		return allDigits[:dotPos] + "." + allDigits[dotPos:], negative, nil
+	}
+}
+
+// isValidDecimal returns true if s is a non-empty string of digits with at most one '.'.
+func isValidDecimal(s string) bool {
+	if s == "" || s == "." {
+		return false
+	}
+	dotSeen := false
+	for _, c := range s {
+		if c == '.' {
+			if dotSeen {
+				return false
+			}
+			dotSeen = true
+		} else if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // =============================================================================

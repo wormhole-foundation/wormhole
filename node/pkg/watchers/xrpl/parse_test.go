@@ -1115,6 +1115,36 @@ func TestParseDecimalToUint64_HighPrecisionNoOverflow(t *testing.T) {
 	assert.Contains(t, err.Error(), "exceeds uint64 max")
 }
 
+func TestParseDecimalToUint64_TruncatesNeverRoundsUp(t *testing.T) {
+	p := NewParser("", nil, nil)
+
+	// XRPL IOU tokens have at most 15 significant digits.
+	// A value just below 1.0 must truncate to 0, not round up to 1.
+	amount, err := p.parseDecimalToUint64("0.999999999999999", 0)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(0), amount)
+
+	// With 6 target decimals: 0.999999999999999 * 1e6 = 999999.999999999
+	// Must truncate to 999999, not round up to 1000000.
+	amount, err = p.parseDecimalToUint64("0.999999999999999", 6)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(999999), amount)
+
+	// Test with varying decimal places (even and odd digit counts) to ensure
+	// no rounding artifacts from binary float representation.
+	amount, err = p.parseDecimalToUint64("0.00002", 5)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), amount)
+
+	amount, err = p.parseDecimalToUint64("0.000002", 6)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), amount)
+
+	amount, err = p.parseDecimalToUint64("0.0000002", 7)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), amount)
+}
+
 func TestParseDecimalToUint64_Invalid(t *testing.T) {
 	p := NewParser("", nil, nil)
 
