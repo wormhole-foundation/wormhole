@@ -17,3 +17,5 @@ Cargo.lock
 
 # Code coverage output
 lcov.info
+
+test_snapshots/

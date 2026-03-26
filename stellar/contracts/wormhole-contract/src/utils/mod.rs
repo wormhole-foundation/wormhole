@@ -15,7 +15,10 @@ pub fn keccak256_hash(env: &Env, data: &Bytes) -> BytesN<32> {
 ///
 /// Used for decoding fee transfer recipients from governance VAA payloads.
 pub fn address_from_ed25519_pk_bytes(env: &Env, pk_bytes: &BytesN<32>) -> Address {
-    Address::from_payload(env, AddressPayload::AccountIdPublicKeyEd25519(pk_bytes.clone()))
+    Address::from_payload(
+        env,
+        AddressPayload::AccountIdPublicKeyEd25519(pk_bytes.clone()),
+    )
 }
 
 /// Derives an Ethereum address from a recovered secp256k1 public key.

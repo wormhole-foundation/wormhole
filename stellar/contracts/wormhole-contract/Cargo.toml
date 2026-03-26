@@ -14,3 +14,4 @@ wormhole-soroban-client = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+secp256k1 = { version = "0.31.1", features = ["recovery"] }

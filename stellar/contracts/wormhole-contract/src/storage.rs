@@ -1,20 +1,23 @@
 //! Persistent storage key definitions for the Wormhole Core contract.
 //!
-//! All contract state is stored under these keys. Keys are extended automatically
-//! on access to maintain TTL (see `STORAGE_TTL_THRESHOLD` and `STORAGE_TTL_EXTENSION`).
+//! All contract state is stored under these keys. Keys are extended
+//! automatically on access to maintain TTL (see `STORAGE_TTL_THRESHOLD` and
+//! `STORAGE_TTL_EXTENSION`).
 
 use soroban_sdk::{Address, BytesN, contracttype};
 
 /// Storage key enum for all persistent contract state.
 ///
-/// Uses Soroban's `contracttype` for efficient serialization. Keys with parameters
-/// (e.g., `GuardianSet(u32)`) create separate storage entries per value.
+/// Uses Soroban's `contracttype` for efficient serialization. Keys with
+/// parameters (e.g., `GuardianSet(u32)`) create separate storage entries per
+/// value.
 #[derive(Clone)]
 #[contracttype]
 pub enum StorageKey {
     /// Index of the currently active guardian set (starts at 0).
     CurrentGuardianSetIndex,
-    /// Contract's admin address (set to itself for self-upgrade via governance).
+    /// Contract's admin address (set to itself for self-upgrade via
+    /// governance).
     Admin,
     /// 32-byte address authorized to emit governance VAAs.
     GovernanceEmitter,

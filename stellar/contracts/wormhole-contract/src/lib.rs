@@ -163,3 +163,135 @@ impl WormholeCoreInterface for Wormhole {
             .expect("governance emitter not set")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{Bytes, BytesN, Env, vec};
+    use wormhole_soroban_client::{
+        ACTION_GUARDIAN_SET_UPGRADE, ACTION_SET_MESSAGE_FEE, ACTION_TRANSFER_FEES,
+        GOVERNANCE_EMITTER, MODULE_CORE,
+    };
+
+    fn deploy_initialized(env: &Env) -> (Address, WormholeClient<'_>) {
+        let guardian = BytesN::<20>::from_array(env, &[0u8; 20]);
+        let initial_guardians = vec![env, guardian];
+        let governance_emitter = BytesN::<32>::from_array(env, &[1u8; 32]);
+        let contract_id = env.register(Wormhole, (initial_guardians, governance_emitter));
+        let client = WormholeClient::new(env, &contract_id);
+        (contract_id, client)
+    }
+
+    fn build_unsigned_governance_vaa(
+        env: &Env,
+        emitter_chain: u16,
+        emitter_address: [u8; 32],
+        action: u8,
+    ) -> Bytes {
+        let mut payload = Bytes::new(env);
+        payload.append(&Bytes::from_array(env, &MODULE_CORE));
+        payload.push_back(action);
+        payload.append(&Bytes::from_slice(env, &CHAIN_ID_STELLAR.to_be_bytes()));
+        payload.append(&Bytes::from_array(env, &[0u8; 64]));
+
+        // VAA bytes (version, guardian_set_index, sig_count=0, then body)
+        let mut vaa = Bytes::new(env);
+        vaa.push_back(1);
+        vaa.append(&Bytes::from_slice(env, &0u32.to_be_bytes()));
+        vaa.push_back(0);
+        vaa.append(&Bytes::from_slice(env, &1u32.to_be_bytes())); // timestamp
+        vaa.append(&Bytes::from_slice(env, &7u32.to_be_bytes())); // nonce
+        vaa.append(&Bytes::from_slice(env, &emitter_chain.to_be_bytes()));
+        vaa.append(&Bytes::from_array(env, &emitter_address));
+        vaa.append(&Bytes::from_slice(env, &1u64.to_be_bytes())); // sequence
+        vaa.push_back(ConsistencyLevel::Confirmed as u8);
+        vaa.append(&payload);
+        vaa
+    }
+
+    #[test]
+    fn test_protocol_constant_getters() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        assert_eq!(client.get_chain_id(), u32::from(CHAIN_ID_STELLAR));
+        assert_eq!(client.get_governance_chain_id(), GOVERNANCE_CHAIN_ID);
+    }
+
+    #[test]
+    fn test_get_governance_emitter_roundtrip() {
+        let env = Env::default();
+        let guardian = BytesN::<20>::from_array(&env, &[0u8; 20]);
+        let initial_guardians = vec![&env, guardian];
+        let governance_emitter = BytesN::<32>::from_array(&env, &[9u8; 32]);
+        let contract_id = env.register(Wormhole, (initial_guardians, governance_emitter.clone()));
+        let client = WormholeClient::new(&env, &contract_id);
+        assert_eq!(client.get_governance_emitter(), governance_emitter);
+    }
+
+    #[test]
+    fn test_verify_vaa_wrapper_invalid_format() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let res = client.try_verify_vaa(&Bytes::new(&env));
+        assert_eq!(res, Err(Ok(WormholeError::InvalidVAAFormat)));
+    }
+
+    #[test]
+    fn test_is_governance_vaa_consumed_wrapper_invalid_format() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let res = client.try_is_governance_vaa_consumed(&Bytes::new(&env));
+        assert_eq!(res, Err(Ok(WormholeError::InvalidVAAFormat)));
+    }
+
+    #[test]
+    fn test_submit_set_message_fee_wrapper_invalid_governance_chain() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let vaa =
+            build_unsigned_governance_vaa(&env, 9, GOVERNANCE_EMITTER, ACTION_SET_MESSAGE_FEE);
+        let res = client.try_submit_set_message_fee(&vaa);
+        assert_eq!(res, Err(Ok(WormholeError::InvalidGovernanceChain)));
+    }
+
+    #[test]
+    fn test_submit_guardian_set_upgrade_wrapper_invalid_governance_emitter() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let mut bad_emitter = GOVERNANCE_EMITTER;
+        bad_emitter[31] = 7;
+        let vaa = build_unsigned_governance_vaa(
+            &env,
+            GOVERNANCE_CHAIN_ID as u16,
+            bad_emitter,
+            ACTION_GUARDIAN_SET_UPGRADE,
+        );
+        let res = client.try_submit_guardian_set_upgrade(&vaa);
+        assert_eq!(res, Err(Ok(WormholeError::InvalidGovernanceEmitter)));
+    }
+
+    #[test]
+    fn test_submit_transfer_fees_wrapper_invalid_governance_chain() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let vaa = build_unsigned_governance_vaa(&env, 9, GOVERNANCE_EMITTER, ACTION_TRANSFER_FEES);
+        let res = client.try_submit_transfer_fees(&vaa);
+        assert_eq!(res, Err(Ok(WormholeError::InvalidGovernanceChain)));
+    }
+
+    #[test]
+    fn test_submit_contract_upgrade_wrapper_invalid_format() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let res = client.try_submit_contract_upgrade(&Bytes::new(&env));
+        assert_eq!(res, Err(Ok(WormholeError::InvalidVAAFormat)));
+    }
+
+    #[test]
+    fn test_get_last_fee_transfer_default_none_and_guardian_expiry_none() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        assert_eq!(client.get_last_fee_transfer(), None);
+        assert_eq!(client.get_guardian_set_expiry(&0), None);
+    }
+}

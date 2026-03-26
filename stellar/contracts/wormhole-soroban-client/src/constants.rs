@@ -1,8 +1,9 @@
 //! Public protocol constants for the Wormhole Core contract.
 //!
-//! These constants define core Wormhole protocol parameters used for VAA validation,
-//! governance processing, and cross-chain message handling. External integrators may
-//! reference these when building on top of the Wormhole Core contract.
+//! These constants define core Wormhole protocol parameters used for VAA
+//! validation, governance processing, and cross-chain message handling.
+//! External integrators may reference these when building on top of the
+//! Wormhole Core contract.
 
 /// Chain ID of the governance source chain (Solana).
 ///
@@ -61,42 +62,51 @@ pub const ACTION_TRANSFER_FEES: u8 = 4;
 
 /// Minimum XLM balance the contract must retain (1 XLM = 10^7 stroops).
 ///
-/// Stellar accounts are deallocated if their balance drops below the base reserve.
-/// This constant ensures fee transfers never drain the contract below a safe threshold.
+/// Stellar accounts are deallocated if their balance drops below the base
+/// reserve. This constant ensures fee transfers never drain the contract below
+/// a safe threshold.
 pub const MINIMUM_CONTRACT_BALANCE: u64 = 10_000_000;
 
 /// Native XLM token symbol for Stellar Asset Contract.
 pub const NATIVE_TOKEN_SYMBOL: &str = "native";
 
-/// Native XLM Stellar Asset Contract address (deterministic, same on all networks).
+/// Native XLM Stellar Asset Contract address (deterministic, same on all
+/// networks).
 pub const NATIVE_TOKEN_ADDRESS: &str = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
 
 // ========== Storage Configuration ==========
 
-/// TTL threshold for persistent storage renewal (approx. 5.8 days at 5s/ledger).
+/// TTL threshold for persistent storage renewal (approx. 5.8 days at
+/// 5s/ledger).
 ///
-/// Storage entries are extended when their remaining TTL falls below this threshold.
+/// Storage entries are extended when their remaining TTL falls below this
+/// threshold.
 pub const STORAGE_TTL_THRESHOLD: u32 = 100_000;
 
 /// TTL extension amount for persistent storage (approx. 58 days at 5s/ledger).
 ///
-/// When extending TTL, entries are renewed to live this many additional ledgers.
+/// When extending TTL, entries are renewed to live this many additional
+/// ledgers.
 pub const STORAGE_TTL_EXTENSION: u32 = 1_000_000;
 
 // ========== VAA Structure Constants ==========
 
-/// Minimum VAA header size: version (1) + guardian_set_index (4) + num_signatures (1).
+/// Minimum VAA header size: version (1) + guardian_set_index (4) +
+/// num_signatures (1).
 pub const VAA_HEADER_MIN_LENGTH: u32 = 6;
 
 // ========== Payload Structure Constants ==========
 
-/// U256 padding bytes to skip when reading u64 values from Ethereum-compatible payloads.
+/// U256 padding bytes to skip when reading u64 values from Ethereum-compatible
+/// payloads.
 ///
-/// Governance payloads encode amounts as 32-byte U256 for Ethereum compatibility.
-/// On Soroban we read only the low-order 8 bytes as u64, skipping the first 24.
+/// Governance payloads encode amounts as 32-byte U256 for Ethereum
+/// compatibility. On Soroban we read only the low-order 8 bytes as u64,
+/// skipping the first 24.
 pub const U256_PADDING_BYTES: u32 = 24;
 
-/// Minimum Contract Upgrade payload: module (32) + action (1) + chain (2) + hash (32).
+/// Minimum Contract Upgrade payload: module (32) + action (1) + chain (2) +
+/// hash (32).
 pub const CONTRACT_UPGRADE_PAYLOAD_MIN_LENGTH: u32 = 67;
 
 /// Minimum Guardian Set Upgrade payload: header (35) + index (4) + count (1).
@@ -104,8 +114,10 @@ pub const CONTRACT_UPGRADE_PAYLOAD_MIN_LENGTH: u32 = 67;
 /// Actual length depends on guardian count (add 20 bytes per guardian).
 pub const GUARDIAN_SET_UPGRADE_PAYLOAD_MIN_LENGTH: u32 = 40;
 
-/// Minimum Set Message Fee payload: module (32) + action (1) + chain (2) + fee U256 (32).
+/// Minimum Set Message Fee payload: module (32) + action (1) + chain (2) + fee
+/// U256 (32).
 pub const SET_MESSAGE_FEE_PAYLOAD_MIN_LENGTH: u32 = 67;
 
-/// Minimum Transfer Fees payload: header (35) + amount U256 (32) + recipient (32).
+/// Minimum Transfer Fees payload: header (35) + amount U256 (32) + recipient
+/// (32).
 pub const TRANSFER_FEES_PAYLOAD_MIN_LENGTH: u32 = 99;

@@ -1,4 +1,5 @@
-//! Guardian set upgrade governance action (`ACTION_GUARDIAN_SET_UPGRADE`, value 2).
+//! Guardian set upgrade governance action (`ACTION_GUARDIAN_SET_UPGRADE`, value
+//! 2).
 //!
 //! Manages guardian set storage and upgrades. Guardian sets are indexed
 //! sequentially starting from 0. When a new set is installed, the previous
@@ -35,8 +36,8 @@ pub struct GuardianSetUpgradePayload {
     pub module: BytesN<32>,
     /// Governance action ID from the VAA header.
     ///
-    /// Must equal `ACTION_GUARDIAN_SET_UPGRADE` (2); any other value is rejected by
-    /// `validate_governance_header`.
+    /// Must equal `ACTION_GUARDIAN_SET_UPGRADE` (2); any other value is
+    /// rejected by `validate_governance_header`.
     pub action: u8,
     /// Target chain (0 for all, 61 for Stellar).
     pub chain: u16,
@@ -211,5 +212,296 @@ impl GovernanceAction for GuardianSetUpgradeAction {
         .publish(env);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Wormhole;
+    use soroban_sdk::{Bytes, BytesN, Env, IntoVal, Symbol, Val, testutils::Events, vec};
+    use wormhole_soroban_client::{
+        CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE,
+        Signature, VAA,
+    };
+
+    fn deploy_initialized(env: &Env) -> soroban_sdk::Address {
+        let guardian = BytesN::<20>::from_array(env, &[0u8; 20]);
+        let initial_guardians = vec![env, guardian];
+        let governance_emitter = BytesN::<32>::from_array(env, &[1u8; 32]);
+        env.register(Wormhole, (initial_guardians, governance_emitter))
+    }
+
+    fn build_payload(
+        env: &Env,
+        module: [u8; 32],
+        action: u8,
+        chain: u16,
+        new_index: u32,
+        keys: &[BytesN<20>],
+    ) -> Bytes {
+        let mut payload = Bytes::new(env);
+        payload.append(&Bytes::from_array(env, &module));
+        payload.push_back(action);
+        payload.append(&Bytes::from_slice(env, &chain.to_be_bytes()));
+        payload.append(&Bytes::from_slice(env, &new_index.to_be_bytes()));
+        payload.push_back(keys.len() as u8);
+        for k in keys {
+            payload.append(&Bytes::from_array(env, &k.to_array()));
+        }
+        payload
+    }
+
+    fn serialize_vaa(env: &Env, vaa: &VAA) -> Bytes {
+        let mut out = Bytes::new(env);
+        out.push_back(vaa.version as u8);
+        out.append(&Bytes::from_slice(
+            env,
+            &vaa.guardian_set_index.to_be_bytes(),
+        ));
+        out.push_back(vaa.signatures.len() as u8);
+        for sig in vaa.signatures.iter() {
+            out.push_back(sig.guardian_index as u8);
+            out.append(&Bytes::from_array(env, &sig.r.to_array()));
+            out.append(&Bytes::from_array(env, &sig.s.to_array()));
+            out.push_back(sig.v as u8);
+        }
+        out.append(&Bytes::from_slice(env, &vaa.timestamp.to_be_bytes()));
+        out.append(&Bytes::from_slice(env, &vaa.nonce.to_be_bytes()));
+        out.append(&Bytes::from_slice(
+            env,
+            &(vaa.emitter_chain as u16).to_be_bytes(),
+        ));
+        out.append(&Bytes::from_array(env, &vaa.emitter_address.to_array()));
+        out.append(&Bytes::from_slice(env, &vaa.sequence.to_be_bytes()));
+        out.push_back(vaa.consistency_level as u8);
+        out.append(&vaa.payload);
+        out
+    }
+
+    fn sign_vaa_with_key(env: &Env, mut vaa: VAA, sk_bytes: [u8; 32]) -> (VAA, BytesN<20>) {
+        let body = vaa.serialize_body(env);
+        let body_hash: Bytes = crate::utils::keccak256_hash(env, &body).into();
+        let double_hash = env.crypto().keccak256(&body_hash).to_array();
+        let secp = secp256k1::Secp256k1::new();
+        let sk = secp256k1::SecretKey::from_byte_array(sk_bytes).unwrap();
+        let pk = secp256k1::PublicKey::from_secret_key(&secp, &sk);
+        let pk_bytes65 = BytesN::<65>::from_array(env, &pk.serialize_uncompressed());
+        let guardian_eth = crate::utils::pubkey_to_eth_address(env, &pk_bytes65);
+        let message = secp256k1::Message::from_digest(double_hash);
+        let sig = secp.sign_ecdsa_recoverable(message, &sk);
+        let (recid, compact64) = sig.serialize_compact();
+        let mut r = [0u8; 32];
+        let mut s = [0u8; 32];
+        r.copy_from_slice(&compact64[0..32]);
+        s.copy_from_slice(&compact64[32..64]);
+        let mut sigs = Vec::new(env);
+        sigs.push_back(Signature {
+            guardian_index: 0,
+            r: BytesN::from_array(env, &r),
+            s: BytesN::from_array(env, &s),
+            v: i32::from(recid) as u32,
+        });
+        vaa.signatures = sigs;
+        (vaa, guardian_eth)
+    }
+
+    #[test]
+    fn test_guardian_set_upgrade_payload_rejects_short_payload() {
+        let env = Env::default();
+        let short = Bytes::from_slice(&env, &[0u8; 10]);
+        let res = GuardianSetUpgradePayload::try_from((&env, &short));
+        assert_eq!(res, Err(WormholeError::InvalidPayload));
+    }
+
+    #[test]
+    fn test_guardian_set_upgrade_validate_rejects_non_sequential_index() {
+        let env = Env::default();
+        let contract_id = deploy_initialized(&env);
+        let payload = GuardianSetUpgradePayload {
+            module: BytesN::from_array(&env, &MODULE_CORE),
+            action: ACTION_GUARDIAN_SET_UPGRADE,
+            chain: CHAIN_ID_STELLAR,
+            new_guardian_set_index: 2,
+            new_guardian_set_keys: vec![&env, BytesN::from_array(&env, &[9u8; 20])],
+        };
+
+        env.as_contract(&contract_id, || {
+            let res = payload.validate(&env);
+            assert_eq!(res, Err(WormholeError::InvalidGuardianSetSequence));
+        });
+    }
+
+    #[test]
+    fn test_guardian_set_upgrade_validate_rejects_empty_keys() {
+        let env = Env::default();
+        let contract_id = deploy_initialized(&env);
+        let payload = GuardianSetUpgradePayload {
+            module: BytesN::from_array(&env, &MODULE_CORE),
+            action: ACTION_GUARDIAN_SET_UPGRADE,
+            chain: CHAIN_ID_STELLAR,
+            new_guardian_set_index: 1,
+            new_guardian_set_keys: Vec::new(&env),
+        };
+
+        env.as_contract(&contract_id, || {
+            let res = payload.validate(&env);
+            assert_eq!(res, Err(WormholeError::EmptyGuardianSet));
+        });
+    }
+
+    #[test]
+    fn test_guardian_set_upgrade_execute_updates_state() {
+        let env = Env::default();
+        let contract_id = deploy_initialized(&env);
+        let new_guardian = BytesN::<20>::from_array(&env, &[7u8; 20]);
+        let bytes = build_payload(
+            &env,
+            MODULE_CORE,
+            ACTION_GUARDIAN_SET_UPGRADE,
+            CHAIN_ID_STELLAR,
+            1,
+            core::slice::from_ref(&new_guardian),
+        );
+        let payload = GuardianSetUpgradePayload::try_from((&env, &bytes)).unwrap();
+        let vaa = VAA {
+            version: 1,
+            guardian_set_index: 0,
+            signatures: vec![&env],
+            timestamp: 100,
+            nonce: 1,
+            emitter_chain: GOVERNANCE_CHAIN_ID,
+            emitter_address: BytesN::from_array(&env, &[0u8; 32]),
+            sequence: 1,
+            consistency_level: wormhole_soroban_client::ConsistencyLevel::Confirmed,
+            payload: Bytes::new(&env),
+        };
+
+        env.as_contract(&contract_id, || {
+            GuardianSetUpgradeAction::execute(&env, &vaa, &payload).unwrap();
+
+            assert_eq!(get_current_guardian_set_index(&env), 1);
+            let g1 = get_guardian_set(&env, 1).unwrap();
+            assert_eq!(g1.keys.len(), 1);
+            assert_eq!(g1.keys.get(0).unwrap(), new_guardian);
+
+            let expiry = get_guardian_set_expiry(&env, 0).unwrap();
+            assert_eq!(
+                expiry,
+                u64::from(vaa.timestamp) + u64::from(GUARDIAN_SET_EXPIRATION_TIME)
+            );
+        });
+
+        let events = env.events().all().filter_by_contract(&contract_id);
+        let guardian_count_val: Val = 1u32.into_val(&env);
+        let new_index_val: Val = 1u32.into_val(&env);
+        assert_eq!(
+            events,
+            vec![
+                &env,
+                (
+                    contract_id,
+                    vec![
+                        &env,
+                        Symbol::new(&env, "wormhole_core").into_val(&env),
+                        Symbol::new(&env, "guardian_set_upgrade").into_val(&env),
+                    ],
+                    soroban_sdk::map![
+                        &env,
+                        (Symbol::new(&env, "guardian_count"), guardian_count_val),
+                        (Symbol::new(&env, "new_guardian_set_index"), new_index_val),
+                    ]
+                    .into_val(&env),
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_store_rejects_overwrite() {
+        let env = Env::default();
+        let contract_id = deploy_initialized(&env);
+        env.as_contract(&contract_id, || {
+            let set = GuardianSetInfo {
+                keys: vec![&env, BytesN::from_array(&env, &[1u8; 20])],
+                creation_time: 0,
+            };
+            let res = store(&env, 0, set);
+            assert_eq!(res, Err(WormholeError::GuardianSetAlreadyExists));
+        });
+    }
+
+    #[test]
+    fn test_submit_rejects_malicious_old_guardian_index() {
+        let env = Env::default();
+
+        let payload = build_payload(
+            &env,
+            MODULE_CORE,
+            ACTION_GUARDIAN_SET_UPGRADE,
+            CHAIN_ID_STELLAR,
+            0,
+            &[BytesN::<20>::from_array(&env, &[5u8; 20])],
+        );
+        let base = VAA {
+            version: 1,
+            guardian_set_index: 0,
+            signatures: Vec::new(&env),
+            timestamp: 1,
+            nonce: 1,
+            emitter_chain: GOVERNANCE_CHAIN_ID,
+            emitter_address: BytesN::from_array(&env, &GOVERNANCE_EMITTER),
+            sequence: 1,
+            consistency_level: ConsistencyLevel::Confirmed,
+            payload,
+        };
+        let (signed, guardian_eth) = sign_vaa_with_key(&env, base, [0x44u8; 32]);
+        let contract_id = env.register(
+            Wormhole,
+            (
+                vec![&env, guardian_eth],
+                BytesN::<32>::from_array(&env, &[1u8; 32]),
+            ),
+        );
+        let vaa_bytes = serialize_vaa(&env, &signed);
+
+        env.as_contract(&contract_id, || {
+            let res = GuardianSetUpgradeAction::submit(&env, vaa_bytes.clone());
+            assert_eq!(res, Err(WormholeError::InvalidGuardianSetSequence));
+        });
+    }
+
+    #[test]
+    fn test_guardian_set_expiry_arithmetic_bounds() {
+        let env = Env::default();
+        let contract_id = deploy_initialized(&env);
+        let new_guardian = BytesN::<20>::from_array(&env, &[9u8; 20]);
+        let payload = GuardianSetUpgradePayload {
+            module: BytesN::from_array(&env, &MODULE_CORE),
+            action: ACTION_GUARDIAN_SET_UPGRADE,
+            chain: CHAIN_ID_STELLAR,
+            new_guardian_set_index: 1,
+            new_guardian_set_keys: vec![&env, new_guardian],
+        };
+        let vaa = VAA {
+            version: 1,
+            guardian_set_index: 0,
+            signatures: vec![&env],
+            timestamp: u32::MAX,
+            nonce: 0,
+            emitter_chain: GOVERNANCE_CHAIN_ID,
+            emitter_address: BytesN::from_array(&env, &[0u8; 32]),
+            sequence: 0,
+            consistency_level: ConsistencyLevel::Confirmed,
+            payload: Bytes::new(&env),
+        };
+        env.as_contract(&contract_id, || {
+            GuardianSetUpgradeAction::execute(&env, &vaa, &payload).unwrap();
+            let expiry = get_guardian_set_expiry(&env, 0).unwrap();
+            assert_eq!(
+                expiry,
+                u64::from(u32::MAX).saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME))
+            );
+        });
     }
 }

@@ -30,7 +30,8 @@ use wormhole_soroban_client::WormholeError;
 
 /// Checks if a governance VAA has been consumed (replay protection).
 ///
-/// Returns `Ok(())` if not consumed, `Err(GovernanceVAAAlreadyConsumed)` if already used.
+/// Returns `Ok(())` if not consumed, `Err(GovernanceVAAAlreadyConsumed)` if
+/// already used.
 pub fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
     if action::is_governance_vaa_consumed_from_bytes(&env, &vaa_bytes)? {
         Err(WormholeError::GovernanceVAAAlreadyConsumed)

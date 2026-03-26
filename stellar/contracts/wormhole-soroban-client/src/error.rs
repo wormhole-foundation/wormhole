@@ -19,7 +19,6 @@ use soroban_sdk::contracterror;
 #[repr(u32)]
 pub enum WormholeError {
     // ========== VAA Errors (1-19) ==========
-
     /// VAA bytes are malformed or truncated.
     InvalidVAAFormat = 1,
     /// Referenced guardian set index does not exist.
@@ -42,7 +41,6 @@ pub enum WormholeError {
     InvalidPayload = 10,
 
     // ========== Governance Errors (30-39) ==========
-
     /// Governance payload module identifier is not "Core".
     InvalidGovernanceModule = 30,
     /// Governance action ID does not match expected action.
@@ -59,7 +57,6 @@ pub enum WormholeError {
     GovernanceVAAAlreadyConsumed = 36,
 
     // ========== Storage Errors (40-49) ==========
-
     /// Generic storage operation failure.
     StorageError = 40,
     /// Requested guardian set does not exist in storage.
@@ -68,7 +65,6 @@ pub enum WormholeError {
     GuardianSetAlreadyExists = 42,
 
     // ========== Fee Errors (50-59) ==========
-
     /// Emitter has not approved sufficient fee for message posting.
     InsufficientFeePaid = 50,
     /// Contract balance too low for requested fee transfer.
@@ -81,7 +77,6 @@ pub enum WormholeError {
     InvalidFeeAmount = 54,
 
     // ========== Message Errors (60+) ==========
-
     /// Consistency level value is not recognized.
     InvalidConsistencyLevel = 60,
 }

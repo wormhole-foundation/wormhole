@@ -1,8 +1,8 @@
 //! Cursor-based byte parsing utilities for VAA and payload deserialization.
 //!
-//! Provides a [`BytesReader`] that safely reads primitive types from a byte buffer
-//! with automatic bounds checking. All multi-byte values are read in big-endian
-//! format to match the Wormhole wire protocol.
+//! Provides a [`BytesReader`] that safely reads primitive types from a byte
+//! buffer with automatic bounds checking. All multi-byte values are read in
+//! big-endian format to match the Wormhole wire protocol.
 
 use crate::WormholeError;
 use soroban_sdk::{Bytes, BytesN};
