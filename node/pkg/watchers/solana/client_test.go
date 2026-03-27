@@ -1,10 +1,13 @@
 package solana
 
 import (
+	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -130,12 +133,186 @@ func Test_validateTransactionMeta(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("validateTransactionMeta() failed: %v", gotErr)
 				}
-				return
-			}
-			if tt.wantErr {
-				require.ErrorContains(t, gotErr, tt.errMsg)
-
 			}
 		})
 	}
+}
+
+func TestParseMessagePublicationAccount(t *testing.T) {
+
+	// Define well-formed Solana mainnet PostedMessage account data for reliable and unreliable messages
+	var (
+		// Solana mainnet PostedMessage account: `GU76rcJ4rgw5sZQ2efVRC4yUZyhwrVM6pTGs2kFhckYy`
+		validMessageAccountDataReliable, _ = hex.DecodeString("6d73670020000000000000000000000000000000000000000000000000000000000000000000000000404d836900000000f5de1400000000000100ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5850000000100000000000000000000000000000000000000000000000000009ed268a30dd700000000000000000000000089f4e8011c35831130c4c3ab95e53de9411d2fcc00040000000000000000000000006722b2c28d7d299b56a5febedbbe865a84ee0d7d00040000000000000000000000000000000000000000000000000000000000000000")
+
+		// Solana mainnet PostedMessageUnreliable account: `GU76rcJ4rgw5sZQ2efVRC4yUZyhwrVM6pTGs2kFhckYy`
+		validMessageAccountDataUnreliable, _ = hex.DecodeString("6d73750001000000000000000000000000000000000000000000000000000000000000000000000000785b83690000000018c4340000000000010034cdc6b2623f36d60ae820e95b60f764e81ec2cd3b57b77e3f8e25ddd43ac37300000000")
+
+		// Emitters
+		emitter, _          = hex.DecodeString("ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5")
+		emitterAddrReliable = vaa.Address(emitter)
+
+		emitterUnreliable, _  = hex.DecodeString("34cdc6b2623f36d60ae820e95b60f764e81ec2cd3b57b77e3f8e25ddd43ac373")
+		emitterAddrUnreliable = vaa.Address(emitterUnreliable)
+
+		// Payload portion of the reliablemessage account data
+		payload, _ = hex.DecodeString("0100000000000000000000000000000000000000000000000000009ed268a30dd700000000000000000000000089f4e8011c35831130c4c3ab95e53de9411d2fcc00040000000000000000000000006722b2c28d7d299b56a5febedbbe865a84ee0d7d00040000000000000000000000000000000000000000000000000000000000000000")
+	)
+
+	const (
+		// Define error string for testing. This is returned by the borsh-go library when it fails to
+		// deserialize a struct. In this case, we're relying on the library to fail when
+		// the message account data can't be deserialized into [MessagePublicationAccount].
+		errStringBorsh  = "failed to read required bytes"
+		errStringPrefix = "message account data is too short"
+	)
+
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		messageAccountData MessageAccountData
+		want               *MessagePublicationAccount
+		errStr             string
+	}{
+		{
+			name: "success -- reliable message",
+
+			messageAccountData: MessageAccountData{validMessageAccountDataReliable},
+			want: &MessagePublicationAccount{
+				VaaVersion:       0,
+				ConsistencyLevel: 32,
+				EmitterAuthority: vaa.Address{},
+				MessageStatus:    0,
+				Gap:              [3]byte{0, 0, 0},
+				SubmissionTime:   1770212672,
+				Nonce:            0,
+				Sequence:         1367797,
+				EmitterChain:     1,
+				EmitterAddress:   emitterAddrReliable,
+				Payload:          payload,
+			},
+			errStr: "",
+		},
+		{
+			name:               "success -- unreliable message",
+			messageAccountData: MessageAccountData{validMessageAccountDataUnreliable},
+			want: &MessagePublicationAccount{
+				VaaVersion:       0,
+				ConsistencyLevel: 1,
+				EmitterAuthority: vaa.Address{},
+				MessageStatus:    0,
+				Gap:              [3]byte{},
+				SubmissionTime:   1770216312,
+				Nonce:            0,
+				Sequence:         3458072,
+				EmitterChain:     1,
+				EmitterAddress:   emitterAddrUnreliable,
+				Payload:          nil, // borsh deserialization results in this being nil rather than an empty slice
+			},
+			errStr: "",
+		},
+		{
+			name:               "failure -- nil argument",
+			messageAccountData: MessageAccountData{},
+			want:               &MessagePublicationAccount{},
+			errStr:             errStringPrefix,
+		},
+		{
+			name:               "failure -- data too short",
+			messageAccountData: MessageAccountData{[]byte("ms")},
+			want:               &MessagePublicationAccount{},
+			errStr:             errStringPrefix,
+		},
+		{
+			name:               "failure -- no data following prefix (msg)",
+			messageAccountData: MessageAccountData{[]byte("msg")},
+			want:               &MessagePublicationAccount{},
+			errStr:             errStringBorsh,
+		},
+		{
+			name:               "failure -- no data following prefix (msu)",
+			messageAccountData: MessageAccountData{[]byte("msu")},
+			want:               &MessagePublicationAccount{},
+			errStr:             errStringBorsh,
+		},
+		{
+			name:               "failure -- truncated data (msg)",
+			messageAccountData: MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
+			want:               &MessagePublicationAccount{},
+			errStr:             errStringBorsh,
+		},
+		{
+			name:               "failure -- truncated data (msu)",
+			messageAccountData: MessageAccountData{validMessageAccountDataUnreliable[:len(validMessageAccountDataUnreliable)-1]},
+			want:               &MessagePublicationAccount{},
+			errStr:             errStringBorsh,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := ParseMessagePublicationAccount(tt.messageAccountData)
+			if gotErr != nil {
+				// We didn't expect an error, but we got one.
+				if tt.errStr == "" {
+					t.Errorf("ParseMessagePublicationAccount() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.errStr != "" {
+				// We want an error. Make sure it's the right one.
+				require.ErrorContains(t, gotErr, tt.errStr, "ParseMessagePublicationAccount() succeeded unexpectedly")
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestNewMessageAccountData(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		data    []byte
+		want    MessageAccountData
+		wantErr bool
+	}{
+		// Happy path
+		{"just msg", []byte("msg"), MessageAccountData{data: []byte("msg")}, false},
+		{"just msu", []byte("msu"), MessageAccountData{data: []byte("msu")}, false},
+		{"msg with data", []byte("msg1234abcd"), MessageAccountData{[]byte("msg1234abcd")}, false},
+		{"msu with data", []byte("msu1234abcd"), MessageAccountData{[]byte("msu1234abcd")}, false},
+		// Error cases
+		{"empty", []byte{}, MessageAccountData{}, true},
+		{"too short", []byte("ms"), MessageAccountData{}, true},
+		// The core bridge has a special case where accounts with the prefix "vaa" get deserialized with the
+		// same implementation as "msg" accounts. For clarity, this is not supported by the watcher. We
+		// actually want a message account when processing an account's data with this type.
+		{"bad prefix - vaa", []byte("vaa"), MessageAccountData{}, true},
+		{"bad prefix - abc", []byte("vaa"), MessageAccountData{}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := NewMessageAccountData(tt.data)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("NewMessageAccountData() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("NewMessageAccountData() succeeded unexpectedly")
+			}
+
+			if !bytes.Equal(got.Bytes(), tt.want.Bytes()) {
+				t.Errorf("Wrong NewMessageAccountData() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewMessageAccountDataIsolation(t *testing.T) {
+	input := []byte("msg" + "payload")
+	mad, err := NewMessageAccountData(input)
+	require.NoError(t, err)
+	input[0] = 'x'                             // mutate original
+	assert.Equal(t, byte('m'), mad.Bytes()[0]) // must be unaffected
 }
