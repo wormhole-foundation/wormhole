@@ -290,7 +290,7 @@ func TestVerifySignatures(t *testing.T) {
 	addrs = append(addrs, crypto.PubkeyToAddress(privKey2.PublicKey))
 	addrs = append(addrs, crypto.PubkeyToAddress(privKey3.PublicKey))
 
-	type test struct {
+	type testCase struct {
 		label      string
 		keyOrder   []*ecdsa.PrivateKey
 		addrs      []common.Address
@@ -298,7 +298,7 @@ func TestVerifySignatures(t *testing.T) {
 		result     bool
 	}
 
-	tests := []test{
+	tests := []testCase{
 		{
 			label:      "NoSignerZero",
 			keyOrder:   []*ecdsa.PrivateKey{},
@@ -543,8 +543,8 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 					}
 				}
 
-				test := test{label: "A", keyOrder: keyPair, addrs: addrs, indexOrder: indexPair, result: result}
-				tests = append(tests, test)
+				tc := test{label: "A", keyOrder: keyPair, addrs: addrs, indexOrder: indexPair, result: result}
+				tests = append(tests, tc)
 			}
 		}
 	}
@@ -730,14 +730,14 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 				assert.NotNil(t, vaa)
 
 				if len(tc.errString) == 0 {
-					expectedEmitterAddr, err := StringToAddress(tc.emitterAddr)
-					assert.NoError(t, err)
+					expectedEmitterAddr, addrErr := StringToAddress(tc.emitterAddr)
+					assert.NoError(t, addrErr)
 
-					expectedOriginAddress, err := StringToAddress(tc.originAddress)
-					assert.NoError(t, err)
+					expectedOriginAddress, originAddrErr := StringToAddress(tc.originAddress)
+					assert.NoError(t, originAddrErr)
 
-					expectedTargetAddress, err := StringToAddress(tc.targetAddress)
-					assert.NoError(t, err)
+					expectedTargetAddress, targetAddrErr := StringToAddress(tc.targetAddress)
+					assert.NoError(t, targetAddrErr)
 
 					expectedAmount := big.NewInt(tc.amount)
 
@@ -745,8 +745,8 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 					assert.Equal(t, expectedEmitterAddr, vaa.EmitterAddress)
 					assert.Equal(t, 133, len(vaa.Payload))
 
-					payload, err := DecodeTransferPayloadHdr(vaa.Payload)
-					assert.NoError(t, err)
+					payload, payloadErr := DecodeTransferPayloadHdr(vaa.Payload)
+					assert.NoError(t, payloadErr)
 					assert.Equal(t, tc.payloadType, payload.Type)
 					assert.Equal(t, tc.originChain, payload.OriginChain)
 					assert.Equal(t, expectedOriginAddress, payload.OriginAddress)
