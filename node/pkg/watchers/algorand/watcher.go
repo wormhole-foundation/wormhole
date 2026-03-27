@@ -189,6 +189,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 			Payload:          obs.payload,
 			ConsistencyLevel: 0,
 			IsReobservation:  isReobservation,
+			Unreliable:       false,
 		}
 
 		algorandMessagesConfirmed.Inc()

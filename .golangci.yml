@@ -118,9 +118,8 @@ linters:
         # Regular expressions must match complete canonical struct package/name/structname.
         # If this list is empty, all structs are tested.
         # Default: []
-        - ./+governor.tokenConfigEntry$
-        # TODO: MessagePublications _should_ be exhaustive but this will require many changes.
-        - ./_common.MessagePublication$
+        - .+/MessagePublication$
+        - .+/common\.MessagePublication$
       exclude:
         - .+/cobra\.Command$
         - .+/http\.Client$

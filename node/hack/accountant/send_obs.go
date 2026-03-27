@@ -116,6 +116,8 @@ func testSubmit(
 		EmitterAddress:   EmitterAddress,
 		ConsistencyLevel: uint8(15),
 		Payload:          Payload,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 
 	msgs := []*common.MessagePublication{&msg}
@@ -181,6 +183,8 @@ func testBatch(
 		EmitterAddress:   EmitterAddress,
 		ConsistencyLevel: uint8(15),
 		Payload:          Payload,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 	msgs = append(msgs, &msg1)
 
@@ -195,6 +199,8 @@ func testBatch(
 		EmitterAddress:   EmitterAddress,
 		ConsistencyLevel: uint8(15),
 		Payload:          Payload,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 	msgs = append(msgs, &msg2)
 
@@ -260,6 +266,8 @@ func testBatchWithcommitted(
 		EmitterAddress:   EmitterAddress,
 		ConsistencyLevel: uint8(15),
 		Payload:          Payload,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 	msgs = append(msgs, &msg1)
 
@@ -283,6 +291,8 @@ func testBatchWithcommitted(
 		EmitterAddress:   EmitterAddress,
 		ConsistencyLevel: uint8(15),
 		Payload:          Payload,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 	msgs = append(msgs, &msg2)
 
@@ -352,6 +362,8 @@ func testBatchWithDigestError(
 		EmitterAddress:   EmitterAddress,
 		ConsistencyLevel: uint8(15),
 		Payload:          Payload,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 	msgs = append(msgs, &msg1)
 
@@ -375,6 +387,8 @@ func testBatchWithDigestError(
 		EmitterAddress:   EmitterAddress,
 		ConsistencyLevel: uint8(15),
 		Payload:          Payload,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 	msgs = append(msgs, &msg2)
 
@@ -474,6 +488,8 @@ func testBigBatch(
 			EmitterAddress:   EmitterAddress,
 			ConsistencyLevel: uint8(15),
 			Payload:          Payload,
+			IsReobservation:  false,
+			Unreliable:       false,
 		}
 
 		msgs = append(msgs, &msg)
