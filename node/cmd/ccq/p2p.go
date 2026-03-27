@@ -46,7 +46,8 @@ func runP2P(
 	port uint,
 	networkID string,
 	bootstrapPeers string,
-	ethRPCURL string,
+	// EVM RPC URL
+	rpcURL string,
 	ethCoreAddr string,
 	pendingResponses *PendingResponses,
 	logger *zap.Logger,
@@ -166,7 +167,7 @@ func runP2P(
 	}
 
 	// Fetch the initial current guardian set
-	guardianSet, err := FetchCurrentGuardianSet(ctx, ethRPCURL, ethCoreAddr)
+	guardianSet, err := FetchCurrentGuardianSet(ctx, rpcURL, ethCoreAddr)
 	if err != nil {
 		logger.Fatal("Failed to fetch current guardian set", zap.Error(err))
 	}
