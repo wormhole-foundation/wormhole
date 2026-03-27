@@ -113,6 +113,8 @@ export async function execute_algorand(
     }
     case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Algorand");
+    case "DelegatedManager":
+      throw Error("DelegatedManager governance VAAs are not yet supported");
     default:
       target_contract = impossible(payload);
   }

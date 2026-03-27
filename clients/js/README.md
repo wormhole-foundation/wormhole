@@ -157,6 +157,8 @@ Commands:
   worm generate recover-chain-id            Generate a recover chain ID VAA
   worm generate                             Sets the default delivery provider
   set-default-delivery-provider             for the Wormhole Relayer contract
+  worm generate manager-set-update          Generate a DelegatedManager manager
+                                            set update VAA
 
 Options:
       --help             Show help                                     [boolean]
