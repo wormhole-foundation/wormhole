@@ -1,19 +1,15 @@
-import {
-  getTransactionDigest,
-  getTransactionSender,
-  SuiTransactionBlockResponse,
-} from "@mysten/sui.js";
+import { SuiTransactionBlockResponse } from "@mysten/sui/client";
 import { getCreatedObjects, getPublishedPackageId } from "./utils";
 
 export const logTransactionDigest = (
   res: SuiTransactionBlockResponse,
   ...args: string[]
 ) => {
-  console.log("Transaction digest", getTransactionDigest(res), ...args);
+  console.log("Transaction digest", res.digest, ...args);
 };
 
 export const logTransactionSender = (res: SuiTransactionBlockResponse) => {
-  console.log("Transaction sender", getTransactionSender(res));
+  console.log("Transaction sender", res.transaction?.data?.sender);
 };
 
 export const logPublishedPackageId = (res: SuiTransactionBlockResponse) => {

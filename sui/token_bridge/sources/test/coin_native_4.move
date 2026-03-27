@@ -19,6 +19,7 @@ module token_bridge::coin_native_4 {
     // for example in complete_transfer, where we create a native coin,
     // mint some and deposit in the token bridge, then complete transfer
     // and ultimately transfer a portion of those native coins to a recipient.
+    #[allow(deprecated_usage)]
     fun init(coin_witness: COIN_NATIVE_4, ctx: &mut TxContext) {
         let (
             treasury_cap,
