@@ -788,7 +788,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if st, _, _ := guardiansigner.ParseSignerUri(*guardianSignerUri); st == guardiansigner.FileSignerType {
 			genErr := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
 			if genErr != nil {
-				logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
+				logger.Fatal("failed to generate devnet guardian key", zap.Error(genErr))
 			}
 		}
 	}
@@ -827,7 +827,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				if resolveErr == nil {
 					break
 				}
-				logger.Info(fmt.Sprintf("Error resolving %s. Trying again...", firstGuardianName))
+				logger.Debug("error resolving bootstrap guardian, retrying",
+					zap.String("hostname", firstGuardianName),
+					zap.Error(resolveErr),
+				)
 				time.Sleep(time.Second)
 			}
 			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 10s such that the bootstrap Guardian has enough time to start.
