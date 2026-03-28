@@ -154,9 +154,8 @@ fi
 
 echo "Submitting VAA: $VAA"
 
-# TODO: --contract-address should not be neded after the sdk has these addresses
 CONTRACT_ADDR=$(worm info contract "$NETWORK" aptos "$MODULE")
-worm submit --network "$NETWORK" "$VAA" --contract-address "$CONTRACT_ADDR"
+worm submit --network "$NETWORK" "$VAA" --chain aptos
 worm aptos upgrade $DIR --network "$NETWORK" --contract-address "$CONTRACT_ADDR" --named-addresses "$NAMED_ADDRS"
 worm aptos migrate --network "$NETWORK" --contract-address "$CONTRACT_ADDR"
 
