@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -323,9 +324,15 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		return
 	}
 
-	pl, err := hex.DecodeString(v.String()[2:])
+	s := v.String()
+	if !strings.HasPrefix(s, "0x") {
+		logger.Error("payload missing 0x prefix", zap.String("payload", s))
+		return
+	}
+
+	pl, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
 	if err != nil {
-		logger.Error("payload decode")
+		logger.Error("payload decode", zap.Error(err))
 		return
 	}
 
