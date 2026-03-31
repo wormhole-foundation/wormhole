@@ -337,6 +337,10 @@ const (
 	ChainIDXRPL ChainID = 66
 	// ChainIDZeroGravity is the ChainID of ZeroGravity,
 	ChainIDZeroGravity ChainID = 67
+	// ChainIDTempo is the ChainID of Tempo
+	ChainIDTempo ChainID = 68
+	// ChainIDNexus is the ChainID of Nexus
+	ChainIDNexus ChainID = 69
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
