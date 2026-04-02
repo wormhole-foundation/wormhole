@@ -503,15 +503,15 @@ func (c *ManagerService) signDogecoinTransaction(
 	// Each input has its own recipient address (from when funds were locked)
 	redeemScripts := make([][]byte, len(payload.Inputs))
 	for i, input := range payload.Inputs {
-		redeemScript, err := dogecoin.BuildRedeemScript(
+		redeemScript, scriptErr := dogecoin.BuildRedeemScript(
 			v.EmitterChain,
 			v.EmitterAddress,
 			input.OriginalRecipientAddress,
 			managerSet.M,
 			managerSet.PublicKeys,
 		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build redeem script for input %d: %w", i, err)
+		if scriptErr != nil {
+			return nil, fmt.Errorf("failed to build redeem script for input %d: %w", i, scriptErr)
 		}
 		redeemScripts[i] = redeemScript
 	}

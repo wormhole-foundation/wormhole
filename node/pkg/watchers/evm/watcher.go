@@ -284,8 +284,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	// Verify that we are connecting to the correct chain.
-	if err := w.verifyEvmChainID(ctx, logger, w.url); err != nil {
-		return fmt.Errorf("failed to verify evm chain id: %w", err)
+	if verifyErr := w.verifyEvmChainID(ctx, logger, w.url); verifyErr != nil {
+		return fmt.Errorf("failed to verify evm chain id: %w", verifyErr)
 	}
 
 	// Connect to the node using the appropriate type of connector.
@@ -368,8 +368,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	defer messageSub.Unsubscribe()
 
 	// Fetch initial guardian set
-	if err := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); err != nil {
-		return fmt.Errorf("failed to request guardian set: %v", err)
+	if fetchErr := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); fetchErr != nil {
+		return fmt.Errorf("failed to request guardian set: %v", fetchErr)
 	}
 
 	// Poll for guardian set.
@@ -381,8 +381,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case <-t.C:
-				if err := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); err != nil {
-					errC <- fmt.Errorf("failed to request guardian set: %v", err) //nolint:channelcheck // The watcher will exit anyway
+				if pollErr := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); pollErr != nil {
+					errC <- fmt.Errorf("failed to request guardian set: %v", pollErr) //nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 			}
@@ -391,8 +391,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 	// Fetch initial delegated guardian config if configured.
 	if w.dgContractAddr != nil && w.dgConfigC != nil {
-		if err := w.fetchAndUpdateDelegatedGuardianConfig(ctx); err != nil {
-			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(err))
+		if fetchErr := w.fetchAndUpdateDelegatedGuardianConfig(ctx); fetchErr != nil {
+			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(fetchErr))
 		}
 	}
 
@@ -407,8 +407,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				case <-ctx.Done():
 					return nil
 				case <-t.C:
-					if err := w.fetchAndUpdateDelegatedGuardianConfig(ctx); err != nil {
-						errC <- fmt.Errorf("failed to request delegated guardian config: %v", err) //nolint:channelcheck // The watcher will exit anyway
+					if pollErr := w.fetchAndUpdateDelegatedGuardianConfig(ctx); pollErr != nil {
+						errC <- fmt.Errorf("failed to request delegated guardian config: %v", pollErr) //nolint:channelcheck // The watcher will exit anyway
 						return nil
 					}
 				}
@@ -429,7 +429,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					)
 					continue
 				}
-				numObservations, err := w.handleReobservationRequest(
+				numObservations, handleErr := w.handleReobservationRequest(
 					ctx,
 					vaa.ChainID(r.ChainId),
 					r.TxHash,
@@ -437,11 +437,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
 					atomic.LoadUint64(&w.latestSafeBlockNumber),
 				)
-				if err != nil {
+				if handleErr != nil {
 					logger.Error("failed to process observation request",
 						zap.Uint32("chainID", r.ChainId),
 						zap.String("txID", hex.EncodeToString(r.TxHash)),
-						zap.Error(err),
+						zap.Error(handleErr),
 					)
 				}
 
@@ -458,8 +458,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		w.ccqStart(ctx, errC)
 	}
 
-	if err := w.cclEnable(ctx); err != nil {
-		return fmt.Errorf("failed to enable custom consistency level: %w", err)
+	if cclErr := w.cclEnable(ctx); cclErr != nil {
+		return fmt.Errorf("failed to enable custom consistency level: %w", cclErr)
 	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
@@ -467,21 +467,21 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return nil
-			case err := <-messageSub.Err():
+			case subErr := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing message publication subscription: %w", err) //nolint:channelcheck // The watcher will exit anyway
+				errC <- fmt.Errorf("error while processing message publication subscription: %w", subErr) //nolint:channelcheck // The watcher will exit anyway
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-messageC:
-				blockTime, err := w.getBlockTime(ctx, ev.Raw.BlockHash)
-				if err != nil {
+				blockTime, blockErr := w.getBlockTime(ctx, ev.Raw.BlockHash)
+				if blockErr != nil {
 					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-					if canRetryGetBlockTime(err) {
+					if canRetryGetBlockTime(blockErr) {
 						go w.waitForBlockTime(ctx, errC, ev)
 						continue
 					}
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err) //nolint:channelcheck // The watcher will exit anyway
+					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), blockErr) //nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 

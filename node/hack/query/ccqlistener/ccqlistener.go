@@ -208,9 +208,9 @@ func main() {
 		to, _ := hex.DecodeString("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
 
 		for _, method := range methods {
-			data, err := wethAbi.Pack(method)
-			if err != nil {
-				panic(err)
+			data, packErr := wethAbi.Pack(method)
+			if packErr != nil {
+				panic(packErr)
 			}
 
 			callData = append(callData, &query.EthCallData{
