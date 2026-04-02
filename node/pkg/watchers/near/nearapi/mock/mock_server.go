@@ -82,7 +82,10 @@ func (s *ForwardingCachingServer) ProxyReq(_ *zap.Logger, req *http.Request) (*h
 	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	url := fmt.Sprintf("%s%s", s.upstreamHost, req.RequestURI)
-	proxyReq, _ := http.NewRequestWithContext(req.Context(), req.Method, url, bytes.NewReader(reqBody))
+	proxyReq, err := http.NewRequestWithContext(req.Context(), req.Method, url, bytes.NewReader(reqBody)) // #nosec G704 -- Test mock server forwards only to configured upstream.
+	if err != nil {
+		return nil, err
+	}
 
 	s.logger.Debug("proxy_req",
 		zap.String("url", url),
@@ -157,6 +160,7 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		}
 
 		httpClient := http.Client{}
+		// #nosec G704 -- Test mock server making requests to configured upstream
 		resp, err := httpClient.Do(proxyReq)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
@@ -170,6 +174,7 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		}
 
 		// cache the result
+		// #nosec G703 -- Test mock server with controlled cache directory, not user input
 		err = os.WriteFile(filename, respBody, 0600)
 		panicIfError(err)
 
