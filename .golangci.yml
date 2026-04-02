@@ -113,14 +113,15 @@ linters:
       ignore-enum-types: "vaa.ChainID" # This type is used all over and doesn't need to be exhaustive
       #default-signifies-exhaustive: true
     exhaustruct:
+      # If empty, assume the author intended to return a struct in its default state.
+      # The main reason we have this rule is to prevent partial initialization.
+      allow-empty: true
       include:
         # List of regular expressions to match struct packages and their names.
         # Regular expressions must match complete canonical struct package/name/structname.
         # If this list is empty, all structs are tested.
         # Default: []
-        - ./+governor.tokenConfigEntry$
-        # TODO: MessagePublications _should_ be exhaustive but this will require many changes.
-        - ./_common.MessagePublication$
+        - .+/processor\..+
       exclude:
         - .+/cobra\.Command$
         - .+/http\.Client$
