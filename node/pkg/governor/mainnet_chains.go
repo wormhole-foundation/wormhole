@@ -10,7 +10,7 @@ import (
 
 func ChainList() []ChainConfigEntry {
 	return []ChainConfigEntry{
-		{EmitterChainID: vaa.ChainIDSolana, DailyLimit: 15_000_000, BigTransactionSize: 50_000},
+		{EmitterChainID: vaa.ChainIDSolana, DailyLimit: 20_000_000, BigTransactionSize: 1_000_000},
 		{EmitterChainID: vaa.ChainIDEthereum, DailyLimit: 100_000_000, BigTransactionSize: 20_000_000},
 		{EmitterChainID: vaa.ChainIDBSC, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
 		{EmitterChainID: vaa.ChainIDPolygon, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
