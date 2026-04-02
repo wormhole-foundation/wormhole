@@ -115,7 +115,7 @@ module wormhole::bytes32 {
     }
 
     public fun from_utf8(str: String): Bytes32 {
-        let data = *string::bytes(&str);
+        let data = *string::as_bytes(&str);
         let len = vector::length(&data);
         if (len > LEN) {
             // Trim from end.
@@ -149,7 +149,7 @@ module wormhole::bytes32 {
             utf8 = string::try_utf8(data);
         };
 
-        let buf = *string::bytes(&option::extract(&mut utf8));
+        let buf = *string::as_bytes(&option::extract(&mut utf8));
 
         // Now trim zeros from the right.
         while (
