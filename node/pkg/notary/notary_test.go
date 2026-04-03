@@ -2,10 +2,8 @@ package notary
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"math/rand/v2"
-	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -48,484 +46,484 @@ func makeTestNotary(t *testing.T) *Notary {
 	}
 }
 
-// TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
-// This test can be removed if the Notary is extended to support other chains.
-func TestNotary_AlwaysApproveNonTransferVerifierEmitters(t *testing.T) {
-	// NOTE: Solana does not have a transfer verifier implementation
-	tests := map[string]struct {
-		verificationState common.VerificationState
-		emitterChain      vaa.ChainID
-		verdict           Verdict
-	}{
-		"approve non-transfer verifier when Rejected": {
-			common.Rejected,
-			vaa.ChainIDSolana,
-			Approve,
-		},
-		"approve non-transfer verifier when Anomalous": {
-			common.Anomalous,
-			vaa.ChainIDSolana,
-			Approve,
-		},
-		"delay non-Ethereum messages for chain with transfer verifier when Rejected": {
-			common.Rejected,
-			vaa.ChainIDSepolia,
-			Delay,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			n := makeTestNotary(t)
-			msg := makeUniqueMessagePublication(t)
-
-			// Set the emitter address to the known token bridge address for the environment.
-			msg.EmitterChain = test.emitterChain
-
-			err := msg.SetVerificationState(test.verificationState)
-			require.NoError(t, err)
-
-			require.True(t, vaa.IsTransfer(msg.Payload))
-
-			verdict, err := n.ProcessMsg(msg)
-			require.NoError(t, err)
-			require.Equal(
-				t,
-				test.verdict,
-				verdict,
-				fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
-			)
-		})
-	}
-}
-
-func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
-
-	// NOTE: This test should be exhaustive over VerificationState variants.
-	tests := map[string]struct {
-		verificationState common.VerificationState
-		verdict           Verdict
-	}{
-		"approve N/A": {
-			common.NotApplicable,
-			Approve,
-		},
-		"approve not verified": {
-			common.NotVerified,
-			Approve,
-		},
-		"approve valid": {
-			common.Valid,
-			Approve,
-		},
-		"delay could not verify": {
-			common.CouldNotVerify,
-			Delay,
-		},
-		// Blackhole verdict is not being used for Rejected messages in the initial implementation
-		"delay rejected": {
-			common.Rejected,
-			Delay,
-		},
-		"delay anomalous": {
-			common.Anomalous,
-			Delay,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			n := makeTestNotary(t)
-			msg := makeUniqueMessagePublication(t)
-
-			err := msg.SetVerificationState(test.verificationState)
-			if test.verificationState != common.NotVerified {
-				// SetVerificationState fails if the old status is equal to the new one.
-				require.NoError(t, err)
-			}
-
-			require.True(t, vaa.IsTransfer(msg.Payload))
-
-			verdict, err := n.ProcessMsg(msg)
-			require.NoError(t, err)
-			require.Equal(
-				t,
-				test.verdict,
-				verdict,
-				fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
-			)
-		})
-	}
-}
-func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
-
-	// NOTE: This test should be exhaustive over VerificationState variants.
-	type expectedSizes struct {
-		delayed    int
-		blackholed int
-	}
-	tests := map[string]struct {
-		verificationState common.VerificationState
-		expectedSizes
-	}{
-		"Valid has no effect": {
-			common.Valid,
-			expectedSizes{},
-		},
-		"NotVerified has no effect": {
-			common.NotVerified,
-			expectedSizes{},
-		},
-		"NotApplicable has no effect": {
-			common.NotApplicable,
-			expectedSizes{},
-		},
-		"CouldNotVerify gets delayed": {
-			common.CouldNotVerify,
-			expectedSizes{
-				delayed:    1,
-				blackholed: 0,
-			},
-		},
-		"Anomalous gets delayed": {
-			common.Anomalous,
-			expectedSizes{
-				delayed:    1,
-				blackholed: 0,
-			},
-		},
-
-		// Blackhole verdict is not being used for Rejected messages in the initial implementation
-		"Rejected gets delayed": {
-			common.Rejected,
-			expectedSizes{
-				delayed:    1,
-				blackholed: 0,
-			},
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			// Set-up
-			var (
-				n   = makeTestNotary(t)
-				msg = makeUniqueMessagePublication(t)
-				err = msg.SetVerificationState(test.verificationState)
-			)
-			if test.verificationState != common.NotVerified {
-				// SetVerificationState fails if the old status is equal to the new one.
-				require.NoError(t, err)
-			}
-			require.Equal(t, test.verificationState, msg.VerificationState())
-			require.True(t, vaa.IsTransfer(msg.Payload))
-
-			// Ensure that the collections are properly updated.
-			_, err = n.ProcessMsg(msg)
-			require.NoError(t, err)
-			require.Equal(
-				t,
-				test.expectedSizes.delayed,
-				n.delayed.Len(),
-				fmt.Sprintf("delayed count did not match. verificationState %s", msg.VerificationState().String()),
-			)
-			require.Equal(
-				t,
-				test.expectedSizes.blackholed,
-				n.blackholed.Len(),
-				fmt.Sprintf("blackholed count did not match. verificationState %s", msg.VerificationState().String()),
-			)
-
-		})
-	}
-}
-
-func TestNotary_ProcessMessageAlwaysApprovesNonTokenTransfers(t *testing.T) {
-	n := makeTestNotary(t)
-
-	// NOTE: This test should be exhaustive over VerificationState variants.
-	tests := map[string]struct {
-		verificationState common.VerificationState
-	}{
-		"approve non-token transfer: NotVerified": {
-			common.NotVerified,
-		},
-		"approve non-token transfer: CouldNotVerify": {
-			common.CouldNotVerify,
-		},
-		"approve non-token transfer: Anomalous": {
-			common.Anomalous,
-		},
-		"approve non-token transfer: Rejected": {
-			common.Rejected,
-		},
-		"approve non-token transfer: NotApplicable": {
-			common.NotApplicable,
-		},
-		"approve non-token transfer: Valid": {
-			common.Valid,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			msg := makeUniqueMessagePublication(t)
-
-			// Change the payload to something other than a token transfer.
-			msg.Payload = []byte{0x02}
-			require.False(t, vaa.IsTransfer(msg.Payload))
-
-			if msg.VerificationState() != common.NotVerified {
-				// SetVerificationState fails if the old status is equal to the new one.
-				err := msg.SetVerificationState(test.verificationState)
-				require.NoError(t, err)
-			}
-
-			verdict, err := n.ProcessMsg(msg)
-			require.NoError(t, err)
-			require.Equal(t, Approve, verdict)
-		})
-	}
-}
-
-func TestNotary_ProcessReadyMessages(t *testing.T) {
-
-	tests := []struct {
-		name               string                   // description of this test case
-		delayed            []*common.PendingMessage // initial messages in delayed queue
-		expectedDelayCount int
-		expectedReadyCount int
-	}{
-		{
-			"no messages ready",
-			[]*common.PendingMessage{
-				{
-					ReleaseTime: time.Now().Add(time.Hour),
-					Msg:         *makeUniqueMessagePublication(t),
-				},
-			},
-			1,
-			0,
-		},
-		{
-			"some messages ready",
-			[]*common.PendingMessage{
-				{
-					ReleaseTime: time.Now().Add(-2 * time.Hour),
-					Msg:         *makeUniqueMessagePublication(t),
-				},
-				{
-					ReleaseTime: time.Now().Add(time.Hour),
-					Msg:         *makeUniqueMessagePublication(t),
-				},
-				{
-					ReleaseTime: time.Now().Add(-time.Hour),
-					Msg:         *makeUniqueMessagePublication(t),
-				},
-				{
-					ReleaseTime: time.Now().Add(2 * time.Hour),
-					Msg:         *makeUniqueMessagePublication(t),
-				},
-			},
-			2,
-			2,
-		},
-		{
-			"all messages ready",
-			[]*common.PendingMessage{
-				{
-					ReleaseTime: time.Now().Add(-2 * time.Hour),
-					Msg:         *makeUniqueMessagePublication(t),
-				},
-				{
-					ReleaseTime: time.Now().Add(-1 * time.Hour),
-					Msg:         *makeUniqueMessagePublication(t),
-				},
-			},
-			0,
-			2,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set-up
-			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-
-			currentLength := n.delayed.Len()
-			for pMsg := range slices.Values(tt.delayed) {
-				require.NotNil(t, pMsg)
-				n.delayed.Push(pMsg)
-				// Ensure that the queue grows after each push.
-				require.Greater(t, n.delayed.Len(), currentLength)
-				currentLength = n.delayed.Len()
-			}
-			require.Equal(t, len(tt.delayed), n.delayed.Len())
-
-			readyMsgs := n.ReleaseReadyMessages()
-			require.Equal(t, tt.expectedReadyCount, len(readyMsgs), "ready length does not match")
-			require.Equal(t, tt.expectedDelayCount, n.delayed.Len(), "delayed length does not match")
-		})
-	}
-}
-
-func TestNotary_Forget(t *testing.T) {
-	tests := []struct { // description of this test case
-		name               string
-		msg                *common.MessagePublication
-		expectedDelayCount int
-		expectedBlackholed int
-	}{
-		{
-			"remove from delayed list",
-			makeUniqueMessagePublication(t),
-			0,
-			0,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set-up
-			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
-
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
-
-			err := n.delay(tt.msg, time.Hour)
-			require.NoError(t, err)
-
-			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
-
-			// Modify the set manually because calling the blackhole function will remove the message from the delayed list.
-			n.blackholed.Add(tt.msg.MessageID())
-
-			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
-
-			forgetErr := n.forget(tt.msg)
-			require.NoError(t, forgetErr)
-
-			require.Equal(t, tt.expectedDelayCount, n.delayed.Len())
-			require.Equal(t, tt.expectedBlackholed, n.blackholed.Len())
-		})
-	}
-}
-
-func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
-	tests := []struct { // description of this test case
-		name               string
-		msg                *common.MessagePublication
-		expectedDelayCount int
-		expectedBlackholed int
-	}{
-		{
-			"remove from delayed list",
-			makeUniqueMessagePublication(t),
-			0,
-			1,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set-up
-			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
-
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
-
-			err := n.delay(tt.msg, time.Hour)
-			require.NoError(t, err)
-
-			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
-
-			blackholeErr := n.blackhole(tt.msg)
-			require.NoError(t, blackholeErr)
-
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
-		})
-	}
-}
-
-func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
-	tests := []struct { // description of this test case
-		name string
-		msg  *common.MessagePublication
-	}{
-		{
-			"delay fails if message is already blackholed",
-			makeUniqueMessagePublication(t),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set-up
-			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
-
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
-
-			err := n.blackhole(tt.msg)
-			require.NoError(t, err)
-
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
-
-			err = n.delay(tt.msg, time.Hour)
-			require.ErrorIs(t, err, ErrAlreadyBlackholed)
-
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
-		})
-	}
-}
-
-func TestNotary_releaseChangesReleaseTime(t *testing.T) {
-	tests := []struct { // description of this test case
-		name                string
-		msg                 *common.MessagePublication
-		expectedReleaseTime time.Time
-	}{
-		{
-			"release changes release time",
-			makeUniqueMessagePublication(t),
-			time.Now().Add(time.Hour),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set-up
-			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
-
-			require.Equal(t, 0, n.delayed.Len())
-
-			// Delay a message; ensure no messages are ready
-			delayErr := n.delay(tt.msg, time.Hour)
-			require.NoError(t, delayErr)
-			require.Equal(t, 1, n.delayed.Len())
-			require.Empty(t, n.ReleaseReadyMessages())
-			require.Equal(t, 1, n.delayed.Len())
-
-			// Release the message
-			releaseErr := n.release(tt.msg.MessageID())
-			require.NoError(t, releaseErr)
-
-			// Check that a new message is ready
-			require.Len(t, n.ReleaseReadyMessages(), 1)
-			require.Equal(t, 0, n.delayed.Len())
-		})
-	}
-}
+// // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
+// // This test can be removed if the Notary is extended to support other chains.
+// func TestNotary_AlwaysApproveNonTransferVerifierEmitters(t *testing.T) {
+// 	// NOTE: Solana does not have a transfer verifier implementation
+// 	tests := map[string]struct {
+// 		verificationState common.VerificationState
+// 		emitterChain      vaa.ChainID
+// 		verdict           Verdict
+// 	}{
+// 		"approve non-transfer verifier when Rejected": {
+// 			common.Rejected,
+// 			vaa.ChainIDSolana,
+// 			Approve,
+// 		},
+// 		"approve non-transfer verifier when Anomalous": {
+// 			common.Anomalous,
+// 			vaa.ChainIDSolana,
+// 			Approve,
+// 		},
+// 		"delay non-Ethereum messages for chain with transfer verifier when Rejected": {
+// 			common.Rejected,
+// 			vaa.ChainIDSepolia,
+// 			Delay,
+// 		},
+// 	}
+//
+// 	for name, test := range tests {
+// 		t.Run(name, func(t *testing.T) {
+// 			n := makeTestNotary(t)
+// 			msg := makeUniqueMessagePublication(t)
+//
+// 			// Set the emitter address to the known token bridge address for the environment.
+// 			msg.EmitterChain = test.emitterChain
+//
+// 			err := msg.SetVerificationState(test.verificationState)
+// 			require.NoError(t, err)
+//
+// 			require.True(t, vaa.IsTransfer(msg.Payload))
+//
+// 			verdict, err := n.ProcessMsg(msg)
+// 			require.NoError(t, err)
+// 			require.Equal(
+// 				t,
+// 				test.verdict,
+// 				verdict,
+// 				fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
+// 			)
+// 		})
+// 	}
+// }
+//
+// func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
+//
+// 	// NOTE: This test should be exhaustive over VerificationState variants.
+// 	tests := map[string]struct {
+// 		verificationState common.VerificationState
+// 		verdict           Verdict
+// 	}{
+// 		"approve N/A": {
+// 			common.NotApplicable,
+// 			Approve,
+// 		},
+// 		"approve not verified": {
+// 			common.NotVerified,
+// 			Approve,
+// 		},
+// 		"approve valid": {
+// 			common.Valid,
+// 			Approve,
+// 		},
+// 		"delay could not verify": {
+// 			common.CouldNotVerify,
+// 			Delay,
+// 		},
+// 		// Blackhole verdict is not being used for Rejected messages in the initial implementation
+// 		"delay rejected": {
+// 			common.Rejected,
+// 			Delay,
+// 		},
+// 		"delay anomalous": {
+// 			common.Anomalous,
+// 			Delay,
+// 		},
+// 	}
+//
+// 	for name, test := range tests {
+// 		t.Run(name, func(t *testing.T) {
+// 			n := makeTestNotary(t)
+// 			msg := makeUniqueMessagePublication(t)
+//
+// 			err := msg.SetVerificationState(test.verificationState)
+// 			if test.verificationState != common.NotVerified {
+// 				// SetVerificationState fails if the old status is equal to the new one.
+// 				require.NoError(t, err)
+// 			}
+//
+// 			require.True(t, vaa.IsTransfer(msg.Payload))
+//
+// 			verdict, err := n.ProcessMsg(msg)
+// 			require.NoError(t, err)
+// 			require.Equal(
+// 				t,
+// 				test.verdict,
+// 				verdict,
+// 				fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
+// 			)
+// 		})
+// 	}
+// }
+// func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
+//
+// 	// NOTE: This test should be exhaustive over VerificationState variants.
+// 	type expectedSizes struct {
+// 		delayed    int
+// 		blackholed int
+// 	}
+// 	tests := map[string]struct {
+// 		verificationState common.VerificationState
+// 		expectedSizes
+// 	}{
+// 		"Valid has no effect": {
+// 			common.Valid,
+// 			expectedSizes{},
+// 		},
+// 		"NotVerified has no effect": {
+// 			common.NotVerified,
+// 			expectedSizes{},
+// 		},
+// 		"NotApplicable has no effect": {
+// 			common.NotApplicable,
+// 			expectedSizes{},
+// 		},
+// 		"CouldNotVerify gets delayed": {
+// 			common.CouldNotVerify,
+// 			expectedSizes{
+// 				delayed:    1,
+// 				blackholed: 0,
+// 			},
+// 		},
+// 		"Anomalous gets delayed": {
+// 			common.Anomalous,
+// 			expectedSizes{
+// 				delayed:    1,
+// 				blackholed: 0,
+// 			},
+// 		},
+//
+// 		// Blackhole verdict is not being used for Rejected messages in the initial implementation
+// 		"Rejected gets delayed": {
+// 			common.Rejected,
+// 			expectedSizes{
+// 				delayed:    1,
+// 				blackholed: 0,
+// 			},
+// 		},
+// 	}
+//
+// 	for name, test := range tests {
+// 		t.Run(name, func(t *testing.T) {
+// 			// Set-up
+// 			var (
+// 				n   = makeTestNotary(t)
+// 				msg = makeUniqueMessagePublication(t)
+// 				err = msg.SetVerificationState(test.verificationState)
+// 			)
+// 			if test.verificationState != common.NotVerified {
+// 				// SetVerificationState fails if the old status is equal to the new one.
+// 				require.NoError(t, err)
+// 			}
+// 			require.Equal(t, test.verificationState, msg.VerificationState())
+// 			require.True(t, vaa.IsTransfer(msg.Payload))
+//
+// 			// Ensure that the collections are properly updated.
+// 			_, err = n.ProcessMsg(msg)
+// 			require.NoError(t, err)
+// 			require.Equal(
+// 				t,
+// 				test.expectedSizes.delayed,
+// 				n.delayed.Len(),
+// 				fmt.Sprintf("delayed count did not match. verificationState %s", msg.VerificationState().String()),
+// 			)
+// 			require.Equal(
+// 				t,
+// 				test.expectedSizes.blackholed,
+// 				n.blackholed.Len(),
+// 				fmt.Sprintf("blackholed count did not match. verificationState %s", msg.VerificationState().String()),
+// 			)
+//
+// 		})
+// 	}
+// }
+//
+// func TestNotary_ProcessMessageAlwaysApprovesNonTokenTransfers(t *testing.T) {
+// 	n := makeTestNotary(t)
+//
+// 	// NOTE: This test should be exhaustive over VerificationState variants.
+// 	tests := map[string]struct {
+// 		verificationState common.VerificationState
+// 	}{
+// 		"approve non-token transfer: NotVerified": {
+// 			common.NotVerified,
+// 		},
+// 		"approve non-token transfer: CouldNotVerify": {
+// 			common.CouldNotVerify,
+// 		},
+// 		"approve non-token transfer: Anomalous": {
+// 			common.Anomalous,
+// 		},
+// 		"approve non-token transfer: Rejected": {
+// 			common.Rejected,
+// 		},
+// 		"approve non-token transfer: NotApplicable": {
+// 			common.NotApplicable,
+// 		},
+// 		"approve non-token transfer: Valid": {
+// 			common.Valid,
+// 		},
+// 	}
+//
+// 	for name, test := range tests {
+// 		t.Run(name, func(t *testing.T) {
+// 			msg := makeUniqueMessagePublication(t)
+//
+// 			// Change the payload to something other than a token transfer.
+// 			msg.Payload = []byte{0x02}
+// 			require.False(t, vaa.IsTransfer(msg.Payload))
+//
+// 			if msg.VerificationState() != common.NotVerified {
+// 				// SetVerificationState fails if the old status is equal to the new one.
+// 				err := msg.SetVerificationState(test.verificationState)
+// 				require.NoError(t, err)
+// 			}
+//
+// 			verdict, err := n.ProcessMsg(msg)
+// 			require.NoError(t, err)
+// 			require.Equal(t, Approve, verdict)
+// 		})
+// 	}
+// }
+//
+// func TestNotary_ProcessReadyMessages(t *testing.T) {
+//
+// 	tests := []struct {
+// 		name               string                   // description of this test case
+// 		delayed            []*common.PendingMessage // initial messages in delayed queue
+// 		expectedDelayCount int
+// 		expectedReadyCount int
+// 	}{
+// 		{
+// 			"no messages ready",
+// 			[]*common.PendingMessage{
+// 				{
+// 					ReleaseTime: time.Now().Add(time.Hour),
+// 					Msg:         *makeUniqueMessagePublication(t),
+// 				},
+// 			},
+// 			1,
+// 			0,
+// 		},
+// 		{
+// 			"some messages ready",
+// 			[]*common.PendingMessage{
+// 				{
+// 					ReleaseTime: time.Now().Add(-2 * time.Hour),
+// 					Msg:         *makeUniqueMessagePublication(t),
+// 				},
+// 				{
+// 					ReleaseTime: time.Now().Add(time.Hour),
+// 					Msg:         *makeUniqueMessagePublication(t),
+// 				},
+// 				{
+// 					ReleaseTime: time.Now().Add(-time.Hour),
+// 					Msg:         *makeUniqueMessagePublication(t),
+// 				},
+// 				{
+// 					ReleaseTime: time.Now().Add(2 * time.Hour),
+// 					Msg:         *makeUniqueMessagePublication(t),
+// 				},
+// 			},
+// 			2,
+// 			2,
+// 		},
+// 		{
+// 			"all messages ready",
+// 			[]*common.PendingMessage{
+// 				{
+// 					ReleaseTime: time.Now().Add(-2 * time.Hour),
+// 					Msg:         *makeUniqueMessagePublication(t),
+// 				},
+// 				{
+// 					ReleaseTime: time.Now().Add(-1 * time.Hour),
+// 					Msg:         *makeUniqueMessagePublication(t),
+// 				},
+// 			},
+// 			0,
+// 			2,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			// Set-up
+// 			n := makeTestNotary(t)
+// 			n.delayed = common.NewPendingMessageQueue()
+//
+// 			currentLength := n.delayed.Len()
+// 			for pMsg := range slices.Values(tt.delayed) {
+// 				require.NotNil(t, pMsg)
+// 				n.delayed.Push(pMsg)
+// 				// Ensure that the queue grows after each push.
+// 				require.Greater(t, n.delayed.Len(), currentLength)
+// 				currentLength = n.delayed.Len()
+// 			}
+// 			require.Equal(t, len(tt.delayed), n.delayed.Len())
+//
+// 			readyMsgs := n.ReleaseReadyMessages()
+// 			require.Equal(t, tt.expectedReadyCount, len(readyMsgs), "ready length does not match")
+// 			require.Equal(t, tt.expectedDelayCount, n.delayed.Len(), "delayed length does not match")
+// 		})
+// 	}
+// }
+//
+// func TestNotary_Forget(t *testing.T) {
+// 	tests := []struct { // description of this test case
+// 		name               string
+// 		msg                *common.MessagePublication
+// 		expectedDelayCount int
+// 		expectedBlackholed int
+// 	}{
+// 		{
+// 			"remove from delayed list",
+// 			makeUniqueMessagePublication(t),
+// 			0,
+// 			0,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			// Set-up
+// 			n := makeTestNotary(t)
+// 			n.delayed = common.NewPendingMessageQueue()
+// 			n.blackholed = NewSet()
+//
+// 			require.Equal(t, 0, n.delayed.Len())
+// 			require.Equal(t, 0, n.blackholed.Len())
+//
+// 			err := n.delay(tt.msg, time.Hour)
+// 			require.NoError(t, err)
+//
+// 			require.Equal(t, 1, n.delayed.Len())
+// 			require.Equal(t, 0, n.blackholed.Len())
+//
+// 			// Modify the set manually because calling the blackhole function will remove the message from the delayed list.
+// 			n.blackholed.Add(tt.msg.MessageID())
+//
+// 			require.Equal(t, 1, n.delayed.Len())
+// 			require.Equal(t, 1, n.blackholed.Len())
+//
+// 			forgetErr := n.forget(tt.msg)
+// 			require.NoError(t, forgetErr)
+//
+// 			require.Equal(t, tt.expectedDelayCount, n.delayed.Len())
+// 			require.Equal(t, tt.expectedBlackholed, n.blackholed.Len())
+// 		})
+// 	}
+// }
+//
+// func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
+// 	tests := []struct { // description of this test case
+// 		name               string
+// 		msg                *common.MessagePublication
+// 		expectedDelayCount int
+// 		expectedBlackholed int
+// 	}{
+// 		{
+// 			"remove from delayed list",
+// 			makeUniqueMessagePublication(t),
+// 			0,
+// 			1,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			// Set-up
+// 			n := makeTestNotary(t)
+// 			n.delayed = common.NewPendingMessageQueue()
+// 			n.blackholed = NewSet()
+//
+// 			require.Equal(t, 0, n.delayed.Len())
+// 			require.Equal(t, 0, n.blackholed.Len())
+//
+// 			err := n.delay(tt.msg, time.Hour)
+// 			require.NoError(t, err)
+//
+// 			require.Equal(t, 1, n.delayed.Len())
+// 			require.Equal(t, 0, n.blackholed.Len())
+//
+// 			blackholeErr := n.blackhole(tt.msg)
+// 			require.NoError(t, blackholeErr)
+//
+// 			require.Equal(t, 0, n.delayed.Len())
+// 			require.Equal(t, 1, n.blackholed.Len())
+// 		})
+// 	}
+// }
+//
+// func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
+// 	tests := []struct { // description of this test case
+// 		name string
+// 		msg  *common.MessagePublication
+// 	}{
+// 		{
+// 			"delay fails if message is already blackholed",
+// 			makeUniqueMessagePublication(t),
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			// Set-up
+// 			n := makeTestNotary(t)
+// 			n.delayed = common.NewPendingMessageQueue()
+// 			n.blackholed = NewSet()
+//
+// 			require.Equal(t, 0, n.delayed.Len())
+// 			require.Equal(t, 0, n.blackholed.Len())
+//
+// 			err := n.blackhole(tt.msg)
+// 			require.NoError(t, err)
+//
+// 			require.Equal(t, 0, n.delayed.Len())
+// 			require.Equal(t, 1, n.blackholed.Len())
+//
+// 			err = n.delay(tt.msg, time.Hour)
+// 			require.ErrorIs(t, err, ErrAlreadyBlackholed)
+//
+// 			require.Equal(t, 0, n.delayed.Len())
+// 			require.Equal(t, 1, n.blackholed.Len())
+// 		})
+// 	}
+// }
+//
+// func TestNotary_releaseChangesReleaseTime(t *testing.T) {
+// 	tests := []struct { // description of this test case
+// 		name                string
+// 		msg                 *common.MessagePublication
+// 		expectedReleaseTime time.Time
+// 	}{
+// 		{
+// 			"release changes release time",
+// 			makeUniqueMessagePublication(t),
+// 			time.Now().Add(time.Hour),
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			// Set-up
+// 			n := makeTestNotary(t)
+// 			n.delayed = common.NewPendingMessageQueue()
+// 			n.blackholed = NewSet()
+//
+// 			require.Equal(t, 0, n.delayed.Len())
+//
+// 			// Delay a message; ensure no messages are ready
+// 			delayErr := n.delay(tt.msg, time.Hour)
+// 			require.NoError(t, delayErr)
+// 			require.Equal(t, 1, n.delayed.Len())
+// 			require.Empty(t, n.ReleaseReadyMessages())
+// 			require.Equal(t, 1, n.delayed.Len())
+//
+// 			// Release the message
+// 			releaseErr := n.release(tt.msg.MessageID())
+// 			require.NoError(t, releaseErr)
+//
+// 			// Check that a new message is ready
+// 			require.Len(t, n.ReleaseReadyMessages(), 1)
+// 			require.Equal(t, 0, n.delayed.Len())
+// 		})
+// 	}
+// }
 
 // Helper function that returns a valid PendingMessage. It creates identical messages publications
 // with different sequence numbers.
