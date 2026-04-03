@@ -1,16 +1,12 @@
 //! Contract initialization logic.
 //!
-//! Handles setup of the Wormhole Core contract via the `__constructor`
-//! function, including guardian set creation, admin configuration, and
-//! governance emitter storage.
+//! Handles setup of the Wormhole Core contract via the `__constructor` function,
+//! including guardian set creation and governance emitter validation.
 //!
 //! This module is only called by the constructor, which is executed atomically
 //! during deployment (Protocol 22+). The runtime guarantees single execution.
 
-use crate::{
-    governance::guardian_set::{set_current_index, store},
-    storage::StorageKey,
-};
+use crate::governance::guardian_set::{set_current_index, store};
 use soroban_sdk::{BytesN, Env, Vec, contractevent};
 use wormhole_soroban_client::*;
 
@@ -31,8 +27,8 @@ struct InitializeEvent {
 
 /// Internal initialization logic called by `__constructor`.
 ///
-/// Sets up the initial guardian set (index 0), configures the contract as its
-/// own admin for upgrades, and stores the governance emitter address.
+/// Sets up the initial guardian set (index 0) and validates the governance
+/// emitter against the protocol constant.
 ///
 /// # Arguments
 /// * `initial_guardians` - Ethereum addresses (20 bytes) of initial guardians
@@ -50,23 +46,10 @@ pub(crate) fn initialize_internal(
         env.panic_with_error(WormholeError::EmptyGuardianSet);
     }
 
-    // Set contract as its own admin for upgrades
-    let contract_address = env.current_contract_address();
-    env.storage()
-        .instance()
-        .set(&StorageKey::Admin, &contract_address);
-
-    // Store governance emitter address
-    env.storage()
-        .persistent()
-        .set(&StorageKey::GovernanceEmitter, &governance_emitter);
-
-    // Extend TTL for governance emitter (it's permanent config)
-    env.storage().persistent().extend_ttl(
-        &StorageKey::GovernanceEmitter,
-        STORAGE_TTL_THRESHOLD,
-        STORAGE_TTL_EXTENSION,
-    );
+    // Reject deployment with wrong governance emitter
+    if governance_emitter.to_array() != GOVERNANCE_EMITTER {
+        env.panic_with_error(WormholeError::InvalidGovernanceEmitter);
+    }
 
     // Create the initial guardian set (always index 0)
     let guardian_set = GuardianSetInfo {
@@ -102,7 +85,7 @@ mod tests {
         let env = Env::default();
         let guardian = BytesN::from_array(&env, &[0u8; 20]);
         let initial_guardians = vec![&env, guardian.clone()];
-        let governance_emitter = BytesN::from_array(&env, &[1u8; 32]);
+        let governance_emitter = BytesN::from_array(&env, &GOVERNANCE_EMITTER);
         let contract_id = env.register(
             Wormhole,
             (initial_guardians.clone(), governance_emitter.clone()),
@@ -110,21 +93,15 @@ mod tests {
         let client = WormholeClient::new(&env, &contract_id);
 
         assert_eq!(client.get_current_guardian_set_index(), 0);
-        assert_eq!(client.get_governance_emitter(), governance_emitter);
+        assert_eq!(
+            client.get_governance_emitter(),
+            BytesN::from_array(&env, &GOVERNANCE_EMITTER)
+        );
         let guardian_set = client.get_guardian_set(&0);
         assert_eq!(guardian_set.keys.len(), 1);
         assert_eq!(guardian_set.keys.get(0).unwrap(), guardian);
 
         assert_eq!(guardian_set.creation_time, env.ledger().timestamp());
-
-        env.as_contract(&contract_id, || {
-            let admin: soroban_sdk::Address = env
-                .storage()
-                .instance()
-                .get(&crate::storage::StorageKey::Admin)
-                .unwrap();
-            assert_eq!(admin, env.current_contract_address());
-        });
     }
 
     #[test]
@@ -139,7 +116,7 @@ mod tests {
             guardian_2.clone(),
             guardian_3.clone(),
         ];
-        let governance_emitter = BytesN::from_array(&env, &[9u8; 32]);
+        let governance_emitter = BytesN::from_array(&env, &GOVERNANCE_EMITTER);
         let contract_id = env.register(Wormhole, (initial_guardians, governance_emitter));
         let client = WormholeClient::new(&env, &contract_id);
 
@@ -155,7 +132,7 @@ mod tests {
     fn test_constructor_rejects_empty_guardians() {
         let env = Env::default();
         let initial_guardians: Vec<BytesN<20>> = Vec::new(&env);
-        let governance_emitter = BytesN::from_array(&env, &[1u8; 32]);
+        let governance_emitter = BytesN::from_array(&env, &GOVERNANCE_EMITTER);
 
         let _ = env.register(Wormhole, (initial_guardians, governance_emitter));
     }
@@ -165,7 +142,7 @@ mod tests {
         let env = Env::default();
         let guardian = BytesN::from_array(&env, &[0u8; 20]);
         let initial_guardians = vec![&env, guardian.clone()];
-        let governance_emitter = BytesN::from_array(&env, &[1u8; 32]);
+        let governance_emitter = BytesN::from_array(&env, &GOVERNANCE_EMITTER);
         let contract_id = env.register(Wormhole, (initial_guardians, governance_emitter));
 
         let all_events = env.events().all();
@@ -173,7 +150,8 @@ mod tests {
         assert_eq!(contract_events.events().len(), 1);
         let chain_id_val: Val = 61u32.into_val(&env);
         let governance_chain_id_val: Val = 1u32.into_val(&env);
-        let governance_emitter_val: Val = BytesN::from_array(&env, &[1u8; 32]).into_val(&env);
+        let governance_emitter_val: Val =
+            BytesN::from_array(&env, &GOVERNANCE_EMITTER).into_val(&env);
         let guardian_count_val: Val = 1u32.into_val(&env);
 
         assert_eq!(

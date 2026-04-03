@@ -22,7 +22,7 @@ use crate::governance::{
 };
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
 use wormhole_soroban_client::{
-    CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GuardianSetInfo,
+    CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, GuardianSetInfo,
     WormholeCoreInterface, WormholeError,
 };
 
@@ -45,8 +45,7 @@ pub struct Wormhole;
 impl Wormhole {
     /// Constructor called atomically during contract deployment.
     ///
-    /// Sets up the initial guardian set (index 0), configures the contract as
-    /// its own admin for governance upgrades, and stores the governance
+    /// Sets up the initial guardian set (index 0) and stores the governance
     /// emitter address.
     ///
     /// # Arguments
@@ -79,6 +78,13 @@ impl WormholeCoreInterface for Wormhole {
         vaa_bytes: Bytes,
     ) -> Result<wormhole_soroban_client::VAA, WormholeError> {
         vaa::parse_vaa(&env, &vaa_bytes)
+    }
+
+    fn parse_and_verify_vaa(
+        env: Env,
+        vaa_bytes: Bytes,
+    ) -> Result<wormhole_soroban_client::VAA, WormholeError> {
+        vaa::parse_and_verify_vaa(&env, &vaa_bytes)
     }
 
     fn submit_contract_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
@@ -143,7 +149,7 @@ impl WormholeCoreInterface for Wormhole {
         token_client.balance(&env.current_contract_address())
     }
 
-    fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
+    fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<bool, WormholeError> {
         governance::is_governance_vaa_consumed(env, vaa_bytes)
     }
 
@@ -156,11 +162,7 @@ impl WormholeCoreInterface for Wormhole {
     }
 
     fn get_governance_emitter(env: Env) -> BytesN<32> {
-        // Constructor guarantees this is always set
-        env.storage()
-            .persistent()
-            .get(&storage::StorageKey::GovernanceEmitter)
-            .expect("governance emitter not set")
+        BytesN::from_array(&env, &GOVERNANCE_EMITTER)
     }
 }
 
@@ -176,7 +178,7 @@ mod tests {
     fn deploy_initialized(env: &Env) -> (Address, WormholeClient<'_>) {
         let guardian = BytesN::<20>::from_array(env, &[0u8; 20]);
         let initial_guardians = vec![env, guardian];
-        let governance_emitter = BytesN::<32>::from_array(env, &[1u8; 32]);
+        let governance_emitter = BytesN::<32>::from_array(env, &GOVERNANCE_EMITTER);
         let contract_id = env.register(Wormhole, (initial_guardians, governance_emitter));
         let client = WormholeClient::new(env, &contract_id);
         (contract_id, client)
@@ -218,14 +220,11 @@ mod tests {
     }
 
     #[test]
-    fn test_get_governance_emitter_roundtrip() {
+    fn test_get_governance_emitter_returns_const() {
         let env = Env::default();
-        let guardian = BytesN::<20>::from_array(&env, &[0u8; 20]);
-        let initial_guardians = vec![&env, guardian];
-        let governance_emitter = BytesN::<32>::from_array(&env, &[9u8; 32]);
-        let contract_id = env.register(Wormhole, (initial_guardians, governance_emitter.clone()));
-        let client = WormholeClient::new(&env, &contract_id);
-        assert_eq!(client.get_governance_emitter(), governance_emitter);
+        let (_contract_id, client) = deploy_initialized(&env);
+        let expected = BytesN::<32>::from_array(&env, &GOVERNANCE_EMITTER);
+        assert_eq!(client.get_governance_emitter(), expected);
     }
 
     #[test]

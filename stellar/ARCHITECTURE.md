@@ -196,7 +196,6 @@ All governance actions follow the same pattern:
 | `GOVERNANCE_CHAIN_ID` | 1 | Solana (governance source) |
 | `GOVERNANCE_EMITTER` | `0x...04` | Authorized governance address |
 | `GUARDIAN_SET_EXPIRATION_TIME` | 86,400s | 24 hours grace period |
-| `MINIMUM_CONTRACT_BALANCE` | 10^7 stroops | 1 XLM minimum |
 | `STORAGE_TTL_THRESHOLD` | 100,000 | ~5.8 days |
 | `STORAGE_TTL_EXTENSION` | 1,000,000 | ~58 days |
 
@@ -212,11 +211,6 @@ All governance actions follow the same pattern:
 - Sets can only upgrade sequentially (n → n+1)
 - Old sets expire after 24 hours (grace period for in-flight VAAs)
 - Cannot overwrite existing sets
-
-### Balance Protection
-
-- Contract must maintain ≥1 XLM to prevent Stellar account deallocation
-- Fee transfers validate remaining balance
 
 ## Error Handling
 

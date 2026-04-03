@@ -140,6 +140,12 @@ pub fn post_message_with_fee(
     let required_fee = governance::get_message_fee(env);
 
     if required_fee > 0 {
+        env.storage().persistent().extend_ttl(
+            &StorageKey::MessageFee,
+            STORAGE_TTL_THRESHOLD,
+            STORAGE_TTL_EXTENSION,
+        );
+
         let native_token = get_native_token_address(env);
         let token_client = token::TokenClient::new(env, &native_token);
         let contract = env.current_contract_address();
@@ -203,11 +209,12 @@ mod tests {
 
     use super::*;
     use crate::{Wormhole, WormholeClient};
+    use wormhole_soroban_client::GOVERNANCE_EMITTER;
 
     fn deploy_initialized(env: &Env) -> (Address, WormholeClient<'_>) {
         let guardian = BytesN::from_array(env, &[0u8; 20]);
         let initial_guardians = vec![env, guardian];
-        let governance_emitter = BytesN::from_array(env, &[1u8; 32]);
+        let governance_emitter = BytesN::from_array(env, &GOVERNANCE_EMITTER);
         let contract_id = env.register(Wormhole, (initial_guardians, governance_emitter));
         let client = WormholeClient::new(env, &contract_id);
         (contract_id, client)

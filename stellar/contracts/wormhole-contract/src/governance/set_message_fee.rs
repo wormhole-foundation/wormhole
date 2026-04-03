@@ -53,6 +53,10 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for SetMessageFeePayload {
         reader.skip(U256_PADDING_BYTES)?;
         let fee = reader.read_u64_be()?;
 
+        if reader.remaining() != 0 {
+            return Err(WormholeError::InvalidPayload);
+        }
+
         Ok(SetMessageFeePayload {
             module,
             action,
@@ -115,7 +119,7 @@ mod tests {
     use super::*;
     use crate::Wormhole;
     use soroban_sdk::{Bytes, BytesN, IntoVal, Symbol, testutils::Events, vec};
-    use wormhole_soroban_client::{CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, MODULE_CORE};
+    use wormhole_soroban_client::{CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE};
 
     fn build_payload(env: &Env, module: [u8; 32], action: u8, chain: u16, fee: u64) -> Bytes {
         let mut payload = Bytes::new(env);
@@ -130,7 +134,7 @@ mod tests {
     fn deploy_initialized(env: &Env) -> soroban_sdk::Address {
         let guardian = BytesN::<20>::from_array(env, &[0u8; 20]);
         let initial_guardians = vec![env, guardian];
-        let governance_emitter = BytesN::<32>::from_array(env, &[1u8; 32]);
+        let governance_emitter = BytesN::<32>::from_array(env, &GOVERNANCE_EMITTER);
         env.register(Wormhole, (initial_guardians, governance_emitter))
     }
 

@@ -1,8 +1,6 @@
 //! Transfer fees governance action (`ACTION_TRANSFER_FEES`, value 4).
 //!
 //! Allows guardians to withdraw accumulated message fees from the contract.
-//! Validates that sufficient balance remains (≥1 XLM) to prevent Stellar
-//! account deallocation.
 
 use crate::{
     governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
@@ -12,7 +10,7 @@ use crate::{
 use core::convert::TryFrom;
 use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
 use wormhole_soroban_client::{
-    ACTION_TRANSFER_FEES, BytesReader, MINIMUM_CONTRACT_BALANCE, STORAGE_TTL_EXTENSION,
+    ACTION_TRANSFER_FEES, BytesReader, STORAGE_TTL_EXTENSION,
     STORAGE_TTL_THRESHOLD, TRANSFER_FEES_PAYLOAD_MIN_LENGTH, U256_PADDING_BYTES, VAA,
     WormholeError,
 };
@@ -65,6 +63,10 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for TransferFeesPayload {
         let recipient_pk_bytes: BytesN<32> = reader.read_bytes_n::<32>()?;
         let recipient = address_from_ed25519_pk_bytes(env, &recipient_pk_bytes);
 
+        if reader.remaining() != 0 {
+            return Err(WormholeError::InvalidPayload);
+        }
+
         Ok(TransferFeesPayload {
             module,
             action,
@@ -85,11 +87,6 @@ impl TransferFeesPayload {
         let current_balance = u64::try_from(token_client.balance(&contract_address)).unwrap_or(0);
 
         if self.amount > current_balance {
-            return Err(WormholeError::InsufficientFees);
-        }
-
-        let remaining_balance = current_balance.saturating_sub(self.amount);
-        if remaining_balance < MINIMUM_CONTRACT_BALANCE {
             return Err(WormholeError::InsufficientFees);
         }
 
@@ -156,9 +153,7 @@ mod tests {
         contracttype,
         testutils::{Address as TestAddress, Events, Ledger},
     };
-    use wormhole_soroban_client::{
-        CHAIN_ID_STELLAR, MINIMUM_CONTRACT_BALANCE, MODULE_CORE, NATIVE_TOKEN_ADDRESS,
-    };
+    use wormhole_soroban_client::{CHAIN_ID_STELLAR, GOVERNANCE_EMITTER, MODULE_CORE, NATIVE_TOKEN_ADDRESS};
 
     #[contracttype]
     #[derive(Clone)]
@@ -205,7 +200,7 @@ mod tests {
     fn deploy_initialized(env: &Env) -> Address {
         let guardian = BytesN::<20>::from_array(env, &[0u8; 20]);
         let initial_guardians = soroban_sdk::vec![env, guardian];
-        let governance_emitter = BytesN::<32>::from_array(env, &[1u8; 32]);
+        let governance_emitter = BytesN::<32>::from_array(env, &GOVERNANCE_EMITTER);
         env.register(Wormhole, (initial_guardians, governance_emitter))
     }
 
@@ -309,26 +304,6 @@ mod tests {
     }
 
     #[test]
-    fn test_transfer_fees_validate_rejects_minimum_balance_violation() {
-        let env = Env::default();
-        let (_native_addr, native_client) = install_native_token_mock(&env);
-        let contract_id = deploy_initialized(&env);
-        env.as_contract(&contract_id, || {
-            native_client.set_balance(&contract_id, &(5 * 10_000_000i128));
-            let recipient = <Address as TestAddress>::generate(&env);
-            let payload = TransferFeesPayload {
-                module: BytesN::from_array(&env, &MODULE_CORE),
-                action: ACTION_TRANSFER_FEES,
-                chain: CHAIN_ID_STELLAR,
-                amount: 5 * 10_000_000,
-                recipient,
-            };
-            let res = payload.validate(&env);
-            assert_eq!(res, Err(WormholeError::InsufficientFees));
-        });
-    }
-
-    #[test]
     fn test_transfer_fees_execute_moves_balance_sets_timestamp_and_emits_event() {
         let env = Env::default();
         env.ledger().set_timestamp(12345);
@@ -387,8 +362,5 @@ mod tests {
                 )
             ]
         );
-
-        // Sanity check critical floor constant is meaningful in this test.
-        assert_eq!(MINIMUM_CONTRACT_BALANCE, 10_000_000);
     }
 }

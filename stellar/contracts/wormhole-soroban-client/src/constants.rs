@@ -58,14 +58,7 @@ pub const ACTION_SET_MESSAGE_FEE: u8 = 3;
 /// Action ID for transferring accumulated fees (governance action 4).
 pub const ACTION_TRANSFER_FEES: u8 = 4;
 
-// ========== Balance & Token Constants ==========
-
-/// Minimum XLM balance the contract must retain (1 XLM = 10^7 stroops).
-///
-/// Stellar accounts are deallocated if their balance drops below the base
-/// reserve. This constant ensures fee transfers never drain the contract below
-/// a safe threshold.
-pub const MINIMUM_CONTRACT_BALANCE: u64 = 10_000_000;
+// ========== Token Constants ==========
 
 /// Native XLM token symbol for Stellar Asset Contract.
 pub const NATIVE_TOKEN_SYMBOL: &str = "native";

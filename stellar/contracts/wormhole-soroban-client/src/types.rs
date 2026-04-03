@@ -174,6 +174,9 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
         let mut reader = BytesReader::new(vaa_bytes);
 
         let version = u32::from(reader.read_u8()?);
+        if version != 1 {
+            return Err(WormholeError::InvalidVAAFormat);
+        }
         let guardian_set_index = reader.read_u32_be()?;
         let num_signatures = u32::from(reader.read_u8()?);
 

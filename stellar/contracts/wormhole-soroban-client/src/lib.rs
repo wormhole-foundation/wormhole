@@ -89,6 +89,26 @@ pub trait WormholeCoreInterface {
     /// * `Error::InvalidVAAFormat` - Malformed VAA bytes
     fn parse_vaa(env: Env, vaa_bytes: Bytes) -> Result<VAA, WormholeError>;
 
+    /// Parse and verify a VAA in a single call.
+    ///
+    /// Equivalent to calling `verify_vaa` then `parse_vaa`, but parses the
+    /// VAA only once. This is the recommended entry point for integrators
+    /// who need both the parsed structure and signature verification.
+    ///
+    /// # Arguments
+    /// * `vaa_bytes` - Serialized VAA bytes
+    ///
+    /// # Returns
+    /// Parsed and verified VAA structure
+    ///
+    /// # Errors
+    /// * `Error::InvalidVAAFormat` - Malformed VAA bytes
+    /// * `Error::GuardianSetNotFound` - Guardian set not found
+    /// * `Error::GuardianSetExpired` - Guardian set has expired
+    /// * `Error::InsufficientSignatures` - Not enough signatures for quorum
+    /// * `Error::InvalidSignature` - Invalid guardian signature
+    fn parse_and_verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<VAA, WormholeError>;
+
     // ========== Governance Actions ==========
 
     /// Submit a contract upgrade governance VAA.
@@ -247,7 +267,7 @@ pub trait WormholeCoreInterface {
     ///
     /// # Errors
     /// * `Error::InvalidVAAFormat` - Malformed VAA bytes
-    fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
+    fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<bool, WormholeError>;
 
     // ========== Protocol Constants ==========
 

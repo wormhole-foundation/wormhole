@@ -52,6 +52,10 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for ContractUpgradePayload {
         let (module, action, chain) = parse_governance_header(env, &mut reader)?;
         let new_contract_hash = reader.read_bytes_n::<32>()?;
 
+        if reader.remaining() != 0 {
+            return Err(WormholeError::InvalidPayload);
+        }
+
         Ok(ContractUpgradePayload {
             module,
             action,
@@ -180,7 +184,7 @@ mod tests {
             Wormhole,
             (
                 vec![&env, BytesN::<20>::from_array(&env, &[0u8; 20])],
-                BytesN::<32>::from_array(&env, &[1u8; 32]),
+                BytesN::<32>::from_array(&env, &wormhole_soroban_client::GOVERNANCE_EMITTER),
             ),
         );
 

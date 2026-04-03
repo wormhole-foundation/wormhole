@@ -4,12 +4,12 @@
 //! implement, providing a standard flow: verify VAA → check replay → parse
 //! payload → validate → consume → execute.
 
-use crate::{storage::StorageKey, utils::keccak256_hash, vaa::verify_vaa};
+use crate::{storage::StorageKey, utils::keccak256_hash, vaa::verify_vaa_signatures};
 use core::convert::TryFrom;
 use soroban_sdk::{Bytes, BytesN, Env};
 use wormhole_soroban_client::{
-    BytesReader, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE,
-    STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, VAA, WormholeError,
+    BytesReader, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE, VAA,
+    WormholeError,
 };
 
 /// Trait for implementing Wormhole governance actions.
@@ -72,7 +72,7 @@ fn verify_and_hash_governance_vaa(
 ) -> Result<(VAA, BytesN<32>), WormholeError> {
     let vaa = VAA::try_from((env, vaa_bytes))?;
     verify_governance_vaa(&vaa)?;
-    verify_vaa(env, vaa_bytes)?;
+    verify_vaa_signatures(&vaa, env)?;
 
     let body_bytes = vaa.serialize_body(env);
     let vaa_hash = keccak256_hash(env, &body_bytes);
@@ -96,16 +96,14 @@ fn require_vaa_not_consumed(env: &Env, hash: &BytesN<32>) -> Result<(), Wormhole
 }
 
 /// Marks a VAA as consumed to prevent replay attacks.
+///
+/// Uses persistent storage, which is archived (not deleted) on TTL expiry.
+/// An attacker replaying a VAA whose entry was archived must first restore
+/// it via `RestoreFootprint`, at which point the consumed flag blocks replay.
 fn consume_vaa(env: &Env, hash: &BytesN<32>) {
     env.storage()
         .persistent()
         .set(&StorageKey::ConsumedGovernanceVAA(hash.clone()), &true);
-
-    env.storage().persistent().extend_ttl(
-        &StorageKey::ConsumedGovernanceVAA(hash.clone()),
-        STORAGE_TTL_THRESHOLD,
-        STORAGE_TTL_EXTENSION,
-    );
 }
 
 /// Checks if a governance VAA has been consumed without full verification.
@@ -178,7 +176,7 @@ mod tests {
 
     fn deploy_with_guardian(env: &Env, guardian_eth: BytesN<20>) -> soroban_sdk::Address {
         let initial_guardians = vec![env, guardian_eth];
-        let governance_emitter = BytesN::<32>::from_array(env, &[1u8; 32]);
+        let governance_emitter = BytesN::<32>::from_array(env, &GOVERNANCE_EMITTER);
         env.register(Wormhole, (initial_guardians, governance_emitter))
     }
 
@@ -384,7 +382,7 @@ mod tests {
             Wormhole,
             (
                 vec![&env, BytesN::<20>::from_array(&env, &[0u8; 20])],
-                BytesN::<32>::from_array(&env, &[1u8; 32]),
+                BytesN::<32>::from_array(&env, &GOVERNANCE_EMITTER),
             ),
         );
         let body = Bytes::from_slice(&env, &[1u8; 51]);
