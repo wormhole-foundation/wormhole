@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"net/url"
 	"strings"
 	"testing"
@@ -98,6 +99,16 @@ func (gov *ChainGovernor) setChainForTesting(
 	}
 
 	gov.chains[emitterChainId] = ce
+
+	// Rebuild the sorted chainIds slice so that checkPendingForTime iterates correctly.
+	gov.chainIds = make([]vaa.ChainID, 0, len(gov.chains))
+	for id := range gov.chains {
+		gov.chainIds = append(gov.chainIds, id)
+	}
+	sort.Slice(gov.chainIds, func(i, j int) bool {
+		return gov.chainIds[i] < gov.chainIds[j]
+	})
+
 	return nil
 }
 
