@@ -267,6 +267,7 @@ export async function transferAptos(
     token_bridge,
     tokenAddress === "native" ? "0x1::aptos_coin::AptosCoin" : tokenAddress,
     amount,
+    // @ts-ignore: legacy chain ids
     toChainId(dstChain),
     tryNativeToUint8Array(dstAddress, toChainId(dstChain))
   );

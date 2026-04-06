@@ -24,7 +24,7 @@ import {
 } from "../../consts";
 import { YargsAddCommandsFn } from "../Yargs";
 import { getNetwork } from "../../utils";
-import { Network } from "@wormhole-foundation/sdk";
+import { Network } from "@wormhole-foundation/sdk-base";
 
 export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y

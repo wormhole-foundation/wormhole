@@ -22,9 +22,11 @@ import {
 import {
   Chain,
   Network,
-  VAA,
   assertChain,
   contracts,
+} from "@wormhole-foundation/sdk-base";
+import {
+  VAA,
   deserialize,
 } from "@wormhole-foundation/sdk";
 import { getForeignAssetSui } from "../../sdk/sui";
