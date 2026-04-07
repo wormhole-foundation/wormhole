@@ -21,6 +21,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const httpClientTimeout = 30 * time.Second
+
 /// OVERVIEW
 // The Stacks watcher monitors the Stacks blockchain for cross-chain Wormhole message events.
 // It uses Bitcoin blocks (burn blocks) as the anchor point for confirmation and processes
@@ -86,7 +88,7 @@ func NewWatcher(
 		rpcURL:                   rpcURL,
 		rpcAuthToken:             rpcAuthToken,
 		stateContract:            contract,
-		httpClient:               &http.Client{Timeout: 30 * time.Second},
+		httpClient:               &http.Client{Timeout: httpClientTimeout},
 		bitcoinBlockPollInterval: bitcoinBlockPollInterval,
 		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
