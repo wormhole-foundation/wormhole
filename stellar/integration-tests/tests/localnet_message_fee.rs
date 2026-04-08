@@ -154,17 +154,7 @@ fn integration_set_message_fee_and_required_fee() {
     );
 
     println!("Verifying balance changes...");
-    let contract_balance = ctx.invoke(
-        &ctx.admin_identity,
-        &contract_id,
-        "get_contract_balance",
-        &[],
-    );
-    let contract_balance = contract_balance
-        .trim()
-        .trim_matches('"')
-        .parse::<i128>()
-        .expect("Failed to parse contract balance");
+    let contract_balance = ctx.get_balance(&native_token, &contract_id);
     assert!(
         contract_balance >= new_fee as i128,
         "Contract balance should have increased"

@@ -131,22 +131,8 @@ impl WormholeCoreInterface for Wormhole {
         message::get_emitter_sequence(&env, &emitter)
     }
 
-    fn get_posted_message_hash(env: Env, emitter: Address, sequence: u64) -> Option<BytesN<32>> {
-        message::get_posted_message_hash(&env, &emitter, sequence)
-    }
-
     fn get_message_fee(env: Env) -> u64 {
         governance::get_message_fee(&env)
-    }
-
-    fn get_last_fee_transfer(env: Env) -> Option<u64> {
-        governance::get_last_fee_transfer(&env)
-    }
-
-    fn get_contract_balance(env: Env) -> i128 {
-        let native_token_address = utils::get_native_token_address(&env);
-        let token_client = soroban_sdk::token::TokenClient::new(&env, &native_token_address);
-        token_client.balance(&env.current_contract_address())
     }
 
     fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<bool, WormholeError> {
@@ -287,10 +273,9 @@ mod tests {
     }
 
     #[test]
-    fn test_get_last_fee_transfer_default_none_and_guardian_expiry_none() {
+    fn test_guardian_set_expiry_default_none() {
         let env = Env::default();
         let (_contract_id, client) = deploy_initialized(&env);
-        assert_eq!(client.get_last_fee_transfer(), None);
         assert_eq!(client.get_guardian_set_expiry(&0), None);
     }
 }

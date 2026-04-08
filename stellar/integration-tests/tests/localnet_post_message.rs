@@ -52,18 +52,6 @@ fn integration_post_message_no_fee_flow() {
         .expect("Failed to parse next sequence");
     assert_eq!(next_sequence, 1, "Next sequence should be 1");
 
-    let hash_out = ctx.invoke(
-        &ctx.admin_identity,
-        &contract_id,
-        "get_posted_message_hash",
-        &["--emitter", &emitter_addr, "--sequence", "0"],
-    );
-    assert!(
-        !hash_out.trim().is_empty() && hash_out.trim() != "void",
-        "Message hash should not be empty"
-    );
-    println!("Message hash: {}", hash_out.trim());
-
     // Fetch events via RPC
     let found_event = find_event(
         &ctx.rpc_url,

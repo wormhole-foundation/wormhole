@@ -43,17 +43,7 @@ fn integration_transfer_fees_flow() {
         ],
     );
 
-    let contract_balance = ctx.invoke(
-        &ctx.admin_identity,
-        &contract_id,
-        "get_contract_balance",
-        &[],
-    );
-    let contract_balance = contract_balance
-        .trim()
-        .trim_matches('"')
-        .parse::<i128>()
-        .expect("Failed to parse contract balance");
+    let contract_balance = ctx.get_balance(&native_token, &contract_id);
     assert!(contract_balance >= fund_amount, "Contract should be funded");
     println!("Contract balance: {} stroops", contract_balance);
 
@@ -100,17 +90,7 @@ fn integration_transfer_fees_flow() {
     );
 
     println!("Verifying balance changes...");
-    let new_contract_balance = ctx.invoke(
-        &ctx.admin_identity,
-        &contract_id,
-        "get_contract_balance",
-        &[],
-    );
-    let new_contract_balance = new_contract_balance
-        .trim()
-        .trim_matches('"')
-        .parse::<i128>()
-        .expect("Failed to parse new contract balance");
+    let new_contract_balance = ctx.get_balance(&native_token, &contract_id);
     assert_eq!(
         new_contract_balance,
         contract_balance - transfer_amount as i128,
@@ -124,18 +104,6 @@ fn integration_transfer_fees_flow() {
         "Recipient balance should have increased"
     );
     println!("Balances verified successfully.");
-
-    // Verify get_last_fee_transfer and event
-    let last_transfer_out = ctx.invoke(
-        &ctx.admin_identity,
-        &contract_id,
-        "get_last_fee_transfer",
-        &[],
-    );
-    assert!(
-        !last_transfer_out.contains("void") && !last_transfer_out.trim().is_empty(),
-        "Last fee transfer should have a timestamp"
-    );
 
     println!("Verifying event via RPC...");
     let found_event = find_event(

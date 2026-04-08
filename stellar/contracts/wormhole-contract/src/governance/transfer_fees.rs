@@ -4,14 +4,12 @@
 
 use crate::{
     governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
-    storage::StorageKey,
     utils::{address_from_ed25519_pk_bytes, get_native_token_address},
 };
 use core::convert::TryFrom;
 use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
 use wormhole_soroban_client::{
-    ACTION_TRANSFER_FEES, BytesReader, STORAGE_TTL_EXTENSION,
-    STORAGE_TTL_THRESHOLD, TRANSFER_FEES_PAYLOAD_MIN_LENGTH, U256_PADDING_BYTES, VAA,
+    ACTION_TRANSFER_FEES, BytesReader, TRANSFER_FEES_PAYLOAD_MIN_LENGTH, U256_PADDING_BYTES, VAA,
     WormholeError,
 };
 
@@ -94,23 +92,6 @@ impl TransferFeesPayload {
     }
 }
 
-/// Returns the timestamp of the most recent fee transfer, if any.
-pub fn get_last_fee_transfer(env: &Env) -> Option<u64> {
-    env.storage().persistent().get(&StorageKey::LastFeeTransfer)
-}
-
-fn set_last_fee_transfer(env: &Env, timestamp: u64) {
-    env.storage()
-        .persistent()
-        .set(&StorageKey::LastFeeTransfer, &timestamp);
-
-    env.storage().persistent().extend_ttl(
-        &StorageKey::LastFeeTransfer,
-        STORAGE_TTL_THRESHOLD,
-        STORAGE_TTL_EXTENSION,
-    );
-}
-
 /// Governance action handler for fee transfers.
 pub struct TransferFeesAction;
 
@@ -131,8 +112,6 @@ impl GovernanceAction for TransferFeesAction {
             &payload.recipient,
             &i128::from(payload.amount),
         );
-
-        set_last_fee_transfer(env, env.ledger().timestamp());
 
         FeeTransferEvent {
             amount: payload.amount,
@@ -304,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_transfer_fees_execute_moves_balance_sets_timestamp_and_emits_event() {
+    fn test_transfer_fees_execute_moves_balance_and_emits_event() {
         let env = Env::default();
         env.ledger().set_timestamp(12345);
         let (_native_addr, native_client) = install_native_token_mock(&env);
@@ -336,7 +315,6 @@ mod tests {
 
             assert_eq!(native_client.balance(&contract_id), 15 * 10_000_000i128);
             assert_eq!(native_client.balance(&recipient), 5 * 10_000_000i128);
-            assert_eq!(get_last_fee_transfer(&env), Some(12345));
         });
 
         let events = env.events().all().filter_by_contract(&contract_id);

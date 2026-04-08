@@ -7,15 +7,10 @@ use soroban_sdk::{
     Address, Bytes, BytesN, Env, address_payload::AddressPayload, contractevent, token,
 };
 use wormhole_soroban_client::{
-    CHAIN_ID_STELLAR, ConsistencyLevel, PostedMessageData, STORAGE_TTL_EXTENSION,
-    STORAGE_TTL_THRESHOLD, WormholeError,
+    ConsistencyLevel, STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, WormholeError,
 };
 
-use crate::{
-    governance,
-    storage::StorageKey,
-    utils::{get_native_token_address, keccak256_hash},
-};
+use crate::{governance, storage::StorageKey, utils::get_native_token_address};
 
 /// Emitted when a cross-chain message is posted successfully.
 ///
@@ -36,58 +31,12 @@ struct MessagePublishedEvent {
     consistency_level: ConsistencyLevel,
 }
 
-/// Serializes message data to bytes for hashing (51-byte header + payload).
-fn serialize_posted_message(
-    message: &PostedMessageData,
-    env: &Env,
-) -> Result<Bytes, WormholeError> {
-    // Build fixed-size header as a single array (51 bytes)
-    let mut header = [0u8; 51];
-    let mut offset = 0;
-
-    // timestamp (4 bytes, big-endian)
-    header[offset..offset + 4].copy_from_slice(&message.timestamp.to_be_bytes());
-    offset += 4;
-
-    // nonce (4 bytes, big-endian)
-    header[offset..offset + 4].copy_from_slice(&message.nonce.to_be_bytes());
-    offset += 4;
-
-    // emitter_chain (2 bytes, big-endian u16)
-    header[offset..offset + 2].copy_from_slice(&(message.emitter_chain as u16).to_be_bytes());
-    offset += 2;
-
-    // emitter_address (32 bytes)
-    header[offset..offset + 32].copy_from_slice(&message.emitter_address.to_array());
-    offset += 32;
-
-    // sequence (8 bytes, big-endian)
-    header[offset..offset + 8].copy_from_slice(&message.sequence.to_be_bytes());
-    offset += 8;
-
-    // consistency_level (1 byte)
-    header[offset] = message.consistency_level as u8;
-
-    // Create Bytes from header and append payload in a single operation
-    let mut bytes = Bytes::from_array(env, &header);
-    bytes.append(&message.payload);
-
-    Ok(bytes)
-}
-
 /// Returns the next sequence number for an emitter (0 if never used).
 pub fn get_emitter_sequence(env: &Env, emitter: &Address) -> u64 {
     env.storage()
         .persistent()
         .get(&StorageKey::EmitterSequence(emitter.clone()))
         .unwrap_or(0)
-}
-
-/// Retrieves a previously posted message's hash by emitter and sequence.
-pub fn get_posted_message_hash(env: &Env, emitter: &Address, sequence: u64) -> Option<BytesN<32>> {
-    env.storage()
-        .persistent()
-        .get(&StorageKey::PostedMessage(emitter.clone(), sequence))
 }
 
 /// Atomically increments and returns the current sequence for an emitter.
@@ -107,25 +56,11 @@ fn next_emitter_sequence(env: &Env, emitter: &Address) -> u64 {
     current
 }
 
-/// Persists a message hash keyed by (emitter, sequence).
-fn store_posted_message(env: &Env, emitter: &Address, sequence: u64, message_hash: &BytesN<32>) {
-    env.storage().persistent().set(
-        &StorageKey::PostedMessage(emitter.clone(), sequence),
-        message_hash,
-    );
-
-    env.storage().persistent().extend_ttl(
-        &StorageKey::PostedMessage(emitter.clone(), sequence),
-        STORAGE_TTL_THRESHOLD,
-        STORAGE_TTL_EXTENSION,
-    );
-}
-
 /// Posts a cross-chain message with optional fee collection.
 ///
 /// Collects the configured message fee (if any) via `transfer_from`, assigns
-/// a sequence number, hashes and stores the message, then emits a
-/// `MessagePublishedEvent` for guardian observation.
+/// a sequence number, then emits a `MessagePublishedEvent` for guardian
+/// observation.
 ///
 /// # Errors
 ///
@@ -169,21 +104,6 @@ pub fn post_message_with_fee(
         Some(AddressPayload::ContractIdHash(contract_id)) => contract_id,
         _ => return Err(WormholeError::InvalidEmitterAddress),
     };
-
-    let message_data = PostedMessageData {
-        timestamp: u32::try_from(env.ledger().timestamp()).unwrap_or(0),
-        nonce,
-        emitter_chain: u32::from(CHAIN_ID_STELLAR),
-        emitter_address: emitter_bytes.clone(),
-        sequence,
-        consistency_level,
-        payload: payload.clone(),
-    };
-
-    let message_bytes = serialize_posted_message(&message_data, env)?;
-    let hash_bytes = keccak256_hash(env, &message_bytes);
-
-    store_posted_message(env, emitter, sequence, &hash_bytes);
 
     MessagePublishedEvent {
         nonce,
@@ -275,14 +195,10 @@ mod tests {
 
         env.mock_all_auths();
 
-        // `post_message` only accepts contract emitters.
         let emitter = contract_id.clone();
         let nonce = runtime_test_nonce(&env);
         let payload = Bytes::from_array(&env, &[0xAA, 0xBB, 0xCC]);
         let cl = ConsistencyLevel::Confirmed;
-
-        let ts_u32 = u32::try_from(env.ledger().timestamp()).unwrap_or(0);
-        let emitter_bytes32 = address_to_bytes32(&emitter);
 
         let seq0 = client.post_message(&emitter, &nonce, &payload, &cl);
         assert_eq!(seq0, 0);
@@ -290,29 +206,6 @@ mod tests {
         let events = env.events().all().filter_by_contract(&contract_id);
         assert_eq!(events.events().len(), 1);
         assert_eq!(client.get_emitter_sequence(&emitter), 1);
-
-        let stored_hash0 = client
-            .get_posted_message_hash(&emitter, &0)
-            .expect("missing hash");
-
-        let mut header = [0u8; 51];
-        let mut off = 0usize;
-        header[off..off + 4].copy_from_slice(&ts_u32.to_be_bytes());
-        off += 4;
-        header[off..off + 4].copy_from_slice(&nonce.to_be_bytes());
-        off += 4;
-        header[off..off + 2].copy_from_slice(&CHAIN_ID_STELLAR.to_be_bytes());
-        off += 2;
-        header[off..off + 32].copy_from_slice(&emitter_bytes32.to_array());
-        off += 32;
-        header[off..off + 8].copy_from_slice(&0u64.to_be_bytes());
-        off += 8;
-        header[off] = cl as u8;
-
-        let mut msg_bytes = Bytes::from_array(&env, &header);
-        msg_bytes.append(&payload);
-        let expected_hash0 = keccak256_hash(&env, &msg_bytes);
-        assert_eq!(stored_hash0, expected_hash0);
 
         let seq1 = client.post_message(&emitter, &nonce, &payload, &cl);
         assert_eq!(seq1, 1);
@@ -396,7 +289,6 @@ mod tests {
         );
         assert_eq!(res, Err(Ok(WormholeError::InsufficientFeePaid)));
         assert_eq!(client.get_emitter_sequence(&emitter), 0);
-        assert!(client.get_posted_message_hash(&emitter, &0).is_none());
     }
 
     #[test]
@@ -450,44 +342,4 @@ mod tests {
         assert_eq!(client.get_emitter_sequence(&emitter), 3);
     }
 
-    #[test]
-    fn test_posted_message_hash_stored() {
-        let env = Env::default();
-        let (contract_id, client) = deploy_initialized(&env);
-        env.mock_all_auths();
-
-        let emitter = contract_id.clone();
-        let nonce = runtime_test_nonce(&env);
-        let payload = Bytes::from_array(&env, &[0xAA, 0xBB, 0xCC]);
-        let cl = ConsistencyLevel::Confirmed;
-        let ts_u32 = u32::try_from(env.ledger().timestamp()).unwrap_or(0);
-
-        let seq = client.post_message(&emitter, &nonce, &payload, &cl);
-        assert_eq!(seq, 0);
-
-        let stored = client
-            .get_posted_message_hash(&emitter, &seq)
-            .expect("missing stored hash");
-        let emitter_bytes32 = address_to_bytes32(&emitter);
-
-        let mut header = [0u8; 51];
-        let mut off = 0usize;
-        header[off..off + 4].copy_from_slice(&ts_u32.to_be_bytes());
-        off += 4;
-        header[off..off + 4].copy_from_slice(&nonce.to_be_bytes());
-        off += 4;
-        header[off..off + 2].copy_from_slice(&CHAIN_ID_STELLAR.to_be_bytes());
-        off += 2;
-        header[off..off + 32].copy_from_slice(&emitter_bytes32.to_array());
-        off += 32;
-        header[off..off + 8].copy_from_slice(&seq.to_be_bytes());
-        off += 8;
-        header[off] = cl as u8;
-
-        let mut msg_bytes = Bytes::from_array(&env, &header);
-        msg_bytes.append(&payload);
-        let expected = keccak256_hash(&env, &msg_bytes);
-
-        assert_eq!(stored, expected);
-    }
 }

@@ -84,9 +84,6 @@ fn get_guardian_set(env: Env, index: u32) -> Result<GuardianSetInfo, WormholeErr
 fn get_guardian_set_expiry(env: Env, index: u32) -> Option<u64>;
 fn get_message_fee(env: Env) -> u64;
 fn get_emitter_sequence(env: Env, emitter: Address) -> u64;
-fn get_posted_message_hash(env: Env, emitter: Address, sequence: u64) -> Option<BytesN<32>>;
-fn get_last_fee_transfer(env: Env) -> Option<u64>;
-fn get_contract_balance(env: Env) -> i128;
 fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
 fn get_chain_id() -> u32;
 fn get_governance_chain_id() -> u32;

@@ -229,33 +229,11 @@ pub trait WormholeCoreInterface {
     /// Next sequence number for the emitter
     fn get_emitter_sequence(env: Env, emitter: Address) -> u64;
 
-    /// Get the hash of a posted message by emitter and sequence number.
-    ///
-    /// # Arguments
-    /// * `emitter` - Emitter address
-    /// * `sequence` - Message sequence number
-    ///
-    /// # Returns
-    /// Message hash, or None if not found
-    fn get_posted_message_hash(env: Env, emitter: Address, sequence: u64) -> Option<BytesN<32>>;
-
     /// Get the current message fee in stroops (10^-7 XLM).
     ///
     /// # Returns
     /// Message fee in stroops
     fn get_message_fee(env: Env) -> u64;
-
-    /// Get the timestamp of the last fee transfer.
-    ///
-    /// # Returns
-    /// Timestamp of last transfer, or None if never transferred
-    fn get_last_fee_transfer(env: Env) -> Option<u64>;
-
-    /// Get the contract's current XLM balance.
-    ///
-    /// # Returns
-    /// Balance in stroops
-    fn get_contract_balance(env: Env) -> i128;
 
     /// Check if a governance VAA has been consumed (replay protection).
     ///
