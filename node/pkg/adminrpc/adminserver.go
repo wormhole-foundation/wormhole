@@ -42,7 +42,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
-const maxResetReleaseTimerDays = 30
+const maxResetReleaseTimerDays = 90
 const ecdsaSignatureLength = 65
 
 var (
