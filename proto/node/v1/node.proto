@@ -88,6 +88,9 @@ service NodePrivilegedService {
 
   // GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
   rpc GetAndObserveMissingVAAs (GetAndObserveMissingVAAsRequest) returns (GetAndObserveMissingVAAsResponse);
+
+  // BroadcastDelegateSignatures fetches delegate observations from wormholescan and broadcasts them.
+  rpc BroadcastDelegateSignatures (BroadcastDelegateSignaturesRequest) returns (BroadcastDelegateSignaturesResponse);
 }
 
 message InjectGovernanceVAARequest {
@@ -568,6 +571,14 @@ message GetAndObserveMissingVAAsRequest {
 
 message GetAndObserveMissingVAAsResponse {
   string response =1;
+}
+
+message BroadcastDelegateSignaturesRequest {
+  gossip.v1.DelegateSignaturesBroadcast broadcast = 1;
+}
+
+message BroadcastDelegateSignaturesResponse {
+  string response = 1;
 }
 
 // EvmCall represents a generic EVM call that can be executed by the generalized governance contract.

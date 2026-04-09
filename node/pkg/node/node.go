@@ -51,6 +51,9 @@ const (
 	// delegateObservationInboundBufferSize configures the size of delegateObsvC channel that contains delegate observations from other Guardians.
 	delegateObservationInboundBufferSize = 1000
 
+	// delegateSigBroadcastSendBufferSize configures the size of the delegateSigBroadcastSendC outbound channel.
+	delegateSigBroadcastSendBufferSize = 10
+
 	// inboundMessageBufferSize configures the size of the msgC channel used to publish new observations from the watcher to the processor.
 	// This channel is shared across all the watchers so we don't want to hang up other watchers while the processor is handling an observation from one.
 	inboundMessageBufferSize = 1000
@@ -124,6 +127,7 @@ type G struct {
 	gossipControlSendC              chan []byte
 	gossipAttestationSendC          chan []byte
 	gossipDelegatedAttestationSendC chan []byte
+	delegateSigBroadcastSendC       chan []byte
 	gossipVaaSendC                  chan []byte
 	managerTxSendC                  chan *gossipv1.ManagerTransaction
 	// Inbound observation batches.
@@ -176,6 +180,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
 	g.gossipDelegatedAttestationSendC = make(chan []byte, gossipDelegatedAttestationSendBufferSize)
+	g.delegateSigBroadcastSendC = make(chan []byte, delegateSigBroadcastSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
 	g.managerTxSendC = make(chan *gossipv1.ManagerTransaction, gossipManagerSendBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)

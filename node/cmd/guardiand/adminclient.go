@@ -3,13 +3,16 @@ package guardiand
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"math"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -36,6 +39,8 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -82,6 +87,7 @@ func init() {
 	SignExistingVaaCmd.Flags().AddFlagSet(pf)
 	SignExistingVaasFromCSVCmd.Flags().AddFlagSet(pf)
 	GetAndObserveMissingVAAs.Flags().AddFlagSet(pf)
+	BroadcastDelegateSignatures.Flags().AddFlagSet(pf)
 
 	adminClientSignWormchainAddressFlags := pflag.NewFlagSet("adminClientSignWormchainAddressFlags", pflag.ContinueOnError)
 	unsafeDevnetMode = adminClientSignWormchainAddressFlags.Bool("unsafeDevMode", false, "Run in unsafe devnet mode")
@@ -119,6 +125,7 @@ func init() {
 	AdminCmd.AddCommand(SignExistingVaasFromCSVCmd)
 	AdminCmd.AddCommand(Keccak256Hash)
 	AdminCmd.AddCommand(GetAndObserveMissingVAAs)
+	AdminCmd.AddCommand(BroadcastDelegateSignatures)
 }
 
 var AdminCmd = &cobra.Command{
@@ -236,6 +243,13 @@ var GetAndObserveMissingVAAs = &cobra.Command{
 	Short: "Get the list of missing VAAs from a cloud function and try to reobserve them.",
 	Run:   runGetAndObserveMissingVAAs,
 	Args:  cobra.ExactArgs(2),
+}
+
+var BroadcastDelegateSignatures = &cobra.Command{
+	Use:   "broadcast-delegate-signatures [VAA_ID]",
+	Short: "Fetch delegate signatures from wormholescan and broadcast them on the delegated attestation topic",
+	Run:   runBroadcastDelegateSignatures,
+	Args:  cobra.ExactArgs(1),
 }
 
 var Keccak256Hash = &cobra.Command{
@@ -622,6 +636,254 @@ func runGetAndObserveMissingVAAs(cmd *cobra.Command, args []string) {
 	resp, err := c.GetAndObserveMissingVAAs(ctx, &cmdInfo)
 	if err != nil {
 		log.Fatalf("failed to run get-missing-vaas: %s", err)
+	}
+
+	fmt.Println(resp.GetResponse())
+}
+
+// wormholescanDelegateObservation represents a delegate observation from the wormholescan API.
+type wormholescanDelegateObservation struct {
+	Sequence              uint64 `json:"sequence"`
+	EmitterChain          uint32 `json:"emitterChain"`
+	EmitterAddr           string `json:"emitterAddr"`
+	Hash                  string `json:"hash"`
+	TxHash                string `json:"txHash"`
+	Payload               string `json:"payload"`
+	DelegatedGuardianAddr string `json:"delegatedGuardianAddr"`
+	Signature             string `json:"signature"`
+	Nonce                 uint32 `json:"nonce"`
+	ConsistencyLevel      uint32 `json:"consistencyLevel"`
+	Timestamp             string `json:"timestamp"`
+	SentTimestamp         string `json:"sentTimestamp"`
+	Unreliable            bool   `json:"unreliable"`
+	IsReobservation       bool   `json:"isReobservation"`
+	VerificationState     uint32 `json:"verificationState"`
+}
+
+// buildDelegateSignaturesBroadcast takes parsed wormholescan API observations and a VAA ID,
+// groups by hash, checks quorum, verifies each delegate signature, and returns the broadcast.
+func buildDelegateSignaturesBroadcast(vaaID string, apiObservations []wormholescanDelegateObservation) (*gossipv1.DelegateSignaturesBroadcast, error) {
+	parts := strings.Split(vaaID, "/")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("vaa_id must be in format chain/emitter/sequence")
+	}
+	chainID := parts[0]
+
+	if len(apiObservations) == 0 {
+		return nil, fmt.Errorf("no delegate observations provided")
+	}
+
+	// Group observations by hash — only broadcast the group with the most signatures.
+	type hashGroup struct {
+		observations []wormholescanDelegateObservation
+	}
+	groups := make(map[string]*hashGroup)
+	for _, obs := range apiObservations {
+		h := obs.Hash
+		if h == "" {
+			continue
+		}
+		g, ok := groups[h]
+		if !ok {
+			g = &hashGroup{}
+			groups[h] = g
+		}
+		g.observations = append(g.observations, obs)
+	}
+
+	var bestGroup *hashGroup
+	for _, g := range groups {
+		if bestGroup == nil || len(g.observations) > len(bestGroup.observations) {
+			bestGroup = g
+		}
+	}
+
+	if bestGroup == nil || len(bestGroup.observations) == 0 {
+		return nil, fmt.Errorf("no valid observation groups found")
+	}
+
+	// Build the compact broadcast from the best hash group.
+	ref := bestGroup.observations[0]
+
+	chainIDNum, err := strconv.Atoi(chainID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain ID: %v", err)
+	}
+
+	emitterAddrBytes, err := hex.DecodeString(ref.EmitterAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode emitter address: %v", err)
+	}
+
+	txHashBytes, err := base64.StdEncoding.DecodeString(ref.TxHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode tx hash: %v", err)
+	}
+
+	payloadBytes, err := base64.StdEncoding.DecodeString(ref.Payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode payload: %v", err)
+	}
+
+	var timestamp uint32
+	if ref.Timestamp != "" {
+		t, err := time.Parse(time.RFC3339, ref.Timestamp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse timestamp: %v", err)
+		}
+		timestamp = uint32(t.Unix()) // #nosec G115
+	}
+
+	// Build and verify each delegate signature by reconstructing the DelegateObservation
+	// and checking the signature matches.
+	signedDelegateObservationPrefix := []byte("signed_delegate_observation_000000|")
+
+	signatures := make([]*gossipv1.DelegateSignature, 0, len(bestGroup.observations))
+	for _, obs := range bestGroup.observations {
+		guardianAddrHex := strings.TrimPrefix(obs.DelegatedGuardianAddr, "0x")
+		guardianAddrBytes, err := hex.DecodeString(guardianAddrHex)
+		if err != nil {
+			continue
+		}
+
+		var sigBytes []byte
+		if obs.Signature != "" {
+			sigBytes, err = base64.StdEncoding.DecodeString(obs.Signature)
+			if err != nil {
+				continue
+			}
+		}
+
+		var sentTimestamp int64
+		if obs.SentTimestamp != "" {
+			t, err := time.Parse(time.RFC3339, obs.SentTimestamp)
+			if err != nil {
+				continue
+			}
+			sentTimestamp = t.Unix()
+		}
+
+		// Reconstruct the DelegateObservation that was originally signed.
+		d := &gossipv1.DelegateObservation{
+			Timestamp:         timestamp,
+			Nonce:             ref.Nonce,
+			EmitterChain:      uint32(chainIDNum), // #nosec G115
+			EmitterAddress:    emitterAddrBytes,
+			Sequence:          ref.Sequence,
+			ConsistencyLevel:  ref.ConsistencyLevel,
+			Payload:           payloadBytes,
+			TxHash:            txHashBytes,
+			Unreliable:        obs.Unreliable,
+			IsReobservation:   obs.IsReobservation,
+			VerificationState: obs.VerificationState,
+			GuardianAddr:      guardianAddrBytes,
+			SentTimestamp:     sentTimestamp,
+		}
+		b, err := proto.Marshal(d)
+		if err != nil {
+			continue
+		}
+
+		// Verify the signature over the reconstructed bytes.
+		if len(sigBytes) == 0 {
+			continue
+		}
+		digest := crypto.Keccak256Hash(append(signedDelegateObservationPrefix, b...))
+		pubKey, err := crypto.Ecrecover(digest.Bytes(), sigBytes)
+		if err != nil {
+			continue
+		}
+		signerAddr := ethcommon.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
+		claimedAddr := ethcommon.BytesToAddress(guardianAddrBytes)
+		if signerAddr != claimedAddr {
+			continue
+		}
+
+		signatures = append(signatures, &gossipv1.DelegateSignature{
+			GuardianAddr:  guardianAddrBytes,
+			SentTimestamp: sentTimestamp,
+			Signature:     sigBytes,
+		})
+	}
+
+	if len(signatures) == 0 {
+		return nil, fmt.Errorf("no signatures passed verification")
+	}
+
+	broadcast := &gossipv1.DelegateSignaturesBroadcast{
+		Timestamp:          timestamp,
+		Nonce:              ref.Nonce,
+		EmitterChain:       uint32(chainIDNum), // #nosec G115
+		EmitterAddress:     emitterAddrBytes,
+		Sequence:           ref.Sequence,
+		ConsistencyLevel:   ref.ConsistencyLevel,
+		Payload:            payloadBytes,
+		TxHash:             txHashBytes,
+		Unreliable:         ref.Unreliable,
+		IsReobservation:    ref.IsReobservation,
+		VerificationState:  ref.VerificationState,
+		Signatures:         signatures,
+		BroadcastTimestamp: time.Now().Unix(),
+	}
+
+	return broadcast, nil
+}
+
+func runBroadcastDelegateSignatures(cmd *cobra.Command, args []string) {
+	vaaID := args[0]
+
+	// Parse VAA ID: chain/emitter/sequence
+	parts := strings.Split(vaaID, "/")
+	if len(parts) != 3 {
+		log.Fatalf("vaa_id must be in format chain/emitter/sequence")
+	}
+	chainID := parts[0]
+	emitterAddr := parts[1]
+	sequence := parts[2]
+
+	// Fetch delegate observations from wormholescan API.
+	apiURL := fmt.Sprintf("https://api.wormholescan.io/api/v1/observations/delegate/%s/%s/%s", chainID, emitterAddr, sequence)
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, apiURL, nil)
+	if err != nil {
+		log.Fatalf("failed to create HTTP request: %v", err)
+	}
+	httpResp, err := (&http.Client{Timeout: 30 * time.Second}).Do(httpReq)
+	if err != nil {
+		log.Fatalf("failed to fetch delegate observations: %v", err)
+	}
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != http.StatusOK {
+		log.Fatalf("wormholescan API returned status %d", httpResp.StatusCode)
+	}
+
+	var apiObservations []wormholescanDelegateObservation
+	if err := json.NewDecoder(httpResp.Body).Decode(&apiObservations); err != nil {
+		log.Fatalf("failed to decode API response: %v", err)
+	}
+
+	broadcast, err := buildDelegateSignaturesBroadcast(vaaID, apiObservations)
+	if err != nil {
+		log.Fatalf("failed to build broadcast: %v", err)
+	}
+
+	fmt.Printf("broadcasting %d verified delegate signatures for %s\n", len(broadcast.Signatures), vaaID)
+
+	// Send to the guardian node for signing and p2p broadcast.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	resp, err := c.BroadcastDelegateSignatures(ctx, &nodev1.BroadcastDelegateSignaturesRequest{
+		Broadcast: broadcast,
+	})
+	if err != nil {
+		log.Fatalf("failed to broadcast delegate signatures: %s", err)
 	}
 
 	fmt.Println(resp.GetResponse())
