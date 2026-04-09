@@ -114,12 +114,7 @@ var signedManagerTransactionPrefix = []byte("signed_manager_transaction_0000000|
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 var observationRequestMaxTimeDifference = time.Minute * 15
-
-// allow for delegate observations to be re-delivered in a longer timeframe (30 days)
-// without another mechanism, such as delegate VAAs or batch delegate observations from multiple guardians,
-// this is necessary to facilitate re-observations that span multiple hours or days due to outages as not all
-// delegates necessarily have historical state to re-observe within the same recent timeframe
-var delegateObservationMaxTimeDifference = time.Hour * 24 * 30
+var delegateObservationMaxTimeDifference = time.Minute * 15
 var managerTransactionMaxTimeDifference = time.Minute * 15
 
 func heartbeatDigest(b []byte) eth_common.Hash {
