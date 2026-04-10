@@ -123,6 +123,7 @@ pub use vaa::{
 };
 
 solitaire! {
+    @event_cpi,
     Initialize         => initialize,
     PostMessage        => post_message,
     PostVAA            => post_vaa,

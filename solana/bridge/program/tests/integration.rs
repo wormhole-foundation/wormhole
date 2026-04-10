@@ -1578,3 +1578,80 @@ async fn upgrade_contract() {
     .await
     .unwrap();
 }
+
+#[test]
+fn test_event_ix_tag_matches_sha256() {
+    // EVENT_IX_TAG should equal SHA256("anchor:event")[0..8] read as a big-endian u64.
+    let hash = solana_program::hash::hash(b"anchor:event");
+    let mut tag_bytes = [0u8; 8];
+    tag_bytes.copy_from_slice(&hash.to_bytes()[..8]);
+    let expected = u64::from_be_bytes(tag_bytes);
+
+    assert_eq!(
+        solitaire::EVENT_IX_TAG,
+        expected,
+        "EVENT_IX_TAG must equal SHA256(\"anchor:event\")[..8] as BE u64"
+    );
+    assert_eq!(
+        solitaire::EVENT_IX_TAG_LE,
+        expected.to_le_bytes(),
+        "EVENT_IX_TAG_LE must be the little-endian encoding"
+    );
+}
+
+/// Verify that the event CPI guard rejects external callers. Only the program
+/// itself (via invoke_signed with the event authority PDA) should be able to
+/// invoke the event CPI path.
+#[tokio::test]
+async fn test_event_cpi_guard_rejects_external_call() {
+    let (ref mut _context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
+
+    let (event_authority, _) = Pubkey::find_program_address(&[b"__event_authority"], program);
+
+    // Case 1: Pass the correct event authority PDA, but it can't be a signer
+    // because only the program itself can sign for its own PDAs.
+    let ix_unsigned_pda = solana_program::instruction::Instruction {
+        program_id: *program,
+        accounts: vec![solana_program::instruction::AccountMeta::new_readonly(
+            event_authority,
+            false,
+        )],
+        data: solitaire::EVENT_IX_TAG_LE.to_vec(),
+    };
+    let result = common::execute(
+        client,
+        payer,
+        &[payer],
+        &[ix_unsigned_pda],
+        CommitmentLevel::Processed,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Event CPI must reject when event authority PDA is not a signer"
+    );
+
+    // Case 2: Pass a random keypair that IS a signer, but is not the PDA.
+    let fake_authority = Keypair::new();
+    let ix_wrong_signer = solana_program::instruction::Instruction {
+        program_id: *program,
+        accounts: vec![solana_program::instruction::AccountMeta::new_readonly(
+            fake_authority.pubkey(),
+            true,
+        )],
+        data: solitaire::EVENT_IX_TAG_LE.to_vec(),
+    };
+    let result = common::execute(
+        client,
+        payer,
+        &[payer, &fake_authority],
+        &[ix_wrong_signer],
+        CommitmentLevel::Processed,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Event CPI must reject when signer is not the event authority PDA"
+    );
+}

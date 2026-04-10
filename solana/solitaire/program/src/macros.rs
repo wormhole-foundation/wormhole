@@ -24,9 +24,50 @@ macro_rules! trace_impl {
 /// - A set of functions which take as arguments the enum fields.
 /// - A Dispatcher that deserializes bytes into the enum and dispatches the function call.
 /// - A set of client calls scoped to the module `api` that can generate instructions.
+///
+/// Use `@event_cpi,` before the instruction list to opt-in to Anchor-style event CPI support.
+/// This adds a dispatch guard that handles the Anchor event CPI selector (`0xe445a52e51cb9a1d`)
+/// by verifying the `__event_authority` PDA is a signer and returning Ok.
 #[macro_export]
 macro_rules! solitaire {
+    { @event_cpi, $($row:ident => $fn:ident),+ $(,)* } => {
+        $crate::solitaire_inner!(@event_cpi; $($row => $fn),+);
+    };
     { $($row:ident => $fn:ident),+ $(,)* } => {
+        $crate::solitaire_inner!(@no_event; $($row => $fn),+);
+    };
+}
+
+/// Conditionally emits the Anchor event CPI guard in dispatch.
+#[macro_export]
+macro_rules! solitaire_event_guard {
+    (@event_cpi, $p:ident, $a:ident, $d:ident) => {
+        // Handle Anchor event CPI (self-invocation for event emission).
+        if $d.len() >= 8 && $d[..8] == $crate::EVENT_IX_TAG_LE {
+            if $a.is_empty() || !$a[0].is_signer {
+                return Err(SolitaireError::InvalidSigner(
+                    solana_program::pubkey::Pubkey::default(),
+                ));
+            }
+            let (expected_authority, _) = solana_program::pubkey::Pubkey::find_program_address(
+                &[$crate::EVENT_AUTHORITY_SEED],
+                $p,
+            );
+            if $a[0].key != &expected_authority {
+                return Err(SolitaireError::InvalidSigner(*$a[0].key));
+            }
+            return Ok(());
+        }
+    };
+    (@no_event, $p:ident, $a:ident, $d:ident) => {
+        // No event CPI support.
+    };
+}
+
+/// Inner implementation macro. Do not call directly; use `solitaire!` instead.
+#[macro_export]
+macro_rules! solitaire_inner {
+    { @$mode:ident; $($row:ident => $fn:ident),+ } => {
         pub mod instruction {
             use super::*;
             use borsh::{
@@ -82,6 +123,8 @@ macro_rules! solitaire {
             /// This entrypoint is generated from the enum above, it deserializes incoming bytes
             /// and automatically dispatches to the correct method.
             pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> Result<()> {
+                $crate::solitaire_event_guard!(@$mode, p, a, d);
+
                 match d[0] {
                     $(
                         n if n == Instruction::$row as u8 => $row::execute(p, a, &d[1..]),
