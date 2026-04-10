@@ -129,22 +129,33 @@ func (acct *Accountant) audit(ctx context.Context) error {
 // runAudit is the entry point for the audit of the pending transfer map. It creates a temporary map of all pending transfers and invokes the main audit function.
 func (acct *Accountant) runAudit() {
 	tmpMap := acct.createAuditMap(false)
-	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", len(tmpMap)))
+	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", auditMapSize(tmpMap)))
 	acct.performAudit(tmpMap, acct.wormchainConn, acct.contract)
 	acct.logger.Debug("in AuditPendingTransfers: finished base audit")
 
 	tmpMap = acct.createAuditMap(true)
-	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", len(tmpMap)))
+	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", auditMapSize(tmpMap)))
 	acct.performAudit(tmpMap, acct.nttWormchainConn, acct.nttContract)
 	acct.logger.Debug("in AuditPendingTransfers: finished ntt audit")
 }
 
+// auditMapSize returns the total number of pending entries across all keys in the audit map.
+func auditMapSize(tmpMap map[string][]*pendingEntry) int {
+	n := 0
+	for _, entries := range tmpMap {
+		n += len(entries)
+	}
+	return n
+}
+
 // createAuditMap creates a temporary map of all pending transfers. It grabs the pending transfer lock.
-func (acct *Accountant) createAuditMap(isNTT bool) map[string]*pendingEntry {
+// The map is keyed by chain-txHash (the audit key). Multiple transfers may share the same key if they
+// originate from the same transaction, so each key maps to a slice of pending entries.
+func (acct *Accountant) createAuditMap(isNTT bool) map[string][]*pendingEntry {
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
-	tmpMap := make(map[string]*pendingEntry)
+	tmpMap := make(map[string][]*pendingEntry)
 	for _, pe := range acct.pendingTransfers {
 		if pe.isNTT == isNTT {
 			if pe.hasBeenPendingForTooLong() {
@@ -153,7 +164,7 @@ func (acct *Accountant) createAuditMap(isNTT bool) map[string]*pendingEntry {
 			}
 			key := pe.makeAuditKey()
 			acct.logger.Debug("will audit pending transfer", zap.String("msgId", pe.msgId), zap.String("moKey", key), zap.Bool("submitPending", pe.submitPending()), zap.Stringer("lastUpdateTime", pe.updTime()))
-			tmpMap[key] = pe
+			tmpMap[key] = append(tmpMap[key], pe)
 		}
 	}
 
@@ -169,26 +180,30 @@ func (pe *pendingEntry) hasBeenPendingForTooLong() bool {
 
 // performAudit audits the temporary map against the smart contract. It is meant to be run in a go routine. It takes a temporary map of all pending transfers
 // and validates that against what is reported by the smart contract. For more details, please see the prologue of this file.
-func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry, wormchainConn AccountantWormchainConn, contract string) {
+func (acct *Accountant) performAudit(tmpMap map[string][]*pendingEntry, wormchainConn AccountantWormchainConn, contract string) {
 	acct.logger.Debug("entering performAudit", zap.String("contract", contract))
 	missingObservations, err := acct.queryMissingObservations(wormchainConn, contract)
 	if err != nil {
 		acct.logger.Error("unable to perform audit, failed to query missing observations", zap.Error(err))
-		for _, pe := range tmpMap {
-			acct.logger.Error("unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
+		for _, entries := range tmpMap {
+			for _, pe := range entries {
+				acct.logger.Error("unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
+			}
 		}
 		return
 	}
 
 	for _, mo := range missingObservations {
 		key := mo.makeAuditKey()
-		pe, exists := tmpMap[key]
+		entries, exists := tmpMap[key]
 		if exists {
-			if acct.submitObservation(pe) {
-				auditErrors.Inc()
-				acct.logger.Error("contract reported pending observation as missing, resubmitted it", zap.String("msgID", pe.msgId))
-			} else {
-				acct.logger.Info("contract reported pending observation as missing but it is queued up to be submitted, skipping it", zap.String("msgID", pe.msgId))
+			for _, pe := range entries {
+				if acct.submitObservation(pe) {
+					auditErrors.Inc()
+					acct.logger.Error("contract reported pending observation as missing, resubmitted it", zap.String("msgID", pe.msgId))
+				} else {
+					acct.logger.Info("contract reported pending observation as missing but it is queued up to be submitted, skipping it", zap.String("msgID", pe.msgId))
+				}
 			}
 
 			delete(tmpMap, key)
@@ -197,18 +212,20 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry, wormchainC
 		}
 	}
 
-	if len(tmpMap) != 0 {
+	if auditMapSize(tmpMap) != 0 {
 		var keys []TransferKey
 		var pendingTransfers []*pendingEntry
-		for _, pe := range tmpMap {
-			keys = append(keys, TransferKey{EmitterChain: uint16(pe.msg.EmitterChain), EmitterAddress: pe.msg.EmitterAddress, Sequence: pe.msg.Sequence})
-			pendingTransfers = append(pendingTransfers, pe)
+		for _, entries := range tmpMap {
+			for _, pe := range entries {
+				keys = append(keys, TransferKey{EmitterChain: uint16(pe.msg.EmitterChain), EmitterAddress: pe.msg.EmitterAddress, Sequence: pe.msg.Sequence})
+				pendingTransfers = append(pendingTransfers, pe)
+			}
 		}
 
 		transferDetails, err := acct.queryBatchTransferStatus(keys, wormchainConn, contract)
 		if err != nil {
 			acct.logger.Error("unable to finish audit, failed to query for transfer statuses", zap.Error(err))
-			for _, pe := range tmpMap {
+			for _, pe := range pendingTransfers {
 				acct.logger.Error("unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
 			}
 			return
