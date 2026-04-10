@@ -80,6 +80,8 @@ pub use accounts::{
 pub mod api;
 
 pub use api::{
+    close_posted_message,
+    close_signature_set_and_posted_vaa,
     initialize,
     post_message,
     post_message_unreliable,
@@ -89,6 +91,10 @@ pub use api::{
     upgrade_contract,
     upgrade_guardian_set,
     verify_signatures,
+    ClosePostedMessage,
+    ClosePostedMessageData,
+    CloseSignatureSetAndPostedVAA,
+    CloseSignatureSetAndPostedVAAData,
     Initialize,
     InitializeData,
     PostMessage,
@@ -108,6 +114,7 @@ pub use api::{
     UpgradeGuardianSetData,
     VerifySignatures,
     VerifySignaturesData,
+    MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR,
 };
 
 pub mod error;
@@ -124,13 +131,15 @@ pub use vaa::{
 
 solitaire! {
     @event_cpi,
-    Initialize         => initialize,
-    PostMessage        => post_message,
-    PostVAA            => post_vaa,
-    SetFees            => set_fees,
-    TransferFees       => transfer_fees,
-    UpgradeContract    => upgrade_contract,
-    UpgradeGuardianSet => upgrade_guardian_set,
-    VerifySignatures   => verify_signatures,
-    PostMessageUnreliable        => post_message_unreliable,
+    Initialize                    => initialize,
+    PostMessage                   => post_message,
+    PostVAA                       => post_vaa,
+    SetFees                       => set_fees,
+    TransferFees                  => transfer_fees,
+    UpgradeContract               => upgrade_contract,
+    UpgradeGuardianSet            => upgrade_guardian_set,
+    VerifySignatures              => verify_signatures,
+    PostMessageUnreliable         => post_message_unreliable,
+    ClosePostedMessage            => close_posted_message,
+    CloseSignatureSetAndPostedVAA => close_signature_set_and_posted_vaa,
 }

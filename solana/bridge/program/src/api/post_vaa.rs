@@ -156,7 +156,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
 
 /// A guardian set must not have expired.
 #[inline(always)]
-fn check_active<'r>(
+pub(crate) fn check_active<'r>(
     guardian_set: &GuardianSet<'r, { AccountState::Initialized }>,
     clock: &Sysvar<'r, Clock>,
 ) -> Result<()> {

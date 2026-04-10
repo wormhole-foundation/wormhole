@@ -18,6 +18,7 @@ use solana_program_test::{
     BanksClient,
     BanksClientError,
     ProgramTest,
+    ProgramTestContext,
 };
 use solana_sdk::{
     commitment_config::CommitmentLevel,
@@ -74,16 +75,16 @@ mod helpers {
 
     /// Initialize the test environment, spins up a solana-test-validator in the background so that
     /// each test has a fresh environment to work within.
-    pub async fn setup() -> (BanksClient, Keypair, Pubkey) {
+    pub async fn setup() -> (ProgramTestContext, Pubkey) {
         let program = env::var("BRIDGE_PROGRAM")
             .unwrap_or_else(|_| "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o".to_string())
             .parse::<Pubkey>()
             .unwrap();
         let builder = ProgramTest::new("bridge", program, processor!(instruction::solitaire));
 
-        let (client, payer, _) = builder.start().await;
+        let context = builder.start_with_context().await;
 
-        (client, payer, program)
+        (context, program)
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
@@ -462,5 +463,82 @@ mod helpers {
             CommitmentLevel::Processed,
         )
         .await
+    }
+
+    pub async fn close_posted_message(
+        client: &mut BanksClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        message: Pubkey,
+    ) -> Result<(), BanksClientError> {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::close_posted_message(*program, message)],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    pub async fn close_signature_set_and_posted_vaa(
+        client: &mut BanksClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        signature_set: Pubkey,
+        posted_vaa: Pubkey,
+        guardian_set_index: u32,
+    ) -> Result<(), BanksClientError> {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::close_signature_set_and_posted_vaa(
+                *program,
+                signature_set,
+                posted_vaa,
+                guardian_set_index,
+            )],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    /// Get the account's raw data, or None if the account doesn't exist.
+    pub async fn get_account_data_raw(
+        client: &mut BanksClient,
+        account: Pubkey,
+    ) -> Option<Vec<u8>> {
+        client.get_account(account).await.unwrap().map(|a| a.data)
+    }
+
+    /// Directly patch the submission_time in a PostedMessage or PostedVAA account
+    /// so it falls outside the 30-day retention window.
+    ///
+    /// We use direct account manipulation instead of `warp_to_slot` because
+    /// warping millions of slots (needed to advance the Clock sysvar by 30+
+    /// days) destabilises the solana-program-test bank, causing unrelated
+    /// `Custom(0)` failures on subsequent transactions.
+    ///
+    /// Layout of PostedMessage / PostedVAA account data:
+    ///   [0..3]   prefix ("msg" / "msu" / "vaa")
+    ///   [3]      vaa_version       (u8)
+    ///   [4]      consistency_level (u8)
+    ///   [5..9]   vaa_time          (u32 LE)
+    ///   [9..41]  vaa_signature_account (Pubkey, 32 bytes)
+    ///   [41..45] submission_time   (u32 LE)  <-- this is the field we patch
+    pub async fn set_submission_time(
+        ctx: &mut ProgramTestContext,
+        account: Pubkey,
+        submission_time: u32,
+    ) {
+        let mut account_data = ctx
+            .banks_client
+            .get_account(account)
+            .await
+            .unwrap()
+            .unwrap();
+        account_data.data[41..45].copy_from_slice(&submission_time.to_le_bytes());
+        ctx.set_account(&account, &account_data.into());
     }
 }
