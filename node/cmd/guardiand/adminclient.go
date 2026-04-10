@@ -661,7 +661,7 @@ type wormholescanDelegateObservation struct {
 }
 
 // buildDelegateSignaturesBroadcast takes parsed wormholescan API observations and a VAA ID,
-// groups by hash, checks quorum, verifies each delegate signature, and returns the broadcast.
+// groups by hash, verifies each delegate signature, and returns the broadcast.
 func buildDelegateSignaturesBroadcast(vaaID string, apiObservations []wormholescanDelegateObservation) (*gossipv1.DelegateSignaturesBroadcast, error) {
 	parts := strings.Split(vaaID, "/")
 	if len(parts) != 3 {
@@ -705,10 +705,11 @@ func buildDelegateSignaturesBroadcast(vaaID string, apiObservations []wormholesc
 	// Build the compact broadcast from the best hash group.
 	ref := bestGroup.observations[0]
 
-	chainIDNum, err := strconv.Atoi(chainID)
+	chainIDParsed, err := vaa.StringToKnownChainID(chainID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %v", err)
 	}
+	chainIDNum := int(chainIDParsed)
 
 	emitterAddrBytes, err := hex.DecodeString(ref.EmitterAddr)
 	if err != nil {
@@ -743,6 +744,7 @@ func buildDelegateSignaturesBroadcast(vaaID string, apiObservations []wormholesc
 		guardianAddrHex := strings.TrimPrefix(obs.DelegatedGuardianAddr, "0x")
 		guardianAddrBytes, err := hex.DecodeString(guardianAddrHex)
 		if err != nil {
+			log.Printf("Warning: skipping observation with invalid guardian address %q: %v", obs.DelegatedGuardianAddr, err)
 			continue
 		}
 
@@ -750,6 +752,7 @@ func buildDelegateSignaturesBroadcast(vaaID string, apiObservations []wormholesc
 		if obs.Signature != "" {
 			sigBytes, err = base64.StdEncoding.DecodeString(obs.Signature)
 			if err != nil {
+				log.Printf("Warning: skipping observation with invalid signature for guardian %s: %v", obs.DelegatedGuardianAddr, err)
 				continue
 			}
 		}
@@ -840,6 +843,10 @@ func runBroadcastDelegateSignatures(cmd *cobra.Command, args []string) {
 	chainID := parts[0]
 	emitterAddr := parts[1]
 	sequence := parts[2]
+
+	if _, err := vaa.StringToKnownChainID(chainID); err != nil {
+		log.Fatalf("invalid chain ID %q: %v", chainID, err)
+	}
 
 	// Fetch delegate observations from wormholescan API.
 	apiURL := fmt.Sprintf("https://api.wormholescan.io/api/v1/observations/delegate/%s/%s/%s", chainID, emitterAddr, sequence)

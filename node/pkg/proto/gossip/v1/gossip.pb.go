@@ -1209,7 +1209,7 @@ func (x *SignedDelegateObservation) GetGuardianAddr() []byte {
 	return nil
 }
 
-// DelegateObservation contains all the fields necessary for a canonical guardian to reconstruct the VAA body.
+// DelegateObservation contains all the fields necessary for a Guardian in the current Guardian Set to reconstruct the VAA body.
 type DelegateObservation struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1470,7 +1470,7 @@ func (x *ManagerTransaction) GetSentTimestamp() int64 {
 	return 0
 }
 
-// DelegateSignaturesBroadcast is a batch of delegate observations rebroadcast by a canonical guardian.
+// DelegateSignaturesBroadcast is a batch of delegate observations rebroadcast by a Guardian in the current Guardian Set.
 // Common observation fields are sent once; only the per-guardian address and original signature vary.
 type DelegateSignaturesBroadcast struct {
 	state         protoimpl.MessageState
@@ -1688,8 +1688,8 @@ func (x *DelegateSignature) GetSignature() []byte {
 	return nil
 }
 
-// SignedDelegateSignaturesBroadcast wraps a DelegateSignaturesBroadcast with a canonical guardian's signature.
-// The canonical guardian signs the broadcast to prove it was sent by a trusted member of the guardian set.
+// SignedDelegateSignaturesBroadcast wraps a DelegateSignaturesBroadcast with a Guardian's signature.
+// A Guardian in the current Guardian Set signs the broadcast to prove it was sent by a trusted member of the guardian set.
 type SignedDelegateSignaturesBroadcast struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

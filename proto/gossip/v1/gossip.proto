@@ -229,7 +229,7 @@ message SignedDelegateObservation {
   bytes guardian_addr = 3;
 }
 
-// DelegateObservation contains all the fields necessary for a canonical guardian to reconstruct the VAA body.
+// DelegateObservation contains all the fields necessary for a Guardian in the current Guardian Set to reconstruct the VAA body.
 message DelegateObservation {
   // Seconds since UNIX epoch when this observation was created.
   uint32 timestamp = 1;
@@ -296,7 +296,7 @@ message ManagerTransaction {
   int64 sent_timestamp = 7;
 }
 
-// DelegateSignaturesBroadcast is a batch of delegate observations rebroadcast by a canonical guardian.
+// DelegateSignaturesBroadcast is a batch of delegate observations rebroadcast by a Guardian in the current Guardian Set.
 // Common observation fields are sent once; only the per-guardian address and original signature vary.
 message DelegateSignaturesBroadcast {
   // Common observation fields (identical across all signers for this message).
@@ -334,8 +334,8 @@ message DelegateSignature {
   bytes signature = 3;
 }
 
-// SignedDelegateSignaturesBroadcast wraps a DelegateSignaturesBroadcast with a canonical guardian's signature.
-// The canonical guardian signs the broadcast to prove it was sent by a trusted member of the guardian set.
+// SignedDelegateSignaturesBroadcast wraps a DelegateSignaturesBroadcast with a Guardian's signature.
+// A Guardian in the current Guardian Set signs the broadcast to prove it was sent by a trusted member of the guardian set.
 message SignedDelegateSignaturesBroadcast {
   // Serialized DelegateSignaturesBroadcast message.
   bytes broadcast = 1;

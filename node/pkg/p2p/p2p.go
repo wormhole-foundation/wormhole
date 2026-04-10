@@ -1246,7 +1246,25 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								break
 							}
 
-							// SECURITY: Verify the broadcast was signed by a canonical guardian.
+							// SECURITY: Verify P2P peer matches known guardian peer(s) from heartbeats.
+							broadcastGuardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
+							knownPeers := params.gst.LastHeartbeat(broadcastGuardianAddr)
+							if len(knownPeers) == 0 {
+								p2pMessagesReceived.WithLabelValues("invalid_delegate_signatures_broadcast").Inc()
+								logger.Warn("dropping SignedDelegateSignaturesBroadcast - no heartbeat from guardian",
+									zap.String("guardian", broadcastGuardianAddr.Hex()),
+									zap.String("from", envelope.GetFrom().String()))
+								break
+							}
+							if _, found := knownPeers[envelope.GetFrom()]; !found {
+								p2pMessagesReceived.WithLabelValues("invalid_delegate_signatures_broadcast").Inc()
+								logger.Warn("dropping SignedDelegateSignaturesBroadcast - peer mismatch",
+									zap.String("guardian", broadcastGuardianAddr.Hex()),
+									zap.String("from", envelope.GetFrom().String()))
+								break
+							}
+
+							// SECURITY: Verify the broadcast was signed by a Guardian in the current Guardian Set.
 							broadcast, err := processSignedDelegateSignaturesBroadcast(s, gs)
 							if err != nil {
 								p2pMessagesReceived.WithLabelValues("invalid_delegate_signatures_broadcast").Inc()
