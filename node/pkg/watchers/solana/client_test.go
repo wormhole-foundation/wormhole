@@ -183,7 +183,6 @@ func Test_validateTransactionMeta(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("validateTransactionMeta() failed: %v", gotErr)
 				}
-				return
 			}
 			if tt.wantErr {
 				require.ErrorContains(t, gotErr, tt.errMsg)
