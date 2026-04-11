@@ -200,15 +200,39 @@ func serializeVAABody(ts time.Time, nonce uint32, chain vaa.ChainID, emitter vaa
 	return buf
 }
 
-func TestBuildDelegateSignaturesBroadcast(t *testing.T) {
+func TestDelegateObservationVAAHash(t *testing.T) {
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+	require.NotEmpty(t, observations)
+
+	hash, err := delegateObservationVAAHash(&observations[0])
+	require.NoError(t, err)
+
+	// Known VAA hash for 50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750
+	// https://api.wormholescan.io/api/v1/observations/50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750
+	expectedHashBytes, err := base64.StdEncoding.DecodeString("QY3pqI+RYqV1v1yfFK3CvJ1swgaitqJStCIr/Sb70MM=")
+	require.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("0x%x", expectedHashBytes), hash)
+
+	// All observations in the test data share the same VAA body, so they should all produce the same hash.
+	for i := range observations {
+		h, err := delegateObservationVAAHash(&observations[i])
+		require.NoError(t, err)
+		assert.Equal(t, hash, h, "observation %d should have the same VAA hash", i)
+	}
+}
+
+func TestBuildDelegateSignaturesBroadcasts(t *testing.T) {
 	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
 
 	var observations []wormholescanDelegateObservation
 	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
 
-	broadcast, err := buildDelegateSignaturesBroadcast(vaaID, observations)
+	broadcasts, err := buildDelegateSignaturesBroadcasts(vaaID, observations)
 	require.NoError(t, err)
-	require.NotNil(t, broadcast)
+	// All test observations share the same MessagePublicationHash, so we get one broadcast.
+	require.Len(t, broadcasts, 1)
+	broadcast := broadcasts[0]
 
 	// All 6 signatures should pass verification.
 	assert.Equal(t, 6, len(broadcast.Signatures))
@@ -244,7 +268,7 @@ func TestBuildDelegateSignaturesBroadcast(t *testing.T) {
 	}
 }
 
-func TestBuildDelegateSignaturesBroadcast_BadSignature(t *testing.T) {
+func TestBuildDelegateSignaturesBroadcasts_BadSignature(t *testing.T) {
 	// Take the real data but corrupt one signature — it should be dropped.
 	var observations []wormholescanDelegateObservation
 	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
@@ -252,25 +276,25 @@ func TestBuildDelegateSignaturesBroadcast_BadSignature(t *testing.T) {
 	observations[0].Signature = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
-	broadcast, err := buildDelegateSignaturesBroadcast(vaaID, observations)
+	broadcasts, err := buildDelegateSignaturesBroadcasts(vaaID, observations)
 	require.NoError(t, err)
-	require.NotNil(t, broadcast)
+	require.Len(t, broadcasts, 1)
 
 	// 5 of 6 should pass (the corrupted one is dropped).
-	assert.Equal(t, 5, len(broadcast.Signatures))
+	assert.Equal(t, 5, len(broadcasts[0].Signatures))
 }
 
-func TestBuildDelegateSignaturesBroadcast_EmptyObservations(t *testing.T) {
-	_, err := buildDelegateSignaturesBroadcast("50/abc/123", nil)
+func TestBuildDelegateSignaturesBroadcasts_EmptyObservations(t *testing.T) {
+	_, err := buildDelegateSignaturesBroadcasts("50/abc/123", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no delegate observations provided")
 }
 
-func TestBuildDelegateSignaturesBroadcast_BadVaaID(t *testing.T) {
+func TestBuildDelegateSignaturesBroadcasts_BadVaaID(t *testing.T) {
 	var observations []wormholescanDelegateObservation
 	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
 
-	_, err := buildDelegateSignaturesBroadcast("invalid", observations)
+	_, err := buildDelegateSignaturesBroadcasts("invalid", observations)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vaa_id must be in format")
 }
