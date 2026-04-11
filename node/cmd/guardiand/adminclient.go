@@ -643,21 +643,21 @@ func runGetAndObserveMissingVAAs(cmd *cobra.Command, args []string) {
 
 // wormholescanDelegateObservation represents a delegate observation from the wormholescan API.
 type wormholescanDelegateObservation struct {
-	Sequence              uint64 `json:"sequence"`
-	EmitterChain          uint32 `json:"emitterChain"`
-	EmitterAddr           string `json:"emitterAddr"`
-	Hash                  string `json:"hash"`
-	TxHash                string `json:"txHash"`
-	Payload               string `json:"payload"`
-	DelegatedGuardianAddr string `json:"delegatedGuardianAddr"`
-	Signature             string `json:"signature"`
-	Nonce                 uint32 `json:"nonce"`
-	ConsistencyLevel      uint32 `json:"consistencyLevel"`
-	Timestamp             string `json:"timestamp"`
-	SentTimestamp         string `json:"sentTimestamp"`
-	Unreliable            bool   `json:"unreliable"`
-	IsReobservation       bool   `json:"isReobservation"`
-	VerificationState     uint32 `json:"verificationState"`
+	Sequence               uint64 `json:"sequence"`
+	EmitterChain           uint32 `json:"emitterChain"`
+	EmitterAddr            string `json:"emitterAddr"`
+	MessagePublicationHash string `json:"hash"`
+	TxHash                 string `json:"txHash"`
+	Payload                string `json:"payload"`
+	DelegatedGuardianAddr  string `json:"delegatedGuardianAddr"`
+	Signature              string `json:"signature"`
+	Nonce                  uint32 `json:"nonce"`
+	ConsistencyLevel       uint32 `json:"consistencyLevel"`
+	Timestamp              string `json:"timestamp"`
+	SentTimestamp          string `json:"sentTimestamp"`
+	Unreliable             bool   `json:"unreliable"`
+	IsReobservation        bool   `json:"isReobservation"`
+	VerificationState      uint32 `json:"verificationState"`
 }
 
 // buildDelegateSignaturesBroadcast takes parsed wormholescan API observations and a VAA ID,
@@ -679,7 +679,7 @@ func buildDelegateSignaturesBroadcast(vaaID string, apiObservations []wormholesc
 	}
 	groups := make(map[string]*hashGroup)
 	for _, obs := range apiObservations {
-		h := obs.Hash
+		h := obs.MessagePublicationHash
 		if h == "" {
 			continue
 		}
