@@ -1,12 +1,19 @@
 package guardiand
 
 import (
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
+	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // Real API response from https://api.wormholescan.io/api/v1/observations/delegate/50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750
@@ -114,6 +121,84 @@ const testDelegateObservationsJSON = `[
     "sentTimestamp": "2026-04-09T23:27:40Z"
   }
 ]`
+
+// TestDelegateObservationHashIsMessagePublicationHash verifies that the "hash" field returned by
+// the wormholescan API for delegate observations is the Keccak256 of MessagePublication.MarshalBinary(),
+// NOT the double-Keccak256 VAA body hash used by regular observations.
+func TestDelegateObservationHashIsMessagePublicationHash(t *testing.T) {
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+	require.NotEmpty(t, observations)
+
+	obs := observations[0]
+
+	// Decode the hash from the API (base64).
+	apiHashBytes, err := base64.StdEncoding.DecodeString(obs.MessagePublicationHash)
+	require.NoError(t, err)
+
+	// Reconstruct the MessagePublication from the observation fields.
+	txHash, err := base64.StdEncoding.DecodeString(obs.TxHash)
+	require.NoError(t, err)
+	payload, err := base64.StdEncoding.DecodeString(obs.Payload)
+	require.NoError(t, err)
+	emitterAddr, err := vaa.BytesToAddress(mustDecodeHex(t, obs.EmitterAddr))
+	require.NoError(t, err)
+	ts, err := time.Parse(time.RFC3339, obs.Timestamp)
+	require.NoError(t, err)
+
+	mp := &node_common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        ts,
+		Nonce:            obs.Nonce,
+		Sequence:         obs.Sequence,
+		ConsistencyLevel: uint8(obs.ConsistencyLevel),   // #nosec G115 -- test data is a known constant
+		EmitterChain:     vaa.ChainID(obs.EmitterChain), // #nosec G115 -- test data is a known constant
+		EmitterAddress:   emitterAddr,
+		Payload:          payload,
+		IsReobservation:  obs.IsReobservation,
+		Unreliable:       obs.Unreliable,
+	}
+
+	buf, err := mp.MarshalBinary()
+	require.NoError(t, err)
+
+	mpHash := crypto.Keccak256Hash(buf)
+	assert.Equal(t, apiHashBytes, mpHash.Bytes(),
+		"API hash should match Keccak256(MessagePublication.MarshalBinary())")
+
+	// Also compute the VAA body hash (double Keccak256) and confirm it does NOT match.
+	body := serializeVAABody(ts, obs.Nonce, vaa.ChainID(obs.EmitterChain), emitterAddr, obs.Sequence, uint8(obs.ConsistencyLevel), payload) // #nosec G115 -- test data is a known constant
+	vaaHash := crypto.Keccak256Hash(crypto.Keccak256Hash(body).Bytes())
+	assert.NotEqual(t, apiHashBytes, vaaHash.Bytes(),
+		"API hash should NOT match the double-Keccak256 VAA body hash")
+}
+
+func mustDecodeHex(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	require.NoError(t, err)
+	return b
+}
+
+// serializeVAABody reproduces vaa.VAA.serializeBody() without needing a full VAA struct.
+func serializeVAABody(ts time.Time, nonce uint32, chain vaa.ChainID, emitter vaa.Address, seq uint64, cl uint8, payload []byte) []byte {
+	buf := make([]byte, 0, 4+4+2+32+8+1+len(payload))
+	b4 := make([]byte, 4)
+	binary.BigEndian.PutUint32(b4, uint32(ts.Unix())) // #nosec G115 -- test timestamp fits in uint32
+	buf = append(buf, b4...)
+	binary.BigEndian.PutUint32(b4, nonce)
+	buf = append(buf, b4...)
+	b2 := make([]byte, 2)
+	binary.BigEndian.PutUint16(b2, uint16(chain))
+	buf = append(buf, b2...)
+	buf = append(buf, emitter[:]...)
+	b8 := make([]byte, 8)
+	binary.BigEndian.PutUint64(b8, seq)
+	buf = append(buf, b8...)
+	buf = append(buf, cl)
+	buf = append(buf, payload...)
+	return buf
+}
 
 func TestBuildDelegateSignaturesBroadcast(t *testing.T) {
 	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
