@@ -17,6 +17,7 @@ message GossipMessage {
     SignedObservationBatch signed_observation_batch = 12;
     SignedDelegateObservation signed_delegate_observation = 13;
     SignedManagerTransaction signed_manager_transaction = 14;
+    SignedDelegateSignaturesBroadcast signed_delegate_signatures_broadcast = 15;
   }
 }
 
@@ -228,7 +229,7 @@ message SignedDelegateObservation {
   bytes guardian_addr = 3;
 }
 
-// DelegateObservation contains all the fields necessary for a canonical guardian to reconstruct the VAA body.
+// DelegateObservation contains all the fields necessary for a Guardian in the current Guardian Set to reconstruct the VAA body.
 message DelegateObservation {
   // Seconds since UNIX epoch when this observation was created.
   uint32 timestamp = 1;
@@ -293,6 +294,57 @@ message ManagerTransaction {
 
   // Seconds since UNIX epoch when this manager transaction was sent.
   int64 sent_timestamp = 7;
+}
+
+// DelegateSignaturesBroadcast is a batch of delegate observations rebroadcast by a Guardian in the current Guardian Set.
+// Common observation fields are sent once; only the per-guardian address and original signature vary.
+message DelegateSignaturesBroadcast {
+  // Common observation fields (identical across all signers for this message).
+  uint32 timestamp = 1;
+  uint32 nonce = 2;
+  uint32 emitter_chain = 3;
+  bytes emitter_address = 4;
+  uint64 sequence = 5;
+  uint32 consistency_level = 6;
+  bytes payload = 7;
+  bytes tx_hash = 8;
+  bool unreliable = 9;
+  bool is_reobservation = 10;
+  uint32 verification_state = 11;
+
+  // Per-guardian signatures.
+  repeated DelegateSignature signatures = 12;
+
+  // Seconds since UNIX epoch when this broadcast was created. Used for freshness check.
+  int64 broadcast_timestamp = 13;
+}
+
+// DelegateSignature pairs a delegated guardian address with its original signature.
+message DelegateSignature {
+  // Delegated guardian address (truncated eth address).
+  bytes guardian_addr = 1;
+
+  // Seconds since UNIX epoch when the original delegate observation was sent.
+  // Required for signature verification since it is part of the signed DelegateObservation.
+  int64 sent_timestamp = 2;
+
+  // Original ECDSA signature from the delegated guardian. Verifiable by reconstructing the
+  // DelegateObservation from the common fields in DelegateSignaturesBroadcast plus the
+  // per-signature guardian_addr and sent_timestamp.
+  bytes signature = 3;
+}
+
+// SignedDelegateSignaturesBroadcast wraps a DelegateSignaturesBroadcast with a Guardian's signature.
+// A Guardian in the current Guardian Set signs the broadcast to prove it was sent by a trusted member of the guardian set.
+message SignedDelegateSignaturesBroadcast {
+  // Serialized DelegateSignaturesBroadcast message.
+  bytes broadcast = 1;
+
+  // ECDSA signature using the node's guardian key.
+  bytes signature = 2;
+
+  // Guardian pubkey as truncated eth address.
+  bytes guardian_addr = 3;
 }
 
 // A SignedManagerTransaction wraps a ManagerTransaction with guardian authentication.

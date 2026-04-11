@@ -1,0 +1,300 @@
+package guardiand
+
+import (
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"testing"
+	"time"
+
+	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
+
+// Real API response from https://api.wormholescan.io/api/v1/observations/delegate/50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750
+const testDelegateObservationsJSON = `[
+  {
+    "sequence": 1750,
+    "emitterChain": 50,
+    "emitterAddr": "00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83",
+    "hash": "UqjHt/0rrOhV1iVtFII4F3cuCpRKkagyWV+b4RF1oQo=",
+    "txHash": "jBQRYi+ZJKFAGdfKnMOBA68LwXfMprBnNPhDWnSYN7w=",
+    "payload": "mUX/EAAAAAAAAAAAAAAAAH77OGZ111KA05quQpZKZ3beDuC9AAAAAAAAAAAAAAAAPrQYvb6VtLnPRl7PvYQkaFrNG8EAkQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoPAAAAAAAAAAAAAAAASEtVk7u5A4P5T7KZRw8JQnz2z+IAT5lOVFQIAAAAACDebcAAAAAAAAAAAAAAAADdRood3Dktzb7222406JqjOPnxhgAAAAAAAAAAAAAAABvct/SlP0APQnP1bTAtUzDzrKSpAB4AAA==",
+    "delegatedGuardianAddr": "0x000ac0076727b35fbea2dac28fee5ccb0fea768e",
+    "signature": "VopDFhPNIAN6+/QcAiJ8ts9j6bzdtWNhK38uh9UdJ2JJoKScJ1makiy4fxj79aR2Wo9KF3JJqRONlUHYWUCGXAE=",
+    "nonce": 0,
+    "consistencyLevel": 202,
+    "unreliable": false,
+    "isReobservation": false,
+    "verificationState": 0,
+    "timestamp": "2026-04-09T23:27:36Z",
+    "sentTimestamp": "2026-04-09T23:27:41Z"
+  },
+  {
+    "sequence": 1750,
+    "emitterChain": 50,
+    "emitterAddr": "00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83",
+    "hash": "UqjHt/0rrOhV1iVtFII4F3cuCpRKkagyWV+b4RF1oQo=",
+    "txHash": "jBQRYi+ZJKFAGdfKnMOBA68LwXfMprBnNPhDWnSYN7w=",
+    "payload": "mUX/EAAAAAAAAAAAAAAAAH77OGZ111KA05quQpZKZ3beDuC9AAAAAAAAAAAAAAAAPrQYvb6VtLnPRl7PvYQkaFrNG8EAkQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoPAAAAAAAAAAAAAAAASEtVk7u5A4P5T7KZRw8JQnz2z+IAT5lOVFQIAAAAACDebcAAAAAAAAAAAAAAAADdRood3Dktzb7222406JqjOPnxhgAAAAAAAAAAAAAAABvct/SlP0APQnP1bTAtUzDzrKSpAB4AAA==",
+    "delegatedGuardianAddr": "0xda798f6896a3331f64b48c12d1d57fd9cbe70811",
+    "signature": "gxDWFpi3A9mG8YrZXkuHNvYzJ/GDBdkpIvvX/kQzatUW4MFscSvyF70BK2Mby5UqjZF5PKpzgtPRmlRpBEzjigA=",
+    "nonce": 0,
+    "consistencyLevel": 202,
+    "unreliable": false,
+    "isReobservation": false,
+    "verificationState": 0,
+    "timestamp": "2026-04-09T23:27:36Z",
+    "sentTimestamp": "2026-04-09T23:27:41Z"
+  },
+  {
+    "sequence": 1750,
+    "emitterChain": 50,
+    "emitterAddr": "00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83",
+    "hash": "UqjHt/0rrOhV1iVtFII4F3cuCpRKkagyWV+b4RF1oQo=",
+    "txHash": "jBQRYi+ZJKFAGdfKnMOBA68LwXfMprBnNPhDWnSYN7w=",
+    "payload": "mUX/EAAAAAAAAAAAAAAAAH77OGZ111KA05quQpZKZ3beDuC9AAAAAAAAAAAAAAAAPrQYvb6VtLnPRl7PvYQkaFrNG8EAkQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoPAAAAAAAAAAAAAAAASEtVk7u5A4P5T7KZRw8JQnz2z+IAT5lOVFQIAAAAACDebcAAAAAAAAAAAAAAAADdRood3Dktzb7222406JqjOPnxhgAAAAAAAAAAAAAAABvct/SlP0APQnP1bTAtUzDzrKSpAB4AAA==",
+    "delegatedGuardianAddr": "0x178e21ad2e77ae06711549cfbb1f9c7a9d8096e8",
+    "signature": "f5xktEwewFqribjYF0Pg2Wo9uoNjuVH/nq4a2hqenFdzEVG/g5sbRaXpCAHUR3w4ZSnUWX1Ov5ISXjU+jEwKVwE=",
+    "nonce": 0,
+    "consistencyLevel": 202,
+    "unreliable": false,
+    "isReobservation": false,
+    "verificationState": 0,
+    "timestamp": "2026-04-09T23:27:36Z",
+    "sentTimestamp": "2026-04-09T23:27:41Z"
+  },
+  {
+    "sequence": 1750,
+    "emitterChain": 50,
+    "emitterAddr": "00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83",
+    "hash": "UqjHt/0rrOhV1iVtFII4F3cuCpRKkagyWV+b4RF1oQo=",
+    "txHash": "jBQRYi+ZJKFAGdfKnMOBA68LwXfMprBnNPhDWnSYN7w=",
+    "payload": "mUX/EAAAAAAAAAAAAAAAAH77OGZ111KA05quQpZKZ3beDuC9AAAAAAAAAAAAAAAAPrQYvb6VtLnPRl7PvYQkaFrNG8EAkQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoPAAAAAAAAAAAAAAAASEtVk7u5A4P5T7KZRw8JQnz2z+IAT5lOVFQIAAAAACDebcAAAAAAAAAAAAAAAADdRood3Dktzb7222406JqjOPnxhgAAAAAAAAAAAAAAABvct/SlP0APQnP1bTAtUzDzrKSpAB4AAA==",
+    "delegatedGuardianAddr": "0xaf45ced136b9d9e24903464ae889f5c8a723fc14",
+    "signature": "jv0g6dbPsak4Gv9H3n3ZNhKU0Pq8SBBuYvSjdBtf63RbdODc2JF0xT7xr91kUrcZFZgOaCHWGhso3xz/lEhQeQE=",
+    "nonce": 0,
+    "consistencyLevel": 202,
+    "unreliable": false,
+    "isReobservation": false,
+    "verificationState": 0,
+    "timestamp": "2026-04-09T23:27:36Z",
+    "sentTimestamp": "2026-04-09T23:27:41Z"
+  },
+  {
+    "sequence": 1750,
+    "emitterChain": 50,
+    "emitterAddr": "00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83",
+    "hash": "UqjHt/0rrOhV1iVtFII4F3cuCpRKkagyWV+b4RF1oQo=",
+    "txHash": "jBQRYi+ZJKFAGdfKnMOBA68LwXfMprBnNPhDWnSYN7w=",
+    "payload": "mUX/EAAAAAAAAAAAAAAAAH77OGZ111KA05quQpZKZ3beDuC9AAAAAAAAAAAAAAAAPrQYvb6VtLnPRl7PvYQkaFrNG8EAkQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoPAAAAAAAAAAAAAAAASEtVk7u5A4P5T7KZRw8JQnz2z+IAT5lOVFQIAAAAACDebcAAAAAAAAAAAAAAAADdRood3Dktzb7222406JqjOPnxhgAAAAAAAAAAAAAAABvct/SlP0APQnP1bTAtUzDzrKSpAB4AAA==",
+    "delegatedGuardianAddr": "0x11b39756c042441be6d8650b69b54ebe715e2343",
+    "signature": "zTGBGY8fMi147mqw09gFHe5o58RJ27BKJgOeb7lwmvQb6ETBf9OYGcaJsrjfp/h8GhSX/rGrAOB7vOuMsweNVgA=",
+    "nonce": 0,
+    "consistencyLevel": 202,
+    "unreliable": false,
+    "isReobservation": false,
+    "verificationState": 0,
+    "timestamp": "2026-04-09T23:27:36Z",
+    "sentTimestamp": "2026-04-09T23:27:40Z"
+  },
+  {
+    "sequence": 1750,
+    "emitterChain": 50,
+    "emitterAddr": "00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83",
+    "hash": "UqjHt/0rrOhV1iVtFII4F3cuCpRKkagyWV+b4RF1oQo=",
+    "txHash": "jBQRYi+ZJKFAGdfKnMOBA68LwXfMprBnNPhDWnSYN7w=",
+    "payload": "mUX/EAAAAAAAAAAAAAAAAH77OGZ111KA05quQpZKZ3beDuC9AAAAAAAAAAAAAAAAPrQYvb6VtLnPRl7PvYQkaFrNG8EAkQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoPAAAAAAAAAAAAAAAASEtVk7u5A4P5T7KZRw8JQnz2z+IAT5lOVFQIAAAAACDebcAAAAAAAAAAAAAAAADdRood3Dktzb7222406JqjOPnxhgAAAAAAAAAAAAAAABvct/SlP0APQnP1bTAtUzDzrKSpAB4AAA==",
+    "delegatedGuardianAddr": "0x938f104aeb5581293216ce97d771e0cb721221b1",
+    "signature": "z/fhKpSdTeE+hsSQs5FiYZM7azrC16NkxlvLKRZuCkso3741gsoJFydNhmEm7STzs3lrsLGDPyhAaoIK/XInjgA=",
+    "nonce": 0,
+    "consistencyLevel": 202,
+    "unreliable": false,
+    "isReobservation": false,
+    "verificationState": 0,
+    "timestamp": "2026-04-09T23:27:36Z",
+    "sentTimestamp": "2026-04-09T23:27:40Z"
+  }
+]`
+
+// TestDelegateObservationHashIsMessagePublicationHash verifies that the "hash" field returned by
+// the wormholescan API for delegate observations is the Keccak256 of MessagePublication.MarshalBinary(),
+// NOT the double-Keccak256 VAA body hash used by regular observations.
+func TestDelegateObservationHashIsMessagePublicationHash(t *testing.T) {
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+	require.NotEmpty(t, observations)
+
+	obs := observations[0]
+
+	// Decode the hash from the API (base64).
+	apiHashBytes, err := base64.StdEncoding.DecodeString(obs.MessagePublicationHash)
+	require.NoError(t, err)
+
+	// Reconstruct the MessagePublication from the observation fields.
+	txHash, err := base64.StdEncoding.DecodeString(obs.TxHash)
+	require.NoError(t, err)
+	payload, err := base64.StdEncoding.DecodeString(obs.Payload)
+	require.NoError(t, err)
+	emitterAddr, err := vaa.BytesToAddress(mustDecodeHex(t, obs.EmitterAddr))
+	require.NoError(t, err)
+	ts, err := time.Parse(time.RFC3339, obs.Timestamp)
+	require.NoError(t, err)
+
+	mp := &node_common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        ts,
+		Nonce:            obs.Nonce,
+		Sequence:         obs.Sequence,
+		ConsistencyLevel: uint8(obs.ConsistencyLevel),   // #nosec G115 -- test data is a known constant
+		EmitterChain:     vaa.ChainID(obs.EmitterChain), // #nosec G115 -- test data is a known constant
+		EmitterAddress:   emitterAddr,
+		Payload:          payload,
+		IsReobservation:  obs.IsReobservation,
+		Unreliable:       obs.Unreliable,
+	}
+
+	buf, err := mp.MarshalBinary()
+	require.NoError(t, err)
+
+	mpHash := crypto.Keccak256Hash(buf)
+	assert.Equal(t, apiHashBytes, mpHash.Bytes(),
+		"API hash should match Keccak256(MessagePublication.MarshalBinary())")
+
+	// Also compute the VAA body hash (double Keccak256) and confirm it does NOT match.
+	body := serializeVAABody(ts, obs.Nonce, vaa.ChainID(obs.EmitterChain), emitterAddr, obs.Sequence, uint8(obs.ConsistencyLevel), payload) // #nosec G115 -- test data is a known constant
+	vaaHash := crypto.Keccak256Hash(crypto.Keccak256Hash(body).Bytes())
+	assert.NotEqual(t, apiHashBytes, vaaHash.Bytes(),
+		"API hash should NOT match the double-Keccak256 VAA body hash")
+}
+
+func mustDecodeHex(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	require.NoError(t, err)
+	return b
+}
+
+// serializeVAABody reproduces vaa.VAA.serializeBody() without needing a full VAA struct.
+func serializeVAABody(ts time.Time, nonce uint32, chain vaa.ChainID, emitter vaa.Address, seq uint64, cl uint8, payload []byte) []byte {
+	buf := make([]byte, 0, 4+4+2+32+8+1+len(payload))
+	b4 := make([]byte, 4)
+	binary.BigEndian.PutUint32(b4, uint32(ts.Unix())) // #nosec G115 -- test timestamp fits in uint32
+	buf = append(buf, b4...)
+	binary.BigEndian.PutUint32(b4, nonce)
+	buf = append(buf, b4...)
+	b2 := make([]byte, 2)
+	binary.BigEndian.PutUint16(b2, uint16(chain))
+	buf = append(buf, b2...)
+	buf = append(buf, emitter[:]...)
+	b8 := make([]byte, 8)
+	binary.BigEndian.PutUint64(b8, seq)
+	buf = append(buf, b8...)
+	buf = append(buf, cl)
+	buf = append(buf, payload...)
+	return buf
+}
+
+func TestDelegateObservationVAAHash(t *testing.T) {
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+	require.NotEmpty(t, observations)
+
+	hash, err := delegateObservationVAAHash(&observations[0])
+	require.NoError(t, err)
+
+	// Known VAA hash for 50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750
+	// https://api.wormholescan.io/api/v1/observations/50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750
+	expectedHashBytes, err := base64.StdEncoding.DecodeString("QY3pqI+RYqV1v1yfFK3CvJ1swgaitqJStCIr/Sb70MM=")
+	require.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("0x%x", expectedHashBytes), hash)
+
+	// All observations in the test data share the same VAA body, so they should all produce the same hash.
+	for i := range observations {
+		h, err := delegateObservationVAAHash(&observations[i])
+		require.NoError(t, err)
+		assert.Equal(t, hash, h, "observation %d should have the same VAA hash", i)
+	}
+}
+
+func TestBuildDelegateSignaturesBroadcasts(t *testing.T) {
+	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
+
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+
+	broadcasts, err := buildDelegateSignaturesBroadcasts(vaaID, observations)
+	require.NoError(t, err)
+	// All test observations share the same MessagePublicationHash, so we get one broadcast.
+	require.Len(t, broadcasts, 1)
+	broadcast := broadcasts[0]
+
+	// All 6 signatures should pass verification.
+	assert.Equal(t, 6, len(broadcast.Signatures))
+
+	// Verify common fields from the API response.
+	assert.Equal(t, uint32(50), broadcast.EmitterChain)
+	assert.Equal(t, uint64(1750), broadcast.Sequence)
+	assert.Equal(t, uint32(0), broadcast.Nonce)
+	assert.Equal(t, uint32(202), broadcast.ConsistencyLevel)
+	assert.False(t, broadcast.Unreliable)
+	assert.False(t, broadcast.IsReobservation)
+	assert.Equal(t, uint32(0), broadcast.VerificationState)
+
+	// Verify each signature has the expected guardian address.
+	expectedGuardians := map[string]bool{
+		"000ac0076727b35fbea2dac28fee5ccb0fea768e": false,
+		"da798f6896a3331f64b48c12d1d57fd9cbe70811": false,
+		"178e21ad2e77ae06711549cfbb1f9c7a9d8096e8": false,
+		"af45ced136b9d9e24903464ae889f5c8a723fc14": false,
+		"11b39756c042441be6d8650b69b54ebe715e2343": false,
+		"938f104aeb5581293216ce97d771e0cb721221b1": false,
+	}
+	for _, sig := range broadcast.Signatures {
+		addr := fmt.Sprintf("%x", sig.GuardianAddr)
+		_, ok := expectedGuardians[addr]
+		assert.True(t, ok, "unexpected guardian address: %s", addr)
+		expectedGuardians[addr] = true
+		assert.NotEmpty(t, sig.Signature)
+		assert.NotZero(t, sig.SentTimestamp)
+	}
+	for addr, seen := range expectedGuardians {
+		assert.True(t, seen, "missing guardian address: %s", addr)
+	}
+}
+
+func TestBuildDelegateSignaturesBroadcasts_BadSignature(t *testing.T) {
+	// Take the real data but corrupt one signature — it should be dropped.
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+
+	observations[0].Signature = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
+	broadcasts, err := buildDelegateSignaturesBroadcasts(vaaID, observations)
+	require.NoError(t, err)
+	require.Len(t, broadcasts, 1)
+
+	// 5 of 6 should pass (the corrupted one is dropped).
+	assert.Equal(t, 5, len(broadcasts[0].Signatures))
+}
+
+func TestBuildDelegateSignaturesBroadcasts_EmptyObservations(t *testing.T) {
+	_, err := buildDelegateSignaturesBroadcasts("50/abc/123", nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no delegate observations provided")
+}
+
+func TestBuildDelegateSignaturesBroadcasts_BadVaaID(t *testing.T) {
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+
+	_, err := buildDelegateSignaturesBroadcasts("invalid", observations)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vaa_id must be in format")
+}

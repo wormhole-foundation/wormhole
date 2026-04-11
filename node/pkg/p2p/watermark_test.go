@@ -282,6 +282,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G, protectedPeers []str
 			g.controlSendC,
 			g.attestationSendC,
 			g.delegatedAttestationSendC,
+			nil, // delegateSigBroadcastSendC
 			g.vaaSendC,
 			g.obsvReqSendC,
 			g.acct,
