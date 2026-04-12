@@ -4,10 +4,7 @@ use solana_program::{
     pubkey::Pubkey,
     system_instruction,
 };
-use solana_program_test::{
-    tokio,
-    BanksClient,
-};
+use solana_program_test::tokio;
 use solana_sdk::{
     commitment_config::CommitmentLevel,
     signature::{
@@ -45,6 +42,7 @@ use bridge::{
 };
 use primitive_types::U256;
 use solana_program::rent::Rent;
+use solana_program_test::ProgramTestContext;
 
 mod common;
 
@@ -78,7 +76,7 @@ impl Sequencer {
     }
 }
 
-async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
+async fn initialize() -> (Context, ProgramTestContext, Pubkey) {
     let (public_keys, secret_keys) = common::generate_keys(6);
     let context = Context {
         public: public_keys,
@@ -87,7 +85,7 @@ async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
             sequences: std::collections::HashMap::new(),
         },
     };
-    let (mut client, payer, program) = common::setup().await;
+    let (mut test_ctx, program) = common::setup().await;
 
     // Use a timestamp from a few seconds earlier for testing to simulate thread::sleep();
     let now = std::time::SystemTime::now()
@@ -96,9 +94,15 @@ async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
         .as_secs()
         - 10;
 
-    common::initialize(&mut client, program, &payer, &context.public, 500)
-        .await
-        .unwrap();
+    common::initialize(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &context.public,
+        500,
+    )
+    .await
+    .unwrap();
 
     // Verify the initial bridge state is as expected.
     let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
@@ -108,9 +112,9 @@ async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
     );
 
     // Fetch account states.
-    let bridge: BridgeData = common::get_account_data(&mut client, bridge_key).await;
+    let bridge: BridgeData = common::get_account_data(&mut test_ctx.banks_client, bridge_key).await;
     let guardian_set: GuardianSetData =
-        common::get_account_data(&mut client, guardian_set_key).await;
+        common::get_account_data(&mut test_ctx.banks_client, guardian_set_key).await;
 
     // Bridge Config should be as expected.
     assert_eq!(bridge.guardian_set_index, 0);
@@ -122,12 +126,13 @@ async fn initialize() -> (Context, BanksClient, Keypair, Pubkey) {
     assert_eq!(guardian_set.keys, context.public);
     assert!(guardian_set.creation_time as u64 > now);
 
-    (context, client, payer, program)
+    (context, test_ctx, program)
 }
 
 #[tokio::test]
 async fn bridge_messages() {
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Data/Nonce used for emitting a message we want to prove exists. Run this twice to make sure
     // that duplicate data does not clash.
@@ -315,7 +320,8 @@ async fn bridge_messages() {
 // length.
 #[tokio::test]
 async fn test_bridge_messages_unreliable() {
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Data/Nonce used for emitting a message we want to prove exists. Run this twice to make sure
     // that duplicate data does not clash.
@@ -433,7 +439,8 @@ async fn test_bridge_messages_unreliable() {
 
 #[tokio::test]
 async fn test_bridge_messages_unreliable_do_not_override_reliable() {
-    let (ref mut _context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut _context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     let emitter = Keypair::new();
     let message_key = Keypair::new();
@@ -475,7 +482,8 @@ async fn bridge_works_after_transfer_fees() {
     // This test aims to ensure that the bridge remains operational after the
     // fees have been transferred out.
     // NOTE: the bridge is initialised to take a minimum of 500 in fees.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
     let fee_collector = FeeCollector::key(None, program);
     let initial_balance = common::get_account_balance(client, fee_collector).await;
 
@@ -551,7 +559,8 @@ async fn bridge_works_after_transfer_fees() {
 // DoSd by someone funding derived accounts making CreateAccount fail.
 #[tokio::test]
 async fn test_bridge_message_prefunded_account() {
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Data/Nonce used for emitting a message we want to prove exists. Run this twice to make sure
     // that duplicate data does not clash.
@@ -623,7 +632,8 @@ async fn test_bridge_message_prefunded_account() {
 
 #[tokio::test]
 async fn invalid_emitter() {
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Generate a message we want to persist.
     let message = [0u8; 32].to_vec();
@@ -668,7 +678,8 @@ async fn invalid_emitter() {
 #[tokio::test]
 async fn guardian_set_change() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Use a timestamp from a few seconds earlier for testing to simulate thread::sleep();
     let now = std::time::SystemTime::now()
@@ -858,7 +869,8 @@ async fn guardian_set_change() {
 #[tokio::test]
 async fn guardian_set_change_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Use a random emitter key to confirm the bridge rejects transactions from non-governance key.
     let emitter = Keypair::new();
@@ -904,7 +916,8 @@ async fn guardian_set_change_fails() {
 #[tokio::test]
 async fn set_fees() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
@@ -1053,7 +1066,8 @@ async fn set_fees() {
 #[tokio::test]
 async fn set_fees_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Use a random key to confirm only the governance key is respected.
     let emitter = Keypair::new();
@@ -1102,7 +1116,8 @@ async fn set_fees_fails() {
 #[tokio::test]
 async fn free_fees() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
@@ -1230,7 +1245,8 @@ async fn free_fees() {
 #[tokio::test]
 async fn transfer_fees() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
@@ -1289,7 +1305,8 @@ async fn transfer_fees() {
 #[tokio::test]
 async fn transfer_fees_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // Use an invalid emitter.
     let emitter = Keypair::new();
@@ -1350,7 +1367,8 @@ async fn transfer_fees_fails() {
 #[tokio::test]
 async fn transfer_too_much() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
@@ -1410,7 +1428,8 @@ async fn transfer_too_much() {
 #[tokio::test]
 async fn foreign_bridge_messages() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
     let nonce = rand::thread_rng().gen();
     let message = [0u8; 32].to_vec();
     let emitter = Keypair::new();
@@ -1462,7 +1481,8 @@ async fn foreign_bridge_messages() {
 #[tokio::test]
 async fn transfer_total_fails() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
@@ -1531,7 +1551,8 @@ async fn transfer_total_fails() {
 #[ignore]
 async fn upgrade_contract() {
     // Initialize a wormhole bridge on Solana to test with.
-    let (ref mut context, ref mut client, ref payer, ref program) = initialize().await;
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
 
     // New Contract Address
     // let new_contract = Pubkey::new_unique();
@@ -1577,4 +1598,609 @@ async fn upgrade_contract() {
     )
     .await
     .unwrap();
+}
+
+#[test]
+fn test_message_account_closed_discriminator_matches_sha256() {
+    let hash = solana_program::hash::hash(b"event:MessageAccountClosed");
+    let expected = &hash.to_bytes()[..8];
+    assert_eq!(
+        bridge::MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR, expected,
+        "MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR must equal SHA256(\"event:MessageAccountClosed\")[..8]"
+    );
+}
+
+#[test]
+fn test_event_ix_tag_matches_sha256() {
+    // EVENT_IX_TAG should equal SHA256("anchor:event")[0..8] read as a big-endian u64.
+    let hash = solana_program::hash::hash(b"anchor:event");
+    let mut tag_bytes = [0u8; 8];
+    tag_bytes.copy_from_slice(&hash.to_bytes()[..8]);
+    let expected = u64::from_be_bytes(tag_bytes);
+
+    assert_eq!(
+        solitaire::EVENT_IX_TAG,
+        expected,
+        "EVENT_IX_TAG must equal SHA256(\"anchor:event\")[..8] as BE u64"
+    );
+    assert_eq!(
+        solitaire::EVENT_IX_TAG_LE,
+        expected.to_le_bytes(),
+        "EVENT_IX_TAG_LE must be the little-endian encoding"
+    );
+}
+
+/// Verify that the event CPI guard rejects external callers. Only the program
+/// itself (via invoke_signed with the event authority PDA) should be able to
+/// invoke the event CPI path.
+#[tokio::test]
+async fn test_event_cpi_guard_rejects_external_call() {
+    let (ref mut _context, ref mut test_ctx, ref program) = initialize().await;
+    let (client, payer) = (&mut test_ctx.banks_client, &test_ctx.payer);
+
+    let (event_authority, _) =
+        Pubkey::find_program_address(&[solitaire::EVENT_AUTHORITY_SEED], program);
+
+    // Case 1: Pass the correct event authority PDA, but it can't be a signer
+    // because only the program itself can sign for its own PDAs.
+    let ix_unsigned_pda = solana_program::instruction::Instruction {
+        program_id: *program,
+        accounts: vec![solana_program::instruction::AccountMeta::new_readonly(
+            event_authority,
+            false,
+        )],
+        data: solitaire::EVENT_IX_TAG_LE.to_vec(),
+    };
+    let result = common::execute(
+        client,
+        payer,
+        &[payer],
+        &[ix_unsigned_pda],
+        CommitmentLevel::Processed,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Event CPI must reject when event authority PDA is not a signer"
+    );
+
+    // Case 2: Pass a random keypair that IS a signer, but is not the PDA.
+    let fake_authority = Keypair::new();
+    let ix_wrong_signer = solana_program::instruction::Instruction {
+        program_id: *program,
+        accounts: vec![solana_program::instruction::AccountMeta::new_readonly(
+            fake_authority.pubkey(),
+            true,
+        )],
+        data: solitaire::EVENT_IX_TAG_LE.to_vec(),
+    };
+    let result = common::execute(
+        client,
+        payer,
+        &[payer, &fake_authority],
+        &[ix_wrong_signer],
+        CommitmentLevel::Processed,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Event CPI must reject when signer is not the event authority PDA"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Rent Reclamation Tests
+// ---------------------------------------------------------------------------
+
+/// Submission time 29 days in the past -- still inside the 30-day retention window.
+fn recent_submission_time() -> u32 {
+    (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        - 29 * 24 * 60 * 60) as u32
+}
+
+/// Submission time 31 days in the past, just barely outside the 30-day retention window.
+fn old_submission_time() -> u32 {
+    (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        - 31 * 24 * 60 * 60) as u32
+}
+
+#[tokio::test]
+async fn test_post_vaa_sets_submission_time() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let client = &mut test_ctx.banks_client;
+    let payer = &test_ctx.payer;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [0u8; 32].to_vec();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    // Post a message and verify signatures.
+    common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        None,
+        nonce,
+        message.clone(),
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    let (vaa, body, _) = common::generate_vaa(&emitter, message, nonce, sequence, 0, 1);
+    let signature_set = common::verify_signatures(client, program, payer, body, &context.secret, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, program, payer, signature_set, vaa)
+        .await
+        .unwrap();
+
+    // Verify submission_time is set on the PostedVAA.
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        },
+        program,
+    );
+    let posted_vaa: PostedVAAData = common::get_account_data(client, message_key).await;
+    assert!(
+        posted_vaa.message.submission_time > 0,
+        "PostVAA should set submission_time"
+    );
+}
+
+#[tokio::test]
+async fn test_close_posted_message_rejects_recent() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+    let client = &mut test_ctx.banks_client;
+    let payer = &test_ctx.payer;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [1u8; 32].to_vec();
+
+    // Post a message (reliable, "msg" prefix).
+    let message_key = common::post_message(
+        client, program, payer, &emitter, None, nonce, message, 10_000,
+    )
+    .await
+    .unwrap();
+
+    // Immediately try to close -- should fail (within retention window).
+    let result = common::close_posted_message(client, program, payer, message_key).await;
+    assert!(result.is_err(), "Should reject closing a recent message");
+}
+
+/// Verify the retention boundary: a message whose submission_time is 29 days ago
+/// (inside the 30-day window) should still be rejected.
+#[tokio::test]
+async fn test_close_posted_message_rejects_within_retention_window() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [9u8; 32].to_vec();
+
+    let message_key = common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message,
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    // Set submission_time to 29 days ago -- still inside the 30-day retention window.
+    common::set_submission_time(test_ctx, message_key, recent_submission_time()).await;
+
+    let result = common::close_posted_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        message_key,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Should reject closing a message still within the 30-day retention window"
+    );
+}
+
+#[tokio::test]
+async fn test_close_posted_message_happy_path() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [2u8; 32].to_vec();
+    let fee_collector = FeeCollector::<'_>::key(None, program);
+
+    // Post a message.
+    let message_key = common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message,
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    // Record balances before close.
+    let fee_collector_before =
+        common::get_account_balance(&mut test_ctx.banks_client, fee_collector).await;
+    let message_lamports =
+        common::get_account_balance(&mut test_ctx.banks_client, message_key).await;
+
+    // Set submission_time to 0 (epoch) so it passes the 30-day retention check.
+    common::set_submission_time(test_ctx, message_key, old_submission_time()).await;
+
+    // Close the message.
+    common::close_posted_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        message_key,
+    )
+    .await
+    .unwrap();
+
+    // Verify: fee_collector received the lamports.
+    let fee_collector_after =
+        common::get_account_balance(&mut test_ctx.banks_client, fee_collector).await;
+    assert_eq!(
+        fee_collector_after,
+        fee_collector_before + message_lamports,
+        "Fee collector should receive message account lamports"
+    );
+
+    // Verify: message account is closed (empty data or doesn't exist).
+    let msg_data = common::get_account_data_raw(&mut test_ctx.banks_client, message_key).await;
+    assert!(
+        msg_data.is_none() || msg_data.unwrap().iter().all(|&b| b == 0),
+        "Message account should be closed"
+    );
+
+    // Verify: bridge.last_lamports is updated.
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
+    let bridge: BridgeData = common::get_account_data(&mut test_ctx.banks_client, bridge_key).await;
+    assert_eq!(
+        bridge.last_lamports, fee_collector_after,
+        "bridge.last_lamports should be updated"
+    );
+}
+
+#[tokio::test]
+async fn test_close_posted_message_unreliable() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [3u8; 32].to_vec();
+    let message_key = Keypair::new();
+
+    // Post an unreliable message ("msu" prefix).
+    common::post_message_unreliable(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        &message_key,
+        nonce,
+        message,
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    // Set submission_time to 0 so it passes the retention check.
+    common::set_submission_time(test_ctx, message_key.pubkey(), old_submission_time()).await;
+
+    // Close should succeed for "msu" prefix too.
+    common::close_posted_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        message_key.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    // Verify account is closed.
+    let data = common::get_account_data_raw(&mut test_ctx.banks_client, message_key.pubkey()).await;
+    assert!(
+        data.is_none() || data.unwrap().iter().all(|&b| b == 0),
+        "Unreliable message account should be closed"
+    );
+}
+
+#[tokio::test]
+async fn test_close_signature_set_and_posted_vaa_happy_path() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [4u8; 32].to_vec();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+    let fee_collector = FeeCollector::<'_>::key(None, program);
+
+    // Post message, verify signatures, post VAA.
+    common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message.clone(),
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    let (vaa, body, _) = common::generate_vaa(&emitter, message, nonce, sequence, 0, 1);
+    let signature_set = common::verify_signatures(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        body,
+        &context.secret,
+        0,
+    )
+    .await
+    .unwrap();
+    common::post_vaa(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        signature_set,
+        vaa,
+    )
+    .await
+    .unwrap();
+
+    let posted_vaa_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        },
+        program,
+    );
+
+    // Record balances.
+    let fee_collector_before =
+        common::get_account_balance(&mut test_ctx.banks_client, fee_collector).await;
+    let sig_lamports = common::get_account_balance(&mut test_ctx.banks_client, signature_set).await;
+    let vaa_lamports =
+        common::get_account_balance(&mut test_ctx.banks_client, posted_vaa_key).await;
+
+    // Set submission_time to 0 on the PostedVAA so it passes the retention check.
+    common::set_submission_time(test_ctx, posted_vaa_key, old_submission_time()).await;
+
+    // Close both.
+    common::close_signature_set_and_posted_vaa(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        signature_set,
+        posted_vaa_key,
+        0,
+    )
+    .await
+    .unwrap();
+
+    // Verify fee_collector received all lamports.
+    let fee_collector_after =
+        common::get_account_balance(&mut test_ctx.banks_client, fee_collector).await;
+    assert_eq!(
+        fee_collector_after,
+        fee_collector_before + sig_lamports + vaa_lamports,
+        "Fee collector should receive both accounts' lamports"
+    );
+
+    // Verify both accounts are closed.
+    let sig_data = common::get_account_data_raw(&mut test_ctx.banks_client, signature_set).await;
+    assert!(
+        sig_data.is_none() || sig_data.unwrap().iter().all(|&b| b == 0),
+        "Signature set should be closed"
+    );
+    let vaa_data = common::get_account_data_raw(&mut test_ctx.banks_client, posted_vaa_key).await;
+    assert!(
+        vaa_data.is_none() || vaa_data.unwrap().iter().all(|&b| b == 0),
+        "PostedVAA should be closed"
+    );
+}
+
+#[tokio::test]
+async fn test_close_signature_set_and_posted_vaa_rejects_recent() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [5u8; 32].to_vec();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    // Full flow: post message, verify sigs, post VAA.
+    common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message.clone(),
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    let (vaa, body, _) = common::generate_vaa(&emitter, message, nonce, sequence, 0, 1);
+    let signature_set = common::verify_signatures(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        body,
+        &context.secret,
+        0,
+    )
+    .await
+    .unwrap();
+    common::post_vaa(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        signature_set,
+        vaa,
+    )
+    .await
+    .unwrap();
+
+    let posted_vaa_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        },
+        program,
+    );
+
+    // Immediately try to close -- should fail (recent VAA).
+    let result = common::close_signature_set_and_posted_vaa(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        signature_set,
+        posted_vaa_key,
+        0,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Should reject closing recent sig set + VAA"
+    );
+}
+
+#[tokio::test]
+async fn test_close_signature_set_no_vaa_active_guardian_rejects() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [6u8; 32].to_vec();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    // Post message and verify signatures, but do NOT post VAA.
+    common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message.clone(),
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    let (_, body, _) = common::generate_vaa(&emitter, message, nonce, sequence, 0, 1);
+    let signature_set = common::verify_signatures(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        body,
+        &context.secret,
+        0,
+    )
+    .await
+    .unwrap();
+
+    // The PostedVAA PDA doesn't exist (never posted).
+    let posted_vaa_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        },
+        program,
+    );
+
+    // Try to close with active guardian set -- should fail.
+    let result = common::close_signature_set_and_posted_vaa(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        signature_set,
+        posted_vaa_key,
+        0,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Should reject closing sig set when guardian set is still active"
+    );
+}
+
+#[tokio::test]
+async fn test_fee_enforcement_after_close() {
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [7u8; 32].to_vec();
+
+    // Post a message.
+    let message_key = common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message.clone(),
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    // Set submission_time to 0 so it passes retention check, then close.
+    common::set_submission_time(test_ctx, message_key, old_submission_time()).await;
+
+    common::close_posted_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        message_key,
+    )
+    .await
+    .unwrap();
+
+    // Now post another message -- fee should still be enforced.
+    let nonce2 = rand::thread_rng().gen();
+    let message2 = [8u8; 32].to_vec();
+    let result = common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce2,
+        message2,
+        10_000,
+    )
+    .await;
+    assert!(
+        result.is_ok(),
+        "Should still be able to post messages after close"
+    );
 }
