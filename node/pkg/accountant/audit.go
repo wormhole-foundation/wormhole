@@ -97,7 +97,7 @@ type (
 	}
 )
 
-func (mo MissingObservation) String() string {
+func (mo *MissingObservation) String() string {
 	return fmt.Sprintf("%d-%s", mo.ChainId, hex.EncodeToString(mo.TxHash))
 }
 
@@ -265,14 +265,14 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry, wormchainC
 
 // handleMissingObservation submits a local reobservation request. It relies on the reobservation code to throttle requests.
 func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
-	acct.logger.Warn("contract reported unknown observation as missing, requesting local reobservation", zap.Stringer("moKey", mo))
+	acct.logger.Warn("contract reported unknown observation as missing, requesting local reobservation", zap.String("moKey", mo.String()))
 	msg := &gossipv1.ObservationRequest{ChainId: uint32(mo.ChainId), TxHash: mo.TxHash, Timestamp: time.Now().UnixNano()}
 
 	select {
 	case acct.obsvReqWriteC <- msg:
-		acct.logger.Debug("submitted local reobservation", zap.Stringer("moKey", mo))
+		acct.logger.Debug("submitted local reobservation", zap.Stringer("moKey", &mo))
 	default:
-		acct.logger.Error("unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", mo))
+		acct.logger.Error("unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", &mo))
 	}
 }
 
