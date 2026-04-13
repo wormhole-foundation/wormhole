@@ -959,7 +959,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 
 		vaaInjectionsTotal.Inc()
 
-		s.injectC <- &common.MessagePublication{ //nolint:channelcheck // Only blocks this command
+		s.injectC <- &common.MessagePublication{ // Note on channel capacity: Only blocks this command
 			TxID:             ethcommon.Hash{}.Bytes(),
 			Timestamp:        v.Timestamp,
 			Nonce:            v.Nonce,
@@ -1002,6 +1002,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			return false, fmt.Errorf("failed to create request: %w", err)
 		}
 
+		// #nosec G704 -- Admin RPC: BackfillNodes from authorized admin request
 		resp, err := c.Do(req)
 		if err != nil {
 			s.logger.Warn("failed to fetch missing VAA",
@@ -1059,7 +1060,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			// Inject into the gossip signed VAA receive path.
 			// This has the same effect as if the VAA was received from the network
 			// (verifying signature, storing in local DB...).
-			s.signedInC <- &gossipv1.SignedVAAWithQuorum{ //nolint:channelcheck // Only blocks this command
+			s.signedInC <- &gossipv1.SignedVAAWithQuorum{ // Note on channel capacity: Only blocks this command
 				Vaa: vaaBytes,
 			}
 
@@ -1578,7 +1579,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		Timeout: 30 * time.Second,
 	}
 
-	// Call the cloud function to get the missing VAAs
+	// #nosec G704 -- Admin RPC: URL from authorized admin request
 	results, err := client.Do(httpRequest)
 	if err != nil {
 		fmt.Printf("GetAndObserveMissingVAAs: error making http request: %s\n", err)

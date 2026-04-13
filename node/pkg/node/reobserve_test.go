@@ -60,7 +60,7 @@ type reobservationTestContext struct {
 }
 
 func setUpReobservationTest() (reobservationTestContext, func()) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // #nosec G118 -- Cancel is returned to the caller for cleanup.
 
 	clock := NewMockClock(time.Now())
 
