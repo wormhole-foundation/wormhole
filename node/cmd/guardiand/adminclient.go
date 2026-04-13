@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -645,7 +644,7 @@ func runGetAndObserveMissingVAAs(cmd *cobra.Command, args []string) {
 // wormholescanDelegateObservation represents a delegate observation from the wormholescan API.
 type wormholescanDelegateObservation struct {
 	Sequence               uint64 `json:"sequence"`
-	EmitterChain           uint32 `json:"emitterChain"`
+	EmitterChain           uint16 `json:"emitterChain"`
 	EmitterAddr            string `json:"emitterAddr"`
 	MessagePublicationHash string `json:"hash"`
 	TxHash                 string `json:"txHash"`
@@ -658,7 +657,7 @@ type wormholescanDelegateObservation struct {
 	SentTimestamp          string `json:"sentTimestamp"`
 	Unreliable             bool   `json:"unreliable"`
 	IsReobservation        bool   `json:"isReobservation"`
-	VerificationState      uint32 `json:"verificationState"`
+	VerificationState      uint8  `json:"verificationState"`
 }
 
 // delegateObservationVAAHash computes the VAA body hash (double Keccak256) from a delegate observation's fields.
@@ -671,25 +670,24 @@ func delegateObservationVAAHash(obs *wormholescanDelegateObservation) (string, e
 	if err != nil {
 		return "", fmt.Errorf("failed to decode payload: %v", err)
 	}
-	emitterAddr, err := hex.DecodeString(obs.EmitterAddr)
+	emitterAddrBytes, err := hex.DecodeString(obs.EmitterAddr)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode emitter address: %v", err)
 	}
-	// VAA body: timestamp(4) || nonce(4) || emitter_chain(2) || emitter_address(32) || sequence(8) || consistency_level(1) || payload
-	buf := make([]byte, 0, 4+4+2+32+8+1+len(payload))
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint32(b[:4], uint32(ts.Unix())) // #nosec G115 -- timestamp fits in uint32
-	buf = append(buf, b[:4]...)
-	binary.BigEndian.PutUint32(b[:4], obs.Nonce)
-	buf = append(buf, b[:4]...)
-	binary.BigEndian.PutUint16(b[:2], uint16(obs.EmitterChain)) // #nosec G115 -- chain ID fits in uint16
-	buf = append(buf, b[:2]...)
-	buf = append(buf, emitterAddr...)
-	binary.BigEndian.PutUint64(b, obs.Sequence)
-	buf = append(buf, b...)
-	buf = append(buf, uint8(obs.ConsistencyLevel)) // #nosec G115 -- consistency level fits in uint8
-	buf = append(buf, payload...)
-	return crypto.Keccak256Hash(crypto.Keccak256Hash(buf).Bytes()).Hex(), nil
+	emitterAddr, err := vaa.BytesToAddress(emitterAddrBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert emitter address: %v", err)
+	}
+	v := &vaa.VAA{
+		Timestamp:        ts,
+		Nonce:            obs.Nonce,
+		EmitterChain:     vaa.ChainID(obs.EmitterChain),
+		EmitterAddress:   emitterAddr,
+		Sequence:         obs.Sequence,
+		ConsistencyLevel: uint8(obs.ConsistencyLevel), // #nosec G115 -- consistency level fits in uint8
+		Payload:          payload,
+	}
+	return v.SigningDigest().Hex(), nil
 }
 
 // buildDelegateSignaturesBroadcasts takes parsed wormholescan API observations and a VAA ID,
@@ -759,7 +757,6 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %v", err)
 	}
-	chainIDNum := int(chainIDParsed)
 
 	// Step 3: Build one broadcast per MessagePublicationHash sub-group.
 	signedDelegateObservationPrefix := []byte("signed_delegate_observation_000000|")
@@ -805,13 +802,18 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 				continue
 			}
 
-			var sigBytes []byte
-			if obs.Signature != "" {
-				sigBytes, err = base64.StdEncoding.DecodeString(obs.Signature)
-				if err != nil {
-					log.Printf("Warning: skipping observation with invalid signature for guardian %s: %v", obs.DelegatedGuardianAddr, err)
-					continue
-				}
+			if obs.Signature == "" {
+				log.Printf("Warning: skipping observation with empty signature for guardian %s", obs.DelegatedGuardianAddr)
+				continue
+			}
+			sigBytes, err := base64.StdEncoding.DecodeString(obs.Signature)
+			if err != nil {
+				log.Printf("Warning: skipping observation with invalid signature for guardian %s: %v", obs.DelegatedGuardianAddr, err)
+				continue
+			}
+			if len(sigBytes) != 65 {
+				log.Printf("Warning: skipping observation with unexpected signature length %d for guardian %s", len(sigBytes), obs.DelegatedGuardianAddr)
+				continue
 			}
 
 			var sentTimestamp int64
@@ -827,7 +829,7 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 			d := &gossipv1.DelegateObservation{
 				Timestamp:         timestamp,
 				Nonce:             ref.Nonce,
-				EmitterChain:      uint32(chainIDNum), // #nosec G115
+				EmitterChain:      uint32(chainIDParsed), // #nosec G115
 				EmitterAddress:    emitterAddrBytes,
 				Sequence:          ref.Sequence,
 				ConsistencyLevel:  ref.ConsistencyLevel,
@@ -835,7 +837,7 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 				TxHash:            txHashBytes,
 				Unreliable:        obs.Unreliable,
 				IsReobservation:   obs.IsReobservation,
-				VerificationState: obs.VerificationState,
+				VerificationState: uint32(obs.VerificationState), // #nosec G115
 				GuardianAddr:      guardianAddrBytes,
 				SentTimestamp:     sentTimestamp,
 			}
@@ -845,9 +847,6 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 			}
 
 			// Verify the signature over the reconstructed bytes.
-			if len(sigBytes) == 0 {
-				continue
-			}
 			digest := crypto.Keccak256Hash(append(signedDelegateObservationPrefix, b...))
 			pubKey, err := crypto.Ecrecover(digest.Bytes(), sigBytes)
 			if err != nil {
@@ -873,7 +872,7 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 		broadcasts = append(broadcasts, &gossipv1.DelegateSignaturesBroadcast{
 			Timestamp:          timestamp,
 			Nonce:              ref.Nonce,
-			EmitterChain:       uint32(chainIDNum), // #nosec G115
+			EmitterChain:       uint32(chainIDParsed), // #nosec G115
 			EmitterAddress:     emitterAddrBytes,
 			Sequence:           ref.Sequence,
 			ConsistencyLevel:   ref.ConsistencyLevel,
@@ -881,7 +880,7 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 			TxHash:             txHashBytes,
 			Unreliable:         ref.Unreliable,
 			IsReobservation:    ref.IsReobservation,
-			VerificationState:  ref.VerificationState,
+			VerificationState:  uint32(ref.VerificationState), // #nosec G115
 			Signatures:         signatures,
 			BroadcastTimestamp: time.Now().Unix(),
 		})

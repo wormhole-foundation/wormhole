@@ -2,7 +2,6 @@ package guardiand
 
 import (
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -151,8 +150,8 @@ func TestDelegateObservationHashIsMessagePublicationHash(t *testing.T) {
 		Timestamp:        ts,
 		Nonce:            obs.Nonce,
 		Sequence:         obs.Sequence,
-		ConsistencyLevel: uint8(obs.ConsistencyLevel),   // #nosec G115 -- test data is a known constant
-		EmitterChain:     vaa.ChainID(obs.EmitterChain), // #nosec G115 -- test data is a known constant
+		ConsistencyLevel: uint8(obs.ConsistencyLevel), // #nosec G115 -- test data is a known constant
+		EmitterChain:     vaa.ChainID(obs.EmitterChain),
 		EmitterAddress:   emitterAddr,
 		Payload:          payload,
 		IsReobservation:  obs.IsReobservation,
@@ -166,9 +165,17 @@ func TestDelegateObservationHashIsMessagePublicationHash(t *testing.T) {
 	assert.Equal(t, apiHashBytes, mpHash.Bytes(),
 		"API hash should match Keccak256(MessagePublication.MarshalBinary())")
 
-	// Also compute the VAA body hash (double Keccak256) and confirm it does NOT match.
-	body := serializeVAABody(ts, obs.Nonce, vaa.ChainID(obs.EmitterChain), emitterAddr, obs.Sequence, uint8(obs.ConsistencyLevel), payload) // #nosec G115 -- test data is a known constant
-	vaaHash := crypto.Keccak256Hash(crypto.Keccak256Hash(body).Bytes())
+	// Also compute the VAA body hash (double Keccak256) using the SDK and confirm it does NOT match.
+	v := &vaa.VAA{
+		Timestamp:        ts,
+		Nonce:            obs.Nonce,
+		EmitterChain:     vaa.ChainID(obs.EmitterChain),
+		EmitterAddress:   emitterAddr,
+		Sequence:         obs.Sequence,
+		ConsistencyLevel: uint8(obs.ConsistencyLevel), // #nosec G115 -- test data is a known constant
+		Payload:          payload,
+	}
+	vaaHash := v.SigningDigest()
 	assert.NotEqual(t, apiHashBytes, vaaHash.Bytes(),
 		"API hash should NOT match the double-Keccak256 VAA body hash")
 }
@@ -178,26 +185,6 @@ func mustDecodeHex(t *testing.T, s string) []byte {
 	b, err := hex.DecodeString(s)
 	require.NoError(t, err)
 	return b
-}
-
-// serializeVAABody reproduces vaa.VAA.serializeBody() without needing a full VAA struct.
-func serializeVAABody(ts time.Time, nonce uint32, chain vaa.ChainID, emitter vaa.Address, seq uint64, cl uint8, payload []byte) []byte {
-	buf := make([]byte, 0, 4+4+2+32+8+1+len(payload))
-	b4 := make([]byte, 4)
-	binary.BigEndian.PutUint32(b4, uint32(ts.Unix())) // #nosec G115 -- test timestamp fits in uint32
-	buf = append(buf, b4...)
-	binary.BigEndian.PutUint32(b4, nonce)
-	buf = append(buf, b4...)
-	b2 := make([]byte, 2)
-	binary.BigEndian.PutUint16(b2, uint16(chain))
-	buf = append(buf, b2...)
-	buf = append(buf, emitter[:]...)
-	b8 := make([]byte, 8)
-	binary.BigEndian.PutUint64(b8, seq)
-	buf = append(buf, b8...)
-	buf = append(buf, cl)
-	buf = append(buf, payload...)
-	return buf
 }
 
 func TestDelegateObservationVAAHash(t *testing.T) {
@@ -268,8 +255,8 @@ func TestBuildDelegateSignaturesBroadcasts(t *testing.T) {
 	}
 }
 
-func TestBuildDelegateSignaturesBroadcasts_BadSignature(t *testing.T) {
-	// Take the real data but corrupt one signature — it should be dropped.
+func TestBuildDelegateSignaturesBroadcasts_BadSignatureLength(t *testing.T) {
+	// Signature decodes to 66 bytes (not 65) — should be dropped by length check.
 	var observations []wormholescanDelegateObservation
 	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
 
@@ -280,8 +267,76 @@ func TestBuildDelegateSignaturesBroadcasts_BadSignature(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, broadcasts, 1)
 
+	// 5 of 6 should pass (the wrong-length one is dropped).
+	assert.Equal(t, 5, len(broadcasts[0].Signatures))
+}
+
+func TestBuildDelegateSignaturesBroadcasts_BadSignatureEcrecover(t *testing.T) {
+	// Signature is 65 bytes but wrong — should be dropped by ecrecover/address mismatch.
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+
+	observations[0].Signature = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
+	broadcasts, err := buildDelegateSignaturesBroadcasts(vaaID, observations)
+	require.NoError(t, err)
+	require.Len(t, broadcasts, 1)
+
 	// 5 of 6 should pass (the corrupted one is dropped).
 	assert.Equal(t, 5, len(broadcasts[0].Signatures))
+}
+
+// TestBuildDelegateSignaturesBroadcasts_NonVAAFieldsAreSignaturePreimage verifies that
+// non-VAA fields (unreliable, isReobservation, verificationState) are part of the delegate
+// observation signature preimage. Changing any of these fields should cause signature
+// verification to fail, dropping all signatures.
+func TestBuildDelegateSignaturesBroadcasts_NonVAAFieldsAreSignaturePreimage(t *testing.T) {
+	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
+
+	tests := []struct {
+		name   string
+		mutate func(obs []wormholescanDelegateObservation)
+	}{
+		{
+			name: "unreliable set to true",
+			mutate: func(obs []wormholescanDelegateObservation) {
+				for i := range obs {
+					obs[i].Unreliable = true
+				}
+			},
+		},
+		{
+			name: "isReobservation set to true",
+			mutate: func(obs []wormholescanDelegateObservation) {
+				for i := range obs {
+					obs[i].IsReobservation = true
+				}
+			},
+		},
+		{
+			name: "verificationState set to non-zero",
+			mutate: func(obs []wormholescanDelegateObservation) {
+				for i := range obs {
+					obs[i].VerificationState = 1
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var observations []wormholescanDelegateObservation
+			require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+
+			tc.mutate(observations)
+
+			// All signatures should fail verification because the preimage changed.
+			_, err := buildDelegateSignaturesBroadcasts(vaaID, observations)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "no signatures passed verification")
+		})
+	}
 }
 
 func TestBuildDelegateSignaturesBroadcasts_EmptyObservations(t *testing.T) {
