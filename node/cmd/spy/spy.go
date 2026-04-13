@@ -110,8 +110,12 @@ func subscriptionId() string {
 }
 
 func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
+	// Collect matching subscribers under the lock, then send outside the lock.
+	// This prevents a slow subscriber from blocking the mutex and stalling all
+	// other publishers and subscriber cleanup.
+	var targets []*subscriptionSignedVaa
+
 	s.subsSignedVaaMu.Lock()
-	defer s.subsSignedVaaMu.Unlock()
 
 	var v *vaa.VAA
 	var err error
@@ -123,16 +127,18 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 				verified = true
 				v, err = s.verifyVAA(v, vaaBytes)
 				if err != nil {
+					s.subsSignedVaaMu.Unlock()
 					return err
 				}
 			}
-			sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
+			targets = append(targets, sub)
 			continue
 		}
 
 		if v == nil {
 			v, err = vaa.Unmarshal(vaaBytes)
 			if err != nil {
+				s.subsSignedVaaMu.Unlock()
 				return err
 			}
 		}
@@ -143,13 +149,20 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 					verified = true
 					v, err = s.verifyVAA(v, vaaBytes)
 					if err != nil {
+						s.subsSignedVaaMu.Unlock()
 						return err
 					}
 				}
-				sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
+				targets = append(targets, sub)
 			}
 		}
 
+	}
+
+	s.subsSignedVaaMu.Unlock()
+
+	for _, sub := range targets {
+		sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
 	}
 
 	return nil
