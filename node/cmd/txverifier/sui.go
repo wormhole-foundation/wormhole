@@ -110,7 +110,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 			"version":   version.Version(),
 		}
 
-		tm, err := telemetry.NewLokiCloudLogger(
+		tm, lokiErr := telemetry.NewLokiCloudLogger(
 			context.Background(),
 			logger,
 			*telemetryLokiUrl,
@@ -119,8 +119,8 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 			false,
 			labels,
 		)
-		if err != nil {
-			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+		if lokiErr != nil {
+			logger.Fatal("Failed to initialize telemetry", zap.Error(lokiErr))
 		}
 
 		defer tm.Close()
@@ -152,10 +152,10 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	// Process a single digest and exit
 	if *suiDigest != "" {
 		logger.Info("Processing single digest", zap.String("txDigeset", *suiDigest))
-		valid, err := suiTransferVerifier.ProcessDigest(ctx, *suiDigest, "", logger)
+		valid, processErr := suiTransferVerifier.ProcessDigest(ctx, *suiDigest, "", logger)
 
-		if err != nil {
-			logger.Error("Error validating the digest", zap.Error(err))
+		if processErr != nil {
+			logger.Error("Error validating the digest", zap.Error(processErr))
 		}
 
 		logger.Info("Validation completed", zap.Bool("valid", valid))
@@ -164,16 +164,16 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	}
 
 	if *suiProcessWormholeScanEvents {
-		digests, err := pullDigestsFromWormholeScan(ctx, logger)
-		if err != nil {
-			logger.Fatal("Error pulling digests from WormholeScan", zap.Error(err))
+		digests, pullErr := pullDigestsFromWormholeScan(ctx, logger)
+		if pullErr != nil {
+			logger.Fatal("Error pulling digests from WormholeScan", zap.Error(pullErr))
 		}
 		// TODO: check the result of each digest against an expected outcome. Some digests
 		// link to token attestations, which the transfer verifier doesn't handle.
 		for _, digest := range digests {
-			_, err := suiTransferVerifier.ProcessDigest(ctx, digest, "", logger)
-			if err != nil {
-				logger.Error(err.Error())
+			_, processErr := suiTransferVerifier.ProcessDigest(ctx, digest, "", logger)
+			if processErr != nil {
+				logger.Error(processErr.Error())
 			}
 		}
 	}
@@ -193,9 +193,9 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	var latestTimestamp int
 	for _, event := range initialEvents {
 		if event.Timestamp != nil {
-			timestampInt, err := strconv.Atoi(*event.Timestamp)
-			if err != nil {
-				logger.Error("Error converting timestamp to int", zap.Error(err))
+			timestampInt, atoiErr := strconv.Atoi(*event.Timestamp)
+			if atoiErr != nil {
+				logger.Error("Error converting timestamp to int", zap.Error(atoiErr))
 				continue
 			}
 			if timestampInt > latestTimestamp {

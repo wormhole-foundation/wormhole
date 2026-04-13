@@ -15,14 +15,14 @@ func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error)
 		if os.IsNotExist(err) {
 			logger.Info("No node key found, generating a new one...", zap.String("path", path))
 
-			priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
-			if err != nil {
-				panic(err)
+			priv, _, genErr := crypto.GenerateKeyPair(crypto.Ed25519, -1)
+			if genErr != nil {
+				panic(genErr)
 			}
 
-			s, err := crypto.MarshalPrivateKey(priv)
-			if err != nil {
-				panic(err)
+			s, marshalErr := crypto.MarshalPrivateKey(priv)
+			if marshalErr != nil {
+				panic(marshalErr)
 			}
 
 			err = os.WriteFile(path, s, 0600)
