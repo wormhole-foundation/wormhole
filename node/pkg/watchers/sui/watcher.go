@@ -339,6 +339,7 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 		Payload:          fields.Payload,
 		ConsistencyLevel: *fields.ConsistencyLevel,
 		IsReobservation:  isReobservation,
+		Unreliable:       false,
 	}
 
 	// Verifies the observation through the Sui transaction verifier, if enabled, followed
