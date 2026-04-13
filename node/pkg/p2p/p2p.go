@@ -1764,6 +1764,10 @@ func processSignedDelegateSignaturesBroadcast(s *gossipv1.SignedDelegateSignatur
 		return nil, fmt.Errorf("delegate signatures broadcast is too old or too far into the future")
 	}
 
+	if len(h.Signatures) == 0 {
+		return nil, fmt.Errorf("invalid delegate signatures broadcast: no signatures")
+	}
+
 	return &h, nil
 }
 
