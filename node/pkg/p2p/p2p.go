@@ -267,7 +267,8 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 	// check & render address once for use in the AddrsFactory below
 	var gossipAdvertiseAddress multiaddr.Multiaddr
 	if components.GossipAdvertiseAddress != "" {
-		gossipAdvertiseAddress, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d", components.GossipAdvertiseAddress, components.Port))
+		var err error
+		gossipAdvertiseAddress, err = multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/udp/%d", components.GossipAdvertiseAddress, components.Port))
 		if err != nil {
 			// If the multiaddr is specified incorrectly, blow up
 			logger.Fatal("error with the specified gossip address",
