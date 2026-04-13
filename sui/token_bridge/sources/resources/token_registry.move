@@ -174,7 +174,7 @@ module token_bridge::token_registry {
         table::add(
             coin_types,
             key,
-            type_name::into_string(type_name::get<CoinType>())
+            type_name::into_string(type_name::with_defining_ids<CoinType>())
         );
 
         // NOTE: We do not assert that the coin type has not already been
@@ -246,7 +246,7 @@ module token_bridge::token_registry {
                 chain: wormhole::state::chain_id(),
                 addr: external_address::to_bytes(token_addr)
             },
-            type_name::into_string(type_name::get<CoinType>())
+            type_name::into_string(type_name::with_defining_ids<CoinType>())
         );
 
         // Return the token address.
@@ -387,7 +387,7 @@ module token_bridge::token_registry_tests {
 
         // mint some native coins, then deposit them into the token registry
         let deposit_amount = 69;
-        let (i, n) = (0, 8);
+        let (i, n) = (0u64, 8);
         while (i < n) {
             native_asset::deposit_test_only(
                 token_registry::borrow_mut_native_test_only(
@@ -448,7 +448,7 @@ module token_bridge::token_registry_tests {
                 )
             );
         assert!(
-            coin_type == type_name::into_string(type_name::get<COIN_NATIVE_10>()),
+            coin_type == type_name::into_string(type_name::with_defining_ids<COIN_NATIVE_10>()),
             0
         );
 
@@ -501,7 +501,7 @@ module token_bridge::token_registry_tests {
         // Mint wrapped coin via `WrappedAsset` several times.
         let mint_amount = 420;
         let total_minted = balance::zero();
-        let (i, n) = (0, 8);
+        let (i, n) = (0u64, 8);
         while (i < n) {
             let minted =
                 wrapped_asset::mint_test_only(
@@ -571,7 +571,7 @@ module token_bridge::token_registry_tests {
                 )
             );
         assert!(
-            coin_type == type_name::into_string(type_name::get<COIN_WRAPPED_7>()),
+            coin_type == type_name::into_string(type_name::with_defining_ids<COIN_WRAPPED_7>()),
             0
         );
 
