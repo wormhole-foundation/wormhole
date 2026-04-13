@@ -119,3 +119,9 @@ var KnownTestnetManagerEmitters = []struct {
 }{
 	{ChainId: vaa.ChainIDSolana, Addr: "af528793be84ee2c922e2b27b7cae282a4d098f4fe528f35ded8c8c06d0b1090"},
 }
+
+// KnownTestnetXRPLSequencer is the known XRPL sequencer emitter on testnet.
+var KnownTestnetXRPLSequencer = struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{ChainId: vaa.ChainIDSolana, Addr: "06f61a8a5a95c2444ef630196a09200603d92ba77103c7f34e09948e54e96d62"} // https://explorer.solana.com/address/XRP2GHZUbUrn49bJhDRDRmy9fjUTGKLMESFpL1B4jGA?cluster=devnet
