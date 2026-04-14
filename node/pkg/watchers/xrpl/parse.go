@@ -205,7 +205,8 @@ func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePu
 }
 
 // parseNttTransaction contains the shared logic for parsing both TransactionStream and TxResponse.
-// Returns (nil, nil) if no NTT memo is found or if the payment is sent to the core account.
+// Returns (nil, nil) if no NTT memo is found, if the payment is sent to the core account,
+// or if the destination is not one of the managed NTT custody accounts.
 //
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check the Validated field before calling this function.
@@ -245,6 +246,17 @@ func (p *Parser) parseNttTransaction(
 
 	// Skip payments to the core account — those are not NTT transfers
 	if p.coreAccount != "" && destination == p.coreAccount {
+		return nil, nil
+	}
+
+	// SECURITY: Verify the destination is one of the managed NTT custody accounts.
+	// The RPC subscription delivers all transactions that touch custody accounts,
+	// including transactions that ripple through them. Without this check,
+	// such transactions could produce unintended VAAs.
+	//
+	// NOTE: if batch support is implemented and explicit `managedAccounts` are removed
+	// in favor of batching with a core message, this check will need to be removed.
+	if !p.managedAccounts[destination] {
 		return nil, nil
 	}
 

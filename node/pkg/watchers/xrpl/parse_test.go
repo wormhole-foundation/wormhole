@@ -1362,7 +1362,7 @@ func TestExtractDestination_NotString(t *testing.T) {
 // =============================================================================
 
 func TestParseTransactionStream_ValidTransaction(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	// Create a mock TransactionStream matching real XRPL transaction structure
 	txHash := "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"
@@ -1458,7 +1458,7 @@ func TestParseTransactionStream_InvalidTimestamp(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidTxHash(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	tx := &streamtypes.TransactionStream{
 		Hash:         "NOT_VALID_HEX!!!",
@@ -1574,7 +1574,7 @@ func TestSequenceEncoding(t *testing.T) {
 // =============================================================================
 
 func TestParseTransactionStream_XRPPayment_FullFlow(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	// Create memo with Ethereum as recipient chain, fromDecimals=6 (XRP), toDecimals=8
 	memoData := createSampleMemoData(2, 6, 8)
@@ -1634,7 +1634,7 @@ func TestParseTransactionStream_XRPPayment_FullFlow(t *testing.T) {
 }
 
 func TestParseTransactionStream_TrustLinePayment_FullFlow(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	// Create memo with Solana as recipient chain, fromDecimals=6, toDecimals=9
 	memoData := createSampleMemoData(1, 6, 9)
@@ -1690,7 +1690,7 @@ func TestParseTransactionStream_TrustLinePayment_FullFlow(t *testing.T) {
 }
 
 func TestParseTransactionStream_FromDecimalsMismatch(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	// Create memo with wrong fromDecimals (8 instead of 6 for XRP)
 	memoData := createSampleMemoData(2, 8, 8)
@@ -1733,7 +1733,7 @@ func TestParseTransactionStream_FromDecimalsMismatch(t *testing.T) {
 // =============================================================================
 
 func TestParseTxResponse_ValidTransaction(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	txHash := "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"
 	tx := &transactions.TxResponse{
@@ -1927,7 +1927,7 @@ func TestValidateTransactionType_NotString(t *testing.T) {
 }
 
 func TestParseTransaction_ScaledAmountZero(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	// Create memo with high toDecimals but very small amount
 	// Amount of 1 drop (1e-6 XRP) scaled to 0 decimals becomes 0
@@ -1976,10 +1976,12 @@ func TestCalculateMPTSourceToken_InvalidHex(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidDestination(t *testing.T) {
-	p := NewParser("", nil, nil)
+	// Invalid destination that is also a managed account should produce an address conversion error
+	invalidAddr := "invalid_address"
+	p := NewParser("", []string{invalidAddr}, nil)
 
 	validTx := createValidNTTTransaction()
-	validTx["Destination"] = "invalid_address" // Invalid XRPL address
+	validTx["Destination"] = invalidAddr
 
 	tx := &streamtypes.TransactionStream{
 		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
@@ -2072,7 +2074,7 @@ func TestParseTransactionStream_MissingSender(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidDeliveredAmount(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	tx := &streamtypes.TransactionStream{
 		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
@@ -2131,7 +2133,7 @@ func TestParseTransactionStream_MPTPayment_FullFlow(t *testing.T) {
 	mockFetcher := func(mptID string) (uint8, error) {
 		return 8, nil // Return asset scale of 8
 	}
-	p := NewParser("", nil, mockFetcher)
+	p := NewParser("", []string{testNttCustodyAccount}, mockFetcher)
 
 	// Create memo with fromDecimals matching the MPT asset scale
 	memoData := createSampleMemoData(2, 8, 8) // fromDecimals=8 matches MPT AssetScale
@@ -2309,7 +2311,7 @@ func TestParseTransaction_ValidationTypeError(t *testing.T) {
 }
 
 func TestParseTransaction_TransactionIndexOverflow(t *testing.T) {
-	p := NewParser("", nil, nil)
+	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	// Create a valid transaction but with TransactionIndex > MaxUint32
 	tx := &streamtypes.TransactionStream{
@@ -2351,6 +2353,9 @@ const testCoreMemoFormat = "6170706C69636174696F6E2F782D776F726D686F6C652D707562
 
 // testCoreAccount is a sample XRPL core account address
 const testCoreAccount = "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe"
+
+// testNttCustodyAccount is the NTT custody account used as the Destination in createValidNTTTransaction
+const testNttCustodyAccount = "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 
 // createCoreMemoData creates a hex-encoded core memo: version(1) + nonce(4) + payload
 func createCoreMemoData(version uint8, nonce uint32, payload []byte) string {
@@ -2948,6 +2953,28 @@ func TestParseNttTransaction_SkipsCoreAccount(t *testing.T) {
 	msg, err := p.parseNttTransaction(gtx)
 	require.NoError(t, err)
 	assert.Nil(t, msg, "Should skip NTT transactions to the core account")
+}
+
+// TestParseNttTransaction_SkipsNonManagedDestination tests that NTT transactions whose
+// destination is not a managed custody account are silently skipped. This protects against
+// transactions that ripple through custody accounts producing unintended VAAs.
+func TestParseNttTransaction_SkipsNonManagedDestination(t *testing.T) {
+	// Only "rManagedAccount..." is managed — the default destination in createValidNTTTransaction is not
+	p := NewParser("", []string{"rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe"}, nil)
+
+	gtx := GenericTx{
+		Transaction:           createValidNTTTransaction(), // Destination = rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9 (not managed)
+		Timestamp:             time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Hash:                  "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:           12345,
+		MetaTransactionIndex:  0,
+		MetaTransactionResult: "tesSUCCESS",
+		MetaDeliveredAmount:   "1000000",
+	}
+
+	msg, err := p.parseNttTransaction(gtx)
+	require.NoError(t, err)
+	assert.Nil(t, msg, "Should skip NTT transactions to non-managed destinations (e.g. ripple-through)")
 }
 
 // TestParseCoreTransaction_NoDestination tests parseCoreTransaction when Destination is missing

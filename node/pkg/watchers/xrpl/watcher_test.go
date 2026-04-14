@@ -44,7 +44,7 @@ func TestProcessTransaction_SendsValidatedMessage(t *testing.T) {
 	w := &Watcher{
 		contract: contract,
 		msgChan:  msgChan,
-		parser:   NewParser("", nil, nil),
+		parser:   NewParser("", []string{contract}, nil),
 	}
 
 	tx := &streamtypes.TransactionStream{
