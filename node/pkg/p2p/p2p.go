@@ -111,16 +111,14 @@ var signedDelegateObservationPrefix = []byte("signed_delegate_observation_000000
 
 var signedManagerTransactionPrefix = []byte("signed_manager_transaction_0000000|")
 
+var signedDelegateSignaturesBroadcastPrefix = []byte("signed_delegate_signatures_bc_0000|")
+
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 var observationRequestMaxTimeDifference = time.Minute * 15
-
-// allow for delegate observations to be re-delivered in a longer timeframe (30 days)
-// without another mechanism, such as delegate VAAs or batch delegate observations from multiple guardians,
-// this is necessary to facilitate re-observations that span multiple hours or days due to outages as not all
-// delegates necessarily have historical state to re-observe within the same recent timeframe
-var delegateObservationMaxTimeDifference = time.Hour * 24 * 30
+var delegateObservationMaxTimeDifference = time.Minute * 15
 var managerTransactionMaxTimeDifference = time.Minute * 15
+var delegateSignaturesBroadcastMaxTimeDifference = time.Minute * 15
 
 func heartbeatDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
@@ -136,6 +134,10 @@ func signedDelegateObservationDigest(b []byte) eth_common.Hash {
 
 func signedManagerTransactionDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedManagerTransactionPrefix, b...))
+}
+
+func signedDelegateSignaturesBroadcastDigest(b []byte) eth_common.Hash {
+	return ethcrypto.Keccak256Hash(append(signedDelegateSignaturesBroadcastPrefix, b...))
 }
 
 type Components struct {
@@ -755,6 +757,62 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					} else {
 						logger.Info("published signed delegate observation", zap.Any("signed_delegate_observation", sObsv))
 					}
+				case msg := <-params.delegateSigBroadcastSendC:
+					// Sign the delegate signatures broadcast using our node's guardian key.
+					digest := signedDelegateSignaturesBroadcastDigest(msg)
+					sig, err := params.guardianSigner.Sign(ctx, digest.Bytes())
+					if err != nil {
+						panic(err)
+					}
+
+					sBroadcast := &gossipv1.SignedDelegateSignaturesBroadcast{
+						Broadcast:    msg,
+						Signature:    sig,
+						GuardianAddr: ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx)).Bytes(),
+					}
+
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_SignedDelegateSignaturesBroadcast{
+							SignedDelegateSignaturesBroadcast: sBroadcast,
+						},
+					}
+					b, err := proto.Marshal(envelope)
+					if err != nil {
+						panic(err)
+					}
+
+					if delegatedAttestationPubsubTopic == nil {
+						logger.Error("cannot publish delegate signatures broadcast: delegated attestation topic is not available")
+						break
+					}
+					err = delegatedAttestationPubsubTopic.Publish(ctx, b)
+					p2pMessagesSent.WithLabelValues("delegate_signatures_broadcast").Inc()
+					if err != nil {
+						logger.Error("failed to publish delegate signatures broadcast", zap.Error(err))
+					} else {
+						logger.Info("published delegate signatures broadcast")
+					}
+
+					// Loopback: feed each observation to the local processor via delegateObsvRecvC.
+					if params.delegateObsvRecvC != nil {
+						gs := params.gst.Get()
+						if gs == nil {
+							logger.Warn("skipping delegate signatures broadcast loopback - no guardian set")
+						} else {
+							var loopbackBroadcast gossipv1.DelegateSignaturesBroadcast
+							if err := proto.Unmarshal(msg, &loopbackBroadcast); err != nil {
+								logger.Error("failed to unmarshal own delegate signatures broadcast for loopback", zap.Error(err))
+							} else {
+								for _, wrapped := range expandBroadcastToSignedDelegateObservations(&loopbackBroadcast, gs, logger) {
+									select {
+									case params.delegateObsvRecvC <- wrapped:
+									default:
+										logger.Warn("delegateObsvRecvC full, dropping loopback broadcast observation")
+									}
+								}
+							}
+						}
+					}
 				case msg := <-params.gossipVaaSendC:
 					if vaaPubsubTopic == nil {
 						panic("vaaPubsubTopic should not be nil when gossipVaaSendC is set")
@@ -1175,6 +1233,62 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								}
 							}
 						}
+					case *gossipv1.GossipMessage_SignedDelegateSignaturesBroadcast:
+						if params.delegateObsvRecvC != nil {
+							s := m.SignedDelegateSignaturesBroadcast
+							gs := params.gst.Get()
+							if gs == nil {
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("dropping SignedDelegateSignaturesBroadcast - no guardian set",
+										zap.String("from", envelope.GetFrom().String()),
+									)
+								}
+								break
+							}
+
+							// SECURITY: Verify P2P peer matches known guardian peer(s) from heartbeats.
+							broadcastGuardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
+							knownPeers := params.gst.LastHeartbeat(broadcastGuardianAddr)
+							if len(knownPeers) == 0 {
+								p2pMessagesReceived.WithLabelValues("invalid_delegate_signatures_broadcast").Inc()
+								logger.Warn("dropping SignedDelegateSignaturesBroadcast - no heartbeat from guardian",
+									zap.String("guardian", broadcastGuardianAddr.Hex()),
+									zap.String("from", envelope.GetFrom().String()))
+								break
+							}
+							if _, found := knownPeers[envelope.GetFrom()]; !found {
+								p2pMessagesReceived.WithLabelValues("invalid_delegate_signatures_broadcast").Inc()
+								logger.Warn("dropping SignedDelegateSignaturesBroadcast - peer mismatch",
+									zap.String("guardian", broadcastGuardianAddr.Hex()),
+									zap.String("from", envelope.GetFrom().String()))
+								break
+							}
+
+							// SECURITY: Verify the broadcast was signed by a Guardian in the current Guardian Set.
+							broadcast, err := processSignedDelegateSignaturesBroadcast(s, gs)
+							if err != nil {
+								p2pMessagesReceived.WithLabelValues("invalid_delegate_signatures_broadcast").Inc()
+								logger.Error("invalid delegate signatures broadcast received",
+									zap.Error(err),
+									zap.String("from", envelope.GetFrom().String()))
+							} else {
+								logger.Info("valid delegate signatures broadcast received",
+									zap.Int("num_signatures", len(broadcast.Signatures)),
+									zap.String("from", envelope.GetFrom().String()))
+
+								for _, wrapped := range expandBroadcastToSignedDelegateObservations(broadcast, gs, logger) {
+									select {
+									case params.delegateObsvRecvC <- wrapped:
+										p2pMessagesReceived.WithLabelValues("broadcast_delegate_observation").Inc()
+									default:
+										if params.components.WarnChannelOverflow {
+											logger.Warn("Ignoring broadcast delegate observation because delegateObsvRecvC is full")
+										}
+										p2pReceiveChannelOverflow.WithLabelValues("broadcast_delegate_observation").Inc()
+									}
+								}
+							}
+						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
 						logger.Warn("received unknown message type on delegated attestation topic (running outdated software?)",
@@ -1546,6 +1660,112 @@ func processSignedDelegateObservation(d *gossipv1.SignedDelegateObservation, gs 
 
 	if eth_common.BytesToAddress(h.GuardianAddr) != signerAddr {
 		return nil, fmt.Errorf("GuardianAddr in delegate observation does not match signerAddr")
+	}
+
+	return &h, nil
+}
+
+// expandBroadcastToSignedDelegateObservations takes a compact DelegateSignaturesBroadcast, verifies
+// each delegate signature by reconstructing the DelegateObservation bytes, and produces one
+// SignedDelegateObservation per verified guardian for the existing delegateObsvRecvC channel.
+// Signatures that fail verification are silently dropped.
+func expandBroadcastToSignedDelegateObservations(broadcast *gossipv1.DelegateSignaturesBroadcast, gs *common.GuardianSet, logger *zap.Logger) []*gossipv1.SignedDelegateObservation {
+	result := make([]*gossipv1.SignedDelegateObservation, 0, len(broadcast.Signatures))
+	for _, sig := range broadcast.Signatures {
+		// Reconstruct the DelegateObservation that was originally signed.
+		d := &gossipv1.DelegateObservation{
+			Timestamp:         broadcast.Timestamp,
+			Nonce:             broadcast.Nonce,
+			EmitterChain:      broadcast.EmitterChain,
+			EmitterAddress:    broadcast.EmitterAddress,
+			Sequence:          broadcast.Sequence,
+			ConsistencyLevel:  broadcast.ConsistencyLevel,
+			Payload:           broadcast.Payload,
+			TxHash:            broadcast.TxHash,
+			Unreliable:        broadcast.Unreliable,
+			IsReobservation:   broadcast.IsReobservation,
+			VerificationState: broadcast.VerificationState,
+			GuardianAddr:      sig.GuardianAddr,
+			SentTimestamp:     sig.SentTimestamp,
+		}
+		b, err := proto.Marshal(d)
+		if err != nil {
+			logger.Warn("failed to marshal reconstructed delegate observation", zap.Error(err))
+			continue
+		}
+
+		// Verify the delegate signature over the reconstructed bytes.
+		claimedAddr := eth_common.BytesToAddress(sig.GuardianAddr)
+
+		if gs != nil {
+			if _, ok := gs.KeyIndex(claimedAddr); !ok {
+				logger.Warn("broadcast delegate signature from address not in guardian set",
+					zap.String("addr", claimedAddr.Hex()))
+				continue
+			}
+		}
+
+		digest := signedDelegateObservationDigest(b)
+		pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), sig.Signature)
+		if err != nil {
+			logger.Warn("failed to recover public key from broadcast delegate signature",
+				zap.String("addr", claimedAddr.Hex()), zap.Error(err))
+			continue
+		}
+		signerAddr := eth_common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+		if signerAddr != claimedAddr {
+			logger.Warn("broadcast delegate signature verification failed",
+				zap.String("claimed", claimedAddr.Hex()),
+				zap.String("recovered", signerAddr.Hex()))
+			continue
+		}
+
+		result = append(result, &gossipv1.SignedDelegateObservation{
+			DelegateObservation: b,
+			Signature:           sig.Signature,
+			GuardianAddr:        sig.GuardianAddr,
+		})
+	}
+	return result
+}
+
+func processSignedDelegateSignaturesBroadcast(s *gossipv1.SignedDelegateSignaturesBroadcast, gs *common.GuardianSet) (*gossipv1.DelegateSignaturesBroadcast, error) {
+	envelopeAddr := eth_common.BytesToAddress(s.GuardianAddr)
+	idx, ok := gs.KeyIndex(envelopeAddr)
+	if !ok {
+		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+	}
+	pk := gs.Keys[idx]
+
+	// SECURITY: see whitepapers/0009_guardian_signer.md
+	if len(signedDelegateSignaturesBroadcastPrefix)+len(s.Broadcast) < 34 {
+		return nil, fmt.Errorf("invalid delegate signatures broadcast: too short")
+	}
+
+	digest := signedDelegateSignaturesBroadcastDigest(s.Broadcast)
+
+	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
+	if err != nil {
+		return nil, errors.New("failed to recover public key")
+	}
+
+	signerAddr := eth_common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	if pk != signerAddr {
+		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
+	}
+
+	var h gossipv1.DelegateSignaturesBroadcast
+	err = proto.Unmarshal(s.Broadcast, &h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal delegate signatures broadcast: %w", err)
+	}
+
+	if time.Until(time.Unix(h.BroadcastTimestamp, 0)).Abs() > delegateSignaturesBroadcastMaxTimeDifference {
+		return nil, fmt.Errorf("delegate signatures broadcast is too old or too far into the future")
+	}
+
+	if len(h.Signatures) == 0 {
+		return nil, fmt.Errorf("invalid delegate signatures broadcast: no signatures")
 	}
 
 	return &h, nil
