@@ -150,7 +150,7 @@ func TestDelegateObservationHashIsMessagePublicationHash(t *testing.T) {
 		Timestamp:        ts,
 		Nonce:            obs.Nonce,
 		Sequence:         obs.Sequence,
-		ConsistencyLevel: uint8(obs.ConsistencyLevel), // #nosec G115 -- test data is a known constant
+		ConsistencyLevel: obs.ConsistencyLevel,
 		EmitterChain:     vaa.ChainID(obs.EmitterChain),
 		EmitterAddress:   emitterAddr,
 		Payload:          payload,
@@ -172,7 +172,7 @@ func TestDelegateObservationHashIsMessagePublicationHash(t *testing.T) {
 		EmitterChain:     vaa.ChainID(obs.EmitterChain),
 		EmitterAddress:   emitterAddr,
 		Sequence:         obs.Sequence,
-		ConsistencyLevel: uint8(obs.ConsistencyLevel), // #nosec G115 -- test data is a known constant
+		ConsistencyLevel: obs.ConsistencyLevel,
 		Payload:          payload,
 	}
 	vaaHash := v.SigningDigest()
@@ -288,7 +288,7 @@ func TestBuildDelegateSignaturesBroadcasts_BadSignatureEcrecover(t *testing.T) {
 }
 
 // TestBuildDelegateSignaturesBroadcasts_NonVAAFieldsAreSignaturePreimage verifies that
-// non-VAA fields (unreliable, isReobservation, verificationState) are part of the delegate
+// non-VAA fields (txID, unreliable, isReobservation, verificationState) are part of the delegate
 // observation signature preimage. Changing any of these fields should cause signature
 // verification to fail, dropping all signatures.
 func TestBuildDelegateSignaturesBroadcasts_NonVAAFieldsAreSignaturePreimage(t *testing.T) {
@@ -298,6 +298,14 @@ func TestBuildDelegateSignaturesBroadcasts_NonVAAFieldsAreSignaturePreimage(t *t
 		name   string
 		mutate func(obs []wormholescanDelegateObservation)
 	}{
+		{
+			name: "txID changed",
+			mutate: func(obs []wormholescanDelegateObservation) {
+				for i := range obs {
+					obs[i].TxHash = base64.StdEncoding.EncodeToString([]byte("different_tx_hash_value_here!"))
+				}
+			},
+		},
 		{
 			name: "unreliable set to true",
 			mutate: func(obs []wormholescanDelegateObservation) {
@@ -337,6 +345,38 @@ func TestBuildDelegateSignaturesBroadcasts_NonVAAFieldsAreSignaturePreimage(t *t
 			assert.Contains(t, err.Error(), "no signatures passed verification")
 		})
 	}
+}
+
+// TestBuildDelegateSignaturesBroadcasts_MixedNonVAAFields verifies that observations with
+// mixed non-VAA field values (e.g., some with unreliable=true and some with unreliable=false)
+// are handled correctly — only the signatures that match the actual signed preimage survive
+// verification.
+func TestBuildDelegateSignaturesBroadcasts_MixedNonVAAFields(t *testing.T) {
+	vaaID := "50/00000000000000000000000062deeafee06c7442a21c93ededc79a0cb5791c83/1750"
+
+	var observations []wormholescanDelegateObservation
+	require.NoError(t, json.Unmarshal([]byte(testDelegateObservationsJSON), &observations))
+	require.True(t, len(observations) >= 2, "need at least 2 observations for this test")
+
+	// Mutate half the observations to have different non-VAA fields.
+	// The real observations were signed with unreliable=false, so flipping half should
+	// cause those to fail verification while the rest still pass.
+	for i := range observations {
+		if i%2 == 0 {
+			observations[i].Unreliable = true
+		}
+	}
+
+	broadcasts, err := buildDelegateSignaturesBroadcasts(vaaID, observations)
+	require.NoError(t, err)
+	require.NotEmpty(t, broadcasts)
+
+	// Only the unmodified observations (odd indices) should have valid signatures.
+	totalSigs := 0
+	for _, b := range broadcasts {
+		totalSigs += len(b.Signatures)
+	}
+	assert.Equal(t, 3, totalSigs, "only half the signatures should survive verification")
 }
 
 func TestBuildDelegateSignaturesBroadcasts_EmptyObservations(t *testing.T) {

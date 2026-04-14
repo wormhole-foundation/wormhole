@@ -652,7 +652,7 @@ type wormholescanDelegateObservation struct {
 	DelegatedGuardianAddr  string `json:"delegatedGuardianAddr"`
 	Signature              string `json:"signature"`
 	Nonce                  uint32 `json:"nonce"`
-	ConsistencyLevel       uint32 `json:"consistencyLevel"`
+	ConsistencyLevel       uint8  `json:"consistencyLevel"`
 	Timestamp              string `json:"timestamp"`
 	SentTimestamp          string `json:"sentTimestamp"`
 	Unreliable             bool   `json:"unreliable"`
@@ -684,7 +684,7 @@ func delegateObservationVAAHash(obs *wormholescanDelegateObservation) (string, e
 		EmitterChain:     vaa.ChainID(obs.EmitterChain),
 		EmitterAddress:   emitterAddr,
 		Sequence:         obs.Sequence,
-		ConsistencyLevel: uint8(obs.ConsistencyLevel), // #nosec G115 -- consistency level fits in uint8
+		ConsistencyLevel: obs.ConsistencyLevel,
 		Payload:          payload,
 	}
 	return v.SigningDigest().Hex(), nil
@@ -832,7 +832,7 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 				EmitterChain:      uint32(chainIDParsed), // #nosec G115
 				EmitterAddress:    emitterAddrBytes,
 				Sequence:          ref.Sequence,
-				ConsistencyLevel:  ref.ConsistencyLevel,
+				ConsistencyLevel:  uint32(ref.ConsistencyLevel), // #nosec G115
 				Payload:           payloadBytes,
 				TxHash:            txHashBytes,
 				Unreliable:        obs.Unreliable,
@@ -875,7 +875,7 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 			EmitterChain:       uint32(chainIDParsed), // #nosec G115
 			EmitterAddress:     emitterAddrBytes,
 			Sequence:           ref.Sequence,
-			ConsistencyLevel:   ref.ConsistencyLevel,
+			ConsistencyLevel:   uint32(ref.ConsistencyLevel), // #nosec G115
 			Payload:            payloadBytes,
 			TxHash:             txHashBytes,
 			Unreliable:         ref.Unreliable,
@@ -946,8 +946,8 @@ func runBroadcastDelegateSignatures(cmd *cobra.Command, args []string) {
 	defer conn.Close()
 
 	for i, broadcast := range broadcasts {
-		fmt.Printf("broadcasting batch %d/%d with %d verified delegate signatures for %s\n",
-			i+1, len(broadcasts), len(broadcast.Signatures), vaaID)
+		fmt.Printf("broadcasting batch %d/%d with %d verified delegate signatures for %s (size: %d bytes)\n",
+			i+1, len(broadcasts), len(broadcast.Signatures), vaaID, proto.Size(broadcast))
 
 		resp, err := c.BroadcastDelegateSignatures(ctx, &nodev1.BroadcastDelegateSignaturesRequest{
 			Broadcast: broadcast,
