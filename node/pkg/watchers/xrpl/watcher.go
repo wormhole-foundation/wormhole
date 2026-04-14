@@ -342,10 +342,18 @@ func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublic
 		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
 	}
 
-	// Decode the response into TxResponse
+	// Decode the TxResponse fields and close_time_iso separately.
+	// GetResult uses mapstructure (not encoding/json), so embedded struct
+	// squashing is not supported — we decode into each struct independently.
 	var txResp transactions.TxResponse
 	if err := resp.GetResult(&txResp); err != nil {
 		return nil, fmt.Errorf("failed to decode transaction response: %w", err)
+	}
+	var v2Fields struct {
+		CloseTimeISO string `json:"close_time_iso"`
+	}
+	if err := resp.GetResult(&v2Fields); err != nil {
+		return nil, fmt.Errorf("failed to decode close_time_iso: %w", err)
 	}
 
 	// Only process validated transactions
@@ -354,7 +362,10 @@ func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublic
 	}
 
 	// Parse the transaction
-	return w.parser.ParseTxResponse(&txResp)
+	return w.parser.ParseTxResponse(&txResponseV2{
+		TxResponse:   txResp,
+		CloseTimeISO: v2Fields.CloseTimeISO,
+	})
 }
 
 // getValidatedLedgerIndex returns the current validated ledger index.

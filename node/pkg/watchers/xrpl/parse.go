@@ -65,9 +65,13 @@ const (
 // tesSUCCESS is the XRPL transaction result code for successful transactions
 const tesSUCCESS = "tesSUCCESS"
 
-// rippleEpochOffset is the number of seconds between Unix epoch (1970-01-01) and
-// Ripple epoch (2000-01-01). XRPL timestamps are seconds since the Ripple epoch.
-const rippleEpochOffset = 946684800
+// txResponseV2 pairs a TxResponse with the close_time_iso field from API v2.
+// These are decoded separately because GetResult uses mapstructure which does
+// not support embedded-struct squashing with TagName:"json".
+type txResponseV2 struct {
+	transactions.TxResponse
+	CloseTimeISO string
+}
 
 // memoData contains cross-chain recipient information parsed from the transaction memo
 type memoData struct {
@@ -163,34 +167,11 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 //
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check tx.Validated before calling this function.
-func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePublication, error) {
-	// Get the transaction date. In rippled API v2, the `date` field is inside
-	// `tx_json` rather than at the top level, so TxResponse.Date may be 0.
-	// Fall back to reading it from TxJSON when that happens.
-	date := tx.Date
-	if date == 0 {
-		if d, ok := tx.TxJSON["date"]; ok {
-			switch v := d.(type) {
-			case float64:
-				date = uint(v)
-			case json.Number:
-				n, err := v.Int64()
-				if err == nil && n >= 0 {
-					date = uint(n)
-				}
-			}
-		}
+func (p *Parser) ParseTxResponse(tx *txResponseV2) (*common.MessagePublication, error) {
+	timestamp, err := time.Parse(time.RFC3339, tx.CloseTimeISO)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse close_time_iso: %w", err)
 	}
-
-	if date == 0 {
-		return nil, fmt.Errorf("transaction date is zero (not populated in API response)")
-	}
-
-	// Convert Ripple epoch timestamp to Unix timestamp
-	if date > math.MaxInt64-rippleEpochOffset {
-		return nil, fmt.Errorf("transaction date %d would overflow int64", date)
-	}
-	timestamp := time.Unix(int64(date)+rippleEpochOffset, 0)
 
 	return p.parseTransaction(GenericTx{
 		Transaction:           tx.TxJSON,

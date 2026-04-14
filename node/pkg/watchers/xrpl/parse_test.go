@@ -1736,17 +1736,19 @@ func TestParseTxResponse_ValidTransaction(t *testing.T) {
 	p := NewParser("", []string{testNttCustodyAccount}, nil)
 
 	txHash := "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256(txHash),
-		LedgerIndex: 12345,
-		Date:        784111200, // Ripple epoch timestamp (seconds since 2000-01-01)
-		Validated:   true,
-		TxJSON:      createValidNTTTransaction(),
-		Meta: transaction.TxMetadataBuilder{
-			TransactionIndex:  7,
-			TransactionResult: "tesSUCCESS",
-			DeliveredAmount:   "1000000", // XRP drops as string
+	tx := &txResponseV2{
+		TxResponse: transactions.TxResponse{
+			Hash:        types.Hash256(txHash),
+			LedgerIndex: 12345,
+			Validated:   true,
+			TxJSON:      createValidNTTTransaction(),
+			Meta: transaction.TxMetadataBuilder{
+				TransactionIndex:  7,
+				TransactionResult: "tesSUCCESS",
+				DeliveredAmount:   "1000000", // XRP drops as string
+			},
 		},
+		CloseTimeISO: "2024-11-05T06:00:00Z",
 	}
 
 	msg, err := p.ParseTxResponse(tx)
@@ -1765,28 +1767,29 @@ func TestParseTxResponse_ValidTransaction(t *testing.T) {
 	// Verify chain
 	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
 
-	// Verify timestamp conversion (Ripple epoch + offset = Unix timestamp)
-	// 784111200 + 946684800 = 1730796000 = 2024-11-05T06:00:00Z
-	expectedTime := time.Unix(784111200+946684800, 0)
+	// Verify timestamp parsed from close_time_iso
+	expectedTime, _ := time.Parse(time.RFC3339, "2024-11-05T06:00:00Z")
 	assert.Equal(t, expectedTime, msg.Timestamp)
 }
 
 func TestParseTxResponse_NoNTTMemo(t *testing.T) {
 	p := NewParser("", nil, nil)
 
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256("8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"),
-		LedgerIndex: 12345,
-		Date:        784111200,
-		Validated:   true,
-		TxJSON: transaction.FlatTransaction{
-			"TransactionType": "Payment",
-			"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
-			"Destination":     "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
-			"meta": map[string]any{
-				"TransactionResult": "tesSUCCESS",
+	tx := &txResponseV2{
+		TxResponse: transactions.TxResponse{
+			Hash:        types.Hash256("8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"),
+			LedgerIndex: 12345,
+			Validated:   true,
+			TxJSON: transaction.FlatTransaction{
+				"TransactionType": "Payment",
+				"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+				"Destination":     "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
+				"meta": map[string]any{
+					"TransactionResult": "tesSUCCESS",
+				},
 			},
 		},
+		CloseTimeISO: "2024-11-05T06:00:00Z",
 	}
 
 	msg, err := p.ParseTxResponse(tx)
@@ -1795,26 +1798,28 @@ func TestParseTxResponse_NoNTTMemo(t *testing.T) {
 	assert.Nil(t, msg, "Should return nil for transaction without NTT memo")
 }
 
-func TestParseTxResponse_DateOverflow(t *testing.T) {
+func TestParseTxResponse_InvalidCloseTimeISO(t *testing.T) {
 	p := NewParser("", nil, nil)
 
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256("8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"),
-		LedgerIndex: 12345,
-		Date:        math.MaxInt64, // This would overflow when adding rippleEpochOffset
-		Validated:   true,
-		TxJSON:      createValidNTTTransaction(),
-		Meta: transaction.TxMetadataBuilder{
-			TransactionIndex:  0,
-			TransactionResult: "tesSUCCESS",
-			DeliveredAmount:   "1000000",
+	tx := &txResponseV2{
+		TxResponse: transactions.TxResponse{
+			Hash:        types.Hash256("8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D"),
+			LedgerIndex: 12345,
+			Validated:   true,
+			TxJSON:      createValidNTTTransaction(),
+			Meta: transaction.TxMetadataBuilder{
+				TransactionIndex:  0,
+				TransactionResult: "tesSUCCESS",
+				DeliveredAmount:   "1000000",
+			},
 		},
+		CloseTimeISO: "not-a-valid-timestamp",
 	}
 
 	_, err := p.ParseTxResponse(tx)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "would overflow")
+	assert.Contains(t, err.Error(), "failed to parse close_time_iso")
 }
 
 // =============================================================================
@@ -2728,54 +2733,52 @@ func TestParseTxResponse_TicketCreateTimestamp(t *testing.T) {
 	p := NewParser("", []string{testManagedAccount}, nil)
 
 	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256(txHash),
-		LedgerIndex: 50000,
-		Date:        784111200, // Ripple epoch seconds (2024-11-05T06:00:00Z when converted)
-		Validated:   true,
-		TxJSON: transaction.FlatTransaction{
-			"TransactionType": "TicketCreate",
-			"Account":         testManagedAccount,
-			"TicketCount":     float64(3),
-		},
-		Meta: transaction.TxMetadataBuilder{
-			TransactionIndex:  2,
-			TransactionResult: "tesSUCCESS",
-			AffectedNodes: []transaction.AffectedNode{
-				{
-					CreatedNode: &transaction.CreatedNode{
-						LedgerEntryType: ledger.TicketEntry,
-						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(100)},
+	tx := &txResponseV2{
+		TxResponse: transactions.TxResponse{
+			Hash:        types.Hash256(txHash),
+			LedgerIndex: 50000,
+			Validated:   true,
+			TxJSON: transaction.FlatTransaction{
+				"TransactionType": "TicketCreate",
+				"Account":         testManagedAccount,
+				"TicketCount":     float64(3),
+			},
+			Meta: transaction.TxMetadataBuilder{
+				TransactionIndex:  2,
+				TransactionResult: "tesSUCCESS",
+				AffectedNodes: []transaction.AffectedNode{
+					{
+						CreatedNode: &transaction.CreatedNode{
+							LedgerEntryType: ledger.TicketEntry,
+							NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(100)},
+						},
 					},
-				},
-				{
-					CreatedNode: &transaction.CreatedNode{
-						LedgerEntryType: ledger.TicketEntry,
-						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(101)},
+					{
+						CreatedNode: &transaction.CreatedNode{
+							LedgerEntryType: ledger.TicketEntry,
+							NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(101)},
+						},
 					},
-				},
-				{
-					CreatedNode: &transaction.CreatedNode{
-						LedgerEntryType: ledger.TicketEntry,
-						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(102)},
+					{
+						CreatedNode: &transaction.CreatedNode{
+							LedgerEntryType: ledger.TicketEntry,
+							NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(102)},
+						},
 					},
 				},
 			},
 		},
+		CloseTimeISO: "2024-11-05T06:00:00Z",
 	}
 
 	msg, err := p.ParseTxResponse(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
-	// Verify timestamp: Ripple epoch 784111200 + offset 946684800 = Unix 1730796000
-	expectedTime := time.Unix(784111200+rippleEpochOffset, 0)
+	// Verify timestamp parsed from close_time_iso
+	expectedTime, _ := time.Parse(time.RFC3339, "2024-11-05T06:00:00Z")
 	assert.Equal(t, expectedTime, msg.Timestamp)
 	assert.False(t, msg.Timestamp.IsZero(), "timestamp should not be zero")
-
-	// Verify the timestamp is not the Ripple epoch start (which would indicate Date=0)
-	rippleEpochStart := time.Unix(rippleEpochOffset, 0) // 2000-01-01T00:00:00Z
-	assert.NotEqual(t, rippleEpochStart, msg.Timestamp, "timestamp should not be the Ripple epoch start (Date=0)")
 
 	// Verify XTCF payload
 	assert.Equal(t, xtcfPrefix[:], msg.Payload[0:4])
@@ -2785,152 +2788,42 @@ func TestParseTxResponse_TicketCreateTimestamp(t *testing.T) {
 	assert.Equal(t, uint64(3), ticketCount)
 }
 
-// TestParseTxResponse_TicketCreateDateFallback verifies that when TxResponse.Date is 0
-// (as happens with rippled API v2, which returns `date` inside `tx_json` rather than
-// at the top level), ParseTxResponse falls back to reading `date` from TxJSON.
-func TestParseTxResponse_TicketCreateDateFallback(t *testing.T) {
+// TestParseTxResponse_EmptyCloseTimeISO verifies that ParseTxResponse returns an error
+// when CloseTimeISO is empty.
+func TestParseTxResponse_EmptyCloseTimeISO(t *testing.T) {
 	p := NewParser("", []string{testManagedAccount}, nil)
 
 	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
-	rippleDate := float64(773452800) // 2024-06-30 in Ripple epoch seconds
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256(txHash),
-		LedgerIndex: 50000,
-		Date:        0, // Not populated in API v2 — date is inside tx_json instead
-		Validated:   true,
-		TxJSON: transaction.FlatTransaction{
-			"TransactionType": "TicketCreate",
-			"Account":         testManagedAccount,
-			"TicketCount":     float64(1),
-			"date":            rippleDate,
-		},
-		Meta: transaction.TxMetadataBuilder{
-			TransactionIndex:  0,
-			TransactionResult: "tesSUCCESS",
-			AffectedNodes: []transaction.AffectedNode{
-				{
-					CreatedNode: &transaction.CreatedNode{
-						LedgerEntryType: ledger.TicketEntry,
-						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(50)},
+	tx := &txResponseV2{
+		TxResponse: transactions.TxResponse{
+			Hash:        types.Hash256(txHash),
+			LedgerIndex: 50000,
+			Validated:   true,
+			TxJSON: transaction.FlatTransaction{
+				"TransactionType": "TicketCreate",
+				"Account":         testManagedAccount,
+				"TicketCount":     float64(1),
+			},
+			Meta: transaction.TxMetadataBuilder{
+				TransactionIndex:  0,
+				TransactionResult: "tesSUCCESS",
+				AffectedNodes: []transaction.AffectedNode{
+					{
+						CreatedNode: &transaction.CreatedNode{
+							LedgerEntryType: ledger.TicketEntry,
+							NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(50)},
+						},
 					},
 				},
 			},
 		},
-	}
-
-	msg, err := p.ParseTxResponse(tx)
-	require.NoError(t, err)
-	require.NotNil(t, msg)
-
-	// The fallback should read date from TxJSON and produce the correct timestamp
-	expectedTimestamp := time.Unix(int64(rippleDate)+rippleEpochOffset, 0)
-	assert.Equal(t, expectedTimestamp, msg.Timestamp,
-		"should read date from TxJSON when TxResponse.Date is 0")
-}
-
-// TestParseTxResponse_DateZeroError verifies that ParseTxResponse returns an error
-// when the date is zero in both TxResponse.Date and TxJSON.
-func TestParseTxResponse_DateZeroError(t *testing.T) {
-	p := NewParser("", []string{testManagedAccount}, nil)
-
-	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256(txHash),
-		LedgerIndex: 50000,
-		Date:        0,
-		Validated:   true,
-		TxJSON: transaction.FlatTransaction{
-			"TransactionType": "TicketCreate",
-			"Account":         testManagedAccount,
-			"TicketCount":     float64(1),
-		},
-		Meta: transaction.TxMetadataBuilder{
-			TransactionIndex:  0,
-			TransactionResult: "tesSUCCESS",
-			AffectedNodes: []transaction.AffectedNode{
-				{
-					CreatedNode: &transaction.CreatedNode{
-						LedgerEntryType: ledger.TicketEntry,
-						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(50)},
-					},
-				},
-			},
-		},
+		CloseTimeISO: "",
 	}
 
 	msg, err := p.ParseTxResponse(tx)
 	require.Error(t, err)
 	require.Nil(t, msg)
-	assert.Contains(t, err.Error(), "date is zero")
-}
-
-// =============================================================================
-// Additional coverage tests
-// =============================================================================
-
-// TestParseTxResponse_DateFallbackJsonNumber tests the json.Number date fallback path
-func TestParseTxResponse_DateFallbackJsonNumber(t *testing.T) {
-	p := NewParser("", []string{testManagedAccount}, nil)
-
-	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256(txHash),
-		LedgerIndex: 50000,
-		Date:        0, // Force fallback
-		Validated:   true,
-		TxJSON: transaction.FlatTransaction{
-			"TransactionType": "TicketCreate",
-			"Account":         testManagedAccount,
-			"TicketCount":     float64(1),
-			"date":            json.Number("784111200"),
-		},
-		Meta: transaction.TxMetadataBuilder{
-			TransactionIndex:  0,
-			TransactionResult: "tesSUCCESS",
-			AffectedNodes: []transaction.AffectedNode{
-				{
-					CreatedNode: &transaction.CreatedNode{
-						LedgerEntryType: ledger.TicketEntry,
-						NewFields:       ledger.FlatLedgerObject{"TicketSequence": float64(50)},
-					},
-				},
-			},
-		},
-	}
-
-	msg, err := p.ParseTxResponse(tx)
-	require.NoError(t, err)
-	require.NotNil(t, msg)
-
-	expectedTimestamp := time.Unix(784111200+rippleEpochOffset, 0)
-	assert.Equal(t, expectedTimestamp, msg.Timestamp)
-}
-
-// TestParseTxResponse_DateFallbackJsonNumberError tests json.Number that fails to parse
-func TestParseTxResponse_DateFallbackJsonNumberError(t *testing.T) {
-	p := NewParser("", []string{testManagedAccount}, nil)
-
-	txHash := "AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233AABBCCDD00112233"
-	tx := &transactions.TxResponse{
-		Hash:        types.Hash256(txHash),
-		LedgerIndex: 50000,
-		Date:        0,
-		Validated:   true,
-		TxJSON: transaction.FlatTransaction{
-			"TransactionType": "TicketCreate",
-			"Account":         testManagedAccount,
-			"date":            json.Number("not-a-number"),
-		},
-		Meta: transaction.TxMetadataBuilder{
-			TransactionIndex:  0,
-			TransactionResult: "tesSUCCESS",
-		},
-	}
-
-	msg, err := p.ParseTxResponse(tx)
-	require.Error(t, err)
-	assert.Nil(t, msg)
-	assert.Contains(t, err.Error(), "date is zero")
+	assert.Contains(t, err.Error(), "failed to parse close_time_iso")
 }
 
 // TestParseNttTransaction_SkipsCoreAccount tests that NTT transactions to the core account are skipped
