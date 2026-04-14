@@ -690,7 +690,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					// Note that `tx` here is actually a receipt
 					txHash := eth_common.Hash(pLock.message.TxID)
 
-					// SECURITY: The TxHash existing within the particular block hash guarentees
+					// SECURITY: The TxHash existing within the particular block hash guarantees
 					// that the event exists without being modified. We don't
 					// check for the event mutating into something that's invalid (wrong event type, etc.)
 					// because of this.
