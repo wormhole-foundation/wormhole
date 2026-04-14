@@ -232,6 +232,9 @@ var (
 	zeroGravityRPC      *string
 	zeroGravityContract *string
 
+	tempoRPC      *string
+	tempoContract *string
+
 	nexusRPC      *string
 	nexusContract *string
 
@@ -500,6 +503,9 @@ func init() {
 
 	zeroGravityRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "zeroGravityRPC", "ZeroGravity RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	zeroGravityContract = NodeCmd.Flags().String("zeroGravityContract", "", "ZeroGravity contract address")
+
+	tempoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "tempoRPC", "Tempo RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	tempoContract = NodeCmd.Flags().String("tempoContract", "", "Tempo contract address")
 
 	nexusRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nexusRPC", "Nexus RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	nexusContract = NodeCmd.Flags().String("nexusContract", "", "Nexus contract address")
@@ -923,6 +929,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, vaa.ChainIDHolesky)
 	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, vaa.ChainIDPolygonSepolia)
 	*monadTestnetContract = checkEvmArgs(logger, *monadTestnetRPC, *monadTestnetContract, vaa.ChainIDMonadTestnet)
+	*tempoContract = checkEvmArgs(logger, *tempoRPC, *tempoContract, vaa.ChainIDTempo)
 	*nexusContract = checkEvmArgs(logger, *nexusRPC, *nexusContract, vaa.ChainIDNexus)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
@@ -1962,6 +1969,18 @@ func runNode(cmd *cobra.Command, args []string) {
 				Contract:          *monadTestnetContract,
 				CcqBackfillCache:  *ccqBackfillCache,
 				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMonadTestnet),
+			}
+
+			watcherConfigs = append(watcherConfigs, wc)
+		}
+
+		if shouldStart(tempoRPC) {
+			wc := &evm.WatcherConfig{
+				NetworkID:        "tempo",
+				ChainID:          vaa.ChainIDTempo,
+				Rpc:              *tempoRPC,
+				Contract:         *tempoContract,
+				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
