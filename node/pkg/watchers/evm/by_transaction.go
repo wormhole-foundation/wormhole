@@ -10,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -65,7 +66,7 @@ func MessageEventsForTransaction(
 	// However, relying on that invariant is brittle - we connect to a lot of
 	// EVM-compatible chains which might accidentally break this API contract
 	// and return logs for failed transactions. Check explicitly instead.
-	if receipt.Status != 1 {
+	if receipt.Status != gethTypes.ReceiptStatusSuccessful {
 		return nil, 0, nil, fmt.Errorf("non-success transaction status: %d", receipt.Status)
 	}
 

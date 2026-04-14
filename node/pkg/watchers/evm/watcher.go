@@ -174,7 +174,6 @@ type (
 		height           uint64
 		effectiveCL      uint8
 		additionalBlocks uint64
-		logIndex         uint // block-level log index for O(1) receipt log lookup
 	}
 )
 
@@ -676,56 +675,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					// SECURITY: Defense-in-depth validation of the finalized receipt log.
-					// After confirming the block hash matches, verify the specific log entry
-					// in the receipt is still valid (not reorg'd, correct contract, correct topic).
-					if len(tx.Logs) == 0 {
-						logger.Error("finalized receipt has no logs",
-							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.String("txHash", pLock.message.TxIDString()),
-						)
-						delete(w.pending, key)
-						continue
-					}
-					firstLogIndex := tx.Logs[0].Index
-					if pLock.logIndex < firstLogIndex {
-						logger.Error("log index is before the first log in the receipt",
-							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.String("txHash", pLock.message.TxIDString()),
-						)
-						delete(w.pending, key)
-						continue
-					}
-
-					// O(1) lookup by using relative indexing into the logs
-					pos := pLock.logIndex - firstLogIndex
-					if pos >= uint(len(tx.Logs)) {
-						logger.Error("log index is beyond the last log in the receipt",
-							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.String("txHash", pLock.message.TxIDString()),
-						)
-						delete(w.pending, key)
-						continue
-					}
-
-					if tx.Logs[pos].Index != pLock.logIndex {
-						logger.Error("log index mismatch — receipt logs are not contiguous",
-							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.Uint64("expected", uint64(pLock.logIndex)),
-							zap.Uint64("actual", uint64(tx.Logs[pos].Index)),
-						)
-						delete(w.pending, key)
-						continue
-					}
-					if !isLogValid(*tx.Logs[pos], w.contract) {
-						logger.Error("finalized receipt log failed validation",
-							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.String("txHash", pLock.message.TxIDString()),
-						)
-						delete(w.pending, key)
-						continue
-					}
-
 					logger.Info("observation confirmed",
 						zap.String("msgId", pLock.message.MessageIDString()),
 						zap.String("txHash", pLock.message.TxIDString()),
@@ -740,6 +689,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 					// Note that `tx` here is actually a receipt
 					txHash := eth_common.Hash(pLock.message.TxID)
+
+					// SECURITY: The TxHash existing within the particular block hash guarentees
+					// that the event exists without being modified. We don't
+					// check for the event mutating into something that's invalid (wrong event type, etc.)
+					// because of this.
 					pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
 					if pubErr != nil {
 						logger.Error("could not publish message",
@@ -1037,7 +991,7 @@ func (w *Watcher) postMessage(
 		verifyCtx, cancel := context.WithCancel(parentCtx)
 		defer cancel()
 
-		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, nil)
+		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, receipt)
 		if pubErr != nil {
 			w.logger.Error("could not publish message: transfer verification failed",
 				zap.String("msgId", msg.MessageIDString()),
@@ -1052,7 +1006,6 @@ func (w *Watcher) postMessage(
 		message:     msg,
 		height:      ev.Raw.BlockNumber,
 		effectiveCL: ev.ConsistencyLevel, // Initially from event; may be overridden by CCL contract
-		logIndex:    ev.Raw.Index,        // Block-level log index for receipt validation
 	}
 
 	if msg.ConsistencyLevel == vaa.ConsistencyLevelCustom {
