@@ -69,8 +69,8 @@ pub fn close_posted_message(
         return Err(InvalidProgramOwner.into());
     }
 
-    // 2-4. Parse and validate the message, extracting data for the event.
-    let message_data = {
+    // 2-4. Parse and validate the message, capturing full account data for the event.
+    let account_data = {
         let data = accs.message.data.borrow();
         if data.len() < 3 {
             return Err(InvalidAccountPrefix.into());
@@ -89,16 +89,16 @@ pub fn close_posted_message(
             return Err(MessageWithinRetentionWindow.into());
         }
 
-        message_data
+        data.to_vec()
         // data borrow dropped here
     };
 
-    // 5. Emit Anchor CPI event with the full message data.
+    // 5. Emit Anchor CPI event with the full account data (prefix + message).
     emit_message_event(
         ctx,
         &accs.event_authority,
         &accs.self_program,
-        &message_data,
+        &account_data,
     )?;
 
     // 6. Close the account: transfer lamports to fee_collector.
@@ -114,12 +114,12 @@ pub fn close_posted_message(
     Ok(())
 }
 
-/// Emit an Anchor-compliant CPI event containing the full MessageData.
+/// Emit an Anchor-compliant CPI event containing the full account data.
 fn emit_message_event(
     ctx: &ExecutionContext,
     event_authority: &Info,
     self_program: &Info,
-    message_data: &MessageData,
+    account_data: &[u8],
 ) -> Result<()> {
     // Verify self_program is actually our program.
     if self_program.key != ctx.program_id {
@@ -133,14 +133,11 @@ fn emit_message_event(
         return Err(InvalidEventAuthority.into());
     }
 
-    // Build instruction data: selector + discriminator + borsh(message_data).
-    let serialized = message_data
-        .try_to_vec()
-        .map_err(|_| SolitaireError::ProgramError(ProgramError::InvalidAccountData))?;
-    let mut ix_data = Vec::with_capacity(8 + 8 + serialized.len());
+    // Build instruction data: selector + discriminator + raw account data.
+    let mut ix_data = Vec::with_capacity(8 + 8 + account_data.len());
     ix_data.extend_from_slice(&EVENT_IX_TAG_LE);
     ix_data.extend_from_slice(&MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR);
-    ix_data.extend_from_slice(&serialized);
+    ix_data.extend_from_slice(account_data);
 
     let ix = Instruction {
         program_id: *ctx.program_id,
