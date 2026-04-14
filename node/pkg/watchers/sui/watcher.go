@@ -76,11 +76,11 @@ type (
 
 	FieldsData struct {
 		ConsistencyLevel *uint8  `json:"consistency_level"`
-		Nonce            *uint64 `json:"nonce"`
+		Nonce            *uint32 `json:"nonce"`
 		Payload          []byte  `json:"payload"`
 		Sender           *string `json:"sender"`
 		Sequence         *string `json:"sequence"`
-		Timestamp        *string `json:"timestamp"`
+		Timestamp        *uint64 `json:"timestamp"`
 	}
 
 	SuiResult struct {
@@ -323,16 +323,11 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 		logger.Info("Sequence decode error", zap.String("Sequence", *fields.Sequence))
 		return err
 	}
-	ts, err := strconv.ParseInt(*fields.Timestamp, 10, 64)
-	if err != nil {
-		logger.Info("Timestamp decode error", zap.String("Timestamp", *fields.Timestamp))
-		return err
-	}
 
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
-		Timestamp:        time.Unix(ts, 0),
-		Nonce:            uint32(*fields.Nonce), // #nosec G115 -- Nonce is 32 bits on chain
+		Timestamp:        time.Unix(int64(*fields.Timestamp), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Nonce:            *fields.Nonce,
 		Sequence:         seq,
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   emitter,
