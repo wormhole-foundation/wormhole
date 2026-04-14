@@ -69,6 +69,26 @@ pub async fn execute<T: Signers>(
         .await
 }
 
+/// Like [`execute`], but returns the signed transaction after processing.
+/// Useful for capturing real account keys, indices, and signatures for test fixtures.
+pub async fn execute_and_return_tx<T: Signers>(
+    client: &mut BanksClient,
+    payer: &Keypair,
+    signers: &T,
+    instructions: &[Instruction],
+    commitment_level: CommitmentLevel,
+) -> Result<Transaction, BanksClientError> {
+    let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
+    let recent_blockhash = client.get_latest_blockhash().await?;
+    transaction.sign(signers, recent_blockhash);
+
+    let tx_copy = transaction.clone();
+    client
+        .process_transaction_with_commitment(transaction, commitment_level)
+        .await?;
+    Ok(tx_copy)
+}
+
 mod helpers {
     use super::*;
     use solana_program_test::processor;
@@ -472,6 +492,22 @@ mod helpers {
         message: Pubkey,
     ) -> Result<(), BanksClientError> {
         execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::close_posted_message(*program, message)],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    pub async fn close_posted_message_and_return_tx(
+        client: &mut BanksClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        message: Pubkey,
+    ) -> Result<Transaction, BanksClientError> {
+        execute_and_return_tx(
             client,
             payer,
             &[payer],

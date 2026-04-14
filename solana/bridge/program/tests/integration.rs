@@ -2322,3 +2322,84 @@ async fn test_fee_enforcement_after_close() {
         "Should still be able to post messages after close"
     );
 }
+
+/// Captures the real signed close_posted_message transaction and the CPI event
+/// data that the program would emit, then prints both for building guardian
+/// watcher Go test fixtures.
+///
+/// Run with: cargo test test_close_posted_message_capture_fixture -- --nocapture
+#[tokio::test]
+async fn test_close_posted_message_capture_fixture() {
+    let (ref mut _context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [2u8; 32].to_vec();
+
+    let message_key = common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message,
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    let test_submission_time = old_submission_time();
+    common::set_submission_time(test_ctx, message_key, test_submission_time).await;
+
+    // Read the message account before close — the CPI event payload is the
+    // account data with the 3-byte prefix ("msg"/"msu") stripped.
+    let pre_close_data = common::get_account_data_raw(&mut test_ctx.banks_client, message_key)
+        .await
+        .unwrap();
+    // Close the message, capturing the real signed transaction.
+    let tx = common::close_posted_message_and_return_tx(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        message_key,
+    )
+    .await
+    .unwrap();
+
+    // CPI event data = EVENT_IX_TAG_LE (8) + DISCRIMINATOR (8) + full account data.
+    // The program emits the entire account (prefix + MessageData borsh).
+    // BanksClient 1.10 doesn't return inner instructions, so this is the one
+    // piece we construct from the pre-close account state.
+    let mut cpi_event_data = Vec::new();
+    cpi_event_data.extend_from_slice(&solitaire::EVENT_IX_TAG_LE);
+    cpi_event_data.extend_from_slice(&bridge::MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR);
+    cpi_event_data.extend_from_slice(&pre_close_data);
+
+    // Print the real transaction and constructed CPI event data.
+    println!("--- close_posted_message fixture data ---");
+    println!(
+        "header: num_required_signatures={} num_readonly_signed={} num_readonly_unsigned={}",
+        tx.message.header.num_required_signatures,
+        tx.message.header.num_readonly_signed_accounts,
+        tx.message.header.num_readonly_unsigned_accounts,
+    );
+    for (i, key) in tx.message.account_keys.iter().enumerate() {
+        println!("account_key[{}]: {}", i, key);
+    }
+    println!("recent_blockhash: {}", tx.message.recent_blockhash);
+    for (i, ix) in tx.message.instructions.iter().enumerate() {
+        println!(
+            "instruction[{}]: program_id_index={} accounts={:?} data={}",
+            i,
+            ix.program_id_index,
+            ix.accounts,
+            hex::encode(&ix.data)
+        );
+    }
+    for (i, sig) in tx.signatures.iter().enumerate() {
+        println!("signature[{}]: {}", i, sig);
+    }
+    println!("cpi_event_data: {}", hex::encode(&cpi_event_data));
+    println!("--- end fixture data ---");
+}
