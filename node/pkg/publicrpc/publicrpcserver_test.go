@@ -37,7 +37,7 @@ func TestGetSignedVAANoAddress(t *testing.T) {
 	resp, err := server.GetSignedVAA(ctx, &msg)
 	assert.Nil(t, resp)
 
-	expected_err := status.Error(codes.InvalidArgument, "address must be 32 bytes")
+	expected_err := status.Error(codes.InvalidArgument, "VAA ID emitter address must be 32 bytes")
 	assert.Equal(t, expected_err, err)
 }
 
@@ -62,7 +62,7 @@ func TestGetSignedVAABadAddress(t *testing.T) {
 	resp, err := server.GetSignedVAA(ctx, &msg)
 	assert.Nil(t, resp)
 
-	expected_err := status.Error(codes.InvalidArgument, "address must be 32 bytes")
+	expected_err := status.Error(codes.InvalidArgument, "VAA ID emitter address must be 32 bytes")
 	assert.Equal(t, expected_err, err)
 }
 
