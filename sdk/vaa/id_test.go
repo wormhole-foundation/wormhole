@@ -16,6 +16,22 @@ func TestVAAIDFromString(t *testing.T) {
 	require.Equal(t, "1/0000000000000000000000000000000000000000000000000000000000000004/1", id.String())
 }
 
+func TestVAAIDFromStringAllowsUnknownNumericChain(t *testing.T) {
+	t.Parallel()
+
+	id, err := VAAIDFromString("65535/0000000000000000000000000000000000000000000000000000000000000004/1")
+	require.NoError(t, err)
+	require.Equal(t, ChainID(65535), id.EmitterChain)
+	require.Equal(t, "65535/0000000000000000000000000000000000000000000000000000000000000004/1", id.String())
+}
+
+func TestVAAIDFromStringKnownChainRejectsUnknownNumericChain(t *testing.T) {
+	t.Parallel()
+
+	_, err := VAAIDFromStringKnownChain("65535/0000000000000000000000000000000000000000000000000000000000000004/1")
+	require.EqualError(t, err, "no known ChainID for input 65535")
+}
+
 func TestNewVAAID(t *testing.T) {
 	t.Parallel()
 
