@@ -189,7 +189,11 @@ var SubmitObservationPrefix = []byte("acct_sub_obsfig_000000000000000000|")
 var NttSubmitObservationPrefix = []byte("ntt_acct_sub_obsfig_00000000000000|")
 
 func (k TransferKey) String() string {
-	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
+	return vaa.VAAID{
+		EmitterChain:   vaa.ChainID(k.EmitterChain),
+		EmitterAddress: k.EmitterAddress,
+		Sequence:       k.Sequence,
+	}.String()
 }
 
 //nolint:unparam // error is always nil but is required to satisfy the custom JSON marshal interface.

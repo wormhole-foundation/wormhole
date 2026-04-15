@@ -8,7 +8,6 @@ import (
 	"time"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
 	guardianNotary "github.com/certusone/wormhole/node/pkg/notary"
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
@@ -490,7 +489,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 	}
 
 	// Check if we already store this VAA
-	if p.haveSignedVAA(*db.VaaIDFromVAA(v)) {
+	if p.haveSignedVAA(v.ID()) {
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored",
 				zap.String("message_id", v.MessageID()),

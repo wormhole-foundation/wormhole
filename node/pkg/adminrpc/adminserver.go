@@ -13,7 +13,6 @@ import (
 	"math/rand"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -153,6 +152,11 @@ func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, timestamp time.T
 // adminContractUpgradeToVAA converts a nodev1.ContractUpgrade message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	chainID, err := vaa.ChainIDFromNumber(req.ChainId)
+	if err != nil {
+		return nil, errors.New("invalid chain_id")
+	}
+
 	b, err := hex.DecodeString(req.NewContract)
 	if err != nil {
 		return nil, errors.New("invalid new contract address encoding (expected hex)")
@@ -162,15 +166,11 @@ func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, timestamp time.Time,
 		return nil, errors.New("invalid new_contract address")
 	}
 
-	if req.ChainId > math.MaxUint16 {
-		return nil, errors.New("invalid chain_id")
-	}
-
 	newContractAddress := vaa.Address{}
 	copy(newContractAddress[:], b)
 
 	body, err := vaa.BodyContractUpgrade{
-		ChainID:     vaa.ChainID(req.ChainId),
+		ChainID:     chainID,
 		NewContract: newContractAddress,
 	}.Serialize()
 
@@ -185,7 +185,8 @@ func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, timestamp time.Time,
 // tokenBridgeRegisterChain converts a nodev1.TokenBridgeRegisterChain message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.ChainId > math.MaxUint16 {
+	chainID, err := vaa.ChainIDFromNumber(req.ChainId)
+	if err != nil {
 		return nil, errors.New("invalid chain_id")
 	}
 
@@ -203,7 +204,7 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Ti
 
 	body, err := vaa.BodyTokenBridgeRegisterChain{
 		Module:         req.Module,
-		ChainID:        vaa.ChainID(req.ChainId),
+		ChainID:        chainID,
 		EmitterAddress: emitterAddress,
 	}.Serialize()
 
@@ -218,6 +219,11 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Ti
 // recoverChainId converts a nodev1.RecoverChainId message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func recoverChainId(req *nodev1.RecoverChainId, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	newChainID, err := vaa.ChainIDFromNumber(req.NewChainId)
+	if err != nil {
+		return nil, errors.New("invalid new_chain_id")
+	}
+
 	evm_chain_id_big := big.NewInt(0)
 	evm_chain_id_big, ok := evm_chain_id_big.SetString(req.EvmChainId, 10)
 	if !ok {
@@ -230,14 +236,10 @@ func recoverChainId(req *nodev1.RecoverChainId, timestamp time.Time, guardianSet
 		return nil, errors.New("evm_chain_id overflow")
 	}
 
-	if req.NewChainId > math.MaxUint16 {
-		return nil, errors.New("invalid new_chain_id")
-	}
-
 	body, err := vaa.BodyRecoverChainId{
 		Module:     req.Module,
 		EvmChainID: evm_chain_id,
-		NewChainID: vaa.ChainID(req.NewChainId),
+		NewChainID: newChainID,
 	}.Serialize()
 
 	if err != nil {
@@ -251,13 +253,16 @@ func recoverChainId(req *nodev1.RecoverChainId, timestamp time.Time, guardianSet
 // accountantModifyBalance converts a nodev1.AccountantModifyBalance message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.TargetChainId > math.MaxUint16 {
+	targetChainID, err := vaa.ChainIDFromNumber(req.TargetChainId)
+	if err != nil {
 		return nil, errors.New("invalid target_chain_id")
 	}
-	if req.ChainId > math.MaxUint16 {
+	chainID, err := vaa.ChainIDFromNumber(req.ChainId)
+	if err != nil {
 		return nil, errors.New("invalid chain_id")
 	}
-	if req.TokenChain > math.MaxUint16 {
+	tokenChainID, err := vaa.ChainIDFromNumber(req.TokenChain)
+	if err != nil {
 		return nil, errors.New("invalid token_chain")
 	}
 
@@ -291,11 +296,11 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 
 	body, err := vaa.BodyAccountantModifyBalance{
 		Module:        req.Module,
-		TargetChainID: vaa.ChainID(req.TargetChainId),
+		TargetChainID: targetChainID,
 
 		Sequence:     req.Sequence,
-		ChainId:      vaa.ChainID(req.ChainId),
-		TokenChain:   vaa.ChainID(req.TokenChain),
+		ChainId:      chainID,
+		TokenChain:   tokenChainID,
 		TokenAddress: tokenAdress,
 		Kind:         uint8(req.Kind), // #nosec G115 -- The `ModificationKind` enum only has 3 values
 		Amount:       amount,
@@ -313,7 +318,8 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 // tokenBridgeUpgradeContract converts a nodev1.TokenBridgeRegisterChain message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.TargetChainId > math.MaxUint16 {
+	targetChainID, err := vaa.ChainIDFromNumber(req.TargetChainId)
+	if err != nil {
 		return nil, errors.New("invalid target_chain_id")
 	}
 
@@ -331,7 +337,7 @@ func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, timestamp tim
 
 	body, err := vaa.BodyTokenBridgeUpgradeContract{
 		Module:        req.Module,
-		TargetChainID: vaa.ChainID(req.TargetChainId),
+		TargetChainID: targetChainID,
 		NewContract:   newContract,
 	}.Serialize()
 
@@ -509,7 +515,8 @@ func gatewayIbcComposabilityMwSetContract(
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.TargetChainId > math.MaxUint16 {
+	targetChainID, err := vaa.ChainIDFromNumber(req.TargetChainId)
+	if err != nil {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
 	if req.Finality > math.MaxUint8 {
@@ -517,7 +524,7 @@ func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdate
 	}
 
 	body, err := vaa.BodyCircleIntegrationUpdateWormholeFinality{
-		TargetChainID: vaa.ChainID(req.TargetChainId),
+		TargetChainID: targetChainID,
 		Finality:      uint8(req.Finality),
 	}.Serialize()
 
@@ -532,10 +539,12 @@ func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdate
 // circleIntegrationRegisterEmitterAndDomain converts a nodev1.CircleIntegrationRegisterEmitterAndDomain to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegisterEmitterAndDomain, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.TargetChainId > math.MaxUint16 {
+	targetChainID, err := vaa.ChainIDFromNumber(req.TargetChainId)
+	if err != nil {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
-	if req.ForeignEmitterChainId > math.MaxUint16 {
+	foreignEmitterChainID, err := vaa.ChainIDFromNumber(req.ForeignEmitterChainId)
+	if err != nil {
 		return nil, fmt.Errorf("invalid foreign emitter chain id, must be <= %d", math.MaxUint16)
 	}
 	b, err := hex.DecodeString(req.ForeignEmitterAddress)
@@ -551,8 +560,8 @@ func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegi
 	copy(foreignEmitterAddress[:], b)
 
 	body, err := vaa.BodyCircleIntegrationRegisterEmitterAndDomain{
-		TargetChainID:         vaa.ChainID(req.TargetChainId),
-		ForeignEmitterChainId: vaa.ChainID(req.ForeignEmitterChainId),
+		TargetChainID:         targetChainID,
+		ForeignEmitterChainId: foreignEmitterChainID,
 		ForeignEmitterAddress: foreignEmitterAddress,
 		CircleDomain:          req.CircleDomain,
 	}.Serialize()
@@ -568,7 +577,8 @@ func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegi
 // circleIntegrationUpgradeContractImplementation converts a nodev1.CircleIntegrationUpgradeContractImplementation to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegrationUpgradeContractImplementation, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.TargetChainId > math.MaxUint16 {
+	targetChainID, err := vaa.ChainIDFromNumber(req.TargetChainId)
+	if err != nil {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
 	b, err := hex.DecodeString(req.NewImplementationAddress)
@@ -584,7 +594,7 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 	copy(newImplementationAddress[:], b)
 
 	body, err := vaa.BodyCircleIntegrationUpgradeContractImplementation{
-		TargetChainID:            vaa.ChainID(req.TargetChainId),
+		TargetChainID:            targetChainID,
 		NewImplementationAddress: newImplementationAddress,
 	}.Serialize()
 
@@ -604,11 +614,13 @@ func ibcUpdateChannelChain(
 	sequence uint64,
 ) (*vaa.VAA, error) {
 	// validate parameters
-	if req.TargetChainId > math.MaxUint16 {
+	targetChainID, err := vaa.ChainIDFromNumber(req.TargetChainId)
+	if err != nil {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
 
-	if req.ChainId > math.MaxUint16 {
+	chainID, err := vaa.ChainIDFromNumber(req.ChainId)
+	if err != nil {
 		return nil, fmt.Errorf("invalid chain id, must be <= %d", math.MaxUint16)
 	}
 
@@ -630,9 +642,9 @@ func ibcUpdateChannelChain(
 	}
 
 	body, err := vaa.BodyIbcUpdateChannelChain{
-		TargetChainId: vaa.ChainID(req.TargetChainId),
+		TargetChainId: targetChainID,
 		ChannelId:     channelId,
-		ChainId:       vaa.ChainID(req.ChainId),
+		ChainId:       chainID,
 	}.Serialize(module)
 
 	if err != nil {
@@ -646,7 +658,8 @@ func ibcUpdateChannelChain(
 // wormholeRelayerSetDefaultDeliveryProvider converts a nodev1.WormholeRelayerSetDefaultDeliveryProvider message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDefaultDeliveryProvider, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.ChainId > math.MaxUint16 {
+	chainID, err := vaa.ChainIDFromNumber(req.ChainId)
+	if err != nil {
 		return nil, errors.New("invalid target_chain_id")
 	}
 
@@ -663,7 +676,7 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 	copy(NewDefaultDeliveryProviderAddress[:], b)
 
 	body, err := vaa.BodyWormholeRelayerSetDefaultDeliveryProvider{
-		ChainID:                           vaa.ChainID(req.ChainId),
+		ChainID:                           chainID,
 		NewDefaultDeliveryProviderAddress: NewDefaultDeliveryProviderAddress,
 	}.Serialize()
 
@@ -754,7 +767,8 @@ func delegatedGuardiansConfigToVaa(req *nodev1.DelegatedGuardiansConfig, timesta
 // delegatedManagerSetUpdateToVaa converts a nodev1.DelegatedManagerSetUpdate message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func delegatedManagerSetUpdateToVaa(req *nodev1.DelegatedManagerSetUpdate, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.ManagerChainId > math.MaxUint16 {
+	managerChainID, err := vaa.ChainIDFromNumber(req.ManagerChainId)
+	if err != nil {
 		return nil, errors.New("invalid manager_chain_id")
 	}
 
@@ -764,7 +778,7 @@ func delegatedManagerSetUpdateToVaa(req *nodev1.DelegatedManagerSetUpdate, times
 	}
 
 	body, err := vaa.BodyManagerSetUpdate{
-		ManagerChainID:     vaa.ChainID(req.ManagerChainId),
+		ManagerChainID:     managerChainID,
 		NewManagerSetIndex: req.ManagerSetIndex,
 		NewManagerSet:      managerSetBytes,
 	}.Serialize()
@@ -777,6 +791,11 @@ func delegatedManagerSetUpdateToVaa(req *nodev1.DelegatedManagerSetUpdate, times
 }
 
 func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	chainID, err := vaa.ChainIDFromNumber(evmCall.ChainId)
+	if err != nil {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", evmCall.ChainId)
+	}
+
 	governanceContract := ethcommon.HexToAddress(evmCall.GovernanceContract)
 	targetContract := ethcommon.HexToAddress(evmCall.TargetContract)
 
@@ -784,12 +803,9 @@ func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ABI encoded call: %w", err)
 	}
-	if evmCall.ChainId > math.MaxUint16 {
-		return nil, fmt.Errorf("chain id exceeds max uint16: %v", evmCall.ChainId)
-	}
 
 	body, err := vaa.BodyGeneralPurposeGovernanceEvm{
-		ChainID:            vaa.ChainID(evmCall.ChainId),
+		ChainID:            chainID,
 		GovernanceContract: governanceContract,
 		TargetContract:     targetContract,
 		Payload:            payload,
@@ -804,6 +820,11 @@ func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex
 }
 
 func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	chainID, err := vaa.ChainIDFromNumber(solanaCall.ChainId)
+	if err != nil {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", solanaCall.ChainId)
+	}
+
 	address, err := base58.Decode(solanaCall.GovernanceContract)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base58 governance contract address: %w", err)
@@ -819,12 +840,9 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode instruction: %w", err)
 	}
-	if solanaCall.ChainId > math.MaxUint16 {
-		return nil, fmt.Errorf("chain id exceeds max uint16: %v", solanaCall.ChainId)
-	}
 
 	body, err := vaa.BodyGeneralPurposeGovernanceSolana{
-		ChainID:            vaa.ChainID(solanaCall.ChainId),
+		ChainID:            chainID,
 		GovernanceContract: governanceContract,
 		Instruction:        instruction,
 	}.Serialize()
@@ -838,6 +856,11 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 }
 
 func suiCallToVaa(suiCall *nodev1.SuiCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	chainID, err := vaa.ChainIDFromNumber(suiCall.ChainId)
+	if err != nil {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", suiCall.ChainId)
+	}
+
 	govContractStr := strings.TrimPrefix(suiCall.GovernanceContract, "0x")
 	address, err := hex.DecodeString(govContractStr)
 	if err != nil {
@@ -854,12 +877,9 @@ func suiCallToVaa(suiCall *nodev1.SuiCall, timestamp time.Time, guardianSetIndex
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode call data: %w", err)
 	}
-	if suiCall.ChainId > math.MaxUint16 {
-		return nil, fmt.Errorf("chain id exceeds max uint16: %v", suiCall.ChainId)
-	}
 
 	body, err := vaa.BodyGeneralPurposeGovernanceSui{
-		ChainID:            vaa.ChainID(suiCall.ChainId),
+		ChainID:            chainID,
 		GovernanceContract: governanceContract,
 		Payload:            callData,
 	}.Serialize()
@@ -1083,14 +1103,15 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid emitter address encoding: %v", err)
 	}
-	if req.EmitterChain > math.MaxUint16 {
+	emitterChain, err := vaa.ChainIDFromNumber(req.EmitterChain)
+	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "chain id exceeds max uint16: %v", req.EmitterChain)
 	}
 	emitterAddress := vaa.Address{}
 	copy(emitterAddress[:], b)
 
 	ids, first, last, err := s.db.FindEmitterSequenceGap(guardianDB.VAAID{
-		EmitterChain:   vaa.ChainID(req.EmitterChain),
+		EmitterChain:   emitterChain,
 		EmitterAddress: emitterAddress,
 	})
 	if err != nil {
@@ -1101,7 +1122,7 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 		c := &http.Client{}
 		unfilled := make([]uint64, 0, len(ids))
 		for _, id := range ids {
-			if ok, err := s.fetchMissing(ctx, req.BackfillNodes, c, vaa.ChainID(req.EmitterChain), emitterAddress.String(), id); err != nil {
+			if ok, err := s.fetchMissing(ctx, req.BackfillNodes, c, emitterChain, emitterAddress.String(), id); err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to backfill VAA: %v", err)
 			} else if ok {
 				continue
@@ -1113,7 +1134,11 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 
 	resp := make([]string, len(ids))
 	for i, v := range ids {
-		resp[i] = fmt.Sprintf("%d/%s/%d", req.EmitterChain, emitterAddress, v)
+		resp[i] = vaa.VAAID{
+			EmitterChain:   emitterChain,
+			EmitterAddress: emitterAddress,
+			Sequence:       v,
+		}.String()
 	}
 	return &nodev1.FindMissingMessagesResponse{
 		MissingMessages: resp,
@@ -1132,16 +1157,17 @@ func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req 
 }
 
 func (s *nodePrivilegedService) ReobserveWithEndpoint(ctx context.Context, req *nodev1.ReobserveWithEndpointRequest) (*nodev1.ReobserveWithEndpointResponse, error) {
-	if req.ChainId > math.MaxUint16 {
+	chainID, err := vaa.ChainIDFromNumber(req.ChainId)
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "chain %d is not a valid uint16", req.ChainId)
 	}
 
-	watcher := s.reobservers[vaa.ChainID(req.ChainId)]
+	watcher := s.reobservers[chainID]
 	if watcher == nil {
 		return nil, status.Errorf(codes.Internal, "chain %d does not support reobservation by endpoint", req.ChainId)
 	}
 
-	numObservations, err := watcher.Reobserve(ctx, vaa.ChainID(req.ChainId), req.TxHash, req.Url)
+	numObservations, err := watcher.Reobserve(ctx, chainID, req.TxHash, req.Url)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "reobservation failed: %v", err)
 	}
@@ -1626,25 +1652,12 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		missingVAA := missingVAAs[i]
 		// First check to see if this VAA has already been signed
 		// Convert vaaKey to VAAID
-		splits := strings.Split(missingVAA.VaaKey, "/")
-		chainID, err := strconv.Atoi(splits[0])
+		vaaKey, err := vaa.VAAIDFromString(missingVAA.VaaKey)
 		if err != nil {
-			errMsgs += fmt.Sprintf("\nerror converting chainID [%s] to int", missingVAA.VaaKey)
+			errMsgs += fmt.Sprintf("\nerror parsing VAA key [%s]: %v", missingVAA.VaaKey, err)
 			errCounter++
 			continue
 		}
-		if chainID > math.MaxUint16 {
-			errMsgs += fmt.Sprintf("\nchainID [%d] not a valid uint16", chainID)
-			errCounter++
-			continue
-		}
-		sequence, err := strconv.ParseUint(splits[2], 10, 64)
-		if err != nil {
-			errMsgs += fmt.Sprintf("\nerror converting sequence %s to uint64", splits[2])
-			errCounter++
-			continue
-		}
-		vaaKey := guardianDB.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence} // #nosec G115 -- This chainId conversion is verified above
 		hasVaa, err := s.db.HasVAA(vaaKey)
 		if err != nil || hasVaa {
 			errMsgs += fmt.Sprintf("\nerror checking for VAA %s", missingVAA.VaaKey)
@@ -1652,12 +1665,13 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 			continue
 		}
 		var obsvReq gossipv1.ObservationRequest
-		if missingVAA.Chain > math.MaxUint16 {
+		missingVAAChainID, err := vaa.ChainIDFromNumber(missingVAA.Chain)
+		if err != nil {
 			errMsgs += fmt.Sprintf("\nmissing VAA chainID [%d] not a valid uint16", missingVAA.Chain)
 			errCounter++
 			continue
 		}
-		obsvReq.ChainId = uint32(missingVAA.Chain) // #nosec G115 -- This conversion is checked above
+		obsvReq.ChainId = uint32(missingVAAChainID)
 		obsvReq.TxHash, err = hex.DecodeString(strings.TrimPrefix(missingVAA.Txhash, "0x"))
 		if err != nil {
 			obsvReq.TxHash, err = base58.Decode(missingVAA.Txhash)

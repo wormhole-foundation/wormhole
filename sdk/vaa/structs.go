@@ -194,7 +194,7 @@ func KnownChainIDFromNumber[N number](n N) (ChainID, error) {
 // Inputs of unknown ChainIDs, including 0, will result in an error.
 func StringToKnownChainID(s string) (ChainID, error) {
 	// Try to convert from chain name first, and return early if it's found.
-	id, err := ChainIDFromString(s)
+	id, err := ChainNameToChainID(s)
 	if err == nil {
 		return id, nil
 	}
@@ -207,6 +207,29 @@ func StringToKnownChainID(s string) (ChainID, error) {
 	}
 
 	return KnownChainIDFromNumber(u16)
+}
+
+// ChainNameToChainID converts a chain's name, such as "solana", into its corresponding ChainID.
+func ChainNameToChainID(name string) (ChainID, error) {
+	return ChainIDFromString(name)
+}
+
+// StringToChainID converts from a string representation of a chain into a ChainID.
+// The argument can be either a numeric string representation of a uint16 or a known chain name such as "solana".
+// Unlike StringToKnownChainID, numeric inputs do not need to correspond to a chain registered in the SDK.
+func StringToChainID(s string) (ChainID, error) {
+	// Try to convert from chain name first, and return early if it's found.
+	id, err := ChainNameToChainID(s)
+	if err == nil {
+		return id, nil
+	}
+
+	u16, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return ChainIDUnset, err
+	}
+
+	return ChainIDFromNumber(u16)
 }
 
 // NOTE: Please keep these in numerical order.
@@ -711,7 +734,7 @@ func (v *VAA) UnmarshalBinary(data []byte) error {
 
 // MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
 func (v *VAA) MessageID() string {
-	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
+	return v.ID().String()
 }
 
 // UniqueID normalizes the ID of the VAA (any type) for the Attestation interface

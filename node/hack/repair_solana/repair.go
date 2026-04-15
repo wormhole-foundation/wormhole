@@ -78,11 +78,11 @@ func main() {
 		msgs := make([]*db.VAAID, len(resp.MissingMessages))
 		for i, id := range resp.MissingMessages {
 			fmt.Println(id)
-			vId, err := db.VaaIDFromString(id)
+			vId, err := vaa.VAAIDFromString(id)
 			if err != nil {
 				log.Fatalf("failed to parse VAAID: %v", err)
 			}
-			msgs[i] = vId
+			msgs[i] = &vId
 		}
 
 		if len(msgs) == 0 {

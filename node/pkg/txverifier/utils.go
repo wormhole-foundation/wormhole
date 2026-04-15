@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -35,64 +34,21 @@ const (
 // i.e.emitter_chain/emitter_address/sequence tuple. In this package, it is used
 // to identify a single LogMessagePublished event, which in turn maps onto a unique
 // MessagePublication elsewhere in the Guardian code.
-type msgID struct {
-	// Sequence of the VAA
-	Sequence uint64
-	// EmitterChain the VAA was emitted on
-	EmitterChain vaa.ChainID
-	// EmitterAddress of the contract that emitted the Message
-	EmitterAddress vaa.Address
-}
-
-// MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
-func (m *msgID) String() string {
-	return fmt.Sprintf("%d/%s/%d", m.EmitterChain, m.EmitterAddress, m.Sequence)
-}
-
-func (m *msgID) Empty() bool {
-	return m.EmitterChain == 0 && m.EmitterAddress == ZERO_ADDRESS_VAA && m.Sequence == 0
-}
+type msgID = vaa.VAAID
 
 // NewMsgID creates a new msgID from a string in the format "chainID/emitterAddress/sequence".
 func NewMsgID(in string) (msgID, error) {
-	if len(in) == 0 {
-		return msgID{}, errors.New("msgIDStr is empty")
-	}
-	parts := strings.Split(in, "/")
-	if len(parts) != 3 {
-		return msgID{}, errors.New("invalid msgID: must be in the format chainID/emitterAddress/sequence")
-	}
-
-	chainID, err := vaa.StringToKnownChainID(parts[0])
+	id, err := vaa.VAAIDFromString(in)
 	if err != nil {
 		return msgID{}, err
 	}
 
-	supported := IsSupported(chainID)
+	supported := IsSupported(id.EmitterChain)
 	if !supported {
-		return msgID{}, fmt.Errorf("chainID %d (%s) is does not have a Transfer Verifier implementation or is not supported", chainID, chainID.String())
+		return msgID{}, fmt.Errorf("chainID %d (%s) is does not have a Transfer Verifier implementation or is not supported", id.EmitterChain, id.EmitterChain.String())
 	}
 
-	emitterAddress, err := vaa.StringToAddress(parts[1])
-	if err != nil {
-		return msgID{}, err
-	}
-
-	sequence, err := strconv.ParseUint(parts[2], 10, 64)
-	if err != nil {
-		return msgID{}, err
-	}
-
-	if chainID == vaa.ChainIDUnset || emitterAddress == ZERO_ADDRESS_VAA {
-		return msgID{}, errors.New("invalid msgID: chainID or emitterAddress is unset or zero")
-	}
-
-	return msgID{
-		EmitterChain:   chainID,
-		EmitterAddress: emitterAddress,
-		Sequence:       sequence,
-	}, nil
-
+	return id, nil
 }
 
 // Custom error type used to signal that a core invariant of the token bridge has been violated.

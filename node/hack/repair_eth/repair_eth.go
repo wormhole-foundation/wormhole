@@ -316,15 +316,15 @@ func main() {
 		msgs := []*db.VAAID{}
 		for _, id := range resp.MissingMessages {
 			fmt.Println(id)
-			vId, err := db.VaaIDFromString(id)
+			vId, err := vaa.VAAIDFromString(id)
 			if err != nil {
 				log.Fatalf("failed to parse VAAID: %v", err)
 			}
-			if *vId == polygonIgnoredVaa {
+			if vId == polygonIgnoredVaa {
 				log.Printf("Ignored message: %+v", &polygonIgnoredVaa)
 				continue
 			}
-			msgs = append(msgs, vId)
+			msgs = append(msgs, &vId)
 		}
 
 		if len(msgs) == 0 {
