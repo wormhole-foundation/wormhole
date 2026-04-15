@@ -216,8 +216,8 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		// Define error string for testing. This is returned by the borsh-go library when it fails to
 		// deserialize a struct. In this case, we're relying on the library to fail when
 		// the message account data can't be deserialized into [MessagePublicationAccount].
-		errStringBorsh  = "failed to read required bytes"
-		errStringPrefix = "message account data is too short"
+		errStringBorsh         = "failed to read required bytes"
+		errStringParseTooShort = "message account data is too short"
 	)
 
 	tests := []struct {
@@ -274,15 +274,17 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				return MessageAccountData{}
 			},
 			want:   &MessagePublicationAccount{},
-			errStr: errStringPrefix,
+			errStr: errStringParseTooShort,
 		},
 		{
 			name: "failure -- data too short",
 			messageAccountData: func(t *testing.T) MessageAccountData {
+				// Bypass NewMessageAccountData on purpose so this test exercises the parser's
+				// defense-in-depth length check rather than the constructor's validation.
 				return MessageAccountData{[]byte("ms")}
 			},
 			want:   &MessagePublicationAccount{},
-			errStr: errStringPrefix,
+			errStr: errStringParseTooShort,
 		},
 		{
 			name: "failure -- no data following prefix (msg)",
@@ -1002,23 +1004,24 @@ func TestNewMessageAccountData(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		data    []byte
-		want    MessageAccountData
-		wantErr bool
+		data       []byte
+		want       MessageAccountData
+		wantErr    bool
+		wantErrStr string
 	}{
 		// Happy path
-		{"just msg", []byte("msg"), MessageAccountData{data: []byte("msg")}, false},
-		{"just msu", []byte("msu"), MessageAccountData{data: []byte("msu")}, false},
-		{"msg with data", []byte("msg1234abcd"), MessageAccountData{[]byte("msg1234abcd")}, false},
-		{"msu with data", []byte("msu1234abcd"), MessageAccountData{[]byte("msu1234abcd")}, false},
+		{"just msg", []byte("msg"), MessageAccountData{data: []byte("msg")}, false, ""},
+		{"just msu", []byte("msu"), MessageAccountData{data: []byte("msu")}, false, ""},
+		{"msg with data", []byte("msg1234abcd"), MessageAccountData{[]byte("msg1234abcd")}, false, ""},
+		{"msu with data", []byte("msu1234abcd"), MessageAccountData{[]byte("msu1234abcd")}, false, ""},
 		// Error cases
-		{"empty", []byte{}, MessageAccountData{}, true},
-		{"too short", []byte("ms"), MessageAccountData{}, true},
+		{"empty", []byte{}, MessageAccountData{}, true, ""},
+		{"too short", []byte("ms"), MessageAccountData{}, true, "message account data is too short: 2, need at least 3"},
 		// The core bridge has a special case where accounts with the prefix "vaa" get deserialized with the
 		// same implementation as "msg" accounts. For clarity, this is not supported by the watcher. We
 		// actually want a message account when processing an account's data with this type.
-		{"bad prefix - vaa", []byte("vaa"), MessageAccountData{}, true},
-		{"bad prefix - abc", []byte("vaa"), MessageAccountData{}, true},
+		{"bad prefix - vaa", []byte("vaa"), MessageAccountData{}, true, ""},
+		{"bad prefix - abc", []byte("vaa"), MessageAccountData{}, true, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1026,6 +1029,9 @@ func TestNewMessageAccountData(t *testing.T) {
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("NewMessageAccountData() failed: %v", gotErr)
+				}
+				if tt.wantErrStr != "" {
+					require.EqualError(t, gotErr, tt.wantErrStr)
 				}
 				return
 			}
