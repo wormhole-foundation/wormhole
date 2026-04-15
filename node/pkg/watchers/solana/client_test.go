@@ -223,14 +223,16 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		messageAccountData MessageAccountData
+		messageAccountData func(t *testing.T) MessageAccountData
 		want               *MessagePublicationAccount
 		errStr             string
 	}{
 		{
 			name: "success -- reliable message",
 
-			messageAccountData: MessageAccountData{validMessageAccountDataReliable},
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return mustNewMessageAccountData(t, validMessageAccountDataReliable)
+			},
 			want: &MessagePublicationAccount{
 				VaaVersion:       0,
 				ConsistencyLevel: 32,
@@ -247,8 +249,10 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 			errStr: "",
 		},
 		{
-			name:               "success -- unreliable message",
-			messageAccountData: MessageAccountData{validMessageAccountDataUnreliable},
+			name: "success -- unreliable message",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return mustNewMessageAccountData(t, validMessageAccountDataUnreliable)
+			},
 			want: &MessagePublicationAccount{
 				VaaVersion:       0,
 				ConsistencyLevel: 1,
@@ -265,56 +269,64 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 			errStr: "",
 		},
 		{
-			name:               "failure -- nil argument",
-			messageAccountData: MessageAccountData{},
-			want:               &MessagePublicationAccount{},
-			errStr:             errStringPrefix,
+			name: "failure -- nil argument",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return MessageAccountData{}
+			},
+			want:   &MessagePublicationAccount{},
+			errStr: errStringPrefix,
 		},
 		{
-			name:               "failure -- data too short",
-			messageAccountData: MessageAccountData{[]byte("ms")},
-			want:               &MessagePublicationAccount{},
-			errStr:             errStringPrefix,
+			name: "failure -- data too short",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return MessageAccountData{[]byte("ms")}
+			},
+			want:   &MessagePublicationAccount{},
+			errStr: errStringPrefix,
 		},
 		{
-			name:               "failure -- no data following prefix (msg)",
-			messageAccountData: MessageAccountData{[]byte("msg")},
-			want:               &MessagePublicationAccount{},
-			errStr:             errStringBorsh,
+			name: "failure -- no data following prefix (msg)",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return mustNewMessageAccountData(t, []byte("msg"))
+			},
+			want:   &MessagePublicationAccount{},
+			errStr: errStringBorsh,
 		},
 		{
-			name:               "failure -- no data following prefix (msu)",
-			messageAccountData: MessageAccountData{[]byte("msu")},
-			want:               &MessagePublicationAccount{},
-			errStr:             errStringBorsh,
+			name: "failure -- no data following prefix (msu)",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return mustNewMessageAccountData(t, []byte("msu"))
+			},
+			want:   &MessagePublicationAccount{},
+			errStr: errStringBorsh,
 		},
 		{
-			name:               "failure -- truncated data (msg)",
-			messageAccountData: MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
-			want:               &MessagePublicationAccount{},
-			errStr:             errStringBorsh,
+			name: "failure -- truncated data (msg)",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return mustNewMessageAccountData(t, validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1])
+			},
+			want:   &MessagePublicationAccount{},
+			errStr: errStringBorsh,
 		},
 		{
-			name:               "failure -- truncated data (msu)",
-			messageAccountData: MessageAccountData{validMessageAccountDataUnreliable[:len(validMessageAccountDataUnreliable)-1]},
-			want:               &MessagePublicationAccount{},
-			errStr:             errStringBorsh,
+			name: "failure -- truncated data (msu)",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				return mustNewMessageAccountData(t, validMessageAccountDataUnreliable[:len(validMessageAccountDataUnreliable)-1])
+			},
+			want:   &MessagePublicationAccount{},
+			errStr: errStringBorsh,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := ParseMessagePublicationAccount(tt.messageAccountData)
-			if gotErr != nil {
-				// We didn't expect an error, but we got one.
-				if tt.errStr == "" {
-					t.Errorf("ParseMessagePublicationAccount() failed: %v", gotErr)
-				}
+			got, gotErr := ParseMessagePublicationAccount(tt.messageAccountData(t))
+			if tt.errStr != "" {
+				require.ErrorContains(t, gotErr, tt.errStr)
 				return
 			}
-			if tt.errStr != "" {
-				// We want an error. Make sure it's the right one.
-				require.ErrorContains(t, gotErr, tt.errStr, "ParseMessagePublicationAccount() succeeded unexpectedly")
-			}
+
+			require.NoError(t, gotErr)
+			require.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -1089,6 +1101,13 @@ func mustDecodeHex(t *testing.T, s string) []byte {
 	b, err := hex.DecodeString(s)
 	require.NoError(t, err)
 	return b
+}
+
+func mustNewMessageAccountData(t *testing.T, data []byte) MessageAccountData {
+	t.Helper()
+	mad, err := NewMessageAccountData(data)
+	require.NoError(t, err)
+	return mad
 }
 
 func writeLE(t *testing.T, buf *bytes.Buffer, value interface{}) {
