@@ -86,7 +86,18 @@ func NewVAAID[N number](emitterChain N, emitterAddress string, sequence uint64) 
 }
 
 // VAAIDFromString parses a chain/address/sequence identifier into a validated VAA ID.
+// Numeric chain IDs do not need to correspond to a chain registered in the SDK.
 func VAAIDFromString(s string) (VAAID, error) {
+	return parseVAAIDString(s, false)
+}
+
+// VAAIDFromStringKnownChain parses a chain/address/sequence identifier into a validated VAA ID.
+// The chain component must correspond to a chain registered in the SDK.
+func VAAIDFromStringKnownChain(s string) (VAAID, error) {
+	return parseVAAIDString(s, true)
+}
+
+func parseVAAIDString(s string, knownChain bool) (VAAID, error) {
 	if s == "" {
 		return VAAID{}, ErrEmptyVAAID
 	}
@@ -96,7 +107,7 @@ func VAAIDFromString(s string) (VAAID, error) {
 		return VAAID{}, ErrInvalidVAAIDFormat
 	}
 
-	chainID, err := parseVAAIDChain(parts[0])
+	chainID, err := parseVAAIDChain(parts[0], knownChain)
 	if err != nil {
 		return VAAID{}, err
 	}
@@ -124,12 +135,15 @@ func VAAIDFromString(s string) (VAAID, error) {
 	return id, nil
 }
 
-func parseVAAIDChain(s string) (ChainID, error) {
+func parseVAAIDChain(s string, knownChain bool) (ChainID, error) {
 	if s == "" {
 		return ChainIDUnset, errors.New("VAA ID emitter chain is empty")
 	}
+	if knownChain {
+		return StringToKnownChainID(s)
+	}
 
-	return StringToKnownChainID(s)
+	return StringToChainID(s)
 }
 
 func parseVAAIDAddress(s string) (Address, error) {
