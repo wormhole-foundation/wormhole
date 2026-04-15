@@ -61,12 +61,12 @@ test-coverage:
 
 .PHONY: check-coverage
 ## Check coverage against baseline (run tests first)
-check-coverage: test-coverage
+check-coverage: build-coverage-check test-coverage
 	@./coverage-check
 
 .PHONY: check-coverage-verbose
 ## Check coverage against baseline (run tests first)
-check-coverage-verbose: test-coverage
+check-coverage-verbose: build-coverage-check test-coverage
 	@./coverage-check -v
 
 .PHONY: build-coverage-check

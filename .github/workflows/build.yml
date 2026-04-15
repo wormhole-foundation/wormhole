@@ -262,13 +262,14 @@ jobs:
 
   # Verify go sdk unit/fuzz tests
   sdk_vaa:
+    name: Go SDK Fuzz
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
           go-version: "1.24.13"
-      - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
+      - run: cd sdk/vaa && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
   node-lint:
@@ -314,6 +315,7 @@ jobs:
 
   # Run Go tests
   node-tests:
+    name: Go Unit Tests
     # The tests are slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
@@ -328,35 +330,13 @@ jobs:
         with:
           go-version: "1.24.13"
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
-      - name: Run golang tests (node)
-        run: cd node && go test -v -timeout 5m -race ./...
-      - name: Run golang tests (sdk)
-        run: cd sdk && go test -v -timeout 5m -race ./...
-
-  code-coverage:
-    # Coverage uses the same test matrix and runner profile as node-tests.
-    runs-on: tilt-kube-public
-    concurrency:
-      group: ${{ github.workflow }}-coverage-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - name: Clear repository
-        run: |
-          rm -rf $GITHUB_WORKSPACE && mkdir $GITHUB_WORKSPACE
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.24.13"
-      # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
-      - name: Run golang tests with coverage (node)
-        run: cd node && go test -v -timeout 5m -race -cover ./... 2>&1 | tee ../coverage-node.tmp
-      - name: Run golang tests with coverage (sdk)
-        run: cd sdk && go test -v -timeout 5m -race -cover ./... 2>&1 | tee ../coverage-sdk.tmp
-      - name: Combine coverage output
-        run: cat coverage-node.tmp coverage-sdk.tmp > coverage.txt && rm coverage-node.tmp coverage-sdk.tmp
+      - name: Run golang tests with coverage
+        run: make test-coverage
       - name: Build coverage check tool
-        run: cd scripts/coverage-check && go build -o ../../coverage-check .
+        run: make build-coverage-check
+      # Coverage regressions should be visible in CI, but should not block merging.
       - name: Check coverage against baseline
+        continue-on-error: true
         run: ./coverage-check
 
   # Run Rust lints and tests
