@@ -27,8 +27,7 @@ use solitaire::{
     *,
 };
 
-/// 30 days in seconds.
-const RETENTION_PERIOD: i64 = 30 * 24 * 60 * 60;
+use super::RETENTION_PERIOD;
 
 /// Event discriminator: SHA256("event:MessageAccountClosed")[0..8].
 pub const MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR: [u8; 8] =
@@ -84,7 +83,7 @@ pub fn close_posted_message(
         let message_data = MessageData::try_from_slice(&data[3..])
             .map_err(|_| SolitaireError::ProgramError(ProgramError::InvalidAccountData))?;
 
-        // Check retention: submission_time must be at or before (now - 30 days).
+        // Check retention: submission_time must be at or before (now - RETENTION_PERIOD).
         if (message_data.submission_time as i64) > accs.clock.unix_timestamp - RETENTION_PERIOD {
             return Err(MessageWithinRetentionWindow.into());
         }

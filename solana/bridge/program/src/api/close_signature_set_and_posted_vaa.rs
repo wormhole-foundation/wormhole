@@ -27,8 +27,7 @@ use solitaire::{
     *,
 };
 
-/// 30 days in seconds.
-const RETENTION_PERIOD: i64 = 30 * 24 * 60 * 60;
+use super::RETENTION_PERIOD;
 
 /// Default submission_time for accounts created before the submission_time
 /// field was populated. Gives legacy accounts a 30-day grace period from
