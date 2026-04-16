@@ -80,7 +80,8 @@ type (
 		Payload          []byte  `json:"payload"`
 		Sender           *string `json:"sender"`
 		Sequence         *string `json:"sequence"`
-		Timestamp        *uint64 `json:"timestamp"`
+		// Sui's JSON-RPC encodes this on-chain u64 as a quoted decimal string in parsedJson.
+		Timestamp *uint64 `json:"timestamp,string"`
 	}
 
 	SuiResult struct {
