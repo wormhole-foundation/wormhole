@@ -3,6 +3,7 @@ package evm
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -31,6 +32,14 @@ var testEmitter = eth_common.HexToAddress("0x0290FB167208Af455bB137780163b7B7a9a
 // testTokenBridge is the token bridge address used by MockTransferVerifier.
 var testTokenBridge = eth_common.HexToAddress("0x3ee18B2214AFF97000D974cf647E7C347E8fa585")
 
+// Default block heights used across reobserve tests: the log is observed at testBlockNumber,
+// with testFinalizedBlockNum / testSafeBlockNum representing current chain heads.
+var (
+	testBlockNumber       = uint64(100)
+	testFinalizedBlockNum = uint64(200)
+	testSafeBlockNum      = uint64(150)
+)
+
 // NewWatcherForTest creates a minimal Watcher for verifyAndPublish tests.
 func NewWatcherForTest(t *testing.T, msgC chan<- *common.MessagePublication) *Watcher {
 	t.Helper()
@@ -50,7 +59,7 @@ func NewWatcherForTest(t *testing.T, msgC chan<- *common.MessagePublication) *Wa
 // Returns the watcher, the mock (for configuring receipts/errors), and the msgC channel (for reading published messages).
 func newTestWatcher(t *testing.T) (*Watcher, *mockConnector, chan *common.MessagePublication) {
 	t.Helper()
-	mock := newMockConnector()
+	mock := newMockConnector(t)
 	msgC := make(chan *common.MessagePublication, 10)
 
 	w := &Watcher{
@@ -83,24 +92,54 @@ func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {
 }
 
 // mockConnector is a minimal mock of the connectors.Connector interface for testing
-// processNewBlock and postMessage. Only TransactionReceipt has real behavior; all other methods panic
-// because they should not be called in these tests.
+// processNewBlock, postMessage, and reobservation flows. TransactionReceipt, TimeOfBlockByHash,
+// and ParseLogMessagePublished have real behavior; all other methods panic because they should
+// not be called in these tests.
 type mockConnector struct {
 	// receipts maps txHash -> receipt to return
 	receipts map[eth_common.Hash]*types.Receipt
-	// errors maps txHash -> error to return
+	// errors maps txHash -> error to return from TransactionReceipt
 	errors map[eth_common.Hash]error
+	// blockTimes maps blockHash -> time to return from TimeOfBlockByHash
+	blockTimes map[eth_common.Hash]uint64
+	// filterer delegates ParseLogMessagePublished to the real ABI parser.
+	filterer *ethabi.AbiFilterer
 }
 
-func newMockConnector() *mockConnector {
+func newMockConnector(t *testing.T) *mockConnector {
+	t.Helper()
+	// The zero address and nil filterer are fine here: UnpackLog only needs the parsed ABI
+	// metadata baked into the generated package, not an RPC-capable filterer.
+	filterer, err := ethabi.NewAbiFilterer(eth_common.Address{}, nil)
+	require.NoError(t, err)
 	return &mockConnector{
-		receipts: make(map[eth_common.Hash]*types.Receipt),
-		errors:   make(map[eth_common.Hash]error),
+		receipts:   make(map[eth_common.Hash]*types.Receipt),
+		errors:     make(map[eth_common.Hash]error),
+		blockTimes: make(map[eth_common.Hash]uint64),
+		filterer:   filterer,
 	}
 }
 
+// seedLog wires the mock to return a successful receipt wrapping `log` (keyed by its TxHash)
+// and the given block time (keyed by the receipt's BlockHash). For receipts with Status != 1
+// or custom shapes, write directly to mock.receipts / mock.blockTimes.
+func (m *mockConnector) seedLog(log *types.Log, blockTime uint64) {
+	receipt := newTestReceipt(log.BlockNumber, []*types.Log{log})
+	m.receipts[log.TxHash] = receipt
+	m.blockTimes[receipt.BlockHash] = blockTime
+}
+
+// TransactionReceipt returns the configured receipt/error. When neither is set for the txHash,
+// it returns a "not found" error to match the real ethclient behavior (and avoid nil-deref in
+// callers that don't check err before dereferencing the receipt).
 func (m *mockConnector) TransactionReceipt(_ context.Context, txHash eth_common.Hash) (*types.Receipt, error) {
-	return m.receipts[txHash], m.errors[txHash]
+	if err, ok := m.errors[txHash]; ok {
+		return nil, err
+	}
+	if r, ok := m.receipts[txHash]; ok {
+		return r, nil
+	}
+	return nil, fmt.Errorf("receipt not found for tx %s", txHash.Hex())
 }
 
 // Stub implementations that are required by the interface
@@ -122,11 +161,17 @@ func (m *mockConnector) GetDelegatedGuardianConfig(ctx context.Context) ([]dgAbi
 func (m *mockConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethabi.AbiLogMessagePublished) (event.Subscription, error) {
 	panic("not implemented")
 }
-func (m *mockConnector) TimeOfBlockByHash(ctx context.Context, hash eth_common.Hash) (uint64, error) {
-	panic("not implemented")
+
+// TimeOfBlockByHash returns the configured block time for the given hash, or 0 if unset.
+// Tests that care about the exact timestamp should seed blockTimes explicitly.
+func (m *mockConnector) TimeOfBlockByHash(_ context.Context, hash eth_common.Hash) (uint64, error) {
+	return m.blockTimes[hash], nil
 }
+
+// ParseLogMessagePublished delegates to the real generated ABI parser so tests exercise the
+// actual unpack path against logs produced by newTestLog.
 func (m *mockConnector) ParseLogMessagePublished(log types.Log) (*ethabi.AbiLogMessagePublished, error) {
-	panic("not implemented")
+	return m.filterer.ParseLogMessagePublished(log)
 }
 func (m *mockConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *connectors.NewBlock) (ethereum.Subscription, error) {
 	panic("not implemented")
@@ -290,6 +335,36 @@ func newTestLog(t *testing.T, p testLogParams) types.Log {
 		BlockHash:   blockHash,
 		Index:       0,
 		Removed:     false,
+	}
+}
+
+// newValidWormholeLog returns a pointer to a LogMessagePublished log entry with valid ABI-encoded
+// data that MessageEventsForTransaction will parse and surface as a MessagePublication.
+// Defaults: sender = testEmitter, contract address = testEmitter, sequence = 1. Caller must set
+// w.contract = testEmitter so the by_transaction.go address filter passes.
+// For full control over fields, use newTestLog with a testLogParams struct.
+func newValidWormholeLog(t *testing.T, blockNumber uint64, consistencyLevel uint8) *types.Log {
+	t.Helper()
+	log := newTestLog(t, testLogParams{
+		sender:           testTokenBridge,
+		contractAddr:     testEmitter,
+		sequence:         1,
+		consistencyLevel: consistencyLevel,
+		blockNumber:      blockNumber,
+	})
+	return &log
+}
+
+// newTestReceipt builds a successful (Status=1) receipt at the given block number, wiring logs verbatim.
+// BlockHash matches the default derivation used by newTestLog (blockNumber + 0xff) so a log built
+// from the same blockNumber will have a matching receipt.BlockHash by default.
+// For Status != 1 or a custom BlockHash, construct the receipt inline in the test.
+func newTestReceipt(blockNumber uint64, logs []*types.Log) *types.Receipt {
+	return &types.Receipt{
+		Status:      1,
+		BlockHash:   eth_common.BigToHash(big.NewInt(int64(blockNumber + 0xff))), // #nosec G115 -- test-only
+		BlockNumber: big.NewInt(int64(blockNumber)),                              // #nosec G115 -- test-only
+		Logs:        logs,
 	}
 }
 
