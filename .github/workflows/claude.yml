@@ -66,7 +66,7 @@ jobs:
         if: steps.auth.outputs.authorized == 'true'
         uses: anthropics/claude-code-action@ade221fd1c400376a4799977d683a4eda09f9d7c # v1.0.60
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }} # zizmor: ignore[secrets-outside-env] -- secret gated via prior auth checks
           # Use the workflow token directly so the action does not need OIDC.
           # This was verified in CI: the action succeeds without id-token: write
           # when github_token is passed explicitly.
