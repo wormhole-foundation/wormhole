@@ -79,7 +79,8 @@ type (
 		Nonce            *uint32 `json:"nonce"`
 		Payload          []byte  `json:"payload"`
 		Sender           *string `json:"sender"`
-		Sequence         *string `json:"sequence"`
+		// Sui's JSON-RPC encodes this on-chain u64 as a quoted decimal string in parsedJson.
+		Sequence *uint64 `json:"sequence,string"`
 		// Sui's JSON-RPC encodes this on-chain u64 as a quoted decimal string in parsedJson.
 		Timestamp *uint64 `json:"timestamp,string"`
 	}
@@ -319,17 +320,11 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 
 	txHashEthFormat := eth_common.BytesToHash(txHashBytes)
 
-	seq, err := strconv.ParseUint(*fields.Sequence, 10, 64)
-	if err != nil {
-		logger.Info("Sequence decode error", zap.String("Sequence", *fields.Sequence))
-		return err
-	}
-
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
 		Timestamp:        time.Unix(int64(*fields.Timestamp), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            *fields.Nonce,
-		Sequence:         seq,
+		Sequence:         *fields.Sequence,
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   emitter,
 		Payload:          fields.Payload,
