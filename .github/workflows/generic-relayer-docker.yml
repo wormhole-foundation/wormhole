@@ -1,22 +1,21 @@
-name: Publish guardiand development docker image
+name: Publish generic relayer container image
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["main"]
   release:
     types: [published]
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: wormhole-foundation/guardiand
+  IMAGE_NAME: wormhole-foundation/generic-relayer
 
 jobs:
-  build-and-push-image:
+  build-and-push-relayer-image:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -40,15 +39,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Build protobuf
-        run: DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=node .
-
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
-          file: ./node/Dockerfile
+          file: ./relayer/generic_relayer/relayer-engine-v2/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          target: export
-          build-args: GO_BUILD_ARGS=

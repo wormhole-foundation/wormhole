@@ -32,13 +32,13 @@ jobs:
       - name: Check repo access
         id: auth
         run: |
-          permission=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission' 2>/dev/null || echo "none")
+          permission=$(gh api repos/${{ github.repository }}/collaborators/${GITHUB_ACTOR}/permission --jq '.permission' 2>/dev/null || echo "none")
           echo "permission=$permission"
           if [ "$permission" = "write" ] || [ "$permission" = "admin" ]; then
             echo "authorized=true" >> "$GITHUB_OUTPUT"
           else
             echo "authorized=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Actor ${{ github.actor }} has no access to this repository"
+            echo "::warning::Actor ${GITHUB_ACTOR} has no access to this repository"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
