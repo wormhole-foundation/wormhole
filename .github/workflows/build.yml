@@ -330,11 +330,28 @@ jobs:
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests with coverage
         run: make test-coverage
+      - name: Upload coverage output
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-coverage-output
+          path: coverage.txt
+
+  node-coverage-check:
+    needs: node-tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1.24.13"
+      - name: Download coverage output
+        uses: actions/download-artifact@v4
+        with:
+          name: node-coverage-output
+          path: .
       - name: Build coverage check tool
         run: make build-coverage-check
-      # Coverage regressions should be visible in CI, but should not block merging.
       - name: Check coverage against baseline
-        continue-on-error: true
         run: ./coverage-check
 
   # Run Rust lints and tests
