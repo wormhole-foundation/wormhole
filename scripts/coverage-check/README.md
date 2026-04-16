@@ -41,7 +41,6 @@ The following are **excluded** from new package checks (but can still be in the 
 
 ### Run Locally
 
-**Easy way (recommended):**
 ```bash
 # Build the tool once
 make build-coverage-check
@@ -52,38 +51,6 @@ make check-coverage
 # Or with verbose output
 make test-coverage && ./coverage-check -v
 ```
-
-**Manual way:**
-```bash
-# Step 1: Run tests with coverage and save output (both node and sdk)
-(cd node && go test -cover ./...; cd ../sdk && go test -cover ./...) 2>&1 | tee coverage.txt
-
-# Step 2: Build the coverage checker (one-time)
-cd scripts/coverage-check && go build -o ../../coverage-check . && cd ../..
-
-# Step 3: Check coverage against baseline
-./coverage-check          # Quiet mode (only shows failures)
-./coverage-check -v       # Verbose mode (shows all checks)
-```
-
-### CI Integration
-
-The tool runs automatically in GitHub Actions (`.github/workflows/build.yml`):
-
-```yaml
-- name: Run golang tests with coverage (node)
-  run: cd node && go test -v -timeout 5m -race -cover ./... 2>&1 | tee ../coverage-node.tmp
-- name: Run golang tests with coverage (sdk)
-  run: cd sdk && go test -v -timeout 5m -cover ./... 2>&1 | tee ../coverage-sdk.tmp
-- name: Combine coverage output
-  run: cat coverage-node.tmp coverage-sdk.tmp > coverage.txt && rm coverage-node.tmp coverage-sdk.tmp
-- name: Build coverage check tool
-  run: cd scripts/coverage-check && go build -o ../../coverage-check .
-- name: Check coverage against baseline
-  run: ./coverage-check
-```
-
-**Note**: The tool reads from `coverage.txt` at repo root, which must be generated first by `go test -cover` on both `node/` and `sdk/`.
 
 ## Common Scenarios
 
