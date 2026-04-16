@@ -138,7 +138,7 @@ func (w *Watcher) cclEnable(ctx context.Context) error {
 
 // cclHandleMessage is called for new observations that have the consistency level set to custom handling.
 // It reads the configuration for the emitter and updates the `pendingMessage` object for custom handling.
-// SECURITY: This function SHOULD NOT modify the actual data signed in the VAA. Otherwise, replay protection is broken.
+// SECURITY: This function MUST NOT modify the actual data signed in the VAA. Otherwise, replay protection is broken.
 func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage, emitterAddr ethCommon.Address) {
 	if !w.cclEnabled {
 		w.cclLogger.Error("received an observation with custom handling but the feature is not enabled, treating as finalized", zap.String("msgId", pe.message.MessageIDString()))

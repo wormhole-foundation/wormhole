@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	geth "github.com/ethereum/go-ethereum/core/types"
-	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -433,7 +432,7 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 		zap.String("txHash", receipt.TxHash.String()),
 	)
 
-	if receipt.Status != gethTypes.ReceiptStatusSuccessful {
+	if receipt.Status != geth.ReceiptStatusSuccessful {
 		return nil, errors.Join(
 			ErrInvalidReceiptArgument,
 			errors.New("non-success transaction status"),

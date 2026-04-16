@@ -568,7 +568,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 
 					// Don't process the observation if we haven't reached the desired block height yet.
-					// CCL 'additionalBlocks' after consistency Level handling.
+					// CCL 'additionalBlocks' is used after consistency level handling.
+					// For instance, we need to wait for FINAL consistency level and then five more blocks.
 					if pLock.height+pLock.additionalBlocks > blockNumberU {
 						continue
 					}
@@ -928,7 +929,7 @@ func (w *Watcher) postMessage(
 	// The subscription filter should guarantee these, but we verify independently
 	// in case the RPC node or connector delivers unexpected events.
 	// This calls the same validation used by the reobservation path in by_transaction.go.
-	if !isLogValid(ev.Raw, w.contract) {
+	if !isValidCoreBridgeMessagePublicationLog(ev.Raw, w.contract) {
 		w.logger.Error("subscription delivered unexpected event",
 			zap.Stringer("contract", ev.Raw.Address),
 			zap.String("txHash", ev.Raw.TxHash.Hex()),
@@ -1059,7 +1060,7 @@ func canRetryGetBlockTime(err error) bool {
 // Modifies the verificationState field of the message as a side-effect.
 // Even if an invalid Transfer is detected, the message will still be published. It is the responsibility of the calling code to handle
 // a status of Rejected.
-// SECURITY: should be the only location where the watcher's msgC channel is written to.
+// SECURITY: MUST be the only location where the watcher's msgC channel is written to.
 // Note that the result of verification is not returned by this function, but can be accessed directly via the reference to message.
 func (w *Watcher) verifyAndPublish(
 	// Must be non-nil and have verificationState equal to NotVerified.

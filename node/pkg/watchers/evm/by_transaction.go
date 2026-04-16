@@ -21,12 +21,12 @@ var (
 	LogMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
 
-// isLogValid checks that a log entry was emitted by the expected contract,
+// isValidCoreBridgeMessagePublicationLog checks that a log entry was emitted by the expected contract,
 // has the expected LogMessagePublished event topic, and has not been removed
 // due to a chain reorganization. This is called from both the real-time
-// subscription path (postMessage) and the reobservation path
-// (MessageEventsForTransaction) to ensure consistent validation.
-func isLogValid(l types.Log, contract eth_common.Address) bool {
+// subscription path, postMessage, and the reobservation path,
+// MessageEventsForTransaction, to ensure consistent validation.
+func isValidCoreBridgeMessagePublicationLog(l types.Log, contract eth_common.Address) bool {
 	// SECURITY: Reject logs that have been flagged as removed due to a chain reorg.
 	if l.Removed {
 		return false
@@ -84,7 +84,7 @@ func MessageEventsForTransaction(
 			continue
 		}
 
-		if !isLogValid(*l, contract) {
+		if !isValidCoreBridgeMessagePublicationLog(*l, contract) {
 			continue
 		}
 
