@@ -262,7 +262,6 @@ jobs:
 
   # Verify go sdk unit/fuzz tests
   sdk_vaa:
-    name: Go SDK Fuzz
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
@@ -315,7 +314,6 @@ jobs:
 
   # Run Go tests
   node-tests:
-    name: Go Unit Tests
     # The tests are slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
