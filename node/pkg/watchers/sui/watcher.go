@@ -293,7 +293,12 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 	}
 
 	// Check if all required fields exist
-	if (fields.ConsistencyLevel == nil) || (fields.Nonce == nil) || (fields.Payload == nil) || (fields.Sender == nil) || (fields.Sequence == nil) {
+	if fields.ConsistencyLevel == nil ||
+		fields.Nonce == nil ||
+		fields.Payload == nil ||
+		fields.Sender == nil ||
+		fields.Sequence == nil ||
+		fields.Timestamp == nil {
 		logger.Info("Missing required fields in event.")
 		return nil
 	}
