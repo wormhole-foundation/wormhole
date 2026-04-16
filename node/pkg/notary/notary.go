@@ -446,31 +446,6 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	return nil
 }
 
-// forget removes a message from the database and from the delayed and blackholed lists.
-//
-// nolint: unused // unit test coverage demo
-func (n *Notary) forget(msg *common.MessagePublication) error {
-	if msg == nil {
-		return ErrInvalidMsg
-	}
-
-	removedPendingMsg, err := n.removeDelayed(msg.MessageID())
-	if err != nil {
-		return err
-	}
-
-	removedMsgPub, err := n.removeBlackholed(msg.MessageID())
-	if err != nil {
-		return err
-	}
-
-	if removedPendingMsg == nil && removedMsgPub == nil {
-		n.logger.Info("notary: call to forget did not result in any changes", msg.ZapFields()...)
-	}
-
-	return nil
-}
-
 // IsBlackholed returns true if the message is in the blackholed list.
 func (n *Notary) IsBlackholed(msgID []byte) bool {
 	n.mutex.RLock()
