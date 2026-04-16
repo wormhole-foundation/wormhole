@@ -22,48 +22,48 @@ func validLog() types.Log {
 	}
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_ValidLog(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogValidLog(t *testing.T) {
 	l := validLog()
 	assert.True(t, isValidCoreBridgeMessagePublicationLog(l, testContract))
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_Removed(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogRemoved(t *testing.T) {
 	l := validLog()
 	l.Removed = true
 	assert.False(t, isValidCoreBridgeMessagePublicationLog(l, testContract))
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_WrongContract(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogWrongContract(t *testing.T) {
 	l := validLog()
 	l.Address = wrongContract
 	assert.False(t, isValidCoreBridgeMessagePublicationLog(l, testContract))
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_WrongTopic(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogWrongTopic(t *testing.T) {
 	l := validLog()
 	l.Topics = []eth_common.Hash{wrongTopic}
 	assert.False(t, isValidCoreBridgeMessagePublicationLog(l, testContract))
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_EmptyTopics(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogEmptyTopics(t *testing.T) {
 	l := validLog()
 	l.Topics = []eth_common.Hash{}
 	assert.False(t, isValidCoreBridgeMessagePublicationLog(l, testContract))
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_MultipleTopics_CorrectFirst(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogMultipleTopics_CorrectFirst(t *testing.T) {
 	l := validLog()
 	l.Topics = []eth_common.Hash{LogMessagePublishedTopic, wrongTopic}
 	assert.True(t, isValidCoreBridgeMessagePublicationLog(l, testContract))
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_MultipleTopics_WrongFirst(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogMultipleTopics_WrongFirst(t *testing.T) {
 	l := validLog()
 	l.Topics = []eth_common.Hash{wrongTopic, LogMessagePublishedTopic}
 	assert.False(t, isValidCoreBridgeMessagePublicationLog(l, testContract))
 }
 
-func testisValidCoreBridgeMessagePublicationLog_WrongTopic_AllInvalid(t *testing.T) {
+func TestIsValidCoreBridgeMessagePublicationLogAllInvalid(t *testing.T) {
 	l := types.Log{
 		Address: wrongContract,
 		Topics:  []eth_common.Hash{wrongTopic},
