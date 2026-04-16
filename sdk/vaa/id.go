@@ -103,7 +103,7 @@ func parseVAAIDString(s string, knownChain bool) (VAAID, error) {
 	}
 
 	parts := strings.Split(s, "/")
-	if len(parts) != 3 {
+	if len(parts) != VAAIDPartsLen {
 		return VAAID{}, ErrInvalidVAAIDFormat
 	}
 
@@ -148,7 +148,7 @@ func parseVAAIDChain(s string, knownChain bool) (ChainID, error) {
 
 func parseVAAIDAddress(s string) (Address, error) {
 	trimmed := strings.TrimPrefix(s, "0x")
-	if len(trimmed) != 64 {
+	if len(trimmed) != AddressHexLen {
 		return Address{}, errors.New("VAA ID emitter address must be 32 bytes")
 	}
 
