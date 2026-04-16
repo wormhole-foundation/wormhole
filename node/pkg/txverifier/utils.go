@@ -37,6 +37,8 @@ const (
 type msgID = vaa.VAAID
 
 // NewMsgID creates a new msgID from a string in the format "chainID/emitterAddress/sequence".
+// The Chain ID in the msg ID must be a chain that is supported by the Transfer Verifier
+// according to [IsSupported].
 func NewMsgID(in string) (msgID, error) {
 	id, err := vaa.VAAIDFromString(in)
 	if err != nil {
