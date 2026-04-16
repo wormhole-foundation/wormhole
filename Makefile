@@ -56,8 +56,8 @@ $(BIN)/guardiand: dirs generate
 ## Run tests with coverage for node and sdk (matches CI)
 test-coverage:
 	@echo "Running tests with coverage for node and sdk..."
-	@(cd node && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
-	@(cd sdk && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
+	@set -o pipefail && (cd node && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
+	@set -o pipefail && (cd sdk && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
 
 .PHONY: check-coverage
 ## Check coverage against baseline (run tests first)
