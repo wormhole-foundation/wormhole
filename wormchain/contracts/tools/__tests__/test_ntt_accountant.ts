@@ -123,6 +123,8 @@ const FAUX_SPOKE_TRANSCEIVER_A = FAUX_HUB_TRANSCEIVER;
 const UNKNOWN_SPOKE_CHAIN = 404;
 const UNKNOWN_SPOKE_TRANSCEIVER =
   "beeffacebeeffacebeeffacebeeffacebeeffacebeeffacebeeffacebeefface";
+const DEST_ONLY_SPOKE_CHAIN = 6;
+const DEST_ONLY_SPOKE_TRANSCEIVER = `0000000000000000000000000000000000000000000000000000000000000046`;
 const RELAYER_ADDRESS = ci
   ? "0xb98F46E96cb1F519C333FdFB5CCe0B13E0300ED4"
   : "0xcC680D088586c09c3E0E099a676FA4b6e42467b4";
@@ -378,17 +380,39 @@ describe("NTT Global Accountant Tests", () => {
     });
   });
   describe("2. Registrations", () => {
-    test("a. Ensure a hub registration to an transceiver without a known hub is rejected", async () => {
+    test("a. Ensure a hub can pre-register a transceiver", async () => {
       const vaa = makeVAA(
         HUB_CHAIN,
         HUB_TRANSCEIVER,
         `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
       );
       const result = await submitVAA(vaa);
-      expect(result.code).toEqual(5);
-      expect(result.rawLog).toMatch("no registered hub");
+      expect(result.code).toEqual(0);
+      const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
+        all_transceiver_peers: {},
+      });
+      const peer = response.peers.find(
+        (entry) =>
+          entry.key[0] === HUB_CHAIN &&
+          entry.key[1] === HUB_TRANSCEIVER &&
+          entry.key[2] === SPOKE_CHAIN_A
+      );
+      expect(peer).toBeDefined();
+      expect(peer.data).toStrictEqual(SPOKE_TRANSCEIVER_A);
     });
-    test("b. Ensure an transceiver registration to a hub is saved", async () => {
+    test("b. Ensure a transceiver registration to a hub without pre-registration is rejected", async () => {
+      const vaa = makeVAA(
+        SPOKE_CHAIN_B,
+        SPOKE_TRANSCEIVER_B,
+        `18fc67c2${chainToHex(HUB_CHAIN)}${HUB_TRANSCEIVER}`
+      );
+      const result = await submitVAA(vaa);
+      expect(result.code).toEqual(5);
+      expect(result.rawLog).toMatch(
+        "hub has not registered this transceiver as a peer"
+      );
+    });
+    test("c. Ensure a transceiver registration to a hub with pre-registration is saved", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
         SPOKE_TRANSCEIVER_A,
@@ -414,27 +438,7 @@ describe("NTT Global Accountant Tests", () => {
         expect(result.rawLog).toMatch("message already processed");
       }
     });
-    test("c. Ensure a hub registration to an transceiver with a known hub is saved", async () => {
-      const vaa = makeVAA(
-        HUB_CHAIN,
-        HUB_TRANSCEIVER,
-        `18fc67c2${chainToHex(SPOKE_CHAIN_A)}${SPOKE_TRANSCEIVER_A}`
-      );
-      const result = await submitVAA(vaa);
-      expect(result.code).toEqual(0);
-      const response = await cosmWasmClient.queryContractSmart(NTT_GA_ADDRESS, {
-        all_transceiver_peers: {},
-      });
-      const peer = response.peers.find(
-        (entry) =>
-          entry.key[0] === HUB_CHAIN &&
-          entry.key[1] === HUB_TRANSCEIVER &&
-          entry.key[2] === SPOKE_CHAIN_A
-      );
-      expect(peer).toBeDefined();
-      expect(peer.data).toStrictEqual(SPOKE_TRANSCEIVER_A);
-    });
-    test("d. Ensure an transceiver registration to another transceiver without a known hub is rejected", async () => {
+    test("d. Ensure a non-hub transceiver cannot pre-register an unknown peer", async () => {
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
         SPOKE_TRANSCEIVER_A,
@@ -442,7 +446,9 @@ describe("NTT Global Accountant Tests", () => {
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
-      expect(result.rawLog).toMatch("no registered hub");
+      expect(result.rawLog).toMatch(
+        "only hubs can register peers without hub registration"
+      );
     });
     test("e. Ensure an transceiver registration from an transceiver without a known hub to a non-hub is rejected", async () => {
       const vaa = makeVAA(
@@ -458,6 +464,17 @@ describe("NTT Global Accountant Tests", () => {
     });
     test("f. Ensure an transceiver registration to another transceiver with a known hub is saved", async () => {
       {
+        // hub pre-registers spoke B
+        const vaa = makeVAA(
+          HUB_CHAIN,
+          HUB_TRANSCEIVER,
+          `18fc67c2${chainToHex(SPOKE_CHAIN_B)}${SPOKE_TRANSCEIVER_B}`
+        );
+        const result = await submitVAA(vaa);
+        expect(result.code).toEqual(0);
+      }
+      {
+        // spoke B registers hub → inherits
         const vaa = makeVAA(
           SPOKE_CHAIN_B,
           SPOKE_TRANSCEIVER_B,
@@ -481,6 +498,7 @@ describe("NTT Global Accountant Tests", () => {
         expect(peer.data).toStrictEqual(HUB_TRANSCEIVER);
       }
       {
+        // spoke A registers spoke B (hubs match)
         const vaa = makeVAA(
           SPOKE_CHAIN_A,
           SPOKE_TRANSCEIVER_A,
@@ -619,28 +637,26 @@ describe("NTT Global Accountant Tests", () => {
         "no registered source peer for chain Ethereum"
       );
     });
-    test("g. Ensure a token sent from a source chain without a matching transceiver is rejected", async () => {
+    test("g. Ensure a token sent to a pre-registered peer that never inherited is rejected", async () => {
       {
-        // set faux spoke registration to hub but not vice-versa
-        {
-          const vaa = makeVAA(
-            FAUX_SPOKE_CHAIN_A,
-            FAUX_SPOKE_TRANSCEIVER_A,
-            `18fc67c2${chainToHex(FAUX_HUB_CHAIN)}${FAUX_HUB_TRANSCEIVER}`
-          );
-          const result = await submitVAA(vaa);
-          expect(result.code).toEqual(0);
-        }
+        // hub pre-registers a spoke that never inherits
+        const vaa = makeVAA(
+          HUB_CHAIN,
+          HUB_TRANSCEIVER,
+          `18fc67c2${chainToHex(DEST_ONLY_SPOKE_CHAIN)}${DEST_ONLY_SPOKE_TRANSCEIVER}`
+        );
+        const result = await submitVAA(vaa);
+        expect(result.code).toEqual(0);
       }
       const vaa = makeVAA(
-        FAUX_SPOKE_CHAIN_A,
-        FAUX_SPOKE_TRANSCEIVER_A,
-        mockTransferPayload(8, 1, FAUX_HUB_CHAIN)
+        HUB_CHAIN,
+        HUB_TRANSCEIVER,
+        mockTransferPayload(8, 1, DEST_ONLY_SPOKE_CHAIN)
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
       expect(result.rawLog).toMatch(
-        "no registered destination peer for chain Bsc"
+        "no registered destination peer for chain Ethereum"
       );
     });
     test("h. Ensure a token sent to a destination chain without a known transceiver is rejected", async () => {
@@ -677,27 +693,18 @@ describe("NTT Global Accountant Tests", () => {
         "insufficient balance in source account: Overflow: Cannot Sub"
       );
     });
-    test("k. Ensure a rogue endpoint cannot complete a transfer", async () => {
-      {
-        // set faux spoke registration to legit hub but not vice-versa
-        {
-          const vaa = makeVAA(
-            SPOKE_CHAIN_A,
-            ROGUE_TRANSCEIVER_A,
-            `18fc67c2${chainToHex(HUB_CHAIN)}${HUB_TRANSCEIVER}`
-          );
-          const result = await submitVAA(vaa);
-          expect(result.code).toEqual(0);
-        }
-      }
+    test("k. Ensure a rogue endpoint cannot inherit a hub without pre-registration", async () => {
+      // rogue attempts to register the legit hub, but the hub never pre-registered it
       const vaa = makeVAA(
         SPOKE_CHAIN_A,
         ROGUE_TRANSCEIVER_A,
-        mockTransferPayload(8, 1, HUB_CHAIN)
+        `18fc67c2${chainToHex(HUB_CHAIN)}${HUB_TRANSCEIVER}`
       );
       const result = await submitVAA(vaa);
       expect(result.code).toEqual(5);
-      expect(result.rawLog).toMatch("peers are not cross-registered");
+      expect(result.rawLog).toMatch(
+        "hub has not registered this transceiver as a peer"
+      );
     });
   });
   describe("4. Relayers", () => {
@@ -834,56 +841,7 @@ describe("NTT Global Accountant Tests", () => {
         expect(hub.data).toStrictEqual([HUB_CHAIN, ETH_WALLET_EMITTER]);
       }
       {
-        // register the spokes with the hub
-        {
-          const vaa = makeVAA(
-            SPOKE_CHAIN_A,
-            BSC_WALLET_EMITTER,
-            `18fc67c2${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
-          );
-          const result = await submitVAA(vaa);
-          expect(result.code).toEqual(0);
-          const response = await cosmWasmClient.queryContractSmart(
-            NTT_GA_ADDRESS,
-            {
-              all_transceiver_peers: {},
-            }
-          );
-          const peer = response.peers.find(
-            (entry) =>
-              entry.key[0] === SPOKE_CHAIN_A &&
-              entry.key[1] === BSC_WALLET_EMITTER &&
-              entry.key[2] === HUB_CHAIN
-          );
-          expect(peer).toBeDefined();
-          expect(peer.data).toStrictEqual(ETH_WALLET_EMITTER);
-        }
-        {
-          const vaa = makeVAA(
-            SPOKE_CHAIN_B,
-            ETH_WALLET_EMITTER,
-            `18fc67c2${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
-          );
-          const result = await submitVAA(vaa);
-          expect(result.code).toEqual(0);
-          const response = await cosmWasmClient.queryContractSmart(
-            NTT_GA_ADDRESS,
-            {
-              all_transceiver_peers: {},
-            }
-          );
-          const peer = response.peers.find(
-            (entry) =>
-              entry.key[0] === SPOKE_CHAIN_B &&
-              entry.key[1] === ETH_WALLET_EMITTER &&
-              entry.key[2] === HUB_CHAIN
-          );
-          expect(peer).toBeDefined();
-          expect(peer.data).toStrictEqual(ETH_WALLET_EMITTER);
-        }
-      }
-      {
-        // register the hub with the spoke
+        // hub pre-registers the spokes
         {
           const vaa = makeVAA(
             HUB_CHAIN,
@@ -926,6 +884,55 @@ describe("NTT Global Accountant Tests", () => {
               entry.key[0] === HUB_CHAIN &&
               entry.key[1] === ETH_WALLET_EMITTER &&
               entry.key[2] === SPOKE_CHAIN_B
+          );
+          expect(peer).toBeDefined();
+          expect(peer.data).toStrictEqual(ETH_WALLET_EMITTER);
+        }
+      }
+      {
+        // spokes register the hub (inherit)
+        {
+          const vaa = makeVAA(
+            SPOKE_CHAIN_A,
+            BSC_WALLET_EMITTER,
+            `18fc67c2${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
+          );
+          const result = await submitVAA(vaa);
+          expect(result.code).toEqual(0);
+          const response = await cosmWasmClient.queryContractSmart(
+            NTT_GA_ADDRESS,
+            {
+              all_transceiver_peers: {},
+            }
+          );
+          const peer = response.peers.find(
+            (entry) =>
+              entry.key[0] === SPOKE_CHAIN_A &&
+              entry.key[1] === BSC_WALLET_EMITTER &&
+              entry.key[2] === HUB_CHAIN
+          );
+          expect(peer).toBeDefined();
+          expect(peer.data).toStrictEqual(ETH_WALLET_EMITTER);
+        }
+        {
+          const vaa = makeVAA(
+            SPOKE_CHAIN_B,
+            ETH_WALLET_EMITTER,
+            `18fc67c2${chainToHex(HUB_CHAIN)}${ETH_WALLET_EMITTER}`
+          );
+          const result = await submitVAA(vaa);
+          expect(result.code).toEqual(0);
+          const response = await cosmWasmClient.queryContractSmart(
+            NTT_GA_ADDRESS,
+            {
+              all_transceiver_peers: {},
+            }
+          );
+          const peer = response.peers.find(
+            (entry) =>
+              entry.key[0] === SPOKE_CHAIN_B &&
+              entry.key[1] === ETH_WALLET_EMITTER &&
+              entry.key[2] === HUB_CHAIN
           );
           expect(peer).toBeDefined();
           expect(peer.data).toStrictEqual(ETH_WALLET_EMITTER);
@@ -1354,16 +1361,8 @@ describe("NTT Global Accountant Tests", () => {
       ).rejects.toThrow();
     });
     test("g. Ensure a token sent from a source chain without a matching transceiver is rejected", async () => {
-      {
-        // set faux spoke registration to hub but not vice-versa
-        const vaa = makeVAA(
-          FAUX_SPOKE_CHAIN_A,
-          ETH_WALLET_EMITTER,
-          `18fc67c2${chainToHex(HUB_CHAIN)}${BSC_WALLET_EMITTER}`
-        );
-        const result = await submitVAA(vaa);
-        expect(result.code).toEqual(0);
-      }
+      // in the new flow one-way registrations are impossible, so we skip the
+      // setup and rely on the rogue emitter having no hub at all
       const beforeMetrics = await fetchGlobalAccountantMetrics();
       const core = ethers_contracts.Implementation__factory.connect(
         CONTRACTS.DEVNET.bsc.core,
