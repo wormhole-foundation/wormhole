@@ -719,7 +719,8 @@ fn rogue_on_hub_chain_blocked_at_inheritance() {
 
     let rogue_on_hub: [u8; 32] = [0xCC; 32];
 
-    // Rogue on hub chain tries to register hub → blocked because hub hasn't pre-registered it
+    // Rogue on hub chain tries to register hub → blocked because sender and peer
+    // cannot be on the same chain
     let vaa = build_signed_vaa(
         &wh,
         HUB_CHAIN,
@@ -733,7 +734,37 @@ fn rogue_on_hub_chain_blocked_at_inheritance() {
     assert!(
         err.root_cause()
             .to_string()
-            .contains("hub has not registered this transceiver as a peer"),
+            .contains("sender and peer cannot be on the same chain"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn same_chain_peer_registration_rejected() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+
+    // Init hub so the sender has a hub registration (exercises the check before
+    // any of the match arms on sender/peer hub state).
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &hub_init_payload(0));
+    contract.submit_vaas(vec![vaa]).unwrap();
+
+    // Hub tries to register a peer on its own chain
+    let same_chain_peer: [u8; 32] = [0x66; 32];
+    let vaa = build_signed_vaa(
+        &wh,
+        HUB_CHAIN,
+        HUB_ADDR,
+        seq.next(),
+        &registration_payload(HUB_CHAIN, same_chain_peer),
+    );
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("same-chain registration should be rejected");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("sender and peer cannot be on the same chain"),
         "unexpected error: {err}"
     );
 }
