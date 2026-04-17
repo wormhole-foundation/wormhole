@@ -737,3 +737,299 @@ fn rogue_on_hub_chain_blocked_at_inheritance() {
         "unexpected error: {err}"
     );
 }
+
+// ============================================================
+// 4. Error-path coverage for handle_ntt_vaa
+// ============================================================
+
+#[test]
+fn short_payload_rejected() {
+    let (wh, mut contract) = proper_instantiate();
+
+    // payload < 4 bytes cannot carry an NTT prefix
+    let vaa = build_signed_vaa(&wh, 42, [0x77; 32], 0, &[0x01, 0x02]);
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("short payload should be rejected");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("payload prefix missing"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn unknown_prefix_rejected() {
+    let (wh, mut contract) = proper_instantiate();
+
+    // 4-byte prefix that matches none of the known NTT prefixes
+    let vaa = build_signed_vaa(&wh, 42, [0x77; 32], 0, &[0xDE, 0xAD, 0xBE, 0xEF]);
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("unknown prefix should be rejected");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("unsupported NTT action"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn info_malformed_payload_rejected() {
+    let (wh, mut contract) = proper_instantiate();
+
+    // INFO_PREFIX with truncated body
+    let mut payload = vec![0x9c, 0x23, 0xbd, 0x3b];
+    payload.extend_from_slice(&[0x11; 10]);
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, 0, &payload);
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("malformed info payload should be rejected");
+    assert_eq!(
+        "failed to fill whole buffer",
+        err.root_cause().to_string().to_lowercase()
+    );
+}
+
+#[test]
+fn peer_info_malformed_payload_rejected() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &hub_init_payload(0));
+    contract.submit_vaas(vec![vaa]).unwrap();
+
+    // PEER_INFO_PREFIX with truncated body (expects 2 + 32 bytes after prefix)
+    let mut payload = vec![0x18, 0xfc, 0x67, 0xc2];
+    payload.extend_from_slice(&[0x22; 10]);
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &payload);
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("malformed peer_info payload should be rejected");
+    assert_eq!(
+        "failed to fill whole buffer",
+        err.root_cause().to_string().to_lowercase()
+    );
+}
+
+#[test]
+fn transfer_malformed_payload_rejected() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+    setup_legitimate_network(&wh, &mut contract, &mut seq);
+
+    // WH_PREFIX with truncated TransceiverMessage body
+    let mut payload = vec![0x99, 0x45, 0xFF, 0x10];
+    payload.extend_from_slice(&[0u8; 8]);
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &payload);
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("malformed transfer payload should be rejected");
+    assert_eq!(
+        "failed to fill whole buffer",
+        err.root_cause().to_string().to_lowercase()
+    );
+}
+
+#[test]
+fn spoke_cannot_pre_register_unknown_peer() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &hub_init_payload(0));
+    contract.submit_vaas(vec![vaa]).unwrap();
+    let vaa = build_signed_vaa(
+        &wh,
+        HUB_CHAIN,
+        HUB_ADDR,
+        seq.next(),
+        &registration_payload(SPOKE_CHAIN_A, SPOKE_ADDR_A),
+    );
+    contract.submit_vaas(vec![vaa]).unwrap();
+    let vaa = build_signed_vaa(
+        &wh,
+        SPOKE_CHAIN_A,
+        SPOKE_ADDR_A,
+        seq.next(),
+        &registration_payload(HUB_CHAIN, HUB_ADDR),
+    );
+    contract.submit_vaas(vec![vaa]).unwrap();
+
+    // spoke A has inherited the hub but is not a self-referential hub itself,
+    // so it cannot pre-register a peer that has no hub entry
+    let unknown_chain: u16 = 99;
+    let unknown_addr: [u8; 32] = [0x55; 32];
+    let vaa = build_signed_vaa(
+        &wh,
+        SPOKE_CHAIN_A,
+        SPOKE_ADDR_A,
+        seq.next(),
+        &registration_payload(unknown_chain, unknown_addr),
+    );
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("spoke should not be able to pre-register unknown peer");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("only hubs can register peers without hub registration"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn transfer_missing_source_peer_registration() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+
+    // init hub only — no peers registered
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &hub_init_payload(0));
+    contract.submit_vaas(vec![vaa]).unwrap();
+
+    let vaa = build_signed_vaa(
+        &wh,
+        HUB_CHAIN,
+        HUB_ADDR,
+        seq.next(),
+        &transfer_payload(8, 1000, SPOKE_CHAIN_A),
+    );
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("missing source peer should be rejected");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("no registered source peer"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn transfer_missing_destination_peer_registration() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+
+    // init hub, pre-register spoke A, but spoke A never inherits back
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &hub_init_payload(0));
+    contract.submit_vaas(vec![vaa]).unwrap();
+    let vaa = build_signed_vaa(
+        &wh,
+        HUB_CHAIN,
+        HUB_ADDR,
+        seq.next(),
+        &registration_payload(SPOKE_CHAIN_A, SPOKE_ADDR_A),
+    );
+    contract.submit_vaas(vec![vaa]).unwrap();
+
+    // hub→spoke A transfer: source peer exists, dest peer doesn't (A never inherited)
+    let vaa = build_signed_vaa(
+        &wh,
+        HUB_CHAIN,
+        HUB_ADDR,
+        seq.next(),
+        &transfer_payload(8, 1000, SPOKE_CHAIN_A),
+    );
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("missing destination peer should be rejected");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("no registered destination peer"),
+        "unexpected error: {err}"
+    );
+}
+
+// The "peers are not cross-registered" branch at contract.rs:525 is a
+// defense-in-depth check. It is unreachable via legitimate VAAs: the emitter
+// authenticates the sender's own address, and the per-(chain, sender, peer-chain)
+// slot prevents a sender from registering two different peer addresses on the
+// same chain — so cross-registration is always symmetric when both sides exist.
+
+// --- DeliveryInstruction builder (relayer-wrapped payload) ---
+
+fn delivery_instruction_payload(sender: [u8; 32], inner_payload: &[u8]) -> Vec<u8> {
+    let mut p = Vec::new();
+    p.push(1); // DeliveryInstruction::PAYLOAD_ID
+    p.extend_from_slice(&0u16.to_be_bytes()); // target_chain
+    p.extend_from_slice(&[0u8; 32]); // target_address
+    p.extend_from_slice(&(inner_payload.len() as u32).to_be_bytes());
+    p.extend_from_slice(inner_payload);
+    p.extend_from_slice(&[0u8; 32]); // requested_reciever_value
+    p.extend_from_slice(&[0u8; 32]); // extra_reciever_value
+    p.extend_from_slice(&0u32.to_be_bytes()); // encoded_execution_info_len
+    p.extend_from_slice(&0u16.to_be_bytes()); // refund_chain_id
+    p.extend_from_slice(&[0u8; 32]); // refund_address
+    p.extend_from_slice(&[0u8; 32]); // refund_delivery_provider
+    p.extend_from_slice(&[0u8; 32]); // source_delivery_provider
+    p.extend_from_slice(&sender); // sender_address
+    p.push(0); // num_messages
+    p
+}
+
+fn register_relayer(wh: &WormholeKeeper, contract: &mut Contract, chain: u16, address: [u8; 32]) {
+    let body = Body {
+        timestamp: 0,
+        nonce: 0,
+        emitter_chain: Chain::Solana,
+        emitter_address: wormhole_sdk::GOVERNANCE_EMITTER,
+        sequence: 999_999,
+        consistency_level: 0,
+        payload: wormhole_sdk::relayer::GovernancePacket {
+            chain: Chain::Any,
+            action: wormhole_sdk::relayer::Action::RegisterChain {
+                chain: chain.into(),
+                emitter_address: Address(address),
+            },
+        },
+    };
+    let (_, data) = sign_vaa_body(wh, body);
+    contract.submit_vaas(vec![data]).unwrap();
+}
+
+#[test]
+fn relayer_wraps_hub_init() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+
+    // register a standard relayer for the hub chain
+    let relayer_addr: [u8; 32] = [0xEE; 32];
+    register_relayer(&wh, &mut contract, HUB_CHAIN, relayer_addr);
+
+    // VAA from the relayer whose DeliveryInstruction wraps a hub init message,
+    // with sender_address = HUB_ADDR. The hub should register successfully.
+    let inner = hub_init_payload(0);
+    let wrapped = delivery_instruction_payload(HUB_ADDR, &inner);
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, relayer_addr, seq.next(), &wrapped);
+    contract.submit_vaas(vec![vaa]).unwrap();
+
+    // submitting the same init directly from HUB_ADDR should now be a duplicate
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, HUB_ADDR, seq.next(), &hub_init_payload(0));
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("hub was already registered via the relayer path");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("hub entry already exists"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn relayer_malformed_delivery_instruction_rejected() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+
+    let relayer_addr: [u8; 32] = [0xEE; 32];
+    register_relayer(&wh, &mut contract, HUB_CHAIN, relayer_addr);
+
+    // valid PAYLOAD_ID but truncated
+    let payload = vec![1u8, 0, 0];
+    let vaa = build_signed_vaa(&wh, HUB_CHAIN, relayer_addr, seq.next(), &payload);
+    contract
+        .submit_vaas(vec![vaa])
+        .expect_err("malformed delivery instruction should be rejected");
+}
