@@ -499,6 +499,8 @@ fn handle_ntt_vaa(
     let prefix = &payload[..4];
 
     if prefix == WormholeTransceiver::PREFIX {
+        // This is a TransceiverMessage (transfer)
+        // https://github.com/wormhole-foundation/native-token-transfers/blob/a13746a430fbd4a033aef0ff8180d0d49fdbbab3/docs/Transceiver.md?plain=1#L27
         let source_chain = body.emitter_chain.into();
 
         let hub = TRANSCEIVER_TO_HUB
@@ -550,6 +552,9 @@ fn handle_ntt_vaa(
 
         Ok(evt)
     } else if prefix == WormholeTransceiver::INFO_PREFIX {
+        // This is an Initialize Transceiver message
+        // https://github.com/wormhole-foundation/native-token-transfers/blob/a13746a430fbd4a033aef0ff8180d0d49fdbbab3/docs/Transceiver.md?plain=1#L36
+        // STEP 4 of setup: Hub initialization
         // only process init messages for locking hubs, setting their hub mapping to themselves
         let message: WormholeTransceiverInfo =
             TypePrefixedPayload::read_payload(&mut payload.as_slice())
@@ -575,18 +580,13 @@ fn handle_ntt_vaa(
             bail!("ignoring non-locking NTT initialization")
         }
     } else if prefix == WormholeTransceiver::PEER_INFO_PREFIX {
+        // This is a Transceiver (Peer) Registration message
+        // https://github.com/wormhole-foundation/native-token-transfers/blob/a13746a430fbd4a033aef0ff8180d0d49fdbbab3/docs/Transceiver.md?plain=1#L53
         // for ease of code assurances, all transceivers should register their hub first, followed by other peers
         // this code will only add peers for which it can assure their hubs match so one less key can be loaded on transfers
         let message: WormholeTransceiverRegistration =
             TypePrefixedPayload::read_payload(&mut payload.as_slice())
                 .context("failed to parse NTT registration payload")?;
-
-        let peer_hub = TRANSCEIVER_TO_HUB
-            .load(
-                deps.storage,
-                (message.chain_id.id, message.transceiver_address.into()),
-            )
-            .map_err(|_| ContractError::MissingHubRegistration)?;
 
         let chain = body.emitter_chain.into();
         let peer_key = TRANSCEIVER_PEER.key((chain, sender, message.chain_id.id));
@@ -595,30 +595,59 @@ fn handle_ntt_vaa(
             bail!("peer entry for this chain already exists")
         }
 
-        let hub_key = TRANSCEIVER_TO_HUB.key((chain, sender));
+        let peer_hub = TRANSCEIVER_TO_HUB.may_load(
+            deps.storage,
+            (message.chain_id.id, message.transceiver_address.into()),
+        )?;
 
-        if let Some(transceiver_hub) = hub_key.may_load(deps.storage)? {
-            // hubs must match
-            if transceiver_hub != peer_hub {
-                bail!("peer hub does not match")
+        let sender_hub = TRANSCEIVER_TO_HUB.may_load(deps.storage, (chain, sender))?;
+
+        match (sender_hub, peer_hub) {
+            // Neither has a hub
+            (None, None) => {
+                bail!("no registered hub for sender or peer")
             }
-        } else {
-            // this transceiver does not have a known hub, check if this peer is a hub themselves
-            if peer_hub.0 == message.chain_id.id && peer_hub.1 == message.transceiver_address.into()
-            {
-                // this peer is a hub, so set it as this transceiver's hub
-                hub_key
-                    .save(deps.storage, &peer_hub.clone())
+            // STEP 5 of setup: Hub registers peers
+            // Sender is a hub, peer has no hub: hub pre-registering a spoke
+            (Some(s_hub), None) => {
+                // only actual hubs (self-referential mapping) can pre-register unknown peers
+                if s_hub.0 != chain || s_hub.1 != sender {
+                    bail!("only hubs can register peers without hub registration")
+                }
+            }
+            // STEP 6 of setup: Peer accepts hub registration
+            // Sender has no hub, peer is hub: hub inheritance path
+            (None, Some(p_hub)) => {
+                // the peer must be a hub itself (not just a spoke that inherited one)
+                if p_hub.0 != message.chain_id.id || p_hub.1 != message.transceiver_address.into() {
+                    bail!("ignoring attempt to register peer before hub")
+                }
+
+                // SECURITY: verify the hub has already registered this sender as a peer.
+                // This prevents rogue emitters from unilaterally inheriting a legitimate hub.
+                let hub_peer_for_sender =
+                    TRANSCEIVER_PEER.may_load(deps.storage, (p_hub.0, p_hub.1, chain))?;
+                if hub_peer_for_sender != Some(sender) {
+                    bail!("hub has not registered this transceiver as a peer")
+                }
+
+                // hub has acknowledged this sender — allow inheritance
+                TRANSCEIVER_TO_HUB
+                    .save(deps.storage, (chain, sender), &p_hub)
                     .context("failed to save hub")?;
-            } else {
-                // this peer is not a hub and we don't want to make indirect assumptions, so do nothing
-                bail!("ignoring attempt to register peer before hub")
+            }
+            // STEP 7 of setup: Other peers, cross-register
+            // Both have hubs: verify they match
+            (Some(s_hub), Some(p_hub)) => {
+                if s_hub != p_hub {
+                    bail!("peer hub does not match")
+                }
             }
         }
 
         peer_key
             .save(deps.storage, &(message.transceiver_address.into()))
-            .context("failed to save hub")?;
+            .context("failed to save peer")?;
         Ok(Event::new("RegisterPeer")
             .add_attribute("chain", chain.to_string())
             .add_attribute("emitter_address", hex::encode(sender))
