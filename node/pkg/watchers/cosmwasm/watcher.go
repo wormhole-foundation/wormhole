@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -91,6 +90,8 @@ var (
 		}, []string{"terra_network", "operation"})
 )
 
+var _ watchers.Watcher = (*Watcher)(nil)
+
 type clientRequest struct {
 	JSONRPC string `json:"jsonrpc"`
 	// A String containing the name of the method to be invoked.
@@ -142,6 +143,42 @@ func NewWatcher(
 		b64Encoded:               b64Encoded,
 		networkName:              networkName,
 	}
+}
+
+func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
+	validated, err := watchers.ValidateObservationRequest(req, e.chainID)
+	if err != nil {
+		return watchers.ValidObservation{}, err
+	}
+
+	return validated, nil
+}
+
+func (e *Watcher) ChainID() vaa.ChainID {
+	return e.chainID
+}
+
+func (e *Watcher) PublishMessage(msg *common.MessagePublication) error {
+	if msg == nil {
+		return fmt.Errorf("message publication is nil")
+	}
+
+	e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	messagesConfirmed.WithLabelValues(e.networkName).Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(e.networkName, "std").Inc()
+	}
+
+	return nil
+}
+
+func (e *Watcher) PublishReobservation(observation watchers.ValidObservation, msg *common.MessagePublication) error {
+	if err := watchers.ValidateReobservedMessage(observation, msg); err != nil {
+		return err
+	}
+
+	msg.IsReobservation = true
+	return e.PublishMessage(msg)
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -251,19 +288,18 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-e.obsvReqC:
-				// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
-				// and only writes to the channel for this chain id.
-				// If either of the below cases are true, something has gone wrong
-				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != e.chainID {
-					panic("invalid chain ID")
+				validated, err := e.Validate(r)
+				if err != nil {
+					watchers.LogInvalidObservationRequest(logger, r, err)
+					continue
 				}
 
 				// SECURITY: Directly using data for URL path is scary.
 				// Potential for directory traversal attacks to return the incorrect data
 				// This is hex encoded so it's acceptable but be careful changing this logic.
-				tx := hex.EncodeToString(r.TxHash)
+				tx := hex.EncodeToString(validated.TxHash())
 
-				logger.Info("received observation request", zap.String("network", e.networkName), zap.String("tx_hash", tx))
+				logger.Info("received observation request", validated.ZapFields(zap.String("network", e.networkName), zap.String("tx_hash", tx))...)
 
 				client := &http.Client{
 					Timeout: time.Second * 5,
@@ -315,10 +351,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
-					msg.IsReobservation = true
-					e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
-					messagesConfirmed.WithLabelValues(e.networkName).Inc()
-					watchers.ReobservationsByChain.WithLabelValues(e.networkName, "std").Inc()
+					if err := e.PublishReobservation(validated, msg); err != nil {
+						logger.Error("failed to publish reobservation", zap.Error(err))
+						continue
+					}
 				}
 			}
 		}
@@ -357,8 +393,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
-					e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
-					messagesConfirmed.WithLabelValues(e.networkName).Inc()
+					if err := e.PublishMessage(msg); err != nil {
+						logger.Error("failed to publish message", zap.Error(err))
+					}
 				}
 
 				// We do not send guardian changes to the processor - ETH guardians are the source of truth.

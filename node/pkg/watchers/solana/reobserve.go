@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -12,19 +14,17 @@ import (
 
 // handleReobservationRequest performs a reobservation request and publishes any observed transactions.
 // SECURITY: Only the finalized watcher handles reobservations. Set in configuration of watcher for Solana chains.
-func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []byte, rpcClient *rpc.Client) (numObservations uint32, err error) {
-	if chainId != s.chainID {
-		return 0, fmt.Errorf("unexpected chain id: %v", chainId)
-	}
+func (s *SolanaWatcher) handleReobservationRequest(observation watchers.ValidObservation, rpcClient *rpc.Client) (numObservations uint32, err error) {
+	txID := observation.TxHash()
 	if len(txID) == SolanaAccountLen { // Request by account ID
 		acc := solana.PublicKeyFromBytes(txID)
-		s.logger.Info("received observation request with account id", zap.String("account", acc.String()))
+		s.logger.Info("received observation request with account id", observation.ZapFields(zap.String("account", acc.String()))...)
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
-		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, acc, 0, true, solana.Signature{})
+		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, acc, 0, &observation, solana.Signature{})
 		cancel()
 	} else if len(txID) == SolanaSignatureLen { // Request by transaction ID
 		signature := solana.SignatureFromBytes(txID)
-		s.logger.Info("received observation request with transaction id", zap.Stringer("signature", signature))
+		s.logger.Info("received observation request with transaction id", observation.ZapFields(zap.Stringer("signature", signature))...)
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
 		version := uint64(0)
 		result, err := rpcClient.GetTransaction(
@@ -52,7 +52,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		if err != nil {
 			return 0, fmt.Errorf("failed to extract transaction for observation request: %v", err)
 		}
-		numObservations = s.processTransaction(s.ctx, rpcClient, tx, result.Meta, result.Slot, true)
+		numObservations = s.processTransaction(s.ctx, rpcClient, tx, result.Meta, result.Slot, &observation)
 	} else {
 		return 0, fmt.Errorf("ignoring an observation request of unexpected length: %d", len(txID))
 	}
@@ -67,5 +67,9 @@ func (s *SolanaWatcher) Reobserve(_ context.Context, chainID vaa.ChainID, txID [
 	s.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("url", customEndpoint))
 	rpcClient := rpc.New(customEndpoint)
 	//nolint:contextcheck // See comment above for the reason why we don't use the passed in context.
-	return s.handleReobservationRequest(chainID, txID, rpcClient)
+	validated, err := s.Validate(&gossipv1.ObservationRequest{ChainId: uint32(chainID), TxHash: txID})
+	if err != nil {
+		return 0, err
+	}
+	return s.handleReobservationRequest(validated, rpcClient)
 }

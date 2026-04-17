@@ -83,6 +83,8 @@ var (
 		}, []string{"eth_network", "operation"})
 )
 
+var _ watchers.Watcher = (*Watcher)(nil)
+
 type (
 	Watcher struct {
 		// EVM RPC url.
@@ -227,6 +229,46 @@ func NewEthWatcher(
 		// Signals that a transfer Verifier should be instantiated in Run()
 		txVerifierEnabled: txVerifierEnabled,
 	}
+}
+
+func (w *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
+	validated, err := watchers.ValidateObservationRequest(req, w.chainID)
+	if err != nil {
+		return watchers.ValidObservation{}, err
+	}
+
+	return validated, nil
+}
+
+func (w *Watcher) ChainID() vaa.ChainID {
+	return w.chainID
+}
+
+func (w *Watcher) PublishMessage(msg *common.MessagePublication) error {
+	if msg == nil {
+		return errors.New("message publication cannot be nil")
+	}
+
+	w.logger.Debug(
+		"publishing new message publication",
+		msg.ZapFields()...,
+	)
+	w.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(w.chainID.String(), "std").Inc()
+	}
+
+	return nil
+}
+
+func (w *Watcher) PublishReobservation(observation watchers.ValidObservation, msg *common.MessagePublication) error {
+	if err := watchers.ValidateReobservedMessage(observation, msg); err != nil {
+		return err
+	}
+
+	msg.IsReobservation = true
+	return w.PublishMessage(msg)
 }
 
 func (w *Watcher) tokenBridge() eth_common.Address {
@@ -422,17 +464,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
-				if r.ChainId > math.MaxUint16 {
-					logger.Error("chain id for observation request is not a valid uint16",
-						zap.Uint32("chainID", r.ChainId),
-						zap.String("txID", hex.EncodeToString(r.TxHash)),
-					)
+				validated, err := w.Validate(r)
+				if err != nil {
+					watchers.LogInvalidObservationRequest(logger, r, err)
 					continue
 				}
 				numObservations, err := w.handleReobservationRequest(
 					ctx,
-					vaa.ChainID(r.ChainId),
-					r.TxHash,
+					validated,
 					w.ethConn,
 					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
 					atomic.LoadUint64(&w.latestSafeBlockNumber),
@@ -686,7 +725,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 					// Note that `tx` here is actually a receipt
 					txHash := eth_common.Hash(pLock.message.TxID)
-					pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
+					verifiedMsg, verifyErr := w.verifyMessage(pLock.message, ctx, txHash, tx)
+					pubErr := verifyErr
+					if pubErr == nil {
+						pubErr = w.PublishMessage(verifiedMsg)
+					}
 					if pubErr != nil {
 						logger.Error("could not publish message",
 							zap.String("msgId", pLock.message.MessageIDString()),
@@ -944,7 +987,11 @@ func (w *Watcher) postMessage(
 		verifyCtx, cancel := context.WithCancel(parentCtx)
 		defer cancel()
 
-		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, nil)
+		verifiedMsg, verifyErr := w.verifyMessage(msg, verifyCtx, ev.Raw.TxHash, nil)
+		pubErr := verifyErr
+		if pubErr == nil {
+			pubErr = w.PublishMessage(verifiedMsg)
+		}
 		if pubErr != nil {
 			w.logger.Error("could not publish message: transfer verification failed",
 				zap.String("msgId", msg.MessageIDString()),
@@ -1007,13 +1054,9 @@ func canRetryGetBlockTime(err error) bool {
 	return exists
 }
 
-// verifyAndPublish validates a MessagePublication to ensure that it's safe. If so, it broadcasts the message. This function
-// should be the only location where the watcher's msgC channel is written to.
-// Modifies the verificationState field of the message as a side-effect.
-// Even if an invalid Transfer is detected, the message will still be published. It is the responsibility of the calling code to handle
-// a status of Rejected.
-// Note that the result of verification is not returned by this function, but can be accessed directly via the reference to message.
-func (w *Watcher) verifyAndPublish(
+// verifyMessage applies transfer verification to a MessagePublication before it
+// is sent through PublishMessage. It may modify the verification state.
+func (w *Watcher) verifyMessage(
 	// Must be non-nil and have verificationState equal to NotVerified.
 	msg *common.MessagePublication,
 	ctx context.Context,
@@ -1022,17 +1065,17 @@ func (w *Watcher) verifyAndPublish(
 	// This argument is only used when Transfer Verifier is enabled. If nil, transfer verifier will fetch the receipt.
 	// Otherwise, the receipt in the calling context can be passed here to save on RPC requests and parsing.
 	receipt *gethTypes.Receipt,
-) error {
+) (*common.MessagePublication, error) {
 
 	if msg == nil {
-		return errors.New("verifyAndPublish: message publication cannot be nil")
+		return nil, errors.New("verifyMessage: message publication cannot be nil")
 	}
 
 	if w.txVerifier != nil {
 		verifiedMsg, err := verify(ctx, msg, txHash, receipt, w.txVerifier)
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 		msg = &verifiedMsg
 		w.logger.Debug(
@@ -1041,17 +1084,7 @@ func (w *Watcher) verifyAndPublish(
 		)
 	}
 
-	w.logger.Debug(
-		"publishing new message publication",
-		msg.ZapFields()...,
-	)
-	w.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
-	ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
-	if msg.IsReobservation {
-		watchers.ReobservationsByChain.WithLabelValues(w.chainID.String(), "std").Inc()
-	}
-	return nil
-
+	return msg, nil
 }
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read

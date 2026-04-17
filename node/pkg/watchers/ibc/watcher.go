@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -107,6 +106,8 @@ var (
 		}, []string{"ibc_channel_id"})
 )
 
+var _ watchers.Watcher = (*chainEntry)(nil)
+
 type (
 	// Watcher is responsible for monitoring the IBC contract on wormchain and publishing wormhole messages for all chains connected via IBC.
 	Watcher struct {
@@ -177,6 +178,42 @@ func NewWatcher(
 		channelIdToChainIdMap: make(map[string]vaa.ChainID),
 		baseFeatures:          feats,
 	}
+}
+
+func (ce *chainEntry) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
+	validated, err := watchers.ValidateObservationRequest(req, ce.chainID)
+	if err != nil {
+		return watchers.ValidObservation{}, err
+	}
+
+	return validated, nil
+}
+
+func (ce *chainEntry) ChainID() vaa.ChainID {
+	return ce.chainID
+}
+
+func (ce *chainEntry) PublishMessage(msg *common.MessagePublication) error {
+	if msg == nil {
+		return fmt.Errorf("message publication is nil")
+	}
+
+	ce.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(msg.EmitterChain.String(), "std").Inc()
+	}
+
+	return nil
+}
+
+func (ce *chainEntry) PublishReobservation(observation watchers.ValidObservation, msg *common.MessagePublication) error {
+	if err := watchers.ValidateReobservedMessage(observation, msg); err != nil {
+		return err
+	}
+
+	msg.IsReobservation = true
+	return ce.PublishMessage(msg)
 }
 
 // clientRequest is used to subscribe for events from the contract.
@@ -354,7 +391,7 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 					}
 
 					if evt != nil {
-						if err := w.processIbcReceivePublishEvent(evt, "new"); err != nil {
+						if err := w.processIbcReceivePublishEvent(evt, "new", nil); err != nil {
 							return fmt.Errorf("failed to process new IBC event: %w", err)
 						}
 					}
@@ -436,18 +473,17 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 		case <-ctx.Done():
 			return nil
 		case r := <-ce.obsvReqC:
-			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
-			// and only writes to the channel for this chain id.
-			// If either of the below cases are true, something has gone wrong
-			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != ce.chainID {
-				panic("invalid chain ID")
+			validated, err := ce.Validate(r)
+			if err != nil {
+				watchers.LogInvalidObservationRequest(w.logger, r, err, zap.String("chain", ce.chainName))
+				continue
 			}
 
 			// SECURITY: Directly using data for URL path is scary.
 			// Potential for directory traversal attacks to return the incorrect data
 			// This is hex encoded so it's acceptable but be careful changing this logic.
-			reqTxHashStr := hex.EncodeToString(r.TxHash)
-			w.logger.Info("received observation request", zap.String("chain", ce.chainName), zap.String("txHash", reqTxHashStr))
+			reqTxHashStr := hex.EncodeToString(validated.TxHash())
+			w.logger.Info("received observation request", validated.ZapFields(zap.String("chain", ce.chainName), zap.String("txHash", reqTxHashStr))...)
 
 			client := &http.Client{
 				Timeout: time.Second * 5,
@@ -503,8 +539,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 					}
 
 					if evt != nil {
-						evt.Msg.IsReobservation = true
-						if err := w.processIbcReceivePublishEvent(evt, "reobservation"); err != nil {
+						if err := w.processIbcReceivePublishEvent(evt, "reobservation", &validated); err != nil {
 							return fmt.Errorf("failed to process reobserved IBC event: %w", err)
 						}
 					}
@@ -602,7 +637,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 }
 
 // processIbcReceivePublishEvent takes an IBC event, maps it to a message publication and publishes it.
-func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, observationType string) error {
+func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, observationType string, validated *watchers.ValidObservation) error {
 
 	// SECURITY: The ibc watcher is the only watcher that can handle multiple chain IDs
 	// To make this safe, it has a mapping from channel ID to chain IDs that it uses
@@ -690,10 +725,14 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 	)
 
-	ce.msgC <- evt.Msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
-	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
-	if evt.Msg.IsReobservation {
-		watchers.ReobservationsByChain.WithLabelValues(evt.Msg.EmitterChain.String(), "std").Inc()
+	if validated != nil {
+		if err := ce.PublishReobservation(*validated, evt.Msg); err != nil {
+			return err
+		}
+	} else {
+		if err := ce.PublishMessage(evt.Msg); err != nil {
+			return err
+		}
 	}
 	return nil
 }

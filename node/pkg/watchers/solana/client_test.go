@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -412,7 +414,13 @@ func TestProcessMessageAccount(t *testing.T) {
 			data := encodeMessagePublicationAccount(t, tc.prefix, proposal)
 
 			acc := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x11}, solana.PublicKeyLength))
-			num := s.processMessageAccount(s.logger, data, acc, tc.isReobservation, solana.Signature{})
+			var validated *watchers.ValidObservation
+			if tc.isReobservation {
+				obs, err := s.Validate(&gossipv1.ObservationRequest{ChainId: uint32(tc.chainID), TxHash: acc.Bytes()})
+				require.NoError(t, err)
+				validated = &obs
+			}
+			num := s.processMessageAccount(s.logger, data, acc, validated, solana.Signature{})
 			assert.Equal(t, tc.wantCount, num)
 
 			if tc.wantCount == 0 {
@@ -599,7 +607,7 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			found, err := s.processInstruction(context.TODO(), nil, 1, tc.inst, 0, tx, signature, 0, false)
+			found, err := s.processInstruction(context.TODO(), nil, 1, tc.inst, 0, tx, signature, 0, nil)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -663,7 +671,7 @@ func TestProcessInstructionValidPostMessage(t *testing.T) {
 				Accounts:       []uint16{0, 1, 0, 0, 0, 0, 0, 0},
 			}
 
-			found, err := s.processInstruction(context.Background(), rpcClient, 1, inst, 0, tx, tx.Signatures[0], 0, false)
+			found, err := s.processInstruction(context.Background(), rpcClient, 1, inst, 0, tx, tx.Signatures[0], 0, nil)
 			require.NoError(t, err)
 			assert.True(t, found)
 
@@ -876,7 +884,7 @@ func TestProcessTransaction(t *testing.T) {
 				InnerInstructions: tc.innerInstructions,
 			}
 
-			num := s.processTransaction(context.Background(), rpcClient, tx, meta, 42, false)
+			num := s.processTransaction(context.Background(), rpcClient, tx, meta, 42, nil)
 			assert.Equal(t, tc.wantObservations, num)
 
 			// Drain published messages and verify count.

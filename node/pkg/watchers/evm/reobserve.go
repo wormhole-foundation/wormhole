@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -12,15 +14,9 @@ import (
 )
 
 // handleReobservationRequest performs a reobservation request and publishes any observed transactions.
-func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.ChainID, txID []byte, ethConn connectors.Connector, finalizedBlockNum, safeBlockNum uint64) (numObservations uint32, err error) {
-	// This can't happen unless there is a programming error - the caller
-	// is expected to send us only requests for our chainID.
-	if chainId != w.chainID {
-		return 0, fmt.Errorf("unexpected chain id: %v", chainId)
-	}
-
-	tx := eth_common.BytesToHash(txID)
-	w.logger.Info("received observation request", zap.String("tx_hash", tx.Hex()))
+func (w *Watcher) handleReobservationRequest(ctx context.Context, observation watchers.ValidObservation, ethConn connectors.Connector, finalizedBlockNum, safeBlockNum uint64) (numObservations uint32, err error) {
+	tx := eth_common.BytesToHash(observation.TxHash())
+	w.logger.Info("received observation request", observation.ZapFields(zap.String("tx_hash", tx.Hex()))...)
 
 	// SECURITY: We loaded the block number before requesting the transaction to avoid a
 	// race condition where requesting the tx succeeds and is then dropped due to a fork,
@@ -39,7 +35,6 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 	}
 
 	for _, msg := range msgs {
-		msg.IsReobservation = true
 		if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 			w.logger.Info("re-observed message publication transaction, publishing it immediately",
 				zap.String("msgId", msg.MessageIDString()),
@@ -48,7 +43,11 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("observed_block", blockNumber),
 			)
 
-			pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+			verifiedMsg, verifyErr := w.verifyMessage(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+			pubErr := verifyErr
+			if pubErr == nil {
+				pubErr = w.PublishReobservation(observation, verifiedMsg)
+			}
 
 			if pubErr != nil {
 				w.logger.Error("Error when publishing message", zap.Error(pubErr))
@@ -76,7 +75,11 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 					zap.Uint64("observed_block", blockNumber),
 				)
 
-				pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+				verifiedMsg, verifyErr := w.verifyMessage(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+				pubErr := verifyErr
+				if pubErr == nil {
+					pubErr = w.PublishReobservation(observation, verifiedMsg)
+				}
 
 				if pubErr != nil {
 					w.logger.Error("Error when publishing message", zap.Error(pubErr))
@@ -122,7 +125,11 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("observed_block", blockNumber),
 			)
 
-			pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+			verifiedMsg, verifyErr := w.verifyMessage(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+			pubErr := verifyErr
+			if pubErr == nil {
+				pubErr = w.PublishReobservation(observation, verifiedMsg)
+			}
 
 			if pubErr != nil {
 				w.logger.Error("Error when publishing message", zap.Error(pubErr))
@@ -166,5 +173,9 @@ func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 	}
 
 	// Finally, do the reobservation and return the number of messages observed.
-	return w.handleReobservationRequest(ctx, chainID, txID, ethConn, finalized, safe)
+	validated, err := w.Validate(&gossipv1.ObservationRequest{ChainId: uint32(chainID), TxHash: txID})
+	if err != nil {
+		return 0, err
+	}
+	return w.handleReobservationRequest(ctx, validated, ethConn, finalized, safe)
 }
