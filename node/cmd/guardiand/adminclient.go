@@ -613,7 +613,7 @@ func runDumpRPCs(cmd *cobra.Command, args []string) {
 
 func runGetAndObserveMissingVAAs(cmd *cobra.Command, args []string) {
 	url := args[0]
-	if !strings.HasPrefix(url, "https://") {
+	if valid := common.ValidateURL(url, []string{"https"}); !valid {
 		log.Fatalf("invalid url: %s", url)
 	}
 	apiKey := args[1]

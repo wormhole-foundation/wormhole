@@ -29,6 +29,10 @@ func ValidateURL(urlStr string, validSchemes []string) bool {
 		return false
 	}
 
+	if parsedURL.Host == "" {
+		return false
+	}
+
 	for _, scheme := range validSchemes {
 		if parsedURL.Scheme == scheme {
 			return true
