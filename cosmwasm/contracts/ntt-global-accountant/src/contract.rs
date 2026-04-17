@@ -589,6 +589,9 @@ fn handle_ntt_vaa(
                 .context("failed to parse NTT registration payload")?;
 
         let chain = body.emitter_chain.into();
+        if chain == message.chain_id.id {
+            bail!("sender and peer cannot be on the same chain")
+        }
         let peer_key = TRANSCEIVER_PEER.key((chain, sender, message.chain_id.id));
 
         if peer_key.may_load(deps.storage)?.is_some() {
