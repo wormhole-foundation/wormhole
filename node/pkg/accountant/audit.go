@@ -129,21 +129,26 @@ func (acct *Accountant) audit(ctx context.Context) error {
 // runAudit is the entry point for the audit of the pending transfer map. It creates a temporary map of all pending transfers and invokes the main audit function.
 func (acct *Accountant) runAudit() {
 	tmpMap := acct.createAuditMap(false)
-	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", auditMapSize(tmpMap)))
+	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", numPendingEntries(tmpMap)))
 	acct.performAudit(tmpMap, acct.wormchainConn, acct.contract)
 	acct.logger.Debug("in AuditPendingTransfers: finished base audit")
 
 	tmpMap = acct.createAuditMap(true)
-	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", auditMapSize(tmpMap)))
+	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", numPendingEntries(tmpMap)))
 	acct.performAudit(tmpMap, acct.nttWormchainConn, acct.nttContract)
 	acct.logger.Debug("in AuditPendingTransfers: finished ntt audit")
 }
 
-// auditMapSize returns the total number of pending entries across all keys in the audit map.
-func auditMapSize(tmpMap map[string][]*pendingEntry) int {
+// numPendingEntries returns the total number of non-nil pending entries across all keys
+// in the audit map. Nil entries are skipped so a slice of nils does not inflate the count.
+func numPendingEntries(tmpMap map[string][]*pendingEntry) int {
 	n := 0
 	for _, entries := range tmpMap {
-		n += len(entries)
+		for _, pe := range entries {
+			if pe != nil {
+				n++
+			}
+		}
 	}
 	return n
 }
@@ -212,11 +217,16 @@ func (acct *Accountant) performAudit(tmpMap map[string][]*pendingEntry, wormchai
 		}
 	}
 
-	if auditMapSize(tmpMap) != 0 {
+	if len(tmpMap) != 0 {
 		var keys []TransferKey
 		var pendingTransfers []*pendingEntry
 		for _, entries := range tmpMap {
 			for _, pe := range entries {
+				// Skip nil entries
+				if pe == nil {
+					continue
+				}
+
 				keys = append(keys, TransferKey{EmitterChain: uint16(pe.msg.EmitterChain), EmitterAddress: pe.msg.EmitterAddress, Sequence: pe.msg.Sequence})
 				pendingTransfers = append(pendingTransfers, pe)
 			}

@@ -405,7 +405,7 @@ func TestForDeadlock(t *testing.T) {
 	assert.Equal(t, msg2, *resultMsg2)
 }
 
-func TestAuditMapSize(t *testing.T) {
+func TestNumPendingEntries(t *testing.T) {
 	pe1 := &pendingEntry{msgId: "1"}
 	pe2 := &pendingEntry{msgId: "2"}
 	pe3 := &pendingEntry{msgId: "3"}
@@ -416,12 +416,46 @@ func TestAuditMapSize(t *testing.T) {
 		"4-ddeeff": {pe4},
 	}
 
-	assert.Equal(t, 4, auditMapSize(tmpMap))
+	assert.Equal(t, 4, numPendingEntries(tmpMap))
 }
 
-func TestAuditMapSizeEmpty(t *testing.T) {
+func TestNumPendingEntriesEmpty(t *testing.T) {
 	tmpMap := map[string][]*pendingEntry{}
-	assert.Equal(t, 0, auditMapSize(tmpMap))
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesNilMap(t *testing.T) {
+	var tmpMap map[string][]*pendingEntry
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesEmptySlices(t *testing.T) {
+	tmpMap := map[string][]*pendingEntry{
+		"1-aa": {},
+		"2-bb": {},
+		"3-cc": {},
+		"4-dd": {},
+		"5-ee": {},
+	}
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesAllNilValues(t *testing.T) {
+	tmpMap := map[string][]*pendingEntry{
+		"2-aabbcc": {nil, nil, nil},
+	}
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesMixedNils(t *testing.T) {
+	pe1 := &pendingEntry{msgId: "1"}
+	pe2 := &pendingEntry{msgId: "2"}
+
+	tmpMap := map[string][]*pendingEntry{
+		"2-aabbcc": {pe1, nil, pe2, nil},
+		"4-ddeeff": {nil},
+	}
+	assert.Equal(t, 2, numPendingEntries(tmpMap))
 }
 
 func TestCreateAuditMapMultipleTransfersSameTxHash(t *testing.T) {
@@ -482,7 +516,7 @@ func TestCreateAuditMapMultipleTransfersSameTxHash(t *testing.T) {
 
 	// There should be one key in the map (the shared audit key) with two entries.
 	assert.Equal(t, 1, len(tmpMap))
-	assert.Equal(t, 2, auditMapSize(tmpMap))
+	assert.Equal(t, 2, numPendingEntries(tmpMap))
 
 	key := pe1.makeAuditKey()
 	entries, exists := tmpMap[key]
@@ -543,7 +577,7 @@ func TestCreateAuditMapDifferentTxHashes(t *testing.T) {
 
 	// There should be two keys in the map, each with one entry.
 	assert.Equal(t, 2, len(tmpMap))
-	assert.Equal(t, 2, auditMapSize(tmpMap))
+	assert.Equal(t, 2, numPendingEntries(tmpMap))
 
 	entries1, exists := tmpMap[pe1.makeAuditKey()]
 	require.Equal(t, true, exists)
@@ -605,7 +639,7 @@ func TestCreateAuditMapFiltersNTT(t *testing.T) {
 
 	// createAuditMap(false) should only contain the non-NTT transfer.
 	baseMap := acct.createAuditMap(false)
-	assert.Equal(t, 1, auditMapSize(baseMap))
+	assert.Equal(t, 1, numPendingEntries(baseMap))
 	key := pe1.makeAuditKey()
 	entries, exists := baseMap[key]
 	require.Equal(t, true, exists)
@@ -614,7 +648,7 @@ func TestCreateAuditMapFiltersNTT(t *testing.T) {
 
 	// createAuditMap(true) should only contain the NTT transfer.
 	nttMap := acct.createAuditMap(true)
-	assert.Equal(t, 1, auditMapSize(nttMap))
+	assert.Equal(t, 1, numPendingEntries(nttMap))
 	entries, exists = nttMap[key]
 	require.Equal(t, true, exists)
 	assert.Equal(t, 1, len(entries))
