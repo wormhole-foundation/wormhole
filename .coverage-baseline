@@ -42,7 +42,7 @@ github.com/certusone/wormhole/node/pkg/proto/prometheus/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/spy/v1 0.0
 github.com/certusone/wormhole/node/pkg/publicrpc 12.4
-github.com/certusone/wormhole/node/pkg/query 70.0
+github.com/certusone/wormhole/node/pkg/query 69.9
 github.com/certusone/wormhole/node/pkg/random 0.0
 github.com/certusone/wormhole/node/pkg/readiness 0.0
 github.com/certusone/wormhole/node/pkg/supervisor 0.0
@@ -65,8 +65,10 @@ github.com/certusone/wormhole/node/pkg/watchers/mock 0.0
 github.com/certusone/wormhole/node/pkg/watchers/near 75.4
 github.com/certusone/wormhole/node/pkg/watchers/near/nearapi 61.8
 github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock 0.0
-github.com/certusone/wormhole/node/pkg/watchers/solana 34.6
+github.com/certusone/wormhole/node/pkg/watchers/solana 35.9
 github.com/certusone/wormhole/node/pkg/watchers/sui 7.7
 github.com/certusone/wormhole/node/pkg/wormconn 0.0
 github.com/wormhole-foundation/wormhole/sdk 70.2
 github.com/wormhole-foundation/wormhole/sdk/vaa 59.8
+github.com/certusone/wormhole/node/pkg/node 66.8
+github.com/certusone/wormhole/node/pkg/p2p 40.3
