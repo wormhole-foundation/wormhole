@@ -42,7 +42,7 @@ github.com/certusone/wormhole/node/pkg/proto/prometheus/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/spy/v1 0.0
 github.com/certusone/wormhole/node/pkg/publicrpc 12.4
-github.com/certusone/wormhole/node/pkg/query 69.9
+github.com/certusone/wormhole/node/pkg/query 70.0
 github.com/certusone/wormhole/node/pkg/random 0.0
 github.com/certusone/wormhole/node/pkg/readiness 0.0
 github.com/certusone/wormhole/node/pkg/supervisor 0.0
