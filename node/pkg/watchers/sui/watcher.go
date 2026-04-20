@@ -76,11 +76,13 @@ type (
 
 	FieldsData struct {
 		ConsistencyLevel *uint8  `json:"consistency_level"`
-		Nonce            *uint64 `json:"nonce"`
+		Nonce            *uint32 `json:"nonce"`
 		Payload          []byte  `json:"payload"`
 		Sender           *string `json:"sender"`
-		Sequence         *string `json:"sequence"`
-		Timestamp        *string `json:"timestamp"`
+		// Sui's JSON-RPC encodes this on-chain u64 as a quoted decimal string in parsedJson.
+		Sequence *uint64 `json:"sequence,string"`
+		// Sui's JSON-RPC encodes this on-chain u64 as a quoted decimal string in parsedJson.
+		Timestamp *uint64 `json:"timestamp,string"`
 	}
 
 	SuiResult struct {
@@ -291,7 +293,12 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 	}
 
 	// Check if all required fields exist
-	if (fields.ConsistencyLevel == nil) || (fields.Nonce == nil) || (fields.Payload == nil) || (fields.Sender == nil) || (fields.Sequence == nil) {
+	if fields.ConsistencyLevel == nil ||
+		fields.Nonce == nil ||
+		fields.Payload == nil ||
+		fields.Sender == nil ||
+		fields.Sequence == nil ||
+		fields.Timestamp == nil {
 		logger.Info("Missing required fields in event.")
 		return nil
 	}
@@ -318,22 +325,11 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 
 	txHashEthFormat := eth_common.BytesToHash(txHashBytes)
 
-	seq, err := strconv.ParseUint(*fields.Sequence, 10, 64)
-	if err != nil {
-		logger.Info("Sequence decode error", zap.String("Sequence", *fields.Sequence))
-		return err
-	}
-	ts, err := strconv.ParseInt(*fields.Timestamp, 10, 64)
-	if err != nil {
-		logger.Info("Timestamp decode error", zap.String("Timestamp", *fields.Timestamp))
-		return err
-	}
-
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
-		Timestamp:        time.Unix(ts, 0),
-		Nonce:            uint32(*fields.Nonce), // #nosec G115 -- Nonce is 32 bits on chain
-		Sequence:         seq,
+		Timestamp:        time.Unix(int64(*fields.Timestamp), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Nonce:            *fields.Nonce,
+		Sequence:         *fields.Sequence,
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   emitter,
 		Payload:          fields.Payload,
