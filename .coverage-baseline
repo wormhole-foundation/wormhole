@@ -70,5 +70,5 @@ github.com/certusone/wormhole/node/pkg/watchers/sui 7.7
 github.com/certusone/wormhole/node/pkg/wormconn 0.0
 github.com/wormhole-foundation/wormhole/sdk 70.2
 github.com/wormhole-foundation/wormhole/sdk/vaa 59.8
-github.com/certusone/wormhole/node/pkg/node 66.8
+github.com/certusone/wormhole/node/pkg/node 65.2
 github.com/certusone/wormhole/node/pkg/p2p 40.3
