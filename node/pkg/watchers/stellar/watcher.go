@@ -62,8 +62,7 @@ type WatcherConfig struct {
 	PollInterval time.Duration
 	ReadTimeout  time.Duration
 	StartLedger  uint64
-	MaxPerPoll   int
-	RequestLimit int64
+	MaxPerPoll int
 }
 
 func (wc *WatcherConfig) Create(
