@@ -536,7 +536,7 @@ func TestProcessAccountSubscriptionData(t *testing.T) {
 			s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, msgC)
 			s.rawContract = rawContract
 
-			err := s.processAccountSubscriptionData(context.TODO(), zap.NewNop(), tc.data, false)
+			err := s.processAccountSubscriptionData(context.TODO(), zap.NewNop(), tc.data)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

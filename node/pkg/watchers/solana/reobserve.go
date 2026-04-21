@@ -14,18 +14,18 @@ import (
 
 // handleReobservationRequest performs a reobservation request and publishes any observed transactions.
 // SECURITY: Only the finalized watcher handles reobservations. Set in configuration of watcher for Solana chains.
-func (s *SolanaWatcher) handleReobservationRequest(observation watchers.ValidObservation, rpcClient *rpc.Client) (numObservations uint32, err error) {
+func (s *SolanaWatcher) handleReobservationRequest(ctx context.Context, observation watchers.ValidObservation, rpcClient *rpc.Client) (numObservations uint32, err error) {
 	txID := observation.TxHash()
 	if len(txID) == SolanaAccountLen { // Request by account ID
 		acc := solana.PublicKeyFromBytes(txID)
 		s.logger.Info("received observation request with account id", observation.ZapFields(zap.String("account", acc.String()))...)
-		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
+		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, acc, 0, &observation, solana.Signature{})
 		cancel()
 	} else if len(txID) == SolanaSignatureLen { // Request by transaction ID
 		signature := solana.SignatureFromBytes(txID)
 		s.logger.Info("received observation request with transaction id", observation.ZapFields(zap.Stringer("signature", signature))...)
-		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
+		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 		version := uint64(0)
 		result, err := rpcClient.GetTransaction(
 			rCtx,
@@ -52,7 +52,7 @@ func (s *SolanaWatcher) handleReobservationRequest(observation watchers.ValidObs
 		if err != nil {
 			return 0, fmt.Errorf("failed to extract transaction for observation request: %v", err)
 		}
-		numObservations = s.processTransaction(s.ctx, rpcClient, tx, result.Meta, result.Slot, &observation)
+		numObservations = s.processTransaction(ctx, rpcClient, tx, result.Meta, result.Slot, &observation)
 	} else {
 		return 0, fmt.Errorf("ignoring an observation request of unexpected length: %d", len(txID))
 	}
@@ -71,5 +71,5 @@ func (s *SolanaWatcher) Reobserve(_ context.Context, chainID vaa.ChainID, txID [
 	if err != nil {
 		return 0, err
 	}
-	return s.handleReobservationRequest(validated, rpcClient)
+	return s.handleReobservationRequest(s.ctx, validated, rpcClient)
 }

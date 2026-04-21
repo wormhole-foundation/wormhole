@@ -460,7 +460,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case msg := <-s.pumpData:
-				err := s.processAccountSubscriptionData(ctx, logger, msg, false)
+				err := s.processAccountSubscriptionData(ctx, logger, msg)
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_subscription_data").Inc()
@@ -475,7 +475,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				}
 
 				//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
-				numObservations, err := s.handleReobservationRequest(validated, s.rpcClient)
+				numObservations, err := s.handleReobservationRequest(s.ctx, validated, s.rpcClient)
 				if err != nil {
 					logger.Error("failed to process observation request",
 						zap.Uint32("chainID", m.ChainId),
@@ -998,7 +998,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 	return s.processMessageAccount(s.logger, data, acc, validated, signature), false
 }
 
-func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte, isReobservation bool) error {
+func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte) error {
 	// Do we have an error on the subscription?
 	var e EventSubscriptionError
 	err := json.Unmarshal(data, &e)
