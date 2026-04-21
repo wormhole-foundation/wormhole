@@ -54,6 +54,7 @@ type (
 		gossipControlSendC              chan []byte
 		gossipAttestationSendC          chan []byte
 		gossipDelegatedAttestationSendC chan []byte
+		delegateSigBroadcastSendC       chan []byte
 		gossipVaaSendC                  chan []byte
 		managerTxSendC                  chan *gossipv1.ManagerTransaction
 		obsvReqSendC                    <-chan *gossipv1.ObservationRequest
@@ -199,6 +200,7 @@ func WithGuardianOptions(
 	gossipControlSendC chan []byte,
 	gossipAttestationSendC chan []byte,
 	gossipDelegatedAttestationSendC chan []byte,
+	delegateSigBroadcastSendC chan []byte,
 	gossipVaaSendC chan []byte,
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
 	acct *accountant.Accountant,
@@ -226,6 +228,7 @@ func WithGuardianOptions(
 		p.gossipControlSendC = gossipControlSendC
 		p.gossipAttestationSendC = gossipAttestationSendC
 		p.gossipDelegatedAttestationSendC = gossipDelegatedAttestationSendC
+		p.delegateSigBroadcastSendC = delegateSigBroadcastSendC
 		p.gossipVaaSendC = gossipVaaSendC
 		p.obsvReqSendC = obsvReqSendC
 		p.acct = acct

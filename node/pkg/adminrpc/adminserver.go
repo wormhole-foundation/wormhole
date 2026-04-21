@@ -34,6 +34,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
@@ -42,7 +43,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
-const maxResetReleaseTimerDays = 30
+const maxResetReleaseTimerDays = 90
 const ecdsaSignatureLength = 65
 
 var (
@@ -60,25 +61,27 @@ var (
 
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
-	db              *guardianDB.Database
-	injectC         chan<- *common.MessagePublication
-	obsvReqSendC    chan<- *gossipv1.ObservationRequest
-	logger          *zap.Logger
-	signedInC       chan<- *gossipv1.SignedVAAWithQuorum
-	governor        *governor.ChainGovernor
-	notary          *notary.Notary
-	evmConnector    connectors.Connector
-	gsCache         sync.Map
-	guardianSigner  guardiansigner.GuardianSigner
-	guardianAddress ethcommon.Address
-	rpcMap          map[string]string
-	reobservers     interfaces.Reobservers
+	db                        *guardianDB.Database
+	injectC                   chan<- *common.MessagePublication
+	obsvReqSendC              chan<- *gossipv1.ObservationRequest
+	delegateSigBroadcastSendC chan<- []byte
+	logger                    *zap.Logger
+	signedInC                 chan<- *gossipv1.SignedVAAWithQuorum
+	governor                  *governor.ChainGovernor
+	notary                    *notary.Notary
+	evmConnector              connectors.Connector
+	gsCache                   sync.Map
+	guardianSigner            guardiansigner.GuardianSigner
+	guardianAddress           ethcommon.Address
+	rpcMap                    map[string]string
+	reobservers               interfaces.Reobservers
 }
 
 func NewPrivService(
 	db *guardianDB.Database,
 	injectC chan<- *common.MessagePublication,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
+	delegateSigBroadcastSendC chan<- []byte,
 	logger *zap.Logger,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	gov *governor.ChainGovernor,
@@ -91,18 +94,19 @@ func NewPrivService(
 
 ) *nodePrivilegedService {
 	return &nodePrivilegedService{
-		db:              db,
-		injectC:         injectC,
-		obsvReqSendC:    obsvReqSendC,
-		logger:          logger,
-		signedInC:       signedInC,
-		governor:        gov,
-		notary:          notary,
-		evmConnector:    evmConnector,
-		guardianSigner:  guardianSigner,
-		guardianAddress: guardianAddress,
-		rpcMap:          rpcMap,
-		reobservers:     reobservers,
+		db:                        db,
+		injectC:                   injectC,
+		obsvReqSendC:              obsvReqSendC,
+		delegateSigBroadcastSendC: delegateSigBroadcastSendC,
+		logger:                    logger,
+		signedInC:                 signedInC,
+		governor:                  gov,
+		notary:                    notary,
+		evmConnector:              evmConnector,
+		guardianSigner:            guardianSigner,
+		guardianAddress:           guardianAddress,
+		rpcMap:                    rpcMap,
+		reobservers:               reobservers,
 	}
 }
 
@@ -1682,5 +1686,37 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	response += "\n" + errMsgs
 	return &nodev1.GetAndObserveMissingVAAsResponse{
 		Response: response,
+	}, nil
+}
+
+func (s *nodePrivilegedService) BroadcastDelegateSignatures(ctx context.Context, req *nodev1.BroadcastDelegateSignaturesRequest) (*nodev1.BroadcastDelegateSignaturesResponse, error) {
+	broadcast := req.GetBroadcast()
+	if broadcast == nil {
+		return nil, status.Error(codes.InvalidArgument, "broadcast is required")
+	}
+
+	if len(broadcast.Signatures) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "broadcast must contain at least one signature")
+	}
+
+	broadcastBytes, err := proto.Marshal(broadcast)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to marshal broadcast: %v", err)
+	}
+
+	select {
+	case s.delegateSigBroadcastSendC <- broadcastBytes:
+		s.logger.Info("queued delegate signatures broadcast",
+			zap.Uint32("emitter_chain", broadcast.EmitterChain),
+			zap.Uint64("sequence", broadcast.Sequence),
+			zap.Int("num_signatures", len(broadcast.Signatures)),
+		)
+	default:
+		return nil, status.Error(codes.ResourceExhausted, "delegate signatures broadcast channel is full")
+	}
+
+	return &nodev1.BroadcastDelegateSignaturesResponse{
+		Response: fmt.Sprintf("successfully queued broadcast of %d delegate signatures for %d/%d",
+			len(broadcast.Signatures), broadcast.EmitterChain, broadcast.Sequence),
 	}, nil
 }

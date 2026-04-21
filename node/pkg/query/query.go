@@ -148,6 +148,7 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDMegaETH:         {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDMonadTestnet:    {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDZeroGravity:     {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDTempo:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDNexus:           {NumWorkers: 1, TimestampCacheSupported: true},
 }
 

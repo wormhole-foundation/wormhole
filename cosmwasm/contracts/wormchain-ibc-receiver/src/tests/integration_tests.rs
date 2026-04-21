@@ -151,7 +151,7 @@ pub fn add_channel_chain_happy_path_multiple() -> anyhow::Result<(), Error> {
         channels_chains: mut channels,
     }: AllChannelChainsResponse = from_binary(&channel_binary)?;
 
-    channels.sort_by(|(_, a_chain_id), (_, b_chain_id)| a_chain_id.cmp(b_chain_id));
+    channels.sort_by_key(|(_, chain_id)| *chain_id);
 
     assert_eq!(channels.len(), 2);
 

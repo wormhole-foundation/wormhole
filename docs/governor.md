@@ -78,7 +78,7 @@ Guardians can reset the release timer to a specified number of days, from the cu
 guardiand admin governor-reset-release-timer "emitted_chain_ID/address/sequence_number" "number of days" --socket /path/to/admin.sock
 ```
 
-If the number of days is omitted, the command will reset the release timer to 24 hours from the current time. The number of days is capped to 7.
+If the number of days is omitted, the command will reset the release timer to 24 hours from the current time. The number of days is capped to 90.
 
 **Warning:** *Resetting a VAA should only be used in the context of needing more time to confirm fraud that directly affects the security of the Wormhole network.  A super minority of Guardians are required to reset the timer for a given VAA.*
 
