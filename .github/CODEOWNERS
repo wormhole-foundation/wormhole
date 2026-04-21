@@ -6,22 +6,26 @@
 
 /algorand/ @evan-gray @kcsongor
 /aptos/ @kcsongor
-/bitcoin/ @evan-gray
 /cosmwasm/ @mdulin2 @kcsongor
 /ethereum/ @kcsongor @evan-gray @douglasgalico
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor 
-/sui/ @kcsongor @evan-gray @douglasgalico
+/sui/ @kcsongor @evan-gray @douglasgalico @pleasew8t @mdulin2
+/svm/ @evan-gray @kcsongor @johnsaigle @mdulin2
 /terra/ @kcsongor
 /wormchain/ @johnsaigle @mdulin2
 
 # Utilities
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
+/deployments @evan-gray @kev1n-peters @panoel
 /lp_ui/ @evan-gray @kev1n-peters
 /scripts/ @evan-gray @kcsongor @djb15
-/sdk/ @evan-gray @kev1n-peters @panoel @SEJeff
 /scripts/clippy.sh @evan-gray @kcsongor @djb15 @johnsaigle
+/scripts/lint.sh @evan-gray @kcsongor @djb15 @johnsaigle
+/scripts/test-notary-admin-commands.sh @djb15 @johnsaigle @pleasew8t
+/scripts/transfer-verifier-localnet.sh @djb15 @johnsaigle @pleasew8t
+/sdk/ @evan-gray @kev1n-peters @panoel @SEJeff @johnsaigle @djb15
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
 /sdk/js-query/ @evan-gray @kev1n-peters
@@ -31,16 +35,20 @@
 /sdk/vaa/ @evan-gray @panoel @SEJeff
 /spydk/ @evan-gray
 /testing/ @evan-gray
+/tools @evan-gray @panoel @djb15 @johnsaigle
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 /wormchain/devnet/ @evan-gray
 /wormchain/devnet/txverifier @djb15 @johnsaigle @mdulin2 @pleasew8t
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
-/deployments @evan-gray @kev1n-peters @panoel
 
 # Protobuf for node
 
 /proto/node/ @evan-gray @panoel
 /proto/publicrpc/ @evan-gray @panoel
+
+# Makefile
+
+/Makefile* @evan-gray @panoel @SEJeff @djb15 @johnsaigle
 
 # Guardiand node
 
@@ -50,10 +58,18 @@
 
 ## Entrypoint / RPC
 
-/node/cmd/ @panoel @evan-gray
+/node/cmd/ @panoel @evan-gray @johnsaigle @djb15
+
+## Admin Client
+
+/node/pkg/adminclient/ @evan-gray @panoel @johnsaigle @pleasew8t @djb15 @mdulin2
+
+## Admin Server
+#
+/node/pkg/adminserver/ @evan-gray @panoel @johnsaigle @pleasew8t @djb15 @mdulin2
 
 ## Common
-/node/pkg/common/ @panoel @evan-gray
+/node/pkg/common/ @panoel @evan-gray @johnsaigle @pleasew8t
 /node/pkg/common/pendingmessage* @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## DB
@@ -63,11 +79,19 @@
 
 ## Accountant
 
-/node/pkg/accountant/ @evan-gray @panoel
+/node/pkg/accountant/ @evan-gray @panoel @mdulin2 @djb15
+
+## Alternate Publisher
+
+/node/pkg/altpub/ @evan-gray @panoel
 
 ## Governor
 
 /node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## Guardian Signer
+
+/node/pkg/guardiansigner/ @evan-gray @panoel @pleasew8t
 
 ## Gateway Relayer
 
@@ -80,6 +104,13 @@
 ## Consensus / Processor
 
 /node/pkg/processor/ @evan-gray @panoel
+/node/pkg/processor/processor.go @evan-gray @panoel @johnsaigle @mdulin2
+
+### Delegated Guardian Set
+/node/pkg/processor/batch_obs.go @evan-gray @johnsaigle @mdulin2
+/node/pkg/processor/delegate_obs.go @evan-gray @johnsaigle @mdulin2
+/node/pkg/processor/observation.go @evan-gray @johnsaigle @mdulin2
+/node/pkg/processor/delegated_guardian_config.go @evan-gray @johnsaigle @mdulin2
 
 ## Proto
 
@@ -110,23 +141,37 @@
 /node/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 /sdk/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
+## Node (package)
+
+/node/pkg/node/ @evan-gray @panoel @djb15 @johnsaigle @mdulin2 @pleasew8t
+
 ## Notary
 
 /node/pkg/notary/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 
+## Random
+
+/node/pkg/random/ @evan-gray @djb15 @panoel @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## Wormconn
+
+/node/pkg/wormconn/ @evan-gray @djb15 @panoel @mdulin2
+
 ## Hacks / Tools
 
-/node/hack/ @panoel @evan-gray
+/node/hack/ @panoel @evan-gray @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 /node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Documentation
 
-/docs @evan-gray @SEJeff
+/docs @evan-gray @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 /docs/transfer-verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t
 /docs/notary.md @djb15 @johnsaigle @mdulin2 @pleasew8t
 
-SECURITY.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-SECURITY_CONTEXT.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+CONTRIBUTING.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+DEVELOP.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+SECURITY.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic @SEJeff 
+SECURITY_CONTEXT.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic @SEJeff 
 
 ## Audit Reports
 
@@ -135,3 +180,14 @@ SECURITY_CONTEXT.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 ## Code coverage tools
 scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bemic
 .coverage-baseline @evan-gray @kcsongor @panoel @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## Whitepapers
+
+/whitepapers/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## Tests
+*_test.go @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## CI
+.golangci.yml @evan-gray @djb15 @johnsaigle @mdulin2
+cspell* @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
