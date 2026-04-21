@@ -122,7 +122,7 @@ make update-coverage-baseline
 # Or: ./coverage-check -u
 ```
 
-This updates the baseline file automatically while preserving comments and structure.
+This rewrites the baseline file as an alphabetized package list using the current coverage values.
 
 **Manual way (if needed):**
 Edit `.coverage-baseline` directly:
