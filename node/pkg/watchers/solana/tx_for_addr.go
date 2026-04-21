@@ -193,7 +193,7 @@ func (s *SolanaWatcher) processTransactionWithRetry(signature solana.Signature) 
 			return
 		}
 
-		_ = s.processTransaction(s.ctx, s.rpcClient, tx, result.Meta, result.Slot, nil)
+		_ = s.processTransaction(s.ctx, s.rpcClient, tx, result.Meta, result.Slot, nil, false)
 		return
 	}
 

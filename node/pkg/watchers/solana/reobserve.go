@@ -52,7 +52,7 @@ func (s *SolanaWatcher) handleReobservationRequest(ctx context.Context, observat
 		if err != nil {
 			return 0, fmt.Errorf("failed to extract transaction for observation request: %v", err)
 		}
-		numObservations = s.processTransaction(ctx, rpcClient, tx, result.Meta, result.Slot, &observation)
+		numObservations = s.processTransaction(ctx, rpcClient, tx, result.Meta, result.Slot, &observation, true)
 	} else {
 		return 0, fmt.Errorf("ignoring an observation request of unexpected length: %d", len(txID))
 	}

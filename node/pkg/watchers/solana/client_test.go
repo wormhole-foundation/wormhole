@@ -15,7 +15,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -302,6 +301,7 @@ func TestProcessMessageAccount(t *testing.T) {
 		wantCount        uint32
 		wantUnreliable   bool
 		wantReobs        bool
+		wantErr          bool
 	}{
 		{
 			name:             "publishes_reliable",
@@ -360,6 +360,7 @@ func TestProcessMessageAccount(t *testing.T) {
 			prefix:           accountPrefixReliable,
 			payload:          []byte("hello"),
 			consistencyLevel: 99,
+			wantErr:          true,
 		},
 		{
 			name:             "skips_unreliable_empty_payload",
@@ -414,14 +415,26 @@ func TestProcessMessageAccount(t *testing.T) {
 			data := encodeMessagePublicationAccount(t, tc.prefix, proposal)
 
 			acc := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x11}, solana.PublicKeyLength))
-			var validated *watchers.ValidObservation
+			observation, err := s.processMessageAccount(s.logger, data, acc, solana.Signature{}, tc.isReobservation)
+			if tc.wantCount == 0 {
+				if tc.wantErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+				assert.Nil(t, observation)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, observation)
 			if tc.isReobservation {
 				obs, err := s.Validate(&gossipv1.ObservationRequest{ChainId: uint32(tc.chainID), TxHash: acc.Bytes()})
 				require.NoError(t, err)
-				validated = &obs
+				require.NoError(t, s.PublishReobservation(obs, observation))
+			} else {
+				require.NoError(t, s.PublishMessage(observation))
 			}
-			num := s.processMessageAccount(s.logger, data, acc, validated, solana.Signature{})
-			assert.Equal(t, tc.wantCount, num)
+			assert.Equal(t, tc.wantCount, uint32(len(msgC)))
 
 			if tc.wantCount == 0 {
 				assert.Equal(t, 0, len(msgC))
@@ -607,7 +620,7 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			found, err := s.processInstruction(context.TODO(), nil, 1, tc.inst, 0, tx, signature, 0, nil)
+			found, err := s.processInstruction(context.TODO(), nil, 1, tc.inst, 0, tx, signature, 0, nil, false)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -671,7 +684,7 @@ func TestProcessInstructionValidPostMessage(t *testing.T) {
 				Accounts:       []uint16{0, 1, 0, 0, 0, 0, 0, 0},
 			}
 
-			found, err := s.processInstruction(context.Background(), rpcClient, 1, inst, 0, tx, tx.Signatures[0], 0, nil)
+			found, err := s.processInstruction(context.Background(), rpcClient, 1, inst, 0, tx, tx.Signatures[0], 0, nil, false)
 			require.NoError(t, err)
 			assert.True(t, found)
 
@@ -884,7 +897,7 @@ func TestProcessTransaction(t *testing.T) {
 				InnerInstructions: tc.innerInstructions,
 			}
 
-			num := s.processTransaction(context.Background(), rpcClient, tx, meta, 42, nil)
+			num := s.processTransaction(context.Background(), rpcClient, tx, meta, 42, nil, false)
 			assert.Equal(t, tc.wantObservations, num)
 
 			// Drain published messages and verify count.
