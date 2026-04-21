@@ -10,7 +10,6 @@
 /cosmwasm/ @mdulin2 @kcsongor
 /ethereum/ @gator-boi @kcsongor
 /ethereum/env/ @gator-boi @kcsongor @evan-gray
-/relayer/ethereum @gator-boi
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor 
 /sui/ @kcsongor @gator-boi
@@ -21,7 +20,6 @@
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
-/relayer/generic_relayer @gator-boi
 /scripts/ @evan-gray @kcsongor @djb15
 /sdk/ @evan-gray @kev1n-peters @panoel @SEJeff
 /scripts/clippy.sh @evan-gray @kcsongor @djb15 @johnsaigle
@@ -134,3 +132,7 @@ SECURITY_CONTEXT.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 ## Audit Reports
 
 /audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## Code coverage tools
+scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bemic
+.coverage-baseline @evan-gray @kcsongor @panoel @johnsaigle @mdulin2 @pleasew8t @bemic

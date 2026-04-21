@@ -58,10 +58,10 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "cd ../../ethereum && sed -i 's/INIT_CHAIN_ID=0x2/INIT_CHAIN_ID=0x4/g;s/INIT_EVM_CHAIN_ID=1337/INIT_EVM_CHAIN_ID=1397/g' .env && CHAIN_ID=4 EVM_CHAIN_ID=1397 NETWORK=devnet ./sh/devnetInitialization.sh && cd ../relayer/ethereum && npm run deploy-relayers-evm2 && nc -lkn 2000"
+            - "sed -i 's/INIT_CHAIN_ID=0x2/INIT_CHAIN_ID=0x4/g;s/INIT_EVM_CHAIN_ID=1337/INIT_EVM_CHAIN_ID=1397/g' .env && CHAIN_ID=4 EVM_CHAIN_ID=1397 NETWORK=devnet ./sh/devnetInitialization.sh && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
-            initialDelaySeconds: 90
+            initialDelaySeconds: 10
             tcpSocket:
               port: 2000
