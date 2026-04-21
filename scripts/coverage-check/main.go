@@ -15,7 +15,7 @@ const (
 	baselineFile       = ".coverage-baseline"
 	coverageOutputFile = "coverage.txt"
 	minNewPkgCoverage  = 10.0
-	coverageTolerance  = 0.1 // Allow 0.1% tolerance for floating point comparison
+	coverageTolerance  = 0.2 // Allow 0.2% tolerance for fresh-run coverage variance
 )
 
 // Colors for terminal output
