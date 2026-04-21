@@ -51,3 +51,30 @@ $(BIN)/guardiand: dirs generate
 	cd node && go build -ldflags "-X github.com/certusone/wormhole/node/pkg/version.version=${VERSION}" \
 	  -mod=readonly -o ../$(BIN)/guardiand \
 	  github.com/certusone/wormhole/node
+
+.PHONY: test-coverage
+## Run tests with coverage for node and sdk (matches CI)
+test-coverage:
+	@echo "Running tests with coverage for node and sdk..."
+	@set -o pipefail && (cd node && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
+	@set -o pipefail && (cd sdk && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
+
+.PHONY: check-coverage
+## Check coverage against baseline (run tests first)
+check-coverage: build-coverage-check test-coverage
+	@./coverage-check
+
+.PHONY: check-coverage-verbose
+## Check coverage against baseline (run tests first)
+check-coverage-verbose: build-coverage-check test-coverage
+	@./coverage-check -v
+
+.PHONY: build-coverage-check
+## Build the coverage checker tool
+build-coverage-check:
+	@cd scripts/coverage-check && go build -o ../../coverage-check .
+
+.PHONY: update-coverage-baseline
+## Update coverage baseline with current coverage
+update-coverage-baseline: build-coverage-check test-coverage
+	@./coverage-check -u

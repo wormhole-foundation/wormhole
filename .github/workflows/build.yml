@@ -76,17 +76,6 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
       - run: cd ethereum && make test-push0 && make test
 
-  relayer-ethereum:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "22"
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-      - run: cd relayer/ethereum && make test-push0 && make test
-
   ethereum-upgrade:
     runs-on: ubuntu-latest
     steps:
@@ -268,7 +257,7 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: "1.24.13"
-      - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
+      - run: cd sdk/vaa && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
   node-lint:
@@ -328,8 +317,31 @@ jobs:
         with:
           go-version: "1.24.13"
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
-      - name: Run golang tests
-        run: cd node && go test -v -timeout 5m -race ./...
+      - name: Run golang tests with coverage
+        run: make test-coverage
+      - name: Upload coverage output
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-coverage-output
+          path: coverage.txt
+
+  node-coverage-check:
+    needs: node-tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1.24.13"
+      - name: Download coverage output
+        uses: actions/download-artifact@v4
+        with:
+          name: node-coverage-output
+          path: .
+      - name: Build coverage check tool
+        run: make build-coverage-check
+      - name: Check coverage against baseline
+        run: ./coverage-check
 
   # Run Rust lints and tests
   rust-lint-and-tests:
@@ -357,10 +369,10 @@ jobs:
           # SVM directory (shims code)
           - path: svm/wormhole-core-shims/Cargo.toml
             args: "--workspace --no-default-features --features solana" # The crate by default requires environment variables. If solana is specified, mainnet values are used.
-            test_args: "--lib"  # Skip integration tests; they require compiled BPF programs
+            test_args: "--lib" # Skip integration tests; they require compiled BPF programs
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
-            test_args: "--lib"  # Skip doctests; anchor interfaces lack solana_program dependency
+            test_args: "--lib" # Skip doctests; anchor interfaces lack solana_program dependency
           # Token Metadata parser for SVM token bridge
           - path: solana/modules/token_bridge/token_metadata_parser/Cargo.toml
             args: "--workspace"
