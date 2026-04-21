@@ -1,16 +1,21 @@
-//! Wormhole Core Contract Interface for Stellar/Soroban.
+//! Wormhole Core and Executor Contract Interfaces for Stellar/Soroban.
 //!
 //! This crate provides the public API for interacting with the Wormhole Core
-//! contract. External contracts should depend only on this interface crate for
-//! smaller WASM binaries, while the implementation lives in
-//! `wormhole-contract`.
+//! and Executor contracts. External contracts should depend only on this
+//! interface crate for smaller WASM binaries, while the implementations live
+//! in `wormhole-contract` and `wormhole-executor`.
 //!
 //! # Key Types
 //!
+//! Wormhole Core:
 //! - [`VAA`] - Verifiable Action Approval, the core cross-chain message format
 //! - [`GuardianSetInfo`] - Guardian set metadata stored on-chain
 //! - [`ConsistencyLevel`] - Finality requirements for message attestation
-//! - [`WormholeError`] - All possible error conditions
+//! - [`WormholeError`] - Wormhole Core error conditions
+//!
+//! Executor:
+//! - [`SignedQuote`] - Off-chain quote payload
+//! - [`ExecutorError`] - Executor error conditions
 //!
 //! # Example
 //!
@@ -34,10 +39,10 @@ pub mod types;
 
 pub use bytes_reader::BytesReader;
 pub use constants::*;
-pub use error::WormholeError;
+pub use error::{ExecutorError, WormholeError};
 pub use types::*;
 
-use soroban_sdk::{Address, Bytes, BytesN, Env, contractclient};
+use soroban_sdk::{Address, Bytes, BytesN, Env, String, contractclient};
 
 /// Complete public interface for the Wormhole Core contract.
 ///
@@ -266,4 +271,92 @@ pub trait WormholeCoreInterface {
     /// # Returns
     /// 32-byte governance emitter address
     fn get_governance_emitter(env: Env) -> BytesN<32>;
+}
+
+/// Public interface for the Wormhole Executor contract.
+///
+/// The Executor is a prepaid cross-chain delivery payment rail. A `payer`
+/// submits a [`SignedQuote`] alongside a delivery request, the contract
+/// validates the quote, transfers the agreed `amount` of native token from
+/// the payer to the quote's `payee`, and emits an event consumed by
+/// off-chain relayers that fulfil the delivery on the destination chain.
+///
+/// # Quote authentication is NOT performed on-chain
+///
+/// Despite its name, [`SignedQuote`] is **not** verified by the Executor.
+/// Neither the [`SignedQuote::prefix`] domain tag nor the `quoter`'s
+/// signature over the quote are checked on chain. Quote authentication is a
+/// caller-side responsibility, performed off-chain by the relayer SDK before
+/// the transaction is submitted.
+#[contractclient(name = "ExecutorClient")]
+pub trait ExecutorInterface {
+    /// Returns the Wormhole chain id configured at construction.
+    fn chain_id(env: Env) -> u32;
+
+    /// Returns the version string of the Executor implementation
+    /// (e.g. `"Executor-0.0.1"`).
+    fn executor_version(env: Env) -> String;
+
+    /// Records a prepaid cross-chain delivery request.
+    ///
+    /// Validates the [`SignedQuote`], requires the payer's authorization,
+    /// transfers `amount` native tokens from `payer` to
+    /// `signed_quote.payee`, and emits a `RequestForExecution` event
+    /// consumed by off-chain relayers.
+    ///
+    /// # Arguments
+    ///
+    /// * `dst_chain` - Wormhole chain id of the destination chain. Must equal
+    ///   `signed_quote.dst_chain`.
+    /// * `dst_addr_wa32` - 32-byte destination address in Wormhole's
+    ///   left-zero-padded encoding. Pass-through; not validated.
+    /// * `refund` - Address the off-chain relayer should refund on delivery
+    ///   failure. Pass-through metadata; not used on chain.
+    /// * `payer` - Address that pays the `amount` and whose authorization is
+    ///   required for the token transfer.
+    /// * `amount` - Amount in stroops of the native token (XLM via the Stellar
+    ///   Asset Contract at [`NATIVE_TOKEN_ADDRESS`]) transferred from `payer`
+    ///   to `signed_quote.payee`. Must be non-negative; may be zero.
+    /// * `signed_quote` - Off-chain-signed quote (see [`SignedQuote`] for the
+    ///   authentication caveat). Only `src_chain`, `dst_chain`, `expiry` and
+    ///   `payee` are used by on-chain logic.
+    /// * `request` - Opaque delivery request payload forwarded to off-chain
+    ///   relayers via the emitted event.
+    /// * `relay_instructions` - Opaque relaying instructions forwarded to
+    ///   off-chain relayers via the emitted event.
+    ///
+    /// # Errors
+    ///
+    /// Returns:
+    ///
+    /// - [`ExecutorError::InvalidAmount`] if `amount < 0`.
+    /// - [`ExecutorError::QuoteSrcChainMismatch`] if `signed_quote.src_chain`
+    ///   does not match the configured chain id.
+    /// - [`ExecutorError::QuoteDstChainMismatch`] if `signed_quote.dst_chain`
+    ///   does not match the `dst_chain` argument.
+    /// - [`ExecutorError::QuoteExpired`] if `signed_quote.expiry <=
+    ///   env.ledger().timestamp()`.
+    ///
+    /// # Authorization
+    ///
+    /// Calls `payer.require_auth()` before transferring the native token;
+    /// the transaction must therefore include the payer's authorization.
+    ///
+    /// # Events
+    ///
+    /// On success, publishes exactly one `RequestForExecution` event with
+    /// topics `["Executor", "RequestForExecution"]` after the token
+    /// transfer has completed.
+    #[allow(clippy::too_many_arguments)]
+    fn request_execution(
+        env: Env,
+        dst_chain: u32,
+        dst_addr_wa32: BytesN<32>,
+        refund: Address,
+        payer: Address,
+        amount: i128,
+        signed_quote: SignedQuote,
+        request: Bytes,
+        relay_instructions: Bytes,
+    ) -> Result<(), ExecutorError>;
 }

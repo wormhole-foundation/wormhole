@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "contracts/wormhole-soroban-client",
   "contracts/wormhole-contract",
+  "contracts/wormhole-executor",
   "integration-tests"
 ]
 
