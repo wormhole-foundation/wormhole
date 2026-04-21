@@ -8,8 +8,7 @@
 /aptos/ @kcsongor
 /bitcoin/ @evan-gray
 /cosmwasm/ @mdulin2 @kcsongor
-/ethereum/ @gator-boi @kcsongor
-/ethereum/env/ @gator-boi @kcsongor @evan-gray
+/ethereum/ @kcsongor @evan-gray @douglasgalico
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor 
 /sui/ @kcsongor @gator-boi
