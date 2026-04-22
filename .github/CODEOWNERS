@@ -62,15 +62,10 @@
 
 ## Admin Client
 
-/node/pkg/adminclient/ @evan-gray @panoel @johnsaigle @pleasew8t @djb15 @mdulin2
-
-## Admin Server
-#
-/node/pkg/adminserver/ @evan-gray @panoel @johnsaigle @pleasew8t @djb15 @mdulin2
+/node/pkg/adminrpc/ @evan-gray @panoel @johnsaigle @pleasew8t @djb15 @mdulin2
 
 ## Common
-/node/pkg/common/ @panoel @evan-gray @johnsaigle @pleasew8t
-/node/pkg/common/pendingmessage* @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/common/ @panoel @evan-gray @johnsaigle @pleasew8t @mdulin2
 
 ## DB
 
@@ -118,7 +113,7 @@
 
 ## Query
 
-/node/pkg/query/ @evan-gray @panoel
+/node/pkg/query/ @evan-gray @panoel @djb15 @bemic
 
 ## Public RPC
 
@@ -159,8 +154,7 @@
 
 ## Hacks / Tools
 
-/node/hack/ @panoel @evan-gray @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/hack/ @evan-gray @panoel @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic @SEJeff
 
 ## Documentation
 
