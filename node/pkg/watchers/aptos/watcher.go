@@ -79,7 +79,7 @@ func NewWatcher(
 }
 
 func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
-	validated, err := watchers.ValidateObservationRequest(req, e.chainID)
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
 	if err != nil {
 		return watchers.ValidObservation{}, err
 	}
@@ -92,11 +92,11 @@ func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObse
 	// SECURITY: This acts as a bounds check for the BigEndian.Uint64 call in the
 	// reobservation handler.
 	const aptosTxIDExpectedLen = 32
-	if len(validated.TxHash()) < aptosTxIDExpectedLen {
+	if len(validatedObservation.TxHash()) < aptosTxIDExpectedLen {
 		return watchers.ValidObservation{}, fmt.Errorf("invalid TxID: too short")
 	}
 
-	return validated, nil
+	return validatedObservation, nil
 }
 
 func (e *Watcher) ChainID() vaa.ChainID {
@@ -170,19 +170,19 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			validated, err := e.Validate(r)
+			validatedObservation, err := e.Validate(r)
 			if err != nil {
 				watchers.LogInvalidObservationRequest(logger, r, err)
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
 			}
 
-			txHash := validated.TxHash()
+			txHash := validatedObservation.TxHash()
 
 			// uint64 will read the *first* 8 bytes, but the sequence is stored in the *last* 8.
 			nativeSeq := binary.BigEndian.Uint64(txHash[24:])
 
-			logger.Info("received observation request", validated.ZapFields(zap.Uint64("tx_hash", nativeSeq))...)
+			logger.Info("received observation request", validatedObservation.ZapFields(zap.Uint64("tx_hash", nativeSeq))...)
 
 			s := fmt.Sprintf(`%s?start=%d&limit=1`, eventsEndpoint, nativeSeq)
 
@@ -218,7 +218,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if !data.Exists() {
 					break
 				}
-				e.observeData(logger, data, nativeSeq, &validated)
+				e.observeData(logger, data, nativeSeq, &validatedObservation)
 			}
 
 		case <-timer.C:
@@ -338,8 +338,8 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 	return body, err
 }
 
-func (w *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64, validated *watchers.ValidObservation) {
-	isReobservation := validated != nil
+func (w *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64, validatedObservation *watchers.ValidObservation) {
+	isReobservation := validatedObservation != nil
 	em := data.Get("sender")
 	if !em.Exists() {
 		logger.Error("sender field missing")
@@ -424,8 +424,8 @@ func (w *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 
 	logger.Info("message observed", observation.ZapFields(zap.String("txHash", observation.TxIDString()), zap.Uint8("consistencyLevel", observation.ConsistencyLevel))...)
 
-	if validated != nil {
-		if err := w.PublishReobservation(*validated, observation); err != nil {
+	if validatedObservation != nil {
+		if err := w.PublishReobservation(*validatedObservation, observation); err != nil {
 			logger.Error("failed to publish reobservation", zap.Error(err))
 			return
 		}

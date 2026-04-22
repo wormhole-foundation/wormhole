@@ -201,10 +201,10 @@ func TestObserveDataFields(t *testing.T) {
 		"consistency_level": "15"
 	}`
 
-	validated, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, common.TxIDLenMin)}, vaa.ChainIDAptos)
+	validatedObservation, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, common.TxIDLenMin)}, vaa.ChainIDAptos)
 	require.NoError(t, err)
 
-	w.observeData(logger, gjson.Parse(json), 123, &validated)
+	w.observeData(logger, gjson.Parse(json), 123, &validatedObservation)
 	require.Len(t, msgC, 1)
 	msg := <-msgC
 

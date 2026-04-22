@@ -20,19 +20,19 @@ func TestValidateObservationRequest(t *testing.T) {
 	})
 
 	t.Run("accepts expected chain", func(t *testing.T) {
-		validated, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
+		validatedObservation, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
 			ChainId:   uint32(vaa.ChainIDSui),
 			TxHash:    []byte{1, 2, 3},
 			Timestamp: 1234,
 		}, vaa.ChainIDSui)
 		require.NoError(t, err)
-		assert.Equal(t, vaa.ChainIDSui, validated.ChainID())
-		assert.Equal(t, []byte{1, 2, 3}, validated.TxHash())
-		assert.Equal(t, int64(1234), validated.Timestamp())
+		assert.Equal(t, vaa.ChainIDSui, validatedObservation.ChainID())
+		assert.Equal(t, []byte{1, 2, 3}, validatedObservation.TxHash())
+		assert.Equal(t, int64(1234), validatedObservation.Timestamp())
 
-		original := validated.TxHash()
+		original := validatedObservation.TxHash()
 		original[0] = 99
-		assert.Equal(t, []byte{1, 2, 3}, validated.TxHash())
+		assert.Equal(t, []byte{1, 2, 3}, validatedObservation.TxHash())
 	})
 
 	t.Run("rejects unknown chain number", func(t *testing.T) {
@@ -54,45 +54,45 @@ func TestValidateObservationRequest(t *testing.T) {
 	})
 
 	t.Run("tx hash length helper", func(t *testing.T) {
-		validated, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
+		validatedObservation, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
 			ChainId: uint32(vaa.ChainIDSui),
 			TxHash:  make([]byte, common.TxIDLenMin),
 		}, vaa.ChainIDSui)
 		require.NoError(t, err)
-		require.NoError(t, validated.RequireTxHashLength(common.TxIDLenMin))
-		require.Error(t, validated.RequireTxHashLength(64))
+		require.NoError(t, validatedObservation.RequireTxHashLength(common.TxIDLenMin))
+		require.Error(t, validatedObservation.RequireTxHashLength(64))
 	})
 }
 
 func TestValidateReobservedMessage(t *testing.T) {
-	validated, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
+	validatedObservation, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
 		ChainId: uint32(vaa.ChainIDSui),
 		TxHash:  make([]byte, common.TxIDLenMin),
 	}, vaa.ChainIDSui)
 	require.NoError(t, err)
 
 	t.Run("rejects nil message", func(t *testing.T) {
-		require.Error(t, ValidateReobservedMessage(validated, nil))
+		require.Error(t, ValidateReobservedMessage(validatedObservation, nil))
 	})
 
 	t.Run("rejects mismatched chain", func(t *testing.T) {
 		msg := &common.MessagePublication{EmitterChain: vaa.ChainIDEthereum}
-		require.Error(t, ValidateReobservedMessage(validated, msg))
+		require.Error(t, ValidateReobservedMessage(validatedObservation, msg))
 	})
 
 	msg := &common.MessagePublication{EmitterChain: vaa.ChainIDSui}
-	require.NoError(t, ValidateReobservedMessage(validated, msg))
+	require.NoError(t, ValidateReobservedMessage(validatedObservation, msg))
 }
 
 func TestValidObservationZapFields(t *testing.T) {
-	validated, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
+	validatedObservation, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
 		ChainId:   uint32(vaa.ChainIDSui),
 		TxHash:    []byte{0xAA, 0xBB},
 		Timestamp: 42,
 	}, vaa.ChainIDSui)
 	require.NoError(t, err)
 
-	fields := validated.ZapFields(zap.String("extra", "value"))
+	fields := validatedObservation.ZapFields(zap.String("extra", "value"))
 	require.Len(t, fields, 5)
 	assert.Equal(t, zap.String("extra", "value").Key, fields[0].Key)
 	assert.Equal(t, "chainID", fields[1].Key)

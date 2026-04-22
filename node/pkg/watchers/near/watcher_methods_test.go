@@ -38,13 +38,13 @@ func TestWatcherValidate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validated, err := newTestWatcher(make(chan *common.MessagePublication, 1)).Validate(tt.req)
+			validatedObservation, err := newTestWatcher(make(chan *common.MessagePublication, 1)).Validate(tt.req)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.req.GetTxHash(), validated.TxHash())
+			assert.Equal(t, tt.req.GetTxHash(), validatedObservation.TxHash())
 		})
 	}
 }
@@ -73,7 +73,7 @@ func TestWatcherPublishMessage(t *testing.T) {
 }
 
 func TestWatcherPublishReobservation(t *testing.T) {
-	validated, err := newTestWatcher(make(chan *common.MessagePublication, 1)).Validate(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDNear), TxHash: make([]byte, common.TxIDLenMin)})
+	validatedObservation, err := newTestWatcher(make(chan *common.MessagePublication, 1)).Validate(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDNear), TxHash: make([]byte, common.TxIDLenMin)})
 	require.NoError(t, err)
 	tests := []struct {
 		name    string
@@ -86,7 +86,7 @@ func TestWatcherPublishReobservation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msgC := make(chan *common.MessagePublication, 1)
-			err := newTestWatcher(msgC).PublishReobservation(validated, tt.msg)
+			err := newTestWatcher(msgC).PublishReobservation(validatedObservation, tt.msg)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

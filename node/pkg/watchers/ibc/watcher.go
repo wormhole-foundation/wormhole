@@ -181,12 +181,12 @@ func NewWatcher(
 }
 
 func (ce *chainEntry) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
-	validated, err := watchers.ValidateObservationRequest(req, ce.chainID)
+	validatedObservation, err := watchers.ValidateObservationRequest(req, ce.chainID)
 	if err != nil {
 		return watchers.ValidObservation{}, err
 	}
 
-	return validated, nil
+	return validatedObservation, nil
 }
 
 func (ce *chainEntry) ChainID() vaa.ChainID {
@@ -473,7 +473,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 		case <-ctx.Done():
 			return nil
 		case r := <-ce.obsvReqC:
-			validated, err := ce.Validate(r)
+			validatedObservation, err := ce.Validate(r)
 			if err != nil {
 				watchers.LogInvalidObservationRequest(w.logger, r, err, zap.String("chain", ce.chainName))
 				continue
@@ -482,8 +482,8 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 			// SECURITY: Directly using data for URL path is scary.
 			// Potential for directory traversal attacks to return the incorrect data
 			// This is hex encoded so it's acceptable but be careful changing this logic.
-			reqTxHashStr := hex.EncodeToString(validated.TxHash())
-			w.logger.Info("received observation request", validated.ZapFields(zap.String("chain", ce.chainName), zap.String("txHash", reqTxHashStr))...)
+			reqTxHashStr := hex.EncodeToString(validatedObservation.TxHash())
+			w.logger.Info("received observation request", validatedObservation.ZapFields(zap.String("chain", ce.chainName), zap.String("txHash", reqTxHashStr))...)
 
 			client := &http.Client{
 				Timeout: time.Second * 5,
@@ -539,7 +539,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 					}
 
 					if evt != nil {
-						if err := w.processIbcReceivePublishEvent(evt, "reobservation", &validated); err != nil {
+						if err := w.processIbcReceivePublishEvent(evt, "reobservation", &validatedObservation); err != nil {
 							return fmt.Errorf("failed to process reobserved IBC event: %w", err)
 						}
 					}
@@ -637,7 +637,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 }
 
 // processIbcReceivePublishEvent takes an IBC event, maps it to a message publication and publishes it.
-func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, observationType string, validated *watchers.ValidObservation) error {
+func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, observationType string, validatedObservation *watchers.ValidObservation) error {
 
 	// SECURITY: The ibc watcher is the only watcher that can handle multiple chain IDs
 	// To make this safe, it has a mapping from channel ID to chain IDs that it uses
@@ -725,8 +725,8 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 	)
 
-	if validated != nil {
-		if err := ce.PublishReobservation(*validated, evt.Msg); err != nil {
+	if validatedObservation != nil {
+		if err := ce.PublishReobservation(*validatedObservation, evt.Msg); err != nil {
 			return err
 		}
 	} else {

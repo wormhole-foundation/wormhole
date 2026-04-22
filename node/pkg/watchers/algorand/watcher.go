@@ -95,12 +95,12 @@ func NewWatcher(
 }
 
 func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
-	validated, err := watchers.ValidateObservationRequest(req, e.chainID)
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
 	if err != nil {
 		return watchers.ValidObservation{}, err
 	}
 
-	return validated, nil
+	return validatedObservation, nil
 }
 
 func (e *Watcher) ChainID() vaa.ChainID {
@@ -193,8 +193,8 @@ func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *
 // lookAtTxn takes an outer transaction from the block.payset and gathers
 // observations from messages emitted in nested inner transactions
 // then passes them on the relevant channels
-func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger, validated *watchers.ValidObservation) {
-	isReobservation := validated != nil
+func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger, validatedObservation *watchers.ValidObservation) {
+	isReobservation := validatedObservation != nil
 
 	observations := gatherObservations(e, t.SignedTxnWithAD, 0, logger)
 
@@ -234,8 +234,8 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 
 		logger.Info("message observed", observation.ZapFields()...)
 
-		if validated != nil {
-			if err := e.PublishReobservation(*validated, observation); err != nil {
+		if validatedObservation != nil {
+			if err := e.PublishReobservation(*validatedObservation, observation); err != nil {
 				logger.Error("failed to publish reobservation", zap.Error(err))
 				continue
 			}
@@ -304,7 +304,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case r := <-e.obsvReqC:
-			validated, err := e.Validate(r)
+			validatedObservation, err := e.Validate(r)
 			if err != nil {
 				watchers.LogInvalidObservationRequest(logger, r, err)
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -313,13 +313,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			logger.Info(
 				"received observation request",
-				validated.ZapFields(
-					zap.String("tx_hash", hex.EncodeToString(validated.TxHash())),
-					zap.String("base32_tx_hash", base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(validated.TxHash())),
+				validatedObservation.ZapFields(
+					zap.String("tx_hash", hex.EncodeToString(validatedObservation.TxHash())),
+					zap.String("base32_tx_hash", base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(validatedObservation.TxHash())),
 				)...,
 			)
 
-			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(validated.TxHash())).Do(ctx)
+			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(validatedObservation.TxHash())).Do(ctx)
 			if err != nil {
 				logger.Error("SearchForTransactions", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -336,7 +336,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for _, element := range block.Payset {
-					lookAtTxn(e, element, block, logger, &validated)
+					lookAtTxn(e, element, block, logger, &validatedObservation)
 				}
 			}
 

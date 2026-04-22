@@ -173,9 +173,9 @@ func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 	}
 
 	// Finally, do the reobservation and return the number of messages observed.
-	validated, err := w.Validate(&gossipv1.ObservationRequest{ChainId: uint32(chainID), TxHash: txID})
+	validatedObservation, err := w.Validate(&gossipv1.ObservationRequest{ChainId: uint32(chainID), TxHash: txID})
 	if err != nil {
 		return 0, err
 	}
-	return w.handleReobservationRequest(ctx, validated, ethConn, finalized, safe)
+	return w.handleReobservationRequest(ctx, validatedObservation, ethConn, finalized, safe)
 }

@@ -40,13 +40,13 @@ func TestChainEntryValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validated, err := newTestChainEntry(make(chan *common.MessagePublication, 1)).Validate(tt.req)
+			validatedObservation, err := newTestChainEntry(make(chan *common.MessagePublication, 1)).Validate(tt.req)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.req.GetTxHash(), validated.TxHash())
+			assert.Equal(t, tt.req.GetTxHash(), validatedObservation.TxHash())
 		})
 	}
 }
@@ -76,7 +76,7 @@ func TestChainEntryPublishMessage(t *testing.T) {
 }
 
 func TestChainEntryPublishReobservation(t *testing.T) {
-	validated, err := newTestChainEntry(make(chan *common.MessagePublication, 1)).Validate(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDOsmosis), TxHash: make([]byte, common.TxIDLenMin)})
+	validatedObservation, err := newTestChainEntry(make(chan *common.MessagePublication, 1)).Validate(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDOsmosis), TxHash: make([]byte, common.TxIDLenMin)})
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -91,7 +91,7 @@ func TestChainEntryPublishReobservation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msgC := make(chan *common.MessagePublication, 1)
-			err := newTestChainEntry(msgC).PublishReobservation(validated, tt.msg)
+			err := newTestChainEntry(msgC).PublishReobservation(validatedObservation, tt.msg)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

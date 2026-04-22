@@ -268,12 +268,12 @@ func NewWatcher(
 }
 
 func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
-	validated, err := watchers.ValidateObservationRequest(req, e.chainID)
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
 	if err != nil {
 		return watchers.ValidObservation{}, err
 	}
 
-	return validated, nil
+	return validatedObservation, nil
 }
 
 func (e *Watcher) ChainID() vaa.ChainID {
@@ -303,8 +303,8 @@ func (e *Watcher) PublishReobservation(observation watchers.ValidObservation, ms
 	return e.PublishMessage(msg)
 }
 
-func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiResult, validated *watchers.ValidObservation) error {
-	isReobservation := validated != nil
+func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiResult, validatedObservation *watchers.ValidObservation) error {
+	isReobservation := validatedObservation != nil
 	if body.ID.TxDigest == nil {
 		return errors.New("missing TxDigest field")
 	}
@@ -379,21 +379,22 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 
 	// Verifies the observation through the Sui transaction verifier, if enabled, followed
 	// by publishing the observation to the message channel.
-	if validated != nil {
+	var publishErr error
+	if validatedObservation != nil {
 		if e.suiTxVerifier != nil {
 			verifiedMsg, verifyErr := e.verify(ctx, observation, *body.ID.TxDigest, logger)
 			if verifyErr != nil {
-				err = verifyErr
+				publishErr = verifyErr
 			} else {
 				observation = &verifiedMsg
 			}
 		}
 
-		if err == nil {
-			err = e.PublishReobservation(*validated, observation)
+		if publishErr == nil {
+			publishErr = e.PublishReobservation(*validatedObservation, observation)
 		}
 
-		if err == nil {
+		if publishErr == nil {
 			logger.Info("message observed", observation.ZapFields()...)
 			return nil
 		}
@@ -401,24 +402,24 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 		if e.suiTxVerifier != nil {
 			verifiedMsg, verifyErr := e.verify(ctx, observation, *body.ID.TxDigest, logger)
 			if verifyErr != nil {
-				err = verifyErr
+				publishErr = verifyErr
 			} else {
 				observation = &verifiedMsg
 			}
 		}
-		if err == nil {
-			err = e.PublishMessage(observation)
+		if publishErr == nil {
+			publishErr = e.PublishMessage(observation)
 		}
-		if err == nil {
+		if publishErr == nil {
 			logger.Info("message observed", observation.ZapFields()...)
 		}
 	}
 
-	if err != nil {
+	if publishErr != nil {
 		suiTransferVerifierFailures.Inc()
 		logger.Error("Message publication error",
 			zap.String("TxDigest", *body.ID.TxDigest),
-			zap.Error(err))
+			zap.Error(publishErr))
 	}
 
 	return nil
@@ -523,13 +524,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error("sui_fetch_obvs_req context done")
 				return ctx.Err()
 			case r := <-e.obsvReqC:
-				validated, err := e.Validate(r)
+				validatedObservation, err := e.Validate(r)
 				if err != nil {
 					watchers.LogInvalidObservationRequest(logger, r, err)
 					continue
 				}
 
-				tx58 := base58.Encode(validated.TxHash())
+				tx58 := base58.Encode(validatedObservation.TxHash())
 
 				payload := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": ["%s"]}`, tx58)
 
@@ -567,9 +568,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for i, chunk := range res.Result {
-					err := e.inspectBody(ctx, logger, chunk, &validated)
-					if err != nil {
-						logger.Info("sui_fetch_obvs_req skipping event data in result", zap.String("txhash", tx58), zap.Int("index", i), zap.Error(err))
+					inspectErr := e.inspectBody(ctx, logger, chunk, &validatedObservation)
+					if inspectErr != nil {
+						logger.Info("sui_fetch_obvs_req skipping event data in result", zap.String("txhash", tx58), zap.Int("index", i), zap.Error(inspectErr))
 					}
 				}
 			}

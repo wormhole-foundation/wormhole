@@ -232,12 +232,12 @@ func NewEthWatcher(
 }
 
 func (w *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
-	validated, err := watchers.ValidateObservationRequest(req, w.chainID)
+	validatedObservation, err := watchers.ValidateObservationRequest(req, w.chainID)
 	if err != nil {
 		return watchers.ValidObservation{}, err
 	}
 
-	return validated, nil
+	return validatedObservation, nil
 }
 
 func (w *Watcher) ChainID() vaa.ChainID {
@@ -464,14 +464,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
-				validated, err := w.Validate(r)
+				validatedObservation, err := w.Validate(r)
 				if err != nil {
 					watchers.LogInvalidObservationRequest(logger, r, err)
 					continue
 				}
 				numObservations, err := w.handleReobservationRequest(
 					ctx,
-					validated,
+					validatedObservation,
 					w.ethConn,
 					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
 					atomic.LoadUint64(&w.latestSafeBlockNumber),

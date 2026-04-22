@@ -331,10 +331,10 @@ func TestLookAtTxn_Reobservation(t *testing.T) {
 		BlockHeader: types.BlockHeader{TimeStamp: 1700000000},
 	}
 
-	validated, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAlgorand), TxHash: make([]byte, common.TxIDLenMin)}, vaa.ChainIDAlgorand)
+	validatedObservation, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAlgorand), TxHash: make([]byte, common.TxIDLenMin)}, vaa.ChainIDAlgorand)
 	require.NoError(t, err)
 
-	lookAtTxn(w, txn, block, logger, &validated)
+	lookAtTxn(w, txn, block, logger, &validatedObservation)
 
 	select {
 	case msg := <-msgC:

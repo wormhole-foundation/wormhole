@@ -133,12 +133,12 @@ func newTransactionProcessingJob(txHash string, senderAccountId string, isReobse
 }
 
 func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
-	validated, err := watchers.ValidateObservationRequest(req, e.chainID)
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
 	if err != nil {
 		return watchers.ValidObservation{}, err
 	}
 
-	return validated, nil
+	return validatedObservation, nil
 }
 
 func (e *Watcher) ChainID() vaa.ChainID {
@@ -242,21 +242,21 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			validated, err := e.Validate(r)
+			validatedObservation, err := e.Validate(r)
 			if err != nil {
 				watchers.LogInvalidObservationRequest(logger, r, err, zap.String("txIDBase58", base58.Encode(r.GetTxHash())))
 				continue
 			}
 
-			txHash := base58.Encode(validated.TxHash())
+			txHash := base58.Encode(validatedObservation.TxHash())
 
-			logger.Info("received observation request", validated.ZapFields(zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", txHash))...)
+			logger.Info("received observation request", validatedObservation.ZapFields(zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", txHash))...)
 
 			// TODO e.wormholeContract is not the correct value for senderAccountId. Instead, it should be the account id of the transaction sender.
 			// This value is used by NEAR to determine which shard to query. An incorrect value here is not a security risk but could lead to reobservation requests failing.
 			// Guardians currently run nodes for all shards and the API seems to be returning the correct results independent of the set senderAccountId but this could change in the future.
 			// Fixing this would require adding the transaction sender account ID to the observation request.
-			job := newTransactionProcessingJob(txHash, e.wormholeAccount, true, &validated)
+			job := newTransactionProcessingJob(txHash, e.wormholeAccount, true, &validatedObservation)
 			err = e.schedule(ctx, job, time.Nanosecond)
 			if err != nil {
 				// Error-level logging here because this is after an re-observation request already, which should be infrequent

@@ -67,9 +67,9 @@ func (s *SolanaWatcher) Reobserve(_ context.Context, chainID vaa.ChainID, txID [
 	s.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("url", customEndpoint))
 	rpcClient := rpc.New(customEndpoint)
 	//nolint:contextcheck // See comment above for the reason why we don't use the passed in context.
-	validated, err := s.Validate(&gossipv1.ObservationRequest{ChainId: uint32(chainID), TxHash: txID})
+	validatedObservation, err := s.Validate(&gossipv1.ObservationRequest{ChainId: uint32(chainID), TxHash: txID})
 	if err != nil {
 		return 0, err
 	}
-	return s.handleReobservationRequest(s.ctx, validated, rpcClient)
+	return s.handleReobservationRequest(s.ctx, validatedObservation, rpcClient)
 }

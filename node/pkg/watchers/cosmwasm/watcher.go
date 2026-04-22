@@ -146,12 +146,12 @@ func NewWatcher(
 }
 
 func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
-	validated, err := watchers.ValidateObservationRequest(req, e.chainID)
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
 	if err != nil {
 		return watchers.ValidObservation{}, err
 	}
 
-	return validated, nil
+	return validatedObservation, nil
 }
 
 func (e *Watcher) ChainID() vaa.ChainID {
@@ -288,7 +288,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-e.obsvReqC:
-				validated, err := e.Validate(r)
+				validatedObservation, err := e.Validate(r)
 				if err != nil {
 					watchers.LogInvalidObservationRequest(logger, r, err)
 					continue
@@ -297,9 +297,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 				// SECURITY: Directly using data for URL path is scary.
 				// Potential for directory traversal attacks to return the incorrect data
 				// This is hex encoded so it's acceptable but be careful changing this logic.
-				tx := hex.EncodeToString(validated.TxHash())
+				tx := hex.EncodeToString(validatedObservation.TxHash())
 
-				logger.Info("received observation request", validated.ZapFields(zap.String("network", e.networkName), zap.String("tx_hash", tx))...)
+				logger.Info("received observation request", validatedObservation.ZapFields(zap.String("network", e.networkName), zap.String("tx_hash", tx))...)
 
 				client := &http.Client{
 					Timeout: time.Second * 5,
@@ -351,7 +351,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
-					if err := e.PublishReobservation(validated, msg); err != nil {
+					if err := e.PublishReobservation(validatedObservation, msg); err != nil {
 						logger.Error("failed to publish reobservation", zap.Error(err))
 						continue
 					}

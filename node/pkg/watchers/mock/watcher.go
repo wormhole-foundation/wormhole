@@ -68,17 +68,17 @@ func (w *Watcher) Run(ctx context.Context) error {
 		case gs := <-w.config.MockSetC:
 			w.setC <- gs //nolint:channelcheck // Will only block this mock watcher
 		case o := <-w.obsvReqC:
-			validated, err := w.Validate(o)
+			validatedObservation, err := w.Validate(o)
 			if err != nil {
 				watchers.LogInvalidObservationRequest(logger, o, err)
 				continue
 			}
-			hash := eth_common.BytesToHash(validated.TxHash())
-			logger.Info("received observation request", validated.ZapFields(zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", hash.Hex()))...)
+			hash := eth_common.BytesToHash(validatedObservation.TxHash())
+			logger.Info("received observation request", validatedObservation.ZapFields(zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", hash.Hex()))...)
 			msg, ok := w.config.ObservationDb[hash]
 			if ok {
 				msg2 := *msg
-				if err := w.PublishReobservation(validated, &msg2); err != nil {
+				if err := w.PublishReobservation(validatedObservation, &msg2); err != nil {
 					logger.Error("failed to publish reobservation", zap.Error(err))
 				}
 			}
