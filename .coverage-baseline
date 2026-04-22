@@ -34,7 +34,7 @@ github.com/certusone/wormhole/node/pkg/gwrelayer 31.9
 github.com/certusone/wormhole/node/pkg/manager 23.3
 github.com/certusone/wormhole/node/pkg/manager/delegatedmanagersetabi 0.0
 github.com/certusone/wormhole/node/pkg/manager/dogecoin 93.8
-github.com/certusone/wormhole/node/pkg/node 66.8
+github.com/certusone/wormhole/node/pkg/node 65.2
 github.com/certusone/wormhole/node/pkg/notary 36.9
 github.com/certusone/wormhole/node/pkg/p2p 40.3
 github.com/certusone/wormhole/node/pkg/processor 10.2
