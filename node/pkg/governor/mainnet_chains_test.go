@@ -75,6 +75,13 @@ func TestChainListBigTransfers(t *testing.T) {
 
 		// If the chain has a daily limit of $10,000 or less we don't make the same contraints on big tx size
 		if e.DailyLimit <= 10_000 {
+			assert.LessOrEqual(t, e.BigTransactionSize, e.DailyLimit,
+				fmt.Sprintf(
+					"Chain %s has a daily limit of %d but a big transaction size of %d which exceeds the daily limit",
+					e.EmitterChainID,
+					e.DailyLimit,
+					e.BigTransactionSize,
+				))
 			continue
 		}
 
