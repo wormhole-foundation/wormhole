@@ -32,13 +32,13 @@ jobs:
       - name: Check repo access
         id: auth
         run: |
-          permission=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission' 2>/dev/null || echo "none")
+          permission=$(gh api repos/${{ github.repository }}/collaborators/${GITHUB_ACTOR}/permission --jq '.permission' 2>/dev/null || echo "none")
           echo "permission=$permission"
           if [ "$permission" = "write" ] || [ "$permission" = "admin" ]; then
             echo "authorized=true" >> "$GITHUB_OUTPUT"
           else
             echo "authorized=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Actor ${{ github.actor }} has no access to this repository"
+            echo "::warning::Actor ${GITHUB_ACTOR} has no access to this repository"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,7 +66,7 @@ jobs:
         if: steps.auth.outputs.authorized == 'true'
         uses: anthropics/claude-code-action@ade221fd1c400376a4799977d683a4eda09f9d7c # v1.0.60
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }} # zizmor: ignore[secrets-outside-env] -- secret gated via prior auth checks
           # Use the workflow token directly so the action does not need OIDC.
           # This was verified in CI: the action succeeds without id-token: write
           # when github_token is passed explicitly.
