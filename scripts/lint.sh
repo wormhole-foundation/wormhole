@@ -4,7 +4,7 @@
 set -eo pipefail -o nounset
 
 ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
-DOCKERFILE="$ROOT/scripts/Dockerfile.lint"
+DOCKERFILE="$ROOT/Dockerfile.lint"
 
 VALID_COMMANDS=("lint" "format")
 
