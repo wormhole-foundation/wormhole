@@ -150,22 +150,22 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		// upstream host is defined so we query upstream and save the response
 		cache_status = "cache_miss"
 
-		proxyReq, err := s.ProxyReq(s.logger, req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		proxyReq, proxyErr := s.ProxyReq(s.logger, req)
+		if proxyErr != nil {
+			http.Error(w, proxyErr.Error(), http.StatusBadRequest)
 			return
 		}
 
 		httpClient := http.Client{}
-		resp, err := httpClient.Do(proxyReq)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+		resp, reqErr := httpClient.Do(proxyReq)
+		if reqErr != nil {
+			http.Error(w, reqErr.Error(), http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
-		respBody, err := common.SafeRead(resp.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+		respBody, readErr := common.SafeRead(resp.Body)
+		if readErr != nil {
+			http.Error(w, readErr.Error(), http.StatusBadGateway)
 			return
 		}
 
