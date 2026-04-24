@@ -36,5 +36,6 @@ The guardians will have a new allow list of NTTs and will be expected to submit 
    1. Add the NTT transceivers' emitters to the Guardian's allow list.
    1. Cross-register the NTT transceivers on-chain, emitting the VAAs.
    1. Submit the locking mode initialization VAA to the NTT accountant contract.
-   1. Submit the burn transceivers' locking hub registration VAA to the NTT accountant contract.
-   1. Submit the remaining registration VAAs to the NTT accountant.
+   1. Submit the hub's peer registration VAAs to the NTT accountant contract (the hub must register each spoke before the spoke can inherit the hub).
+   1. Submit the burn transceivers' locking hub registration VAAs to the NTT accountant contract (each spoke registers the hub, inheriting it — requires the hub to have pre-registered the spoke in the previous step).
+   1. Submit the remaining cross-registration VAAs to the NTT accountant.
