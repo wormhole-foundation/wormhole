@@ -404,3 +404,253 @@ func TestForDeadlock(t *testing.T) {
 	resultMsg2 := <-acctChan
 	assert.Equal(t, msg2, *resultMsg2)
 }
+
+func TestNumPendingEntries(t *testing.T) {
+	pe1 := &pendingEntry{msgId: "1"}
+	pe2 := &pendingEntry{msgId: "2"}
+	pe3 := &pendingEntry{msgId: "3"}
+	pe4 := &pendingEntry{msgId: "4"}
+
+	tmpMap := map[string][]*pendingEntry{
+		"2-aabbcc": {pe1, pe2, pe3},
+		"4-ddeeff": {pe4},
+	}
+
+	assert.Equal(t, 4, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesEmpty(t *testing.T) {
+	tmpMap := map[string][]*pendingEntry{}
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesNilMap(t *testing.T) {
+	var tmpMap map[string][]*pendingEntry
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesEmptySlices(t *testing.T) {
+	tmpMap := map[string][]*pendingEntry{
+		"1-aa": {},
+		"2-bb": {},
+		"3-cc": {},
+		"4-dd": {},
+		"5-ee": {},
+	}
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesAllNilValues(t *testing.T) {
+	tmpMap := map[string][]*pendingEntry{
+		"2-aabbcc": {nil, nil, nil},
+	}
+	assert.Equal(t, 0, numPendingEntries(tmpMap))
+}
+
+func TestNumPendingEntriesMixedNils(t *testing.T) {
+	pe1 := &pendingEntry{msgId: "1"}
+	pe2 := &pendingEntry{msgId: "2"}
+
+	tmpMap := map[string][]*pendingEntry{
+		"2-aabbcc": {pe1, nil, pe2, nil},
+		"4-ddeeff": {nil},
+	}
+	assert.Equal(t, 2, numPendingEntries(tmpMap))
+}
+
+func TestCreateAuditMapMultipleTransfersSameTxHash(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, 10)
+	acct := newAccountantForTest(t, logger, ctx, enforceAccountant, obsvReqWriteC, acctChan, nil)
+	require.NotNil(t, acct)
+
+	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	payloadBytes := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		"0x707f9118e33a9b8998bea41dd0d46f38bb963fc8",
+		vaa.ChainIDPolygon,
+		"0x707f9118e33a9b8998bea41dd0d46f38bb963fc8",
+		1.25,
+	)
+
+	// Two transfers from the same transaction (same TxID and EmitterChain) but different sequences.
+	txID := hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063")
+
+	msg1 := &common.MessagePublication{
+		TxID:             txID,
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes,
+	}
+
+	msg2 := &common.MessagePublication{
+		TxID:             txID,
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(2),
+		Sequence:         uint64(2),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes,
+	}
+
+	// Manually add both transfers to the pending map (they have different msgIds because of different sequences).
+	pe1 := &pendingEntry{msg: msg1, msgId: msg1.MessageIDString(), digest: "digest1"}
+	pe2 := &pendingEntry{msg: msg2, msgId: msg2.MessageIDString(), digest: "digest2"}
+	pe1.setUpdTime()
+	pe2.setUpdTime()
+	acct.pendingTransfers[pe1.msgId] = pe1
+	acct.pendingTransfers[pe2.msgId] = pe2
+
+	// Verify the two messages have different msgIds but the same audit key.
+	require.NotEqual(t, pe1.msgId, pe2.msgId)
+	require.Equal(t, pe1.makeAuditKey(), pe2.makeAuditKey())
+
+	tmpMap := acct.createAuditMap(false)
+
+	// There should be one key in the map (the shared audit key) with two entries.
+	assert.Equal(t, 1, len(tmpMap))
+	assert.Equal(t, 2, numPendingEntries(tmpMap))
+
+	key := pe1.makeAuditKey()
+	entries, exists := tmpMap[key]
+	require.Equal(t, true, exists)
+	assert.Equal(t, 2, len(entries))
+}
+
+func TestCreateAuditMapDifferentTxHashes(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, 10)
+	acct := newAccountantForTest(t, logger, ctx, enforceAccountant, obsvReqWriteC, acctChan, nil)
+	require.NotNil(t, acct)
+
+	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	payloadBytes := buildMockTransferPayloadBytes(3,
+		vaa.ChainIDBSC,
+		"0x0290fb167208af455bb137780163b7b7a9a10c16",
+		vaa.ChainIDEthereum,
+		"0x0290fb167208af455bb137780163b7b7a9a10c16",
+		2.50,
+	)
+
+	msg1 := &common.MessagePublication{
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes,
+	}
+
+	msg2 := &common.MessagePublication{
+		TxID:             hashToTxID("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(2),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes,
+	}
+
+	pe1 := &pendingEntry{msg: msg1, msgId: msg1.MessageIDString(), digest: "digest1"}
+	pe2 := &pendingEntry{msg: msg2, msgId: msg2.MessageIDString(), digest: "digest2"}
+	pe1.setUpdTime()
+	pe2.setUpdTime()
+	acct.pendingTransfers[pe1.msgId] = pe1
+	acct.pendingTransfers[pe2.msgId] = pe2
+
+	// Verify the two messages have different audit keys.
+	require.NotEqual(t, pe1.makeAuditKey(), pe2.makeAuditKey())
+
+	tmpMap := acct.createAuditMap(false)
+
+	// There should be two keys in the map, each with one entry.
+	assert.Equal(t, 2, len(tmpMap))
+	assert.Equal(t, 2, numPendingEntries(tmpMap))
+
+	entries1, exists := tmpMap[pe1.makeAuditKey()]
+	require.Equal(t, true, exists)
+	assert.Equal(t, 1, len(entries1))
+
+	entries2, exists := tmpMap[pe2.makeAuditKey()]
+	require.Equal(t, true, exists)
+	assert.Equal(t, 1, len(entries2))
+}
+
+func TestCreateAuditMapFiltersNTT(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, 10)
+	acct := newAccountantForTest(t, logger, ctx, enforceAccountant, obsvReqWriteC, acctChan, nil)
+	require.NotNil(t, acct)
+
+	emitterAddr, _ := vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	payloadBytes := buildMockTransferPayloadBytes(1,
+		vaa.ChainIDEthereum,
+		"0x707f9118e33a9b8998bea41dd0d46f38bb963fc8",
+		vaa.ChainIDPolygon,
+		"0x707f9118e33a9b8998bea41dd0d46f38bb963fc8",
+		1.25,
+	)
+
+	// Two transfers with the same TxID but different NTT flags.
+	txID := hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063")
+
+	msg1 := &common.MessagePublication{
+		TxID:             txID,
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes,
+	}
+
+	msg2 := &common.MessagePublication{
+		TxID:             txID,
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(2),
+		Sequence:         uint64(2),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload:          payloadBytes,
+	}
+
+	pe1 := &pendingEntry{msg: msg1, msgId: msg1.MessageIDString(), digest: "digest1", isNTT: false}
+	pe2 := &pendingEntry{msg: msg2, msgId: msg2.MessageIDString(), digest: "digest2", isNTT: true}
+	pe1.setUpdTime()
+	pe2.setUpdTime()
+	acct.pendingTransfers[pe1.msgId] = pe1
+	acct.pendingTransfers[pe2.msgId] = pe2
+
+	// createAuditMap(false) should only contain the non-NTT transfer.
+	baseMap := acct.createAuditMap(false)
+	assert.Equal(t, 1, numPendingEntries(baseMap))
+	key := pe1.makeAuditKey()
+	entries, exists := baseMap[key]
+	require.Equal(t, true, exists)
+	assert.Equal(t, 1, len(entries))
+	assert.Equal(t, pe1.msgId, entries[0].msgId)
+
+	// createAuditMap(true) should only contain the NTT transfer.
+	nttMap := acct.createAuditMap(true)
+	assert.Equal(t, 1, numPendingEntries(nttMap))
+	entries, exists = nttMap[key]
+	require.Equal(t, true, exists)
+	assert.Equal(t, 1, len(entries))
+	assert.Equal(t, pe2.msgId, entries[0].msgId)
+}
