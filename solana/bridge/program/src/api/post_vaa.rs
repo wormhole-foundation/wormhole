@@ -147,6 +147,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
     accs.message.vaa_version = vaa.version;
     accs.message.vaa_time = vaa.timestamp;
     accs.message.vaa_signature_account = *accs.signature_set.info().key;
+    accs.message.submission_time = accs.clock.unix_timestamp as u32;
     accs.message
         .create(&msg_derivation, ctx, accs.payer.key, Exempt)?;
 
@@ -155,7 +156,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
 
 /// A guardian set must not have expired.
 #[inline(always)]
-fn check_active<'r>(
+pub(crate) fn check_active<'r>(
     guardian_set: &GuardianSet<'r, { AccountState::Initialized }>,
     clock: &Sysvar<'r, Clock>,
 ) -> Result<()> {
