@@ -972,6 +972,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			EmitterChain:     v.EmitterChain,
 			EmitterAddress:   v.EmitterAddress,
 			Payload:          v.Payload,
+			IsReobservation:  false,
 			Unreliable:       false,
 		}
 

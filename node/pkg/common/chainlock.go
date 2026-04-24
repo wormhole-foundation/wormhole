@@ -364,6 +364,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 		return nil, errors.New("message is too short")
 	}
 
+	//nolint:exhaustruct // these fields are intentionally omitted
 	msg := &MessagePublication{}
 
 	reader := bytes.NewReader(data[:])
@@ -445,6 +446,7 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 		return ErrInputSize{Msg: "data too short", Got: len(data), Want: marshaledMsgLenMin}
 	}
 
+	//nolint:exhaustruct // these fields are intentionally omitted
 	mp := &MessagePublication{}
 
 	// Set up deserialization
