@@ -409,6 +409,8 @@ def build_node_yaml():
                 container["command"] += [
                     "--managerServiceEnabled",
                     "--dogecoinManagerSignerUri",
+                    "file:///tmp/bridge.key",
+                    "--xrplManagerSignerUri",
                     "file:///tmp/bridge.key"
                 ]
 

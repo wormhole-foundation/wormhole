@@ -179,13 +179,14 @@ reobservations
 Reobservations
 reobserved
 repoint
+RLUSD
 runtimes
 rustup
 satoshi
 satoshis
+SECG
 secp
 SECQ
-SECG
 seda
 seievm
 Sepolia
