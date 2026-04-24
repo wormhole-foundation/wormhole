@@ -2,5 +2,11 @@ target
 bin
 **/target
 **/node_modules
+.git
+.github
+.DS_Store
+coverage-check
+coverage.txt
 
 wormchain/build/config/gentx/
+.DS_Store

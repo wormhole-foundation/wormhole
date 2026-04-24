@@ -98,7 +98,8 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	logger.Info("Sleeping to give time for things to calm down")
-	time.Sleep(10 * time.Millisecond)
+	// TODO: Refactor this test to wait for expected observations instead of relying on time.Sleep.
+	time.Sleep(100 * time.Millisecond)
 	logger.Info("Canceling context")
 	cancel()
 	time.Sleep(10 * time.Millisecond)

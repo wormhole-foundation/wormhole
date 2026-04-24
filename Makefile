@@ -8,6 +8,8 @@ MAKEFLAGS += --no-builtin-rules
 PREFIX ?= /usr/local
 OUT = build
 BIN = $(OUT)/bin
+UNIT_DOCKER_IMAGE ?= wormhole-unit-test
+UNIT_DOCKER_RUN = docker run --rm --workdir /app --user "$$(id -u):$$(id -g)" --mount type=bind,source=$(CURDIR),target=/app $(UNIT_DOCKER_IMAGE)
 
 -include Makefile.help
 
@@ -36,10 +38,32 @@ lint:
 # Lints spelling and Go
 	bash scripts/lint.sh lint
 
+.PHONY: lint-docker
+## Run Go lints in Docker
+lint-docker:
+	bash scripts/lint.sh -c lint
+
 .PHONY: lint-rust
 lint-rust:
 # Runs clippy for most Rust crates.
 	bash scripts/clippy.sh
+
+.PHONY: build-unit-docker
+## Build the unit test container used for node/sdk Go tests
+build-unit-docker:
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile.unit -t $(UNIT_DOCKER_IMAGE) .
+
+.PHONY: test-unit
+## Run node and sdk Go unit tests
+test-unit:
+	@echo "Running unit tests for node and sdk..."
+	@cd node && go test -count=1 -v -timeout 5m -race ./...
+	@cd sdk && go test -count=1 -v -timeout 5m -race ./...
+
+.PHONY: test-docker
+## Run node and sdk Go unit tests in Docker
+test-docker: build-unit-docker
+	$(UNIT_DOCKER_RUN) make test-unit
 
 .PHONY: node
 ## Build guardiand binary
@@ -58,6 +82,11 @@ test-coverage:
 	@echo "Running tests with coverage for node and sdk..."
 	@set -o pipefail && (cd node && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
 	@set -o pipefail && (cd sdk && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
+
+.PHONY: test-coverage-docker
+## Run test-coverage in Docker
+test-coverage-docker: build-unit-docker
+	$(UNIT_DOCKER_RUN) make test-coverage
 
 .PHONY: check-coverage
 ## Check coverage against baseline (run tests first)
