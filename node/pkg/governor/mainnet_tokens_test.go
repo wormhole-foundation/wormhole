@@ -70,8 +70,6 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 		vaa.ChainIDMezo: true,
 		// TODO: Remove this once we have governed tokens for XRPLEVM.
 		vaa.ChainIDXRPLEVM: true,
-		// TODO: Remove this once we have governed tokens for Linea.
-		vaa.ChainIDLinea: true,
 		// TODO: Remove this once we have governed tokens for Fogo.
 		vaa.ChainIDFogo: true,
 		// TODO: Remove this once we have governed tokens for MegaETH
