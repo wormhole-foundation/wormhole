@@ -206,7 +206,11 @@ func (msg *MessagePublication) MessageID() []byte {
 }
 
 func (msg *MessagePublication) MessageIDString() string {
-	return fmt.Sprintf("%v/%v/%v", uint16(msg.EmitterChain), msg.EmitterAddress, msg.Sequence)
+	return vaa.VAAID{
+		EmitterChain:   msg.EmitterChain,
+		EmitterAddress: msg.EmitterAddress,
+		Sequence:       msg.Sequence,
+	}.String()
 }
 
 func (msg *MessagePublication) VerificationState() VerificationState {

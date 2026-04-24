@@ -457,7 +457,7 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	chainID, err := parseChainID(*chainID)
+	chainID, err := vaa.StringToChainID(*chainID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -491,7 +491,7 @@ func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	chainID, err := parseChainID(*chainID)
+	chainID, err := vaa.StringToChainID(*chainID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -526,7 +526,7 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	chainID, err := parseChainID(*chainID)
+	chainID, err := vaa.StringToChainID(*chainID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -569,7 +569,7 @@ func runRecoverChainIdTemplate(cmd *cobra.Command, args []string) {
 	if *recoverChainIdNewChainId == "" {
 		log.Fatal("--new-chain-id must be specified.")
 	}
-	newChainID, err := parseChainID(*recoverChainIdNewChainId)
+	newChainID, err := vaa.StringToChainID(*recoverChainIdNewChainId)
 	if err != nil {
 		log.Fatal("failed to parse chain id:", err)
 	}
@@ -606,7 +606,7 @@ func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
 	if *accountantModifyBalanceTargetChainId == "" {
 		log.Fatal("--target-chain-id must be specified.")
 	}
-	targetChainID, err := parseChainID(*accountantModifyBalanceTargetChainId)
+	targetChainID, err := vaa.StringToChainID(*accountantModifyBalanceTargetChainId)
 	if err != nil {
 		log.Fatal("failed to parse target chain id: ", err)
 	}
@@ -620,14 +620,14 @@ func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
 	if *accountantModifyBalanceChainId == "" {
 		log.Fatal("--chain-id must be specified.")
 	}
-	chainID, err := parseChainID(*accountantModifyBalanceChainId)
+	chainID, err := vaa.StringToChainID(*accountantModifyBalanceChainId)
 	if err != nil {
 		log.Fatal("failed to parse chain id: ", err)
 	}
 	if *accountantModifyBalanceTokenChainId == "" {
 		log.Fatal("--token-chain-id must be specified.")
 	}
-	tokenChainID, err := parseChainID(*accountantModifyBalanceTokenChainId)
+	tokenChainID, err := vaa.StringToChainID(*accountantModifyBalanceTokenChainId)
 	if err != nil {
 		log.Fatal("failed to parse token chain id: ", err)
 	}
@@ -701,7 +701,7 @@ func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args
 	if *circleIntegrationChainID == "" {
 		log.Fatal("--chain-id must be specified.")
 	}
-	chainID, err := parseChainID(*circleIntegrationChainID)
+	chainID, err := vaa.StringToChainID(*circleIntegrationChainID)
 	if err != nil {
 		log.Fatal("failed to parse chain id:", err)
 	}
@@ -741,14 +741,14 @@ func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, ar
 	if *circleIntegrationChainID == "" {
 		log.Fatal("--chain-id must be specified.")
 	}
-	chainID, err := parseChainID(*circleIntegrationChainID)
+	chainID, err := vaa.StringToChainID(*circleIntegrationChainID)
 	if err != nil {
 		log.Fatal("failed to parse chain id:", err)
 	}
 	if *circleIntegrationForeignEmitterChainID == "" {
 		log.Fatal("--foreign-emitter-chain-id must be specified.")
 	}
-	foreignEmitterChainId, err := parseChainID(*circleIntegrationForeignEmitterChainID)
+	foreignEmitterChainId, err := vaa.StringToChainID(*circleIntegrationForeignEmitterChainID)
 	if err != nil {
 		log.Fatal("failed to parse foreign emitter chain id as uint8:", err)
 	}
@@ -797,7 +797,7 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 	if *circleIntegrationChainID == "" {
 		log.Fatal("--chain-id must be specified.")
 	}
-	chainID, err := parseChainID(*circleIntegrationChainID)
+	chainID, err := vaa.StringToChainID(*circleIntegrationChainID)
 	if err != nil {
 		log.Fatal("failed to parse chain id:", err)
 	}
@@ -1095,7 +1095,7 @@ func runIbcUpdateChannelChainTemplate(module nodev1.IbcUpdateChannelChainModule)
 	if *ibcUpdateChannelChainTargetChainId == "" {
 		log.Fatal("--target-chain-id must be specified")
 	}
-	targetChainId, err := parseChainID(*ibcUpdateChannelChainTargetChainId)
+	targetChainId, err := vaa.StringToChainID(*ibcUpdateChannelChainTargetChainId)
 	if err != nil {
 		log.Fatal("failed to parse chain id: ", err)
 	}
@@ -1110,7 +1110,7 @@ func runIbcUpdateChannelChainTemplate(module nodev1.IbcUpdateChannelChainModule)
 	if *ibcUpdateChannelChainChainId == "" {
 		log.Fatal("--chain-id must be specified")
 	}
-	chainId, err := parseChainID(*ibcUpdateChannelChainChainId)
+	chainId, err := vaa.StringToChainID(*ibcUpdateChannelChainChainId)
 	if err != nil {
 		log.Fatal("failed to parse chain id: ", err)
 	}
@@ -1147,7 +1147,7 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 	if err != nil {
 		log.Fatal(err)
 	}
-	chainID, err := parseChainID(*chainID)
+	chainID, err := vaa.StringToChainID(*chainID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1177,7 +1177,7 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 }
 
 func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
-	chainID, err := parseChainID(*coreBridgeSetMessageFeeChainId)
+	chainID, err := vaa.StringToChainID(*coreBridgeSetMessageFeeChainId)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1267,7 +1267,7 @@ func runGeneralPurposeGovernanceEvmCallTemplate(cmd *cobra.Command, args []strin
 	if *governanceTargetChain == "" {
 		log.Fatal("--chain-id must be specified")
 	}
-	chainID, err := parseChainID(*governanceTargetChain)
+	chainID, err := vaa.StringToChainID(*governanceTargetChain)
 	if err != nil {
 		log.Fatal("failed to parse chain id: ", err)
 	}
@@ -1312,7 +1312,7 @@ func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []st
 	if *governanceTargetChain == "" {
 		log.Fatal("--chain-id must be specified")
 	}
-	chainID, err := parseChainID(*governanceTargetChain)
+	chainID, err := vaa.StringToChainID(*governanceTargetChain)
 	if err != nil {
 		log.Fatal("failed to parse chain id: ", err)
 	}
@@ -1361,7 +1361,7 @@ func runGeneralPurposeGovernanceSuiCallTemplate(cmd *cobra.Command, args []strin
 	if *governanceTargetChain == "" {
 		log.Fatal("--chain-id must be specified")
 	}
-	chainID, err := parseChainID(*governanceTargetChain)
+	chainID, err := vaa.StringToChainID(*governanceTargetChain)
 	if err != nil {
 		log.Fatal("failed to parse chain id: ", err)
 	}
@@ -1395,7 +1395,7 @@ func runDelegatedManagerSetUpdateTemplate(cmd *cobra.Command, args []string) {
 	if *delegatedManagerChainId == "" {
 		log.Fatal("--manager-chain-id must be specified")
 	}
-	managerChainId, err := parseChainID(*delegatedManagerChainId)
+	managerChainId, err := vaa.StringToChainID(*delegatedManagerChainId)
 	if err != nil {
 		log.Fatal("failed to parse manager-chain-id: ", err)
 	}
@@ -1516,21 +1516,6 @@ func leftPadAddress(a []byte) (string, error) {
 }
 
 // parseChainID parses a human-readable chain name or a chain ID.
-func parseChainID(name string) (vaa.ChainID, error) {
-	s, err := vaa.ChainIDFromString(name)
-	if err == nil {
-		return s, nil
-	}
-
-	// parse as uint16
-	i, err := strconv.ParseUint(name, 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse as name or uint16: %v", err)
-	}
-
-	return vaa.ChainID(i), nil
-}
-
 func isValidUint256(s string) (bool, error) {
 	i := new(big.Int)
 	i.SetString(s, 10) // Parse in base 10

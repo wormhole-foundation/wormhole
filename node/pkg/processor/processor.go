@@ -738,7 +738,7 @@ func (p *Processor) haveSignedVAA(id guardianDB.VAAID) bool {
 	ok, err := p.db.HasVAA(id)
 	if err != nil {
 		p.logger.Error("failed to look up VAA in database",
-			zap.String("vaaID", string(id.Bytes())),
+			zap.String("vaaID", id.String()),
 			zap.Error(err),
 		)
 		return false

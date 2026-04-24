@@ -368,6 +368,8 @@ type testCase struct {
 	// if true, assert that no VAA exists for this message at the end of the test.
 	// Note that it is not guaranteed that this message will never reach quorum because it may reach quorum some time after the test run finishes.
 	mustNotReachQuorum bool
+	// expected error for mustNotReachQuorum cases.
+	expectedErr string
 }
 
 func randomTime() time.Time {
@@ -590,27 +592,32 @@ func TestConsensus(t *testing.T) {
 			msg:                        someMessage(),
 			numGuardiansObserve:        1,
 			mustNotReachQuorum:         true,
+			expectedErr:                "rpc error: code = NotFound desc = requested VAA not found in store",
 			unavailableInReobservation: true,
 		},
 		{ // message with EmitterAddress == 0 should not reach quorum
 			msg:                 msgZeroEmitter,
 			numGuardiansObserve: numGuardians,
 			mustNotReachQuorum:  true,
+			expectedErr:         "rpc error: code = InvalidArgument desc = VAA ID emitter address is zero",
 		},
 		{ // message with Governance emitter should not reach quorum
 			msg:                 msgGovEmitter,
 			numGuardiansObserve: numGuardians,
 			mustNotReachQuorum:  true,
+			expectedErr:         "rpc error: code = NotFound desc = requested VAA not found in store",
 		},
 		{ // message with wrong EmitterChain should not reach quorum
 			msg:                 msgWrongEmitterChain,
 			numGuardiansObserve: numGuardians,
 			mustNotReachQuorum:  true,
+			expectedErr:         "rpc error: code = NotFound desc = requested VAA not found in store",
 		},
 		{ // Message covered by Governor that should be delayed 24h and hence not reach quorum within this test
 			msg:                 governedMsg(true),
 			numGuardiansObserve: numGuardians,
 			mustNotReachQuorum:  true,
+			expectedErr:         "rpc error: code = NotFound desc = requested VAA not found in store",
 		},
 		{ // vanilla case, where only a quorum of guardians gets the message
 			msg:                 someMessage(),
@@ -812,7 +819,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 			assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
 			if testCase.mustNotReachQuorum {
-				assert.EqualError(t, err, "rpc error: code = NotFound desc = requested VAA not found in store")
+				assert.EqualError(t, err, testCase.expectedErr)
 			} else if testCase.mustReachQuorum {
 				require.NotNil(t, r)
 				returnedVaa, err := vaa.Unmarshal(r.VaaBytes)

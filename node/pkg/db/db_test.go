@@ -48,7 +48,7 @@ func getVAAWithSeqNum(seqNum uint64) vaa.VAA {
 // Testing the expected default behavior of a CreateGovernanceVAA
 func TestVaaIDFromString(t *testing.T) {
 	vaaIdString := "1/0000000000000000000000000000000000000000000000000000000000000004/1"
-	vaaID, _ := VaaIDFromString(vaaIdString)
+	vaaID, _ := vaa.VAAIDFromString(vaaIdString)
 	expectAddr := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	assert.Equal(t, vaa.ChainIDSolana, vaaID.EmitterChain)
@@ -58,7 +58,7 @@ func TestVaaIDFromString(t *testing.T) {
 
 func TestVaaIDFromVAA(t *testing.T) {
 	testVaa := getVAA()
-	vaaID := VaaIDFromVAA(&testVaa)
+	vaaID := testVaa.ID()
 	expectAddr := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	assert.Equal(t, vaa.ChainIDSolana, vaaID.EmitterChain)
@@ -68,23 +68,23 @@ func TestVaaIDFromVAA(t *testing.T) {
 
 func TestBytes(t *testing.T) {
 	vaaIdString := "1/0000000000000000000000000000000000000000000000000000000000000004/1"
-	vaaID, _ := VaaIDFromString(vaaIdString)
+	vaaID, _ := vaa.VAAIDFromString(vaaIdString)
 	expected := []byte{0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x2f, 0x31, 0x2f, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x34, 0x2f, 0x31}
 
-	assert.Equal(t, expected, vaaID.Bytes())
+	assert.Equal(t, expected, vaaKeyBytes(vaaID))
 }
 
 func TestEmitterPrefixBytesWithChainIDAndAddress(t *testing.T) {
 	vaaIdString := "1/0000000000000000000000000000000000000000000000000000000000000004/1"
-	vaaID, _ := VaaIDFromString(vaaIdString)
+	vaaID, _ := vaa.VAAIDFromString(vaaIdString)
 	expected := []byte{0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x2f, 0x31, 0x2f, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x34}
 
-	assert.Equal(t, expected, vaaID.EmitterPrefixBytes())
+	assert.Equal(t, expected, vaaEmitterPrefixBytes(vaaID))
 }
 
 func TestEmitterPrefixBytesWithOnlyChainID(t *testing.T) {
 	vaaID := VAAID{EmitterChain: vaa.ChainID(26)}
-	assert.Equal(t, []byte("signed/26"), vaaID.EmitterPrefixBytes())
+	assert.Equal(t, []byte("signed/26"), vaaEmitterPrefixBytes(vaaID))
 }
 
 func TestStoreSignedVAAUnsigned(t *testing.T) {
@@ -143,7 +143,7 @@ func TestStoreSignedVAABatch(t *testing.T) {
 
 	// Verify all the VAAs are in the database.
 	for _, v := range vaaBatch {
-		storedBytes, err := db.GetSignedVAABytes(*VaaIDFromVAA(v))
+		storedBytes, err := db.GetSignedVAABytes(v.ID())
 		require.NoError(t, err)
 
 		origBytes, err := v.Marshal()
@@ -163,7 +163,7 @@ func TestStoreSignedVAABatch(t *testing.T) {
 
 	// Verify all the updated VAAs are in the database.
 	for _, v := range vaaBatch {
-		storedBytes, err := db.GetSignedVAABytes(*VaaIDFromVAA(v))
+		storedBytes, err := db.GetSignedVAABytes(v.ID())
 		require.NoError(t, err)
 
 		origBytes, err := v.Marshal()
@@ -181,7 +181,7 @@ func TestGetSignedVAABytes(t *testing.T) {
 
 	testVaa := getVAA()
 
-	vaaID := VaaIDFromVAA(&testVaa)
+	vaaID := testVaa.ID()
 
 	privKey, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	testVaa.AddSignature(privKey, 0)
@@ -191,7 +191,7 @@ func TestGetSignedVAABytes(t *testing.T) {
 	assert.NoError(t, err2)
 
 	// Retrieve it using vaaID
-	vaaBytes, err2 := db.GetSignedVAABytes(*vaaID)
+	vaaBytes, err2 := db.GetSignedVAABytes(vaaID)
 	assert.NoError(t, err2)
 
 	testVaaBytes, err3 := testVaa.Marshal()
@@ -208,7 +208,7 @@ func TestFindEmitterSequenceGap(t *testing.T) {
 
 	testVaa := getVAA()
 
-	vaaID := VaaIDFromVAA(&testVaa)
+	vaaID := testVaa.ID()
 
 	privKey, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	testVaa.AddSignature(privKey, 0)
@@ -217,7 +217,7 @@ func TestFindEmitterSequenceGap(t *testing.T) {
 	err2 := db.StoreSignedVAA(&testVaa)
 	assert.NoError(t, err2)
 
-	resp, firstSeq, lastSeq, err := db.FindEmitterSequenceGap(*vaaID)
+	resp, firstSeq, lastSeq, err := db.FindEmitterSequenceGap(vaaID)
 
 	assert.Equal(t, []uint64{0x0}, resp)
 	assert.Equal(t, uint64(0x0), firstSeq)
@@ -252,9 +252,9 @@ func BenchmarkVaaLookup(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		randId := math_rand.Intn(250000) //nolint
 		randId = 250000 - (i / 18)
-		vaaId, err := VaaIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
+		vaaId, err := vaa.VAAIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
 		assert.NoError(b, err)
-		vaaIds <- vaaId
+		vaaIds <- &vaaId
 	}
 
 	b.ResetTimer()

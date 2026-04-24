@@ -291,7 +291,13 @@ func handleQueryRequestsImpl(
 			receiveTime := time.Now()
 
 			for requestIdx, pcq := range queryRequest.PerChainQueries {
-				chainID := vaa.ChainID(pcq.ChainId)
+				chainID, err := vaa.ChainIDFromNumber(pcq.ChainId)
+				if err != nil {
+					qLogger.Debug("invalid chain ID for query request", zap.String("requestID", requestID), zap.Uint16("chain_id", uint16(pcq.ChainId)), zap.Error(err))
+					invalidQueryRequestReceived.WithLabelValues("invalid_chain_id").Inc()
+					errorFound = true
+					break
+				}
 				if _, exists := supportedChains[chainID]; !exists {
 					qLogger.Debug("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
 					invalidQueryRequestReceived.WithLabelValues("chain_does_not_support_ccq").Inc()

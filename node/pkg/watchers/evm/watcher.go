@@ -422,7 +422,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
-				if r.ChainId > math.MaxUint16 {
+				chainID, err := vaa.ChainIDFromNumber(r.ChainId)
+				if err != nil {
 					logger.Error("chain id for observation request is not a valid uint16",
 						zap.Uint32("chainID", r.ChainId),
 						zap.String("txID", hex.EncodeToString(r.TxHash)),
@@ -431,7 +432,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 				numObservations, err := w.handleReobservationRequest(
 					ctx,
-					vaa.ChainID(r.ChainId),
+					chainID,
 					r.TxHash,
 					w.ethConn,
 					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
@@ -1143,7 +1144,11 @@ func (w *Watcher) logVersion(ctx context.Context) {
 
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.
 func msgIdFromLogEvent(chainID vaa.ChainID, ev *ethabi.AbiLogMessagePublished) string {
-	return fmt.Sprintf("%v/%v/%v", uint16(chainID), PadAddress(ev.Sender), ev.Sequence)
+	return vaa.VAAID{
+		EmitterChain:   chainID,
+		EmitterAddress: PadAddress(ev.Sender),
+		Sequence:       ev.Sequence,
+	}.String()
 }
 
 // createConnector determines the type of connector needed for a chain and creates the appropriate one.
