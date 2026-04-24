@@ -811,15 +811,15 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 			d := &gossipv1.DelegateObservation{
 				Timestamp:         timestamp,
 				Nonce:             ref.Nonce,
-				EmitterChain:      uint32(chainID), // #nosec G115
+				EmitterChain:      uint32(chainID),
 				EmitterAddress:    emitterAddrBytes,
 				Sequence:          ref.Sequence,
-				ConsistencyLevel:  uint32(ref.ConsistencyLevel), // #nosec G115
+				ConsistencyLevel:  uint32(ref.ConsistencyLevel),
 				Payload:           payloadBytes,
 				TxHash:            txHashBytes,
 				Unreliable:        obs.Unreliable,
 				IsReobservation:   obs.IsReobservation,
-				VerificationState: uint32(obs.VerificationState), // #nosec G115
+				VerificationState: uint32(obs.VerificationState),
 				GuardianAddr:      guardianAddrBytes,
 				SentTimestamp:     sentTimestamp,
 			}
@@ -854,15 +854,15 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 		broadcasts = append(broadcasts, &gossipv1.DelegateSignaturesBroadcast{
 			Timestamp:          timestamp,
 			Nonce:              ref.Nonce,
-			EmitterChain:       uint32(chainID), // #nosec G115
+			EmitterChain:       uint32(chainID),
 			EmitterAddress:     emitterAddrBytes,
 			Sequence:           ref.Sequence,
-			ConsistencyLevel:   uint32(ref.ConsistencyLevel), // #nosec G115
+			ConsistencyLevel:   uint32(ref.ConsistencyLevel),
 			Payload:            payloadBytes,
 			TxHash:             txHashBytes,
 			Unreliable:         ref.Unreliable,
 			IsReobservation:    ref.IsReobservation,
-			VerificationState:  uint32(ref.VerificationState), // #nosec G115
+			VerificationState:  uint32(ref.VerificationState),
 			Signatures:         signatures,
 			BroadcastTimestamp: time.Now().Unix(),
 		})
