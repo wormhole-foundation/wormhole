@@ -164,7 +164,7 @@ func (n *node) reset() {
 	// Mark DN and supervisor in context.
 	ctx := context.WithValue(pCtx, dnKey, n.dn())
 	ctx = context.WithValue(ctx, supervisorKey, n.sup)
-	ctx, ctxC := context.WithCancel(ctx)
+	ctx, ctxC := context.WithCancel(ctx) // #nosec G118 -- Cancel stored on node and invoked by processor.
 	// Set context
 	n.ctx = ctx
 	n.ctxC = ctxC
@@ -238,7 +238,7 @@ func (n *node) runGroup(runnables map[string]Runnable) error {
 	// Schedule execution of group members.
 	go func() {
 		for name := range runnables {
-			n.sup.pReq <- &processorRequest{ //nolint:channelcheck // Will only block this go routine
+			n.sup.pReq <- &processorRequest{ // Note on channel capacity: Will only block this go routine
 				schedule: &processorRequestSchedule{
 					dn: dns[name],
 				},

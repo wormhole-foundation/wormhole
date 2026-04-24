@@ -255,7 +255,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	// tell everyone about it
 	job.hasWormholeMsg = true
 
-	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED //nolint:channelcheck // Only pauses this watcher
+	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED // Note on channel capacity: Only pauses this watcher
 
 	logger.Info("message observed",
 		zap.String("log_msg_type", "wormhole_event_success"),
@@ -269,7 +269,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		zap.Uint8("consistency_level", observation.ConsistencyLevel),
 	)
 
-	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	e.msgC <- observation // Note on channel capacity: The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	return nil
 }

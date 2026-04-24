@@ -357,6 +357,7 @@ func suiApiRequest[T SuiApiResponse](ctx context.Context, rpc string, method str
 
 	// Send the request
 	client := &http.Client{}
+	// #nosec G704 -- RPC URL from operator configuration, not user input
 	resp, err := client.Do(req)
 	if err != nil {
 		return defaultT, fmt.Errorf("cannot send request: %w", err)

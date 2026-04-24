@@ -10,6 +10,7 @@ package notary
 // acceptable.
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -285,10 +286,10 @@ func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 	copy(bz[1+offset:33], amtBytes)
 
 	copy(bz[33:], payload.OriginAddress[:])
-	bz[65] = byte(payload.OriginChain)
+	binary.BigEndian.PutUint16(bz[65:67], uint16(payload.OriginChain))
 
-	copy(bz[66:], payload.TargetAddress[:])
-	bz[98] = byte(payload.TargetChain)
+	copy(bz[67:], payload.TargetAddress[:])
+	binary.BigEndian.PutUint16(bz[99:101], uint16(payload.TargetChain))
 
 	return bz
 }
