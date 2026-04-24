@@ -65,7 +65,7 @@ module wormhole::wormhole_scenario {
             let guardian_set_seconds_to_live = 420;
 
             // Share `State`.
-            setup::complete(
+            setup::complete_test_only(
                 test_scenario::take_from_address<DeployerCap>(
                     scenario, DEPLOYER
                 ),

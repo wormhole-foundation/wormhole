@@ -1,4 +1,5 @@
-import { SuiTransactionBlockResponse, TransactionBlock } from "@mysten/sui.js";
+import { SuiTransactionBlockResponse } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
 import yargs from "yargs";
 import {
   executeTransactionBlock,
@@ -221,10 +222,10 @@ export const initExampleApp = async (
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
   rpc = rpc ?? NETWORKS[network].Sui.rpc;
-  const provider = getProvider(network, rpc);
-  const signer = getSigner(provider, network, privateKey);
+  const client = getProvider(network, rpc);
+  const signer = getSigner(client, network, privateKey);
 
-  const tx = new TransactionBlock();
+  const tx = new Transaction();
   setMaxGasBudgetDevnet(network, tx);
   tx.moveCall({
     target: `${packageId}::sender::init_with_params`,
@@ -243,12 +244,12 @@ export const initTokenBridge = async (
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
   rpc = rpc ?? NETWORKS[network].Sui.rpc;
-  const provider = getProvider(network, rpc);
-  const signer = getSigner(provider, network, privateKey);
-  const owner = await signer.getAddress();
+  const client = getProvider(network, rpc);
+  const signer = getSigner(client, network, privateKey);
+  const owner = signer.keypair.getPublicKey().toSuiAddress();
 
   const deployerCapObjectId = await getOwnedObjectId(
-    provider,
+    client,
     owner,
     tokenBridgePackageId,
     "setup",
@@ -261,7 +262,7 @@ export const initTokenBridge = async (
   }
 
   const upgradeCapObjectId = await getUpgradeCapObjectId(
-    provider,
+    client,
     owner,
     tokenBridgePackageId
   );
@@ -271,12 +272,9 @@ export const initTokenBridge = async (
     );
   }
 
-  const wormholePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
+  const wormholePackageId = await getPackageId(client, coreBridgeStateObjectId);
 
-  const tx = new TransactionBlock();
+  const tx = new Transaction();
   setMaxGasBudgetDevnet(network, tx);
   const [emitterCap] = tx.moveCall({
     target: `${wormholePackageId}::emitter::new`,
@@ -288,8 +286,8 @@ export const initTokenBridge = async (
       tx.object(deployerCapObjectId),
       tx.object(upgradeCapObjectId),
       emitterCap,
-      tx.pure(governanceChainId),
-      tx.pure([...Buffer.from(governanceContract, "hex")]),
+      tx.pure("u16", governanceChainId),
+      tx.pure("vector<u8>", [...Buffer.from(governanceContract, "hex")]),
     ],
   });
   return executeTransactionBlock(signer, tx);
@@ -306,12 +304,12 @@ export const initWormhole = async (
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
   rpc = rpc ?? NETWORKS[network].Sui.rpc;
-  const provider = getProvider(network, rpc);
-  const signer = getSigner(provider, network, privateKey);
-  const owner = await signer.getAddress();
+  const client = getProvider(network, rpc);
+  const signer = getSigner(client, network, privateKey);
+  const owner = signer.keypair.getPublicKey().toSuiAddress();
 
   const deployerCapObjectId = await getOwnedObjectId(
-    provider,
+    client,
     owner,
     coreBridgePackageId,
     "setup",
@@ -324,7 +322,7 @@ export const initWormhole = async (
   }
 
   const upgradeCapObjectId = await getUpgradeCapObjectId(
-    provider,
+    client,
     owner,
     coreBridgePackageId
   );
@@ -334,21 +332,22 @@ export const initWormhole = async (
     );
   }
 
-  const tx = new TransactionBlock();
+  const tx = new Transaction();
   setMaxGasBudgetDevnet(network, tx);
   tx.moveCall({
     target: `${coreBridgePackageId}::setup::complete`,
     arguments: [
       tx.object(deployerCapObjectId),
       tx.object(upgradeCapObjectId),
-      tx.pure(governanceChainId),
-      tx.pure([...Buffer.from(governanceContract, "hex")]),
-      tx.pure(guardianSetIndex),
+      tx.pure("u16", governanceChainId),
+      tx.pure("vector<u8>", [...Buffer.from(governanceContract, "hex")]),
+      tx.pure("u32", guardianSetIndex),
       tx.pure(
+        "vector<vector<u8>>",
         initialGuardians.split(",").map((g) => [...Buffer.from(g, "hex")])
       ),
-      tx.pure(24 * 60 * 60), // Guardian set TTL in seconds
-      tx.pure("0"), // Message fee
+      tx.pure("u32", 24 * 60 * 60), // Guardian set TTL in seconds
+      tx.pure("u64", 0), // Message fee
     ],
   });
   return executeTransactionBlock(signer, tx);
