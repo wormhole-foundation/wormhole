@@ -493,6 +493,8 @@ export async function execute_evm(
           break;
       }
       break;
+    case "DelegatedManager":
+      throw new Error("DelegatedManager governance VAAs are not yet supported");
     default:
       impossible(payload);
   }

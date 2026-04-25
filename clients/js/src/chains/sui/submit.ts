@@ -234,6 +234,8 @@ export const submit = async (
     }
     case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Sui");
+    case "DelegatedManager":
+      throw Error("DelegatedManager governance VAAs are not yet supported");
     default:
       impossible(payload);
   }
