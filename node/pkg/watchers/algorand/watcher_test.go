@@ -11,18 +11,19 @@ import (
 	"github.com/algorand/go-algorand-sdk/types"
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 
-const APP_ID = 86525623
+const appID = 86525623
 
 // helper to create a watcher for testing.
 func newTestWatcher(msgC chan *common.MessagePublication) *Watcher {
 	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
-	return NewWatcher("", "", "", "", APP_ID, msgC, obsvReqC)
+	return NewWatcher("", "", "", "", appID, msgC, obsvReqC)
 }
 
 // helper to build a valid 8-byte big-endian encoding of a uint64.
@@ -84,21 +85,21 @@ func TestGatherObservations(t *testing.T) {
 	}{
 		{
 			name:          "valid 8-byte nonce and sequence",
-			txn:           makePublishTxn(APP_ID, uint64Bytes(7), []byte("hello"), string(uint64Bytes(42))),
+			txn:           makePublishTxn(appID, uint64Bytes(7), []byte("hello"), string(uint64Bytes(42))),
 			expectedCount: 1,
 			expectedNonce: 7,
 			expectedSeq:   42,
 		},
 		{
 			name:          "valid zero nonce and zero sequence",
-			txn:           makePublishTxn(APP_ID, uint64Bytes(0), []byte(""), string(uint64Bytes(0))),
+			txn:           makePublishTxn(appID, uint64Bytes(0), []byte(""), string(uint64Bytes(0))),
 			expectedCount: 1,
 			expectedNonce: 0,
 			expectedSeq:   0,
 		},
 		{
 			name:          "valid max uint32 nonce",
-			txn:           makePublishTxn(APP_ID, uint64Bytes(0xFFFFFFFF), []byte("payload"), string(uint64Bytes(100))),
+			txn:           makePublishTxn(appID, uint64Bytes(0xFFFFFFFF), []byte("payload"), string(uint64Bytes(100))),
 			expectedCount: 1,
 			expectedNonce: 0xFFFFFFFF,
 			expectedSeq:   100,
@@ -111,7 +112,7 @@ func TestGatherObservations(t *testing.T) {
 		{
 			name: "wrong method name",
 			txn: func() types.SignedTxnWithAD {
-				txn := makePublishTxn(APP_ID, uint64Bytes(1), []byte("hello"), string(uint64Bytes(1)))
+				txn := makePublishTxn(appID, uint64Bytes(1), []byte("hello"), string(uint64Bytes(1)))
 				txn.Txn.ApplicationArgs[0] = []byte("notPublishMessage")
 				return txn
 			}(),
@@ -121,7 +122,7 @@ func TestGatherObservations(t *testing.T) {
 			name: "too few application args (2 instead of 3)",
 			txn: func() types.SignedTxnWithAD {
 				txn := types.SignedTxnWithAD{}
-				txn.Txn.ApplicationID = types.AppIndex(APP_ID)
+				txn.Txn.ApplicationID = types.AppIndex(appID)
 				txn.Txn.ApplicationArgs = [][]byte{
 					[]byte("publishMessage"),
 					[]byte("hello"),
@@ -135,7 +136,7 @@ func TestGatherObservations(t *testing.T) {
 			name: "too many application args (4 instead of 3)",
 			txn: func() types.SignedTxnWithAD {
 				txn := types.SignedTxnWithAD{}
-				txn.Txn.ApplicationID = types.AppIndex(APP_ID)
+				txn.Txn.ApplicationID = types.AppIndex(appID)
 				txn.Txn.ApplicationArgs = [][]byte{
 					[]byte("publishMessage"),
 					[]byte("hello"),
@@ -150,7 +151,7 @@ func TestGatherObservations(t *testing.T) {
 		{
 			name: "no logs",
 			txn: func() types.SignedTxnWithAD {
-				txn := makePublishTxn(APP_ID, uint64Bytes(1), []byte("hello"), "")
+				txn := makePublishTxn(appID, uint64Bytes(1), []byte("hello"), "")
 				txn.EvalDelta.Logs = nil
 				return txn
 			}(),
@@ -204,7 +205,7 @@ func TestGatherObservations_InvalidLengths(t *testing.T) {
 			msgC := make(chan *common.MessagePublication, 1)
 			w := newTestWatcher(msgC)
 
-			txn := makePublishTxn(APP_ID, tc.nonce, []byte("payload"), tc.seq)
+			txn := makePublishTxn(appID, tc.nonce, []byte("payload"), tc.seq)
 
 			// Must not panic.
 			obs := gatherObservations(w, txn, 0, logger)
@@ -218,24 +219,24 @@ func TestGatherObservations_MaxDepth(t *testing.T) {
 	msgC := make(chan *common.MessagePublication, 1)
 	w := newTestWatcher(msgC)
 
-	// Build a chain of nested inner transactions at exactly MAX_DEPTH.
+	// Build a chain of nested inner transactions at exactly maxDepthInnerTx.
 	// The valid publishMessage sits at the deepest level.
-	validTxn := makePublishTxn(APP_ID, uint64Bytes(1), []byte("deep"), string(uint64Bytes(99)))
+	validTxn := makePublishTxn(appID, uint64Bytes(1), []byte("deep"), string(uint64Bytes(99)))
 
-	// Nest it MAX_DEPTH levels deep (should be rejected).
+	// Nest it maxDepthInnerTx levels deep (should be rejected).
 	nested := validTxn
-	for i := 0; i < MAX_DEPTH; i++ {
+	for i := 0; i < maxDepthInnerTx; i++ {
 		wrapper := types.SignedTxnWithAD{}
 		wrapper.EvalDelta.InnerTxns = []types.SignedTxnWithAD{nested}
 		nested = wrapper
 	}
 
 	obs := gatherObservations(w, nested, 0, logger)
-	assert.Empty(t, obs, "should not observe messages beyond MAX_DEPTH")
+	assert.Empty(t, obs, "should not observe messages beyond maxDepthInnerTx")
 
-	// Nest it MAX_DEPTH-1 levels deep (should succeed).
+	// Nest it maxDepthInnerTx-1 levels deep (should succeed).
 	nested = validTxn
-	for i := 0; i < MAX_DEPTH-1; i++ {
+	for i := 0; i < maxDepthInnerTx-1; i++ {
 		wrapper := types.SignedTxnWithAD{}
 		wrapper.EvalDelta.InnerTxns = []types.SignedTxnWithAD{nested}
 		nested = wrapper
@@ -252,8 +253,8 @@ func TestGatherObservations_MultipleInnerTxns(t *testing.T) {
 	w := newTestWatcher(msgC)
 
 	// Two valid publishMessage inner transactions at the same level.
-	txn1 := makePublishTxn(APP_ID, uint64Bytes(10), []byte("first"), string(uint64Bytes(100)))
-	txn2 := makePublishTxn(APP_ID, uint64Bytes(20), []byte("second"), string(uint64Bytes(200)))
+	txn1 := makePublishTxn(appID, uint64Bytes(10), []byte("first"), string(uint64Bytes(100)))
+	txn2 := makePublishTxn(appID, uint64Bytes(20), []byte("second"), string(uint64Bytes(200)))
 
 	wrapper := types.SignedTxnWithAD{}
 	wrapper.EvalDelta.InnerTxns = []types.SignedTxnWithAD{txn1, txn2}
@@ -273,9 +274,9 @@ func TestGatherObservations_MixedValidAndInvalid(t *testing.T) {
 	w := newTestWatcher(msgC)
 
 	// One valid, one with a short nonce, one valid again.
-	valid1 := makePublishTxn(APP_ID, uint64Bytes(1), []byte("ok1"), string(uint64Bytes(10)))
-	invalid := makePublishTxn(APP_ID, []byte{0xBA, 0xD0}, []byte("bad"), string(uint64Bytes(20)))
-	valid2 := makePublishTxn(APP_ID, uint64Bytes(3), []byte("ok2"), string(uint64Bytes(30)))
+	valid1 := makePublishTxn(appID, uint64Bytes(1), []byte("ok1"), string(uint64Bytes(10)))
+	invalid := makePublishTxn(appID, []byte{0xBA, 0xD0}, []byte("bad"), string(uint64Bytes(20)))
+	valid2 := makePublishTxn(appID, uint64Bytes(3), []byte("ok2"), string(uint64Bytes(30)))
 
 	wrapper := types.SignedTxnWithAD{}
 	wrapper.EvalDelta.InnerTxns = []types.SignedTxnWithAD{valid1, invalid, valid2}
@@ -293,7 +294,7 @@ func TestLookAtTxn_PublishesToMsgC(t *testing.T) {
 	logger, _ := zap.NewProduction()
 
 	txn := types.SignedTxnInBlock{}
-	txn.SignedTxnWithAD = makePublishTxn(APP_ID, uint64Bytes(5), []byte("test payload"), string(uint64Bytes(77)))
+	txn.SignedTxnWithAD = makePublishTxn(appID, uint64Bytes(5), []byte("test payload"), string(uint64Bytes(77)))
 
 	block := types.Block{
 		BlockHeader: types.BlockHeader{
@@ -302,7 +303,7 @@ func TestLookAtTxn_PublishesToMsgC(t *testing.T) {
 		},
 	}
 
-	lookAtTxn(w, txn, block, logger, false)
+	lookAtTxn(w, txn, block, logger, nil)
 
 	select {
 	case msg := <-msgC:
@@ -324,13 +325,16 @@ func TestLookAtTxn_Reobservation(t *testing.T) {
 	logger, _ := zap.NewProduction()
 
 	txn := types.SignedTxnInBlock{}
-	txn.SignedTxnWithAD = makePublishTxn(APP_ID, uint64Bytes(1), []byte("reobs"), string(uint64Bytes(1)))
+	txn.SignedTxnWithAD = makePublishTxn(appID, uint64Bytes(1), []byte("reobs"), string(uint64Bytes(1)))
 
 	block := types.Block{
 		BlockHeader: types.BlockHeader{TimeStamp: 1700000000},
 	}
 
-	lookAtTxn(w, txn, block, logger, true)
+	validatedObservation, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAlgorand), TxHash: make([]byte, common.TxIDLenMin)}, vaa.ChainIDAlgorand)
+	require.NoError(t, err)
+
+	lookAtTxn(w, txn, block, logger, &validatedObservation)
 
 	select {
 	case msg := <-msgC:
@@ -351,7 +355,7 @@ func TestLookAtTxn_NoMatchProducesNoMessage(t *testing.T) {
 
 	block := types.Block{}
 
-	lookAtTxn(w, txn, block, logger, false)
+	lookAtTxn(w, txn, block, logger, nil)
 
 	select {
 	case <-msgC:
@@ -368,13 +372,13 @@ func TestLookAtTxn_InvalidNonceDoesNotBlock(t *testing.T) {
 
 	// Transaction with a short nonce -- must not panic or block.
 	txn := types.SignedTxnInBlock{}
-	txn.SignedTxnWithAD = makePublishTxn(APP_ID, []byte{0xDE, 0xAD}, []byte("bad"), string(uint64Bytes(1)))
+	txn.SignedTxnWithAD = makePublishTxn(appID, []byte{0xDE, 0xAD}, []byte("bad"), string(uint64Bytes(1)))
 
 	block := types.Block{
 		BlockHeader: types.BlockHeader{TimeStamp: 1700000000},
 	}
 
-	lookAtTxn(w, txn, block, logger, false)
+	lookAtTxn(w, txn, block, logger, nil)
 
 	select {
 	case <-msgC:
@@ -389,7 +393,7 @@ func TestGatherObservations_EmitterAddress(t *testing.T) {
 	msgC := make(chan *common.MessagePublication, 1)
 	w := newTestWatcher(msgC)
 
-	txn := makePublishTxn(APP_ID, uint64Bytes(0), []byte(""), string(uint64Bytes(0)))
+	txn := makePublishTxn(appID, uint64Bytes(0), []byte(""), string(uint64Bytes(0)))
 
 	// Set a known sender address.
 	var sender types.Address
@@ -413,7 +417,7 @@ func TestGatherObservations_PayloadPreserved(t *testing.T) {
 	w := newTestWatcher(msgC)
 
 	payload := []byte{0x01, 0x00, 0xFF, 0xAB, 0xCD}
-	txn := makePublishTxn(APP_ID, uint64Bytes(0), payload, string(uint64Bytes(0)))
+	txn := makePublishTxn(appID, uint64Bytes(0), payload, string(uint64Bytes(0)))
 
 	obs := gatherObservations(w, txn, 0, logger)
 
