@@ -112,6 +112,7 @@ kompiles
 Kudelski
 kujira
 Kujira
+lamport
 lamports
 lastrun
 libp
@@ -183,9 +184,9 @@ runtimes
 rustup
 satoshi
 satoshis
+SECG
 secp
 SECQ
-SECG
 seda
 seievm
 Sepolia
@@ -222,14 +223,16 @@ uatom
 uluna
 unbond
 Uncompromised
+undelegated
 undercollateralization
 unforgeable
 unichain
 Unichain
-undelegated
+unmark
 unmarshal
 unmarshals
 unnormalize
+unpauser
 untampered
 upserted
 utest
