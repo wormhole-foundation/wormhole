@@ -6,7 +6,7 @@ A minimal Go tool to enforce incremental test coverage improvements without bloc
 
 This tool enforces two simple rules:
 
-1. **No regression**: Packages in the baseline file must maintain their current coverage (within 0.2% tolerance)
+1. **No regression**: Packages in the baseline file must maintain their current coverage (within a configurable tolerance, see `coverageTolerance` in `main.go`)
 2. **New packages need tests**: Any new package in `pkg/` must have at least 10% test coverage
 
 ## How It Works
@@ -158,16 +158,12 @@ github.com/certusone/wormhole/node/pkg/supervisor 25.0  # Was 0.0
 
 ## Configuration
 
-Edit constants in `scripts/coverage-check/main.go`:
+Constants are defined at the top of `scripts/coverage-check/main.go` — those are the source of truth.
 
-```go
-const (
-    baselineFile       = ".coverage-baseline"        // Baseline file location (repo root)
-    coverageOutputFile = "coverage.txt"              // Where to read test coverage from (repo root)
-    minNewPkgCoverage  = 10.0                        // Minimum for new packages
-    coverageTolerance  = 0.2                         // Floating point tolerance for fresh-run variance
-)
-```
+| Constant | Purpose |
+|---|---|
+| `minNewPkgCoverage` | Minimum coverage % for new packages |
+| `coverageTolerance` | Allowed delta % before a regression or improvement is flagged |
 
 ### Command-line Flags
 

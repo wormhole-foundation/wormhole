@@ -15,7 +15,9 @@ const (
 	baselineFile       = ".coverage-baseline"
 	coverageOutputFile = "coverage.txt"
 	minNewPkgCoverage  = 10.0
-	coverageTolerance  = 0.2 // Allow 0.2% tolerance for fresh-run coverage variance
+	// Allow a 1.0% delta in test coverage. This is a trade-off for CI runs such that small formatting changes
+	// don't block a PR.
+	coverageTolerance  = 1.0 
 )
 
 // Colors for terminal output
