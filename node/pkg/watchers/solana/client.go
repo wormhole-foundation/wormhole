@@ -136,9 +136,6 @@ type (
 	MessagePublicationAccount struct {
 		VaaVersion       uint8
 		ConsistencyLevel uint8
-		EmitterAuthority vaa.Address
-		MessageStatus    uint8
-		Gap              [3]byte
 		SubmissionTime   uint32
 		Nonce            uint32
 		Sequence         uint64
@@ -197,13 +194,8 @@ const (
 )
 
 var (
-	emptyAddressBytes = vaa.Address{}.Bytes()
-	emptyGapBytes     = []byte{0, 0, 0}
-
 	addressLookupTableProgramID = solana.MustPublicKeyFromBase58("AddressLookupTab1e1111111111111111111111111")
-)
 
-var (
 	solanaConnectionErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_solana_connection_errors_total",
@@ -1193,20 +1185,6 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 			)
 		}
 		return
-	}
-
-	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
-	if s.chainID != vaa.ChainIDPythNet {
-		// SECURITY: ensure these fields are zeroed out. in the legacy solana program they were always zero, and in the 2023 rewrite they are zeroed once the account is finalized
-		if !bytes.Equal(proposal.EmitterAuthority.Bytes(), emptyAddressBytes) || proposal.MessageStatus != 0 || !bytes.Equal(proposal.Gap[:], emptyGapBytes) {
-			solanaAccountSkips.WithLabelValues(s.networkName, "unfinalized_account").Inc()
-			logger.Error(
-				"account is not finalized",
-				zap.Stringer("account", acc),
-				zap.String("data", messageAccountData.String()),
-			)
-			return
-		}
 	}
 
 	var txID []byte

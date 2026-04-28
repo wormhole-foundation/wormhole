@@ -428,30 +428,6 @@ func TestProcessMessageAccount(t *testing.T) {
 			wantCount:        1,
 		},
 		{
-			name:             "skips_unfinalized",
-			chainID:          vaa.ChainIDSolana,
-			commitment:       rpc.CommitmentFinalized,
-			prefix:           accountPrefixReliable,
-			payload:          []byte("hello"),
-			consistencyLevel: 32,
-			tweakProposal: func(p *MessagePublicationAccount) {
-				copy(p.EmitterAuthority[:], bytes.Repeat([]byte{0x01}, len(p.EmitterAuthority)))
-			},
-		},
-		{
-			name:             "pythnet_bypasses_finalization_check",
-			chainID:          vaa.ChainIDPythNet,
-			commitment:       rpc.CommitmentFinalized,
-			prefix:           accountPrefixReliable,
-			payload:          []byte("hello"),
-			consistencyLevel: 32,
-			tweakProposal: func(p *MessagePublicationAccount) {
-				copy(p.EmitterAuthority[:], bytes.Repeat([]byte{0x01}, len(p.EmitterAuthority)))
-				p.MessageStatus = 1
-			},
-			wantCount: 1,
-		},
-		{
 			name:             "commitment_mismatch",
 			chainID:          vaa.ChainIDSolana,
 			commitment:       rpc.CommitmentConfirmed,
@@ -1450,7 +1426,6 @@ func testMessagePublicationAccount(payload []byte, consistencyLevel uint8) Messa
 	return MessagePublicationAccount{
 		VaaVersion:       1,
 		ConsistencyLevel: consistencyLevel,
-		MessageStatus:    0,
 		SubmissionTime:   123,
 		Nonce:            7,
 		Sequence:         99,
@@ -1472,9 +1447,8 @@ func encodeMessagePublicationAccount(t *testing.T, prefix string, proposal Messa
 	buf.WriteString(prefix)
 	buf.WriteByte(proposal.VaaVersion)
 	buf.WriteByte(proposal.ConsistencyLevel)
-	buf.Write(proposal.EmitterAuthority[:])
-	buf.WriteByte(proposal.MessageStatus)
-	buf.Write(proposal.Gap[:])
+	writeLE(t, buf, proposal.VaaTime)
+	buf.Write(proposal.VaaSignatureAccount[:])
 	writeLE(t, buf, proposal.SubmissionTime)
 	writeLE(t, buf, proposal.Nonce)
 	writeLE(t, buf, proposal.Sequence)
