@@ -172,10 +172,10 @@ func TestGetTokenBridgeEmitters(t *testing.T) {
 
 func TestGetEmitterAddressForChain(t *testing.T) {
 	tests := []struct {
-		name       string
-		chainID    vaa.ChainID
+		name        string
+		chainID     vaa.ChainID
 		emitterType EmitterType
-		wantErr    bool
+		wantErr     bool
 	}{
 		{
 			name:        "Ethereum token bridge",
