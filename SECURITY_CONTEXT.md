@@ -127,7 +127,7 @@ This can be validated by examining the genesis config for wormchain, as well as 
 the mainnet state which should show that none of the validators within wormchain have any
 stake.
 
-### Out-of-order submission of governance VAAs / no invariant enforcement for monotic increase of governance VAAs
+### Out-of-order submission of governance VAAs / no invariant enforcement for monotonic increase of governance VAAs
 
 Contracts that consume VAAs may process "new" governance VAAs _before_ processing an "old" VAA.
 A common suggestion is that the contracts should strictly enforce VAA ordering such that this is
