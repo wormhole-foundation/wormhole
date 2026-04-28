@@ -599,3 +599,249 @@ func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
 	assert.Equal(t, uint64(11), v.Sequence)
 	assert.Equal(t, uint32(22), v.Nonce)
 }
+
+// =================================================================================================
+// DelegatedPauser SetConfigEvm / SetConfigSolana, BridgeSetPauserAddresses{Evm,Solana}
+// See whitepapers/0018_pauser.md.
+// =================================================================================================
+
+func TestDelegatedPauserSetConfigEvmToVaa(t *testing.T) {
+	req := &nodev1.DelegatedPauserSetConfigEvm{
+		ChainId:        uint32(vaa.ChainIDEthereum),
+		Index:          1,
+		Threshold:      2,
+		ExpiryDuration: 3600,
+		Signers: []string{
+			"1111111111111111111111111111111111111111",
+			"2222222222222222222222222222222222222222",
+			"3333333333333333333333333333333333333333",
+		},
+	}
+
+	nonce := uint32(11)
+	sequence := uint64(22)
+	v, err := delegatedPauserSetConfigEvmToVaa(req, govTimestamp, govGuardianSetIndex, nonce, sequence)
+	require.NoError(t, err)
+	verifyGovernanceVAA(t, v, sequence, nonce)
+	assert.NotEmpty(t, v.Payload)
+}
+
+func TestDelegatedPauserSetConfigEvmToVaa_Errors(t *testing.T) {
+	base := func() *nodev1.DelegatedPauserSetConfigEvm {
+		return &nodev1.DelegatedPauserSetConfigEvm{
+			ChainId:        uint32(vaa.ChainIDEthereum),
+			Index:          1,
+			Threshold:      1,
+			ExpiryDuration: 60,
+			Signers:        []string{"1111111111111111111111111111111111111111"},
+		}
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.DelegatedPauserSetConfigEvm)
+		errText string
+	}{
+		{"ChainIdZero", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.ChainId = 0 }, "convert chain id"},
+		{"ChainIdTooLarge", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.ChainId = 1 << 17 }, "convert chain id"},
+		{"ChainIdUnregistered", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.ChainId = 0xffff }, "convert chain id"},
+		{"IndexZero", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.Index = 0 }, "invalid index"},
+		{"IndexTooLarge", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.Index = 1 << 17 }, "invalid index"},
+		{"ThresholdZero", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.Threshold = 0 }, "invalid threshold"},
+		{"ThresholdTooLarge", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.Threshold = 1 << 9 }, "invalid threshold"},
+		{"ExpiryZero", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.ExpiryDuration = 0 }, "invalid expiry_duration"},
+		{"NoSigners", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.Signers = nil }, "at least one signer"},
+		{"ThresholdGreaterThanSigners", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.Threshold = 5 }, "threshold exceeds number of signers"},
+		{"BadSignerHex", func(r *nodev1.DelegatedPauserSetConfigEvm) { r.Signers = []string{"not-an-address"} }, "invalid EVM signer"},
+		{"SignerWith0xPrefix", func(r *nodev1.DelegatedPauserSetConfigEvm) {
+			r.Signers = []string{"0x1111111111111111111111111111111111111111"}
+		}, "invalid EVM signer"},
+		{"ZeroSigner", func(r *nodev1.DelegatedPauserSetConfigEvm) {
+			r.Signers = []string{"0000000000000000000000000000000000000000"}
+		}, "zero address"},
+		{"DuplicateSigners", func(r *nodev1.DelegatedPauserSetConfigEvm) {
+			r.Threshold = 1
+			r.Signers = []string{
+				"1111111111111111111111111111111111111111",
+				"1111111111111111111111111111111111111111",
+			}
+		}, "duplicate"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := delegatedPauserSetConfigEvmToVaa(req, govTimestamp, govGuardianSetIndex, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}
+
+func TestDelegatedPauserSetConfigSolanaToVaa(t *testing.T) {
+	req := &nodev1.DelegatedPauserSetConfigSolana{
+		ChainId:        uint32(vaa.ChainIDSolana),
+		Index:          1,
+		Threshold:      1,
+		ExpiryDuration: 3600,
+		Signers: []string{
+			"0000000000000000000000000000000000000000000000000000000000000001",
+			"0000000000000000000000000000000000000000000000000000000000000002",
+		},
+	}
+	v, err := delegatedPauserSetConfigSolanaToVaa(req, govTimestamp, govGuardianSetIndex, 1, 1)
+	require.NoError(t, err)
+	verifyGovernanceVAA(t, v, 1, 1)
+	assert.NotEmpty(t, v.Payload)
+}
+
+func TestDelegatedPauserSetConfigSolanaToVaa_Errors(t *testing.T) {
+	base := func() *nodev1.DelegatedPauserSetConfigSolana {
+		return &nodev1.DelegatedPauserSetConfigSolana{
+			ChainId:        uint32(vaa.ChainIDSolana),
+			Index:          1,
+			Threshold:      1,
+			ExpiryDuration: 60,
+			Signers:        []string{"0000000000000000000000000000000000000000000000000000000000000001"},
+		}
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.DelegatedPauserSetConfigSolana)
+		errText string
+	}{
+		{"ChainIdZero", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.ChainId = 0 }, "convert chain id"},
+		{"ChainIdTooLarge", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.ChainId = 1 << 17 }, "convert chain id"},
+		{"ChainIdUnregistered", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.ChainId = 0xffff }, "convert chain id"},
+		{"IndexZero", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.Index = 0 }, "invalid index"},
+		{"ThresholdZero", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.Threshold = 0 }, "invalid threshold"},
+		{"ExpiryZero", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.ExpiryDuration = 0 }, "invalid expiry_duration"},
+		{"NoSigners", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.Signers = nil }, "at least one signer"},
+		{"ThresholdGreaterThanSigners", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.Threshold = 5 }, "threshold exceeds number of signers"},
+		{"BadSignerHex", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.Signers = []string{"zz"} }, "invalid Solana signer"},
+		{"ShortSigner", func(r *nodev1.DelegatedPauserSetConfigSolana) { r.Signers = []string{"01"} }, "invalid Solana signer"},
+		{"ZeroSigner", func(r *nodev1.DelegatedPauserSetConfigSolana) {
+			r.Signers = []string{"0000000000000000000000000000000000000000000000000000000000000000"}
+		}, "zero pubkey"},
+		{"DuplicateSigners", func(r *nodev1.DelegatedPauserSetConfigSolana) {
+			r.Signers = []string{
+				"0000000000000000000000000000000000000000000000000000000000000001",
+				"0000000000000000000000000000000000000000000000000000000000000001",
+			}
+		}, "duplicate"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := delegatedPauserSetConfigSolanaToVaa(req, govTimestamp, govGuardianSetIndex, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}
+
+func TestBridgeSetPauserAddressesEvmToVaa(t *testing.T) {
+	req := &nodev1.BridgeSetPauserAddressesEvm{
+		Module:        "TokenBridge",
+		TargetChainId: uint32(vaa.ChainIDEthereum),
+		Pauser:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Unpauser:      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	v, err := bridgeSetPauserAddressesEvmToVaa(req, govTimestamp, govGuardianSetIndex, 7, 7)
+	require.NoError(t, err)
+	verifyGovernanceVAA(t, v, 7, 7)
+	assert.NotEmpty(t, v.Payload)
+}
+
+func TestBridgeSetPauserAddressesEvmToVaa_Errors(t *testing.T) {
+	base := func() *nodev1.BridgeSetPauserAddressesEvm {
+		return &nodev1.BridgeSetPauserAddressesEvm{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDEthereum),
+			Pauser:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Unpauser:      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.BridgeSetPauserAddressesEvm)
+		errText string
+	}{
+		{"EmptyModule", func(r *nodev1.BridgeSetPauserAddressesEvm) { r.Module = "" }, "module is required"},
+		{"ChainIdZero", func(r *nodev1.BridgeSetPauserAddressesEvm) { r.TargetChainId = 0 }, "convert chain id"},
+		{"ChainIdTooLarge", func(r *nodev1.BridgeSetPauserAddressesEvm) { r.TargetChainId = 1 << 17 }, "convert chain id"},
+		{"ChainIdUnregistered", func(r *nodev1.BridgeSetPauserAddressesEvm) { r.TargetChainId = 0xffff }, "convert chain id"},
+		{"BadPauser", func(r *nodev1.BridgeSetPauserAddressesEvm) { r.Pauser = "not-an-address" }, "invalid pauser"},
+		{"PauserWith0xPrefix", func(r *nodev1.BridgeSetPauserAddressesEvm) {
+			r.Pauser = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		}, "invalid pauser"},
+		{"BadUnpauser", func(r *nodev1.BridgeSetPauserAddressesEvm) { r.Unpauser = "not-an-address" }, "invalid unpauser"},
+		{"UnpauserWith0xPrefix", func(r *nodev1.BridgeSetPauserAddressesEvm) {
+			r.Unpauser = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+		}, "invalid unpauser"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := bridgeSetPauserAddressesEvmToVaa(req, govTimestamp, govGuardianSetIndex, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}
+
+func TestBridgeSetPauserAddressesSolanaToVaa(t *testing.T) {
+	req := &nodev1.BridgeSetPauserAddressesSolana{
+		Module:        "TokenBridge",
+		TargetChainId: uint32(vaa.ChainIDSolana),
+		Pauser:        "000000000000000000000000000000000000000000000000000000000000000a",
+		Unpauser:      "000000000000000000000000000000000000000000000000000000000000000b",
+	}
+	v, err := bridgeSetPauserAddressesSolanaToVaa(req, govTimestamp, govGuardianSetIndex, 8, 8)
+	require.NoError(t, err)
+	verifyGovernanceVAA(t, v, 8, 8)
+	assert.NotEmpty(t, v.Payload)
+}
+
+func TestBridgeSetPauserAddressesSolanaToVaa_Errors(t *testing.T) {
+	base := func() *nodev1.BridgeSetPauserAddressesSolana {
+		return &nodev1.BridgeSetPauserAddressesSolana{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDSolana),
+			Pauser:        "000000000000000000000000000000000000000000000000000000000000000a",
+			Unpauser:      "000000000000000000000000000000000000000000000000000000000000000b",
+		}
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.BridgeSetPauserAddressesSolana)
+		errText string
+	}{
+		{"EmptyModule", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.Module = "" }, "module is required"},
+		{"ChainIdZero", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.TargetChainId = 0 }, "convert chain id"},
+		{"ChainIdTooLarge", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.TargetChainId = 1 << 17 }, "convert chain id"},
+		{"ChainIdUnregistered", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.TargetChainId = 0xffff }, "convert chain id"},
+		{"BadPauserHex", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.Pauser = "zz" }, "invalid pauser"},
+		{"ShortPauser", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.Pauser = "01" }, "invalid pauser"},
+		{"BadUnpauserHex", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.Unpauser = "zz" }, "invalid unpauser"},
+		{"ShortUnpauser", func(r *nodev1.BridgeSetPauserAddressesSolana) { r.Unpauser = "01" }, "invalid unpauser"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := bridgeSetPauserAddressesSolanaToVaa(req, govTimestamp, govGuardianSetIndex, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}

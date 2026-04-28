@@ -1215,4 +1215,73 @@ var adminCommandTest = []adminCommandTestEntry{
 					}
 				}`,
 	},
+	{
+		label:   "DelegatedPauserSetConfigEvm success",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1001
+					nonce: 1
+					delegated_pauser_set_config_evm: {
+						chain_id: 2
+						index: 1
+						threshold: 2
+						expiry_duration: 3600
+						signers: "1111111111111111111111111111111111111111"
+						signers: "2222222222222222222222222222222222222222"
+						signers: "3333333333333333333333333333333333333333"
+					}
+				}`,
+	},
+	{
+		label:   "DelegatedPauserSetConfigSolana success",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1002
+					nonce: 2
+					delegated_pauser_set_config_solana: {
+						chain_id: 1
+						index: 1
+						threshold: 1
+						expiry_duration: 60
+						signers: "0000000000000000000000000000000000000000000000000000000000000001"
+						signers: "0000000000000000000000000000000000000000000000000000000000000002"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddressesEvm success",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1003
+					nonce: 3
+					bridge_set_pauser_addresses_evm: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+						unpauser: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddressesSolana success",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1004
+					nonce: 4
+					bridge_set_pauser_addresses_solana: {
+						module: "TokenBridge"
+						target_chain_id: 1
+						pauser: "000000000000000000000000000000000000000000000000000000000000000a"
+						unpauser: "000000000000000000000000000000000000000000000000000000000000000b"
+					}
+				}`,
+	},
 }

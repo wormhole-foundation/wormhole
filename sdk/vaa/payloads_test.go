@@ -604,6 +604,116 @@ func TestDelegatedManagerModule(t *testing.T) {
 	assert.Equal(t, expected, hex.EncodeToString(DelegatedManagerModule[:]))
 }
 
+func TestDelegatedPauserModule(t *testing.T) {
+	// "DelegatedPauser" (15 bytes) left-padded with 17 zero bytes to 32 bytes
+	expected := "0000000000000000000000000000000000" + "44656c656761746564506175736572"
+	assert.Equal(t, expected, hex.EncodeToString(DelegatedPauserModule[:]))
+}
+
+func TestBodyDelegatedPauserSetConfigEvmSerialize(t *testing.T) {
+	body := BodyDelegatedPauserSetConfigEvm{
+		ChainID:        ChainIDEthereum,
+		Index:          1,
+		Threshold:      2,
+		ExpiryDuration: 3600,
+		Signers: []common.Address{
+			common.HexToAddress("0x1111111111111111111111111111111111111111"),
+			common.HexToAddress("0x2222222222222222222222222222222222222222"),
+			common.HexToAddress("0x3333333333333333333333333333333333333333"),
+		},
+	}
+	expected := "0000000000000000000000000000000000" + "44656c656761746564506175736572" + // module
+		"01" + // action SetConfigEvm
+		"0002" + // chainId Ethereum
+		"0001" + // index
+		"02" + // threshold
+		"0000000000000e10" + // expiryDuration = 3600
+		"03" + // numSigners
+		"1111111111111111111111111111111111111111" +
+		"2222222222222222222222222222222222222222" +
+		"3333333333333333333333333333333333333333"
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}
+
+func TestBodyDelegatedPauserSetConfigSolanaSerialize(t *testing.T) {
+	signer1 := Address{}
+	signer1[31] = 0x01
+	signer2 := Address{}
+	signer2[31] = 0x02
+	body := BodyDelegatedPauserSetConfigSolana{
+		ChainID:        ChainIDSolana,
+		Index:          7,
+		Threshold:      1,
+		ExpiryDuration: 60,
+		Signers:        []Address{signer1, signer2},
+	}
+	expected := "0000000000000000000000000000000000" + "44656c656761746564506175736572" + // module
+		"02" + // action SetConfigSolana
+		"0001" + // chainId Solana
+		"0007" + // index
+		"01" + // threshold
+		"000000000000003c" + // expiryDuration = 60
+		"02" + // numSigners
+		"0000000000000000000000000000000000000000000000000000000000000001" +
+		"0000000000000000000000000000000000000000000000000000000000000002"
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}
+
+func TestBodyDelegatedPauserSetConfigEvmTooManySigners(t *testing.T) {
+	signers := make([]common.Address, 256)
+	body := BodyDelegatedPauserSetConfigEvm{
+		ChainID:        ChainIDEthereum,
+		Index:          1,
+		Threshold:      1,
+		ExpiryDuration: 1,
+		Signers:        signers,
+	}
+	_, err := body.Serialize()
+	require.ErrorContains(t, err, "too many signers")
+}
+
+func TestBodyTokenBridgeSetPauserAddressesEvmSerialize(t *testing.T) {
+	body := BodyTokenBridgeSetPauserAddressesEvm{
+		Module:        "TokenBridge",
+		TargetChainID: ChainIDEthereum,
+		Pauser:        common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+		Unpauser:      common.HexToAddress("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+	}
+	expected := "000000000000000000000000000000000000000000546f6b656e427269646765" + // module "TokenBridge"
+		"04" + // action SetPauserAddressesEvm
+		"0002" + // target chain Ethereum
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
+		"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}
+
+func TestBodyTokenBridgeSetPauserAddressesSolanaSerialize(t *testing.T) {
+	pauser := Address{}
+	pauser[31] = 0x0a
+	unpauser := Address{}
+	unpauser[31] = 0x0b
+	body := BodyTokenBridgeSetPauserAddressesSolana{
+		Module:        "TokenBridge",
+		TargetChainID: ChainIDSolana,
+		Pauser:        pauser,
+		Unpauser:      unpauser,
+	}
+	expected := "000000000000000000000000000000000000000000546f6b656e427269646765" + // module "TokenBridge"
+		"05" + // action SetPauserAddressesSolana
+		"0001" + // target chain Solana
+		"000000000000000000000000000000000000000000000000000000000000000a" +
+		"000000000000000000000000000000000000000000000000000000000000000b"
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}
+
 func TestBodyManagerSetUpdateSerialize(t *testing.T) {
 	// Create a simple manager set with 2 public keys
 	managerSet := Secp256k1MultisigManagerSet{

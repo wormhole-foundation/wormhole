@@ -82,6 +82,14 @@ var DelegatedManagerModule = [32]byte{
 }
 var DelegatedManagerModuleStr = string(DelegatedManagerModule[:])
 
+// DelegatedPauserModule is the identifier of the Delegated Pauser module (which is used for governance messages).
+// It is the hex representation of "DelegatedPauser" left padded with zeroes.
+var DelegatedPauserModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x44, 0x65, 0x6C, 0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x50, 0x61, 0x75, 0x73, 0x65, 0x72,
+}
+var DelegatedPauserModuleStr = string(DelegatedPauserModule[:])
+
 type GovernanceAction uint8
 
 var (
@@ -110,9 +118,11 @@ var (
 	ActionModifyBalance GovernanceAction = 1
 
 	// Wormhole tokenbridge governance actions
-	ActionRegisterChain             GovernanceAction = 1
-	ActionUpgradeTokenBridge        GovernanceAction = 2
-	ActionTokenBridgeRecoverChainId GovernanceAction = 3
+	ActionRegisterChain                       GovernanceAction = 1
+	ActionUpgradeTokenBridge                  GovernanceAction = 2
+	ActionTokenBridgeRecoverChainId           GovernanceAction = 3
+	ActionTokenBridgeSetPauserAddressesEvm    GovernanceAction = 4
+	ActionTokenBridgeSetPauserAddressesSolana GovernanceAction = 5
 
 	// Circle Integration governance actions
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
@@ -138,6 +148,10 @@ var (
 
 	// Delegated manager governance actions
 	ActionManagerSetUpdate GovernanceAction = 1
+
+	// Delegated Pauser governance actions
+	DelegatedPauserSetConfigEvmAction    GovernanceAction = 1
+	DelegatedPauserSetConfigSolanaAction GovernanceAction = 2
 )
 
 type (
@@ -339,6 +353,45 @@ type (
 		NewManagerSetIndex uint32
 		// NewManagerSet is the raw bytes of the new manager set (format is chain-specific)
 		NewManagerSet []byte
+	}
+
+	// BodyDelegatedPauserSetConfigEvm is a governance message to set the delegated pauser configuration
+	// (signers, threshold, expiry duration, monotonic config index) on the WormholePauser contract on an EVM chain.
+	// See whitepapers/0018_pauser.md.
+	BodyDelegatedPauserSetConfigEvm struct {
+		ChainID        ChainID
+		Index          uint16
+		Threshold      uint8
+		ExpiryDuration uint64
+		Signers        []ethcommon.Address
+	}
+
+	// BodyDelegatedPauserSetConfigSolana is the Solana variant of BodyDelegatedPauserSetConfigEvm,
+	// where signers are 32-byte pubkeys.
+	BodyDelegatedPauserSetConfigSolana struct {
+		ChainID        ChainID
+		Index          uint16
+		Threshold      uint8
+		ExpiryDuration uint64
+		Signers        []Address
+	}
+
+	// BodyTokenBridgeSetPauserAddressesEvm is a governance message to set the pauser and unpauser addresses
+	// on the EVM Token Bridge. See whitepapers/0018_pauser.md.
+	BodyTokenBridgeSetPauserAddressesEvm struct {
+		Module        string
+		TargetChainID ChainID
+		Pauser        ethcommon.Address
+		Unpauser      ethcommon.Address
+	}
+
+	// BodyTokenBridgeSetPauserAddressesSolana is the Solana variant of BodyTokenBridgeSetPauserAddressesEvm,
+	// where the pauser and unpauser are 32-byte pubkeys.
+	BodyTokenBridgeSetPauserAddressesSolana struct {
+		Module        string
+		TargetChainID ChainID
+		Pauser        Address
+		Unpauser      Address
 	}
 )
 
@@ -730,6 +783,50 @@ func (r *BodyManagerSetUpdate) Deserialize(bz []byte) error {
 	r.NewManagerSetIndex = binary.BigEndian.Uint32(bz[2:6])
 	r.NewManagerSet = bz[6:]
 	return nil
+}
+
+func (r BodyDelegatedPauserSetConfigEvm) Serialize() ([]byte, error) {
+	if len(r.Signers) > math.MaxUint8 {
+		return nil, fmt.Errorf("too many signers: %d (max %d)", len(r.Signers), math.MaxUint8)
+	}
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, r.Index)
+	MustWrite(payload, binary.BigEndian, r.Threshold)
+	MustWrite(payload, binary.BigEndian, r.ExpiryDuration)
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Signers))) // #nosec G115 -- checked above
+	for _, s := range r.Signers {
+		payload.Write(s[:])
+	}
+	return serializeBridgeGovernanceVaa(DelegatedPauserModuleStr, DelegatedPauserSetConfigEvmAction, r.ChainID, payload.Bytes())
+}
+
+func (r BodyDelegatedPauserSetConfigSolana) Serialize() ([]byte, error) {
+	if len(r.Signers) > math.MaxUint8 {
+		return nil, fmt.Errorf("too many signers: %d (max %d)", len(r.Signers), math.MaxUint8)
+	}
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, r.Index)
+	MustWrite(payload, binary.BigEndian, r.Threshold)
+	MustWrite(payload, binary.BigEndian, r.ExpiryDuration)
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Signers))) // #nosec G115 -- checked above
+	for _, s := range r.Signers {
+		payload.Write(s[:])
+	}
+	return serializeBridgeGovernanceVaa(DelegatedPauserModuleStr, DelegatedPauserSetConfigSolanaAction, r.ChainID, payload.Bytes())
+}
+
+func (r BodyTokenBridgeSetPauserAddressesEvm) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	payload.Write(r.Pauser[:])
+	payload.Write(r.Unpauser[:])
+	return serializeBridgeGovernanceVaa(r.Module, ActionTokenBridgeSetPauserAddressesEvm, r.TargetChainID, payload.Bytes())
+}
+
+func (r BodyTokenBridgeSetPauserAddressesSolana) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	payload.Write(r.Pauser[:])
+	payload.Write(r.Unpauser[:])
+	return serializeBridgeGovernanceVaa(r.Module, ActionTokenBridgeSetPauserAddressesSolana, r.TargetChainID, payload.Bytes())
 }
 
 // Serialize serializes the Secp256k1MultisigManagerSet into bytes.

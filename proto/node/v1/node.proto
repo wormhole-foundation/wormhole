@@ -173,6 +173,14 @@ message GovernanceMessage {
     // Transfer collected fees from the core bridge fee account to a recipient
     // (whitepaper 0004).
     CoreBridgeTransferFees core_bridge_transfer_fees = 34;
+
+    // Delegated Pauser
+    DelegatedPauserSetConfigEvm delegated_pauser_set_config_evm = 35;
+    DelegatedPauserSetConfigSolana delegated_pauser_set_config_solana = 36;
+
+    // Token Bridge / NFT Bridge pauser/unpauser address configuration
+    BridgeSetPauserAddressesEvm bridge_set_pauser_addresses_evm = 37;
+    BridgeSetPauserAddressesSolana bridge_set_pauser_addresses_solana = 38;
   }
 }
 
@@ -657,4 +665,53 @@ message DelegatedManagerSetUpdate {
   // Hex-encoded manager set bytes (without leading 0x).
   // For secp256k1 multisig format: Type (1 byte) + M (1 byte) + N (1 byte) + PublicKeys (N * 33 bytes)
   string manager_set = 3;
+}
+
+// DelegatedPauserSetConfigEvm sets the delegated pauser configuration on the WormholePauser
+// contract on an EVM chain (signers, threshold, expiry duration, monotonic config index).
+// See whitepapers/0018_pauser.md.
+message DelegatedPauserSetConfigEvm {
+  // ID of the target EVM chain (uint16).
+  uint32 chain_id = 1;
+  // Monotonically increasing config index (must equal on-chain index + 1; first valid is 1).
+  uint32 index = 2;
+  // Approval threshold (must be > 0 and <= len(signers)).
+  uint32 threshold = 3;
+  // Proposal expiry duration in seconds (must be > 0).
+  uint64 expiry_duration = 4;
+  // Hex-encoded 20-byte signer addresses (without leading 0x). No duplicates, no zero-address.
+  repeated string signers = 5;
+}
+
+// DelegatedPauserSetConfigSolana is the Solana variant of DelegatedPauserSetConfigEvm.
+message DelegatedPauserSetConfigSolana {
+  uint32 chain_id = 1;
+  uint32 index = 2;
+  uint32 threshold = 3;
+  uint64 expiry_duration = 4;
+  // Hex-encoded 32-byte signer pubkeys (without leading 0x). No duplicates, no all-zero pubkey.
+  repeated string signers = 5;
+}
+
+// BridgeSetPauserAddressesEvm sets the pauser and unpauser addresses on the EVM Token Bridge
+// (or NFT Bridge). See whitepapers/0018_pauser.md.
+message BridgeSetPauserAddressesEvm {
+  // Module identifier (typically "TokenBridge" or "NFTBridge").
+  string module = 1;
+  // ID of the target EVM chain (uint16).
+  uint32 target_chain_id = 2;
+  // Hex-encoded 20-byte pauser address (without leading 0x). Typically the WormholePauser contract.
+  string pauser = 3;
+  // Hex-encoded 20-byte unpauser address (without leading 0x). Typically the guardian governance contract.
+  string unpauser = 4;
+}
+
+// BridgeSetPauserAddressesSolana is the Solana variant of BridgeSetPauserAddressesEvm.
+message BridgeSetPauserAddressesSolana {
+  string module = 1;
+  uint32 target_chain_id = 2;
+  // Hex-encoded 32-byte pauser pubkey (without leading 0x).
+  string pauser = 3;
+  // Hex-encoded 32-byte unpauser pubkey (without leading 0x).
+  string unpauser = 4;
 }
