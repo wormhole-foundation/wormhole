@@ -1893,6 +1893,7 @@ async fn test_close_posted_message_unreliable() {
     let nonce = rand::thread_rng().gen();
     let message = [3u8; 32].to_vec();
     let message_key = Keypair::new();
+    let fee_collector = FeeCollector::<'_>::key(None, program);
 
     // Post an unreliable message ("msu" prefix).
     common::post_message_unreliable(
@@ -1908,6 +1909,12 @@ async fn test_close_posted_message_unreliable() {
     .await
     .unwrap();
 
+    // Record balances before close.
+    let fee_collector_before =
+        common::get_account_balance(&mut test_ctx.banks_client, fee_collector).await;
+    let message_lamports =
+        common::get_account_balance(&mut test_ctx.banks_client, message_key.pubkey()).await;
+
     // Backdate submission_time to 31 days ago so it passes the retention check.
     common::set_submission_time(test_ctx, message_key.pubkey(), old_submission_time()).await;
 
@@ -1921,11 +1928,28 @@ async fn test_close_posted_message_unreliable() {
     .await
     .unwrap();
 
-    // Verify account is closed.
+    // Verify: fee_collector received the lamports.
+    let fee_collector_after =
+        common::get_account_balance(&mut test_ctx.banks_client, fee_collector).await;
+    assert_eq!(
+        fee_collector_after,
+        fee_collector_before + message_lamports,
+        "Fee collector should receive unreliable message account lamports"
+    );
+
+    // Verify: account is closed.
     let data = common::get_account_data_raw(&mut test_ctx.banks_client, message_key.pubkey()).await;
     assert!(
         data.is_none() || data.unwrap().iter().all(|&b| b == 0),
         "Unreliable message account should be closed"
+    );
+
+    // Verify: bridge.last_lamports is updated.
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
+    let bridge: BridgeData = common::get_account_data(&mut test_ctx.banks_client, bridge_key).await;
+    assert_eq!(
+        bridge.last_lamports, fee_collector_after,
+        "bridge.last_lamports should be updated after closing unreliable message"
     );
 }
 
@@ -2022,6 +2046,14 @@ async fn test_close_signature_set_and_posted_vaa_happy_path() {
     assert!(
         vaa_data.is_none() || vaa_data.unwrap().iter().all(|&b| b == 0),
         "PostedVAA should be closed"
+    );
+
+    // Verify: bridge.last_lamports is updated.
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, program);
+    let bridge: BridgeData = common::get_account_data(&mut test_ctx.banks_client, bridge_key).await;
+    assert_eq!(
+        bridge.last_lamports, fee_collector_after,
+        "bridge.last_lamports should be updated after closing sig set + VAA"
     );
 }
 
@@ -2148,6 +2180,92 @@ async fn test_close_signature_set_no_vaa_active_guardian_rejects() {
     assert!(
         result.is_err(),
         "Should reject closing sig set when guardian set is still active"
+    );
+}
+
+#[tokio::test]
+async fn test_close_signature_set_rejects_wrong_data_length() {
+    // SignatureSet has no magic prefix; the security argument for closing it
+    // rests in part on `try_from_slice` rejecting both leftover and missing
+    // bytes. Pad a real signature_set's data with one extra byte and confirm
+    // the close instruction refuses it. (Also exercises the case where the
+    // PostedVAA is past its retention window and would otherwise be eligible
+    // for close, so we know the rejection comes from the parse, not the
+    // surrounding checks.)
+    let (ref mut context, ref mut test_ctx, ref program) = initialize().await;
+
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = [9u8; 32].to_vec();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    common::post_message(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        &emitter,
+        None,
+        nonce,
+        message.clone(),
+        10_000,
+    )
+    .await
+    .unwrap();
+
+    let (vaa, body, _) = common::generate_vaa(&emitter, message, nonce, sequence, 0, 1);
+    let signature_set = common::verify_signatures(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        body,
+        &context.secret,
+        0,
+    )
+    .await
+    .unwrap();
+    common::post_vaa(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        signature_set,
+        vaa,
+    )
+    .await
+    .unwrap();
+
+    let posted_vaa_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        },
+        program,
+    );
+
+    // Backdate so retention isn't what causes the rejection.
+    common::set_submission_time(test_ctx, posted_vaa_key, old_submission_time()).await;
+
+    // Append one byte to the signature_set's data so try_from_slice has
+    // leftover input and refuses to parse.
+    let mut sig_account = test_ctx
+        .banks_client
+        .get_account(signature_set)
+        .await
+        .unwrap()
+        .unwrap();
+    sig_account.data.push(0);
+    test_ctx.set_account(&signature_set, &sig_account.into());
+
+    let result = common::close_signature_set_and_posted_vaa(
+        &mut test_ctx.banks_client,
+        program,
+        &test_ctx.payer,
+        signature_set,
+        posted_vaa_key,
+        0,
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Should reject closing a signature_set whose data length doesn't match SignatureSetData"
     );
 }
 
