@@ -1,11 +1,13 @@
 package evm
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"strings"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -108,6 +110,38 @@ func verifyContractAddresses(t *testing.T, m EnvMap) {
 			require.NotEqual(t, zeroAddr, ethCommon.HexToAddress(entry.ContractAddr))
 		})
 	}
+}
+
+// TestTronBase58ToHex confirms the Tron base58check contract address decodes to
+// the 20-byte hex address stored in the testnet chain config. Tron addresses are
+// base58check(0x41 || 20-byte-addr || 4-byte-checksum); the guardian only uses the
+// 20-byte EVM form.
+func TestTronBase58ToHex(t *testing.T) {
+	const (
+		tronBase58  = "TDjYx6vjKPmmiNvgj47YUntbVM1UcpVsGF"
+		expectedHex = "0x294b5510a771111df96acbc08515678edf0f83e0"
+	)
+
+	raw, err := base58.Decode(tronBase58)
+	require.NoError(t, err)
+	require.Len(t, raw, 25, "tron address should be 25 bytes (1 prefix + 20 addr + 4 checksum)")
+
+	// Verify checksum: double-SHA256 of first 21 bytes, first 4 bytes must match last 4.
+	first := sha256.Sum256(raw[:21])
+	second := sha256.Sum256(first[:])
+	require.Equal(t, raw[21:], second[:4], "base58check checksum mismatch")
+
+	// Byte 0 is the Tron network prefix (0x41).
+	require.Equal(t, byte(0x41), raw[0], "expected Tron network prefix 0x41")
+
+	// Bytes 1..21 are the 20-byte EVM address.
+	addr := ethCommon.BytesToAddress(raw[1:21])
+	require.Equal(t, ethCommon.HexToAddress(expectedHex), addr)
+
+	// Confirm this matches the testnet chain config.
+	cfgAddr, err := GetContractAddr(common.TestNet, vaa.ChainIDTron)
+	require.NoError(t, err)
+	require.Equal(t, addr, cfgAddr, "chain config address must match decoded base58")
 }
 
 func TestGetContractAddr(t *testing.T) {
