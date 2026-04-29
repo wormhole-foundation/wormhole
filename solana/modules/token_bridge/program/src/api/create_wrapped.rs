@@ -13,6 +13,7 @@ use crate::{
         WrappedTokenMeta,
     },
     messages::PayloadAssetMeta,
+    types::require_not_paused,
     TokenBridgeError::{
         InvalidChain,
         InvalidVAA,
@@ -96,6 +97,8 @@ pub fn create_wrapped(
     accs: &mut CreateWrapped,
     data: CreateWrappedData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Do not process attestations sourced from the current chain.
     if accs.vaa.token_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());

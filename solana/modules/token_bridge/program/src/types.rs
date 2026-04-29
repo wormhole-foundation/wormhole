@@ -26,13 +26,31 @@ use spl_token::state::{
     Account,
     Mint,
 };
+use std::io;
 
 pub type Address = [u8; 32];
 pub type ChainID = u16;
 
-#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, BorshSerialize, Serialize, Deserialize)]
 pub struct Config {
     pub wormhole_bridge: Pubkey,
+}
+
+// Hand-rolled `BorshDeserialize` so `try_from_slice` tolerates the pauser tail (bytes 32..97)
+// that the realloc'd Config carries after the first `SetPauserAddresses` governance VAA.
+// The derived `try_from_slice` rejects any trailing bytes, which would break every handler
+// that peels `ConfigAccount` (transfer, complete, attest, …) on a migrated bridge.
+impl BorshDeserialize for Config {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        Ok(Config {
+            wormhole_bridge: <Pubkey as BorshDeserialize>::deserialize(buf)?,
+        })
+    }
+
+    fn try_from_slice(v: &[u8]) -> io::Result<Self> {
+        let mut cursor = v;
+        <Self as BorshDeserialize>::deserialize(&mut cursor)
+    }
 }
 
 #[cfg(not(feature = "cpi"))]
@@ -48,6 +66,73 @@ impl Owned for Config {
         use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("TOKEN_BRIDGE_ADDRESS")).unwrap())
     }
+}
+
+/// Pauser tail layout written at offset `CONFIG_BORSH_LEN` of the existing `Config` PDA.
+///
+/// Backwards-compatible extension: the `Config` Borsh struct itself stays 32 bytes, so existing
+/// SDK transactions that pass the Config as writable continue to round-trip — solitaire's
+/// `Persist::persist` calls Borsh `serialize` which writes only the first 32 bytes and leaves
+/// the tail untouched.
+///
+/// Lazy migration: legacy 32-byte accounts are treated as "unpaused, no pauser configured".
+/// The first `SetPauserAddresses` governance VAA realloc's the account to
+/// `CONFIG_BORSH_LEN + PAUSER_TAIL_LEN` bytes and writes the tail.
+///
+/// Tail layout (97-byte total Config account):
+///   bytes 32 .. 33 : `paused` (u8, 0 = false, anything else = true)
+///   bytes 33 .. 65 : `pauser`   (Pubkey)
+///   bytes 65 .. 97 : `unpauser` (Pubkey)
+///
+/// See whitepapers/0018_pauser.md.
+pub const CONFIG_BORSH_LEN: usize = 32;
+pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
+pub const PAUSER_OFFSET: usize = PAUSED_OFFSET + 1;
+pub const UNPAUSER_OFFSET: usize = PAUSER_OFFSET + 32;
+pub const PAUSER_TAIL_LEN: usize = 1 + 32 + 32;
+pub const CONFIG_FULL_LEN: usize = CONFIG_BORSH_LEN + PAUSER_TAIL_LEN;
+
+/// Read the `paused` flag, returning `false` for legacy (un-extended) accounts.
+pub fn read_paused(config_data: &[u8]) -> bool {
+    config_data.len() > PAUSED_OFFSET && config_data[PAUSED_OFFSET] != 0
+}
+
+/// Read the configured pauser. Returns the all-zero pubkey for legacy accounts (which pause.rs
+/// rejects via `PauserNotConfigured`), so callers don't need to special-case un-extended state.
+pub fn read_pauser(config_data: &[u8]) -> Pubkey {
+    if config_data.len() < UNPAUSER_OFFSET {
+        return Pubkey::default();
+    }
+    Pubkey::new(&config_data[PAUSER_OFFSET..PAUSER_OFFSET + 32])
+}
+
+/// Read the configured unpauser. Same legacy-account semantics as `read_pauser`.
+pub fn read_unpauser(config_data: &[u8]) -> Pubkey {
+    if config_data.len() < UNPAUSER_OFFSET + 32 {
+        return Pubkey::default();
+    }
+    Pubkey::new(&config_data[UNPAUSER_OFFSET..UNPAUSER_OFFSET + 32])
+}
+
+pub fn write_paused(config_data: &mut [u8], paused: bool) {
+    config_data[PAUSED_OFFSET] = if paused { 1 } else { 0 };
+}
+
+pub fn write_pauser_addresses(config_data: &mut [u8], pauser: &Pubkey, unpauser: &Pubkey) {
+    config_data[PAUSER_OFFSET..PAUSER_OFFSET + 32].copy_from_slice(&pauser.to_bytes());
+    config_data[UNPAUSER_OFFSET..UNPAUSER_OFFSET + 32].copy_from_slice(&unpauser.to_bytes());
+}
+
+/// Returns `Err(Paused)` if the bridge is currently paused. Legacy (un-extended) Config
+/// accounts are treated as unpaused. Call from every non-governance, non-`unpause` entry point.
+pub fn require_not_paused(
+    config_info: &solana_program::account_info::AccountInfo,
+) -> solitaire::Result<()> {
+    let data = config_info.data.borrow();
+    if read_paused(&data) {
+        return Err(crate::TokenBridgeError::Paused.into());
+    }
+    Ok(())
 }
 
 #[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]

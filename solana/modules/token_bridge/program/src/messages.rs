@@ -369,6 +369,55 @@ impl SerializeGovernancePayload for GovernancePayloadUpgrade {
 impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 }
 
+/// Body of action 5 (`SetPauserAddressesSolana`) governance message — see
+/// whitepapers/0018_pauser.md. Action 4 (EVM variant) MUST be rejected on Solana.
+#[derive(PartialEq, Debug)]
+pub struct PayloadSetPauserAddresses {
+    pub pauser: Pubkey,
+    pub unpauser: Pubkey,
+}
+
+impl SerializePayload for PayloadSetPauserAddresses {
+    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
+        self.write_governance_header(v)?;
+        v.write_all(&self.pauser.to_bytes())?;
+        v.write_all(&self.unpauser.to_bytes())?;
+        Ok(())
+    }
+}
+
+impl DeserializePayload for PayloadSetPauserAddresses
+where
+    Self: DeserializeGovernancePayload,
+{
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        let mut c = Cursor::new(buf);
+        Self::check_governance_header(&mut c)?;
+
+        let mut pauser = [0u8; 32];
+        c.read_exact(&mut pauser)?;
+        let mut unpauser = [0u8; 32];
+        c.read_exact(&mut unpauser)?;
+
+        if c.position() != c.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
+
+        Ok(PayloadSetPauserAddresses {
+            pauser: Pubkey::new(&pauser[..]),
+            unpauser: Pubkey::new(&unpauser[..]),
+        })
+    }
+}
+
+impl SerializeGovernancePayload for PayloadSetPauserAddresses {
+    const MODULE: &'static str = "TokenBridge";
+    const ACTION: u8 = 5;
+}
+
+impl DeserializeGovernancePayload for PayloadSetPauserAddresses {
+}
+
 #[cfg(test)]
 #[allow(unused_imports)]
 mod tests {
@@ -376,6 +425,7 @@ mod tests {
         GovernancePayloadUpgrade,
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
+        PayloadSetPauserAddresses,
         PayloadTransfer,
         PayloadTransferWithPayload,
     };
@@ -452,6 +502,19 @@ mod tests {
 
         let data = original.try_to_vec().unwrap();
         let deser = PayloadGovernanceRegisterChain::deserialize(&mut data.as_slice()).unwrap();
+
+        assert_eq!(original, deser);
+    }
+
+    #[test]
+    pub fn test_serde_gov_set_pauser_addresses() {
+        let original = PayloadSetPauserAddresses {
+            pauser: Pubkey::new_unique(),
+            unpauser: Pubkey::new_unique(),
+        };
+
+        let data = original.try_to_vec().unwrap();
+        let deser = PayloadSetPauserAddresses::deserialize(&mut data.as_slice()).unwrap();
 
         assert_eq!(original, deser);
     }

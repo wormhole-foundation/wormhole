@@ -7,6 +7,11 @@ use crate::{
     messages::{
         GovernancePayloadUpgrade,
         PayloadGovernanceRegisterChain,
+        PayloadSetPauserAddresses,
+    },
+    types::{
+        write_pauser_addresses,
+        CONFIG_FULL_LEN,
     },
     TokenBridgeError::{
         InvalidGovernanceKey,
@@ -162,6 +167,67 @@ pub fn register_chain(
 
     accs.endpoint.chain = accs.vaa.chain;
     accs.endpoint.contract = accs.vaa.endpoint_address;
+
+    Ok(())
+}
+
+#[derive(FromAccounts)]
+pub struct SetPauserAddresses<'b> {
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
+
+    /// Existing token bridge `Config` PDA. Realloc'd from 32 → `CONFIG_FULL_LEN` bytes the first
+    /// time this governance VAA is processed; subsequent VAAs only update the tail.
+    pub config: Mut<ConfigAccount<'b, { AccountState::Initialized }>>,
+
+    /// Governance VAA carrying a `PayloadSetPauserAddresses` (action 5).
+    pub vaa: PayloadMessage<'b, PayloadSetPauserAddresses>,
+
+    /// VAA replay-protection claim, consistent with the rest of the token bridge governance.
+    pub claim: Mut<Claim<'b>>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Default)]
+pub struct SetPauserAddressesData {}
+
+pub fn set_pauser_addresses(
+    ctx: &ExecutionContext,
+    accs: &mut SetPauserAddresses,
+    _data: SetPauserAddressesData,
+) -> Result<()> {
+    if INVALID_VAAS.contains(&&*accs.vaa.info().key.to_string()) {
+        return Err(InvalidVAA.into());
+    }
+
+    verify_governance(&accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
+
+    // One-time migration: legacy 32-byte Config accounts grow to 97 bytes the first time this
+    // VAA is processed. Subsequent VAAs reuse the already-extended layout. The `paused` flag
+    // is preserved across updates — rotating the pauser/unpauser keys does not implicitly
+    // unpause the bridge.
+    let config_info = accs.config.info();
+    if config_info.data_len() < CONFIG_FULL_LEN {
+        // Top up the lamport balance so the account remains rent-exempt at the new size, then
+        // realloc. `zero_init = true` zeroes the new tail bytes — that's the desired
+        // initial state for `paused = false`.
+        use solana_program::sysvar::Sysvar;
+        let rent = solana_program::sysvar::rent::Rent::get()?;
+        let required = rent.minimum_balance(CONFIG_FULL_LEN);
+        let current = config_info.lamports();
+        if current < required {
+            let topup = required - current;
+            let topup_ix = solana_program::system_instruction::transfer(
+                accs.payer.key,
+                config_info.key,
+                topup,
+            );
+            invoke_signed(&topup_ix, ctx.accounts, &[])?;
+        }
+        config_info.realloc(CONFIG_FULL_LEN, true)?;
+    }
+
+    let mut data = config_info.data.borrow_mut();
+    write_pauser_addresses(&mut data, &accs.vaa.pauser, &accs.vaa.unpauser);
 
     Ok(())
 }
