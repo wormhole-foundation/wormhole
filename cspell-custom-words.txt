@@ -104,6 +104,8 @@ Keccak
 kevm
 KEVM
 keymap
+keypair
+keypairs
 keytool
 klaytn
 Klaytn
@@ -125,6 +127,7 @@ megaETH
 MegaETH
 merkle
 Metaplex
+metas
 mezo
 Mezo
 mindshare
@@ -146,6 +149,7 @@ optin
 Optin
 P2WPKH
 parachain
+pausable
 pdas
 permissioned
 permissionless
