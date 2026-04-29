@@ -40,10 +40,18 @@ use token_bridge::{
     messages::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
+        PayloadSetPauserAddresses,
         PayloadTransfer,
         PayloadTransferWithPayload,
     },
-    types::Config,
+    types::{
+        read_paused,
+        read_pauser,
+        read_unpauser,
+        Config,
+        CONFIG_BORSH_LEN,
+        CONFIG_FULL_LEN,
+    },
 };
 
 mod common;
@@ -617,4 +625,329 @@ async fn transfer_native_with_payload_in() {
     )
     .await
     .unwrap();
+}
+
+// ============================ Pauser tests (whitepapers/0018_pauser.md) ============================
+//
+// These tests exercise the lazy migration of the `Config` PDA from the legacy 32-byte layout to
+// the 97-byte layout, the configured pauser/unpauser flow, and the `notPaused` gate on a
+// representative non-governance entry point. The legacy compatibility test then confirms an
+// un-migrated bridge still behaves identically to pre-upgrade.
+
+const SET_PAUSER_ADDRESSES_ACTION: u8 = 5;
+
+/// Build a `SetPauserAddresses` governance VAA, post it through the core bridge, and submit it
+/// to the token bridge. Returns the serialized payload so callers can assert what got applied.
+async fn submit_set_pauser_addresses(context: &mut Context, pauser: Pubkey, unpauser: Pubkey) {
+    let Context {
+        ref payer,
+        ref mut client,
+        ref bridge,
+        ref token_bridge,
+        ref guardian_keys,
+        ref mut seq,
+        ..
+    } = context;
+
+    let nonce = rand::thread_rng().gen();
+    let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
+    let sequence = seq.next(emitter.pubkey().to_bytes());
+
+    let payload = PayloadSetPauserAddresses { pauser, unpauser };
+    let message = payload.try_to_vec().unwrap();
+    // Sanity-check the encoded action byte matches the wire format from whitepaper 0018:
+    // module(32) + action(1) + chain(2) + body. The action byte is at offset 32.
+    assert_eq!(message[32], SET_PAUSER_ADDRESSES_ACTION);
+
+    let (vaa, body, _) =
+        common::generate_vaa(emitter.pubkey().to_bytes(), 1, message, nonce, sequence);
+    let signature_set = common::verify_signatures(client, bridge, payer, body, guardian_keys, 0)
+        .await
+        .unwrap();
+    common::post_vaa(client, *bridge, payer, signature_set, vaa.clone())
+        .await
+        .unwrap();
+
+    let msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: body.to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, bridge);
+
+    common::set_pauser_addresses(client, *token_bridge, *bridge, message_key, vaa, payer)
+        .await
+        .unwrap();
+}
+
+/// Returns the raw `Config` account bytes — used to assert layout, paused flag, and tail
+/// pubkeys without going through the Borsh `Config` struct (which only covers the first 32
+/// bytes).
+async fn fetch_config_data(context: &mut Context) -> Vec<u8> {
+    let config_key =
+        ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &context.token_bridge);
+    let account = context
+        .client
+        .get_account_with_commitment(
+            config_key,
+            solana_sdk::commitment_config::CommitmentLevel::Processed,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    account.data
+}
+
+#[tokio::test]
+async fn set_pauser_addresses_lazy_migration() {
+    let mut context = set_up().await.unwrap();
+
+    // Pre-migration: Config is the legacy 32-byte layout written by `initialize`.
+    let pre = fetch_config_data(&mut context).await;
+    assert_eq!(
+        pre.len(),
+        CONFIG_BORSH_LEN,
+        "expected legacy 32-byte Config before migration"
+    );
+    assert!(!read_paused(&pre));
+    assert_eq!(read_pauser(&pre), Pubkey::default());
+    assert_eq!(read_unpauser(&pre), Pubkey::default());
+
+    // First SetPauserAddresses: realloc 32 → 97 bytes, write the tail.
+    let pauser_one = Pubkey::new_unique();
+    let unpauser_one = Pubkey::new_unique();
+    submit_set_pauser_addresses(&mut context, pauser_one, unpauser_one).await;
+
+    let post = fetch_config_data(&mut context).await;
+    assert_eq!(
+        post.len(),
+        CONFIG_FULL_LEN,
+        "Config should grow to 97 bytes after migration"
+    );
+    assert!(
+        !read_paused(&post),
+        "fresh tail should default to paused = false"
+    );
+    assert_eq!(read_pauser(&post), pauser_one);
+    assert_eq!(read_unpauser(&post), unpauser_one);
+    // The first 32 bytes (wormhole_bridge) must survive realloc untouched.
+    assert_eq!(&post[..CONFIG_BORSH_LEN], &pre[..CONFIG_BORSH_LEN]);
+
+    // Second SetPauserAddresses: rotate keys, no realloc, paused flag preserved (still false).
+    let pauser_two = Pubkey::new_unique();
+    let unpauser_two = Pubkey::new_unique();
+    submit_set_pauser_addresses(&mut context, pauser_two, unpauser_two).await;
+
+    let rotated = fetch_config_data(&mut context).await;
+    assert_eq!(
+        rotated.len(),
+        CONFIG_FULL_LEN,
+        "rotation must not change account size"
+    );
+    assert_eq!(read_pauser(&rotated), pauser_two);
+    assert_eq!(read_unpauser(&rotated), unpauser_two);
+    assert!(!read_paused(&rotated));
+}
+
+#[tokio::test]
+async fn pause_blocks_transfer_and_unpause_restores() {
+    let mut context = set_up().await.unwrap();
+
+    // The pauser/unpauser must each be Solana keypairs because the on-chain handler requires
+    // them as `Signer`. Fund them so they can co-sign their respective instructions.
+    let pauser = Keypair::new();
+    let unpauser = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &pauser.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &unpauser.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+
+    submit_set_pauser_addresses(&mut context, pauser.pubkey(), unpauser.pubkey()).await;
+
+    let Context {
+        ref payer,
+        ref mut client,
+        bridge,
+        token_bridge,
+        ref mint,
+        ref token_account,
+        ref token_authority,
+        ..
+    } = context;
+
+    // (1) Transfer succeeds while unpaused.
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        &Keypair::new(),
+        token_account,
+        token_authority,
+        mint.pubkey(),
+        100,
+    )
+    .await
+    .unwrap();
+
+    // (2) Wrong signer cannot pause (must equal the configured pauser).
+    let stranger = Keypair::new();
+    common::transfer(client, payer, &stranger.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    common::pause(client, token_bridge, &stranger, payer)
+        .await
+        .expect_err("pause from wrong signer must fail with InvalidPauser");
+
+    // (3) Configured pauser pauses, then transfer rejects with `Paused`.
+    common::pause(client, token_bridge, &pauser, payer)
+        .await
+        .unwrap();
+    let paused_data = client
+        .get_account(ConfigAccount::<'_, { AccountState::Initialized }>::key(
+            None,
+            &token_bridge,
+        ))
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    assert!(
+        read_paused(&paused_data),
+        "Config tail should report paused=true"
+    );
+
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        &Keypair::new(),
+        token_account,
+        token_authority,
+        mint.pubkey(),
+        100,
+    )
+    .await
+    .expect_err("transfer must fail while paused");
+
+    // (4) Wrong signer cannot unpause either.
+    common::unpause(client, token_bridge, &stranger, payer)
+        .await
+        .expect_err("unpause from wrong signer must fail with InvalidPauser");
+
+    // (5) Configured unpauser unpauses, transfer succeeds again.
+    common::unpause(client, token_bridge, &unpauser, payer)
+        .await
+        .unwrap();
+    let unpaused_data = client
+        .get_account(ConfigAccount::<'_, { AccountState::Initialized }>::key(
+            None,
+            &token_bridge,
+        ))
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    assert!(!read_paused(&unpaused_data));
+
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        &Keypair::new(),
+        token_account,
+        token_authority,
+        mint.pubkey(),
+        100,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn legacy_unmigrated_compat() {
+    // No SetPauserAddresses is ever submitted, so Config stays at 32 bytes. Every existing
+    // transfer/complete entry point must behave exactly like the pre-upgrade implementation:
+    // the `notPaused` gate sees a too-short account and treats it as unpaused.
+    let mut context = set_up().await.unwrap();
+
+    let pre = fetch_config_data(&mut context).await;
+    assert_eq!(
+        pre.len(),
+        CONFIG_BORSH_LEN,
+        "Config must still be the legacy layout"
+    );
+
+    // pause / unpause both refuse on a legacy account.
+    let stranger = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &stranger.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    common::pause(
+        &mut context.client,
+        context.token_bridge,
+        &stranger,
+        &context.payer,
+    )
+    .await
+    .expect_err("pause must fail on un-migrated Config (PauserNotConfigured)");
+    common::unpause(
+        &mut context.client,
+        context.token_bridge,
+        &stranger,
+        &context.payer,
+    )
+    .await
+    .expect_err("unpause must fail on un-migrated Config (PauserNotConfigured)");
+
+    // A native transfer still works — the gate is a no-op on legacy accounts.
+    let Context {
+        ref payer,
+        ref mut client,
+        bridge,
+        token_bridge,
+        ref mint,
+        ref token_account,
+        ref token_authority,
+        ..
+    } = context;
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        &Keypair::new(),
+        token_account,
+        token_authority,
+        mint.pubkey(),
+        100,
+    )
+    .await
+    .unwrap();
+
+    // The Config account size must not have changed as a side-effect of any transfer.
+    let post = fetch_config_data(&mut context).await;
+    assert_eq!(
+        post.len(),
+        CONFIG_BORSH_LEN,
+        "transfers must not migrate the Config"
+    );
 }

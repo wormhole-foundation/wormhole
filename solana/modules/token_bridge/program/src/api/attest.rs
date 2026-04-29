@@ -92,6 +92,8 @@ pub fn attest_token(
     accs: &mut AttestToken,
     data: AttestTokenData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Pay fee
     let transfer_ix = solana_program::system_instruction::transfer(
         accs.payer.key,
