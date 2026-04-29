@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1209,9 +1210,16 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 		return
 	}
 
-	// We support two types of pollers, the batch poller and the instant finality poller. Instantiate the right one.
+	// We support three types of connectors:
+	// - PollConnector: for HTTP-only RPCs (no WebSocket subscriptions), polls for blocks and logs.
+	// - BatchPollConnector: for WebSocket RPCs, subscribes for latest heads, polls for finalized/safe.
+	// - InstantFinalityConnector: for chains with instant finality, subscribes for latest heads.
 	if finalizedPollingSupported {
-		ethConn = connectors.NewBatchPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
+		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+			ethConn = connectors.NewPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
+		} else {
+			ethConn = connectors.NewBatchPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
+		}
 	} else {
 		ethConn = connectors.NewInstantFinalityConnector(baseConnector, w.logger)
 	}

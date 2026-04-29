@@ -232,6 +232,9 @@ var (
 	nexusRPC      *string
 	nexusContract *string
 
+	tronRPC      *string
+	tronContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -496,6 +499,9 @@ func init() {
 
 	nexusRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nexusRPC", "Nexus RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	nexusContract = NodeCmd.Flags().String("nexusContract", "", "Nexus contract address")
+
+	tronRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "tronRPC", "Tron RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
+	tronContract = NodeCmd.Flags().String("tronContract", "", "Tron contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -904,6 +910,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*mocaContract = checkEvmArgs(logger, *mocaRPC, *mocaContract, vaa.ChainIDMoca)
 	*megaEthContract = checkEvmArgs(logger, *megaEthRPC, *megaEthContract, vaa.ChainIDMegaETH)
 	*zeroGravityContract = checkEvmArgs(logger, *zeroGravityRPC, *zeroGravityContract, vaa.ChainIDZeroGravity)
+	*tronContract = checkEvmArgs(logger, *tronRPC, *tronContract, vaa.ChainIDTron)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1087,6 +1094,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["plasmaRPC"] = *plasmaRPC
 	rpcMap["creditcoinRPC"] = *creditCoinRPC
 	rpcMap["xrplRPC"] = *xrplRPC
+	rpcMap["tronRPC"] = *tronRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1639,6 +1647,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDTempo,
 			Rpc:              *tempoRPC,
 			Contract:         *tempoContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+	
+	if shouldStart(tronRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "tron",
+			ChainID:          vaa.ChainIDTron,
+			Rpc:              *tronRPC,
+			Contract:         *tronContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
