@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,6 +34,7 @@ import (
 type (
 	// Watcher is responsible for looking over Sui blockchain and reporting new transactions to the wormhole contract
 	Watcher struct {
+		chainID          vaa.ChainID
 		suiRPC           string
 		suiMoveEventType string
 
@@ -183,6 +183,8 @@ var (
 		})
 )
 
+var _ watchers.Watcher = (*Watcher)(nil)
+
 // NewWatcher creates a new Sui appid watcher
 func NewWatcher(
 	suiRPC string,
@@ -246,6 +248,7 @@ func NewWatcher(
 	}
 
 	return &Watcher{
+		chainID:                   vaa.ChainIDSui,
 		suiRPC:                    suiRPC,
 		suiMoveEventType:          suiMoveEventType,
 		unsafeDevMode:             unsafeDevMode,
@@ -264,7 +267,44 @@ func NewWatcher(
 	}, nil
 }
 
-func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiResult, isReobservation bool) error {
+func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
+	if err != nil {
+		return watchers.ValidObservation{}, err
+	}
+
+	return validatedObservation, nil
+}
+
+func (e *Watcher) ChainID() vaa.ChainID {
+	return e.chainID
+}
+
+func (e *Watcher) PublishMessage(msg *common.MessagePublication) error {
+	if msg == nil {
+		return errors.New("message publication is nil")
+	}
+
+	e.msgChan <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	suiMessagesConfirmed.Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(e.chainID.String(), "std").Inc()
+	}
+
+	return nil
+}
+
+func (e *Watcher) PublishReobservation(observation watchers.ValidObservation, msg *common.MessagePublication) error {
+	if err := watchers.ValidateReobservedMessage(observation, msg); err != nil {
+		return err
+	}
+
+	msg.IsReobservation = true
+	return e.PublishMessage(msg)
+}
+
+func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiResult, validatedObservation *watchers.ValidObservation) error {
+	isReobservation := validatedObservation != nil
 	if body.ID.TxDigest == nil {
 		return errors.New("missing TxDigest field")
 	}
@@ -340,48 +380,48 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 
 	// Verifies the observation through the Sui transaction verifier, if enabled, followed
 	// by publishing the observation to the message channel.
-	err = e.verifyAndPublish(ctx, observation, *body.ID.TxDigest, logger)
+	var publishErr error
+	if validatedObservation != nil {
+		if e.suiTxVerifier != nil {
+			verifiedMsg, verifyErr := e.verify(ctx, observation, *body.ID.TxDigest, logger)
+			if verifyErr != nil {
+				publishErr = verifyErr
+			} else {
+				observation = &verifiedMsg
+			}
+		}
 
-	if err != nil {
+		if publishErr == nil {
+			publishErr = e.PublishReobservation(*validatedObservation, observation)
+		}
+
+		if publishErr == nil {
+			logger.Info("message observed", observation.ZapFields()...)
+			return nil
+		}
+	} else {
+		if e.suiTxVerifier != nil {
+			verifiedMsg, verifyErr := e.verify(ctx, observation, *body.ID.TxDigest, logger)
+			if verifyErr != nil {
+				publishErr = verifyErr
+			} else {
+				observation = &verifiedMsg
+			}
+		}
+		if publishErr == nil {
+			publishErr = e.PublishMessage(observation)
+		}
+		if publishErr == nil {
+			logger.Info("message observed", observation.ZapFields()...)
+		}
+	}
+
+	if publishErr != nil {
 		suiTransferVerifierFailures.Inc()
 		logger.Error("Message publication error",
 			zap.String("TxDigest", *body.ID.TxDigest),
-			zap.Error(err))
+			zap.Error(publishErr))
 	}
-
-	return nil
-}
-
-func (e *Watcher) verifyAndPublish(
-	ctx context.Context,
-	msg *common.MessagePublication,
-	txDigest string,
-	logger *zap.Logger,
-) error {
-	if msg == nil {
-		return errors.New("MessagePublication is nil")
-	}
-
-	if e.suiTxVerifier != nil {
-		verifiedMsg, err := e.verify(ctx, msg, txDigest, logger)
-
-		if err != nil {
-			return err
-		}
-
-		msg = &verifiedMsg
-	}
-
-	e.msgChan <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
-
-	suiMessagesConfirmed.Inc()
-	if msg.IsReobservation {
-		watchers.ReobservationsByChain.WithLabelValues("sui", "std").Inc()
-	}
-
-	logger.Info("message observed",
-		msg.ZapFields()...,
-	)
 
 	return nil
 }
@@ -437,7 +477,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if len(dataWithEvents) > 0 {
 					for idx := len(dataWithEvents) - 1; idx >= 0; idx-- {
 						event := dataWithEvents[idx]
-						err = e.inspectBody(ctx, logger, event.result, false)
+						err = e.inspectBody(ctx, logger, event.result, nil)
 						if err != nil {
 							logger.Error("inspectBody Error", zap.Error(err))
 							continue
@@ -485,14 +525,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error("sui_fetch_obvs_req context done")
 				return ctx.Err()
 			case r := <-e.obsvReqC:
-				// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
-				// and only writes to the channel for this chain id.
-				// If either of the below cases are true, something has gone wrong
-				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDSui {
-					panic("invalid chain ID")
+				validatedObservation, err := e.Validate(r)
+				if err != nil {
+					watchers.LogInvalidObservationRequest(logger, r, err)
+					continue
 				}
 
-				tx58 := base58.Encode(r.TxHash)
+				tx58 := base58.Encode(validatedObservation.TxHash())
 
 				payload := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": ["%s"]}`, tx58)
 
@@ -530,9 +569,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for i, chunk := range res.Result {
-					err := e.inspectBody(ctx, logger, chunk, true)
-					if err != nil {
-						logger.Info("sui_fetch_obvs_req skipping event data in result", zap.String("txhash", tx58), zap.Int("index", i), zap.Error(err))
+					inspectErr := e.inspectBody(ctx, logger, chunk, &validatedObservation)
+					if inspectErr != nil {
+						logger.Info("sui_fetch_obvs_req skipping event data in result", zap.String("txhash", tx58), zap.Int("index", i), zap.Error(inspectErr))
 					}
 				}
 			}

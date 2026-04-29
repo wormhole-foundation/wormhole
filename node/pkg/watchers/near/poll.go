@@ -21,7 +21,7 @@ func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, ch
 
 	result := make([]*transactionProcessingJob, len(txns))
 	for i, tx := range txns {
-		result[i] = newTransactionProcessingJob(tx.Hash, tx.SignerId, false)
+		result[i] = newTransactionProcessingJob(tx.Hash, tx.SignerId, false, nil)
 	}
 	return result, nil
 }

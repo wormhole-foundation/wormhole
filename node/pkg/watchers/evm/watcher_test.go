@@ -59,7 +59,7 @@ func Test_canRetryGetBlockTime(t *testing.T) {
 	assert.False(t, canRetryGetBlockTime(errors.New("Hello, World!")))
 }
 
-// TestVerifyAndPublish checks the operation of the verifyAndPublish method of the watcher in
+// TestVerifyAndPublish checks the operation of the verification plus PublishMessage flow in
 // scenarios where the Transfer Verifier is disabled and when it's enabled. It covers much of
 // the behaviour of the verify() function.
 func TestVerifyAndPublish(t *testing.T) {
@@ -77,16 +77,18 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.Nil(t, w.txVerifier)
 
 	// Check nil message
-	err := w.verifyAndPublish(nil, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err := w.verifyMessage(nil, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.ErrorContains(t, err, "message publication cannot be nil")
+	require.Nil(t, verified)
 	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
 
 	// Check transfer verifier not enabled case. The message should be published normally.
 	msg = common.MessagePublication{}
 	require.Nil(t, w.txVerifier)
 
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err = w.verifyMessage(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
+	require.NoError(t, w.PublishMessage(verified))
 	require.Equal(t, 1, len(msgC))
 	publishedMsg := <-msgC
 	require.NotNil(t, publishedMsg)
@@ -105,8 +107,9 @@ func TestVerifyAndPublish(t *testing.T) {
 	msg = common.MessagePublication{}
 	require.Nil(t, w.txVerifier)
 
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err = w.verifyMessage(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
+	require.NoError(t, w.PublishMessage(verified))
 	require.Equal(t, 1, len(msgC))
 	publishedMsg = <-msgC
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
@@ -116,8 +119,9 @@ func TestVerifyAndPublish(t *testing.T) {
 	msg = common.MessagePublication{}
 	require.Nil(t, w.txVerifier)
 
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err = w.verifyMessage(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.Nil(t, err)
+	require.NoError(t, w.PublishMessage(verified))
 	require.Equal(t, 1, len(msgC))
 	publishedMsg = <-msgC
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
@@ -130,8 +134,9 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.NoError(t, setErr)
 	require.NotNil(t, w.txVerifier)
 
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err = w.verifyMessage(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.ErrorContains(t, err, "MessagePublication already has a non-default verification state")
+	require.Nil(t, verified)
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Anomalous.String(), msg.VerificationState().String())
 
@@ -144,8 +149,9 @@ func TestVerifyAndPublish(t *testing.T) {
 		EmitterAddress: tbAddr,
 	}
 
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err = w.verifyMessage(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.Nil(t, err)
+	require.NoError(t, w.PublishMessage(verified))
 	require.Equal(t, 1, len(msgC))
 	publishedMsg = <-msgC
 	require.NotNil(t, publishedMsg)
@@ -157,8 +163,9 @@ func TestVerifyAndPublish(t *testing.T) {
 	msg = common.MessagePublication{}
 	require.NotNil(t, w.txVerifier)
 
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err = w.verifyMessage(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.Nil(t, err)
+	require.NoError(t, w.PublishMessage(verified))
 	require.Equal(t, 1, len(msgC))
 	publishedMsg = <-msgC
 	require.Equal(t, common.NotApplicable.String(), publishedMsg.VerificationState().String())
@@ -171,8 +178,9 @@ func TestVerifyAndPublish(t *testing.T) {
 		EmitterAddress: tbAddr,
 	}
 
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	verified, err = w.verifyMessage(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
+	require.NoError(t, w.PublishMessage(verified))
 	require.Equal(t, 1, len(msgC))
 	publishedMsg = <-msgC
 	require.NotNil(t, publishedMsg)

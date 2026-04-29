@@ -28,11 +28,12 @@ import (
 )
 
 // Algorand allows max depth of 8 inner transactions
-const MAX_DEPTH = 8
+const maxDepthInnerTx = 8
 
 type (
 	// Watcher is responsible for looking over Algorand blockchain and reporting new transactions to the appid
 	Watcher struct {
+		chainID      vaa.ChainID
 		indexerRPC   string
 		indexerToken string
 		algodRPC     string
@@ -67,6 +68,8 @@ var (
 		})
 )
 
+var _ watchers.Watcher = (*Watcher)(nil)
+
 // NewWatcher creates a new Algorand appid watcher
 func NewWatcher(
 	indexerRPC string,
@@ -78,6 +81,7 @@ func NewWatcher(
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
+		chainID:       vaa.ChainIDAlgorand,
 		indexerRPC:    indexerRPC,
 		indexerToken:  indexerToken,
 		algodRPC:      algodRPC,
@@ -90,14 +94,50 @@ func NewWatcher(
 	}
 }
 
+func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
+	if err != nil {
+		return watchers.ValidObservation{}, err
+	}
+
+	return validatedObservation, nil
+}
+
+func (e *Watcher) ChainID() vaa.ChainID {
+	return e.chainID
+}
+
+func (e *Watcher) PublishMessage(msg *common.MessagePublication) error {
+	if msg == nil {
+		return fmt.Errorf("message publication is nil")
+	}
+
+	e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	algorandMessagesConfirmed.Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(e.chainID.String(), "std").Inc()
+	}
+
+	return nil
+}
+
+func (e *Watcher) PublishReobservation(observation watchers.ValidObservation, msg *common.MessagePublication) error {
+	if err := watchers.ValidateReobservedMessage(observation, msg); err != nil {
+		return err
+	}
+
+	msg.IsReobservation = true
+	return e.PublishMessage(msg)
+}
+
 // gatherObservations recurses through a given transactions inner-transactions
 // to find any messages emitted from the core wormhole contract.
 // Algorand allows up to 8 levels of inner transactions.
 func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *zap.Logger) (obs []algorandObservation) {
 
 	// SECURITY defense-in-depth: don't recurse > max depth allowed by Algorand
-	if depth >= MAX_DEPTH {
-		logger.Error("algod client", zap.Error(fmt.Errorf("exceeded max depth of %d", MAX_DEPTH)))
+	if depth >= maxDepthInnerTx {
+		logger.Error("algod client", zap.Error(fmt.Errorf("exceeded max depth of %d", maxDepthInnerTx)))
 		return
 	}
 
@@ -153,7 +193,8 @@ func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *
 // lookAtTxn takes an outer transaction from the block.payset and gathers
 // observations from messages emitted in nested inner transactions
 // then passes them on the relevant channels
-func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger, isReobservation bool) {
+func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger, validatedObservation *watchers.ValidObservation) {
+	isReobservation := validatedObservation != nil
 
 	observations := gatherObservations(e, t.SignedTxnWithAD, 0, logger)
 
@@ -192,22 +233,19 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 			Unreliable:       false,
 		}
 
-		algorandMessagesConfirmed.Inc()
-		if isReobservation {
-			watchers.ReobservationsByChain.WithLabelValues("algorand", "std").Inc()
+		logger.Info("message observed", observation.ZapFields()...)
+
+		if validatedObservation != nil {
+			if err := e.PublishReobservation(*validatedObservation, observation); err != nil {
+				logger.Error("failed to publish reobservation", zap.Error(err))
+				continue
+			}
+			continue
 		}
 
-		logger.Info("message observed",
-			zap.Time("timestamp", observation.Timestamp),
-			zap.Uint32("nonce", observation.Nonce),
-			zap.Uint64("sequence", observation.Sequence),
-			zap.Stringer("emitter_chain", observation.EmitterChain),
-			zap.Stringer("emitter_address", observation.EmitterAddress),
-			zap.Binary("payload", observation.Payload),
-			zap.Uint8("consistency_level", observation.ConsistencyLevel),
-		)
-
-		e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+		if err := e.PublishMessage(observation); err != nil {
+			logger.Error("failed to publish message", zap.Error(err))
+		}
 	}
 }
 
@@ -267,18 +305,22 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case r := <-e.obsvReqC:
-			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
-			// and only writes to the channel for this chain id.
-			// If either of the below cases are true, something has gone wrong
-			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDAlgorand {
-				panic("invalid chain ID")
+			validatedObservation, err := e.Validate(r)
+			if err != nil {
+				watchers.LogInvalidObservationRequest(logger, r, err)
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+				continue
 			}
 
-			logger.Info("Received obsv request",
-				zap.String("tx_hash", hex.EncodeToString(r.TxHash)),
-				zap.String("base32_tx_hash", base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)))
+			logger.Info(
+				"received observation request",
+				validatedObservation.ZapFields(
+					zap.String("tx_hash", hex.EncodeToString(validatedObservation.TxHash())),
+					zap.String("base32_tx_hash", base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(validatedObservation.TxHash())),
+				)...,
+			)
 
-			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)).Do(ctx)
+			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(validatedObservation.TxHash())).Do(ctx)
 			if err != nil {
 				logger.Error("SearchForTransactions", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -295,7 +337,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for _, element := range block.Payset {
-					lookAtTxn(e, element, block, logger, true)
+					lookAtTxn(e, element, block, logger, &validatedObservation)
 				}
 			}
 
@@ -321,7 +363,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 
 					for _, element := range block.Payset {
-						lookAtTxn(e, element, block, logger, false)
+						lookAtTxn(e, element, block, logger, nil)
 					}
 					e.next_round = e.next_round + 1
 

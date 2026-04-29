@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/mr-tron/base58"
@@ -248,28 +247,23 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		Unreliable:       false,
 	}
 
-	if job.isReobservation {
-		watchers.ReobservationsByChain.WithLabelValues("near", "std").Inc()
-	}
-
 	// tell everyone about it
 	job.hasWormholeMsg = true
 
 	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED //nolint:channelcheck // Only pauses this watcher
 
-	logger.Info("message observed",
-		zap.String("log_msg_type", "wormhole_event_success"),
-		zap.Uint64("ts", ts),
-		zap.Time("timestamp", observation.Timestamp),
-		zap.Uint32("nonce", observation.Nonce),
-		zap.Uint64("sequence", observation.Sequence),
-		zap.Stringer("emitter_chain", observation.EmitterChain),
-		zap.Stringer("emitter_address", observation.EmitterAddress),
-		zap.Binary("payload", observation.Payload),
-		zap.Uint8("consistency_level", observation.ConsistencyLevel),
-	)
+	logger.Info("message observed", observation.ZapFields(zap.String("log_msg_type", "wormhole_event_success"), zap.Uint64("ts", ts))...)
 
-	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	if job.validated != nil {
+		if err := e.PublishReobservation(*job.validated, observation); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := e.PublishMessage(observation); err != nil {
+		return err
+	}
 
 	return nil
 }

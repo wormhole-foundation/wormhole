@@ -373,26 +373,16 @@ func (s *SolanaWatcher) shimProcessRest(
 		Unreliable: false,
 	}
 
-	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
+	if logger.Level().Enabled(s.msgObservedLogLevel) {
+		logger.Log(s.msgObservedLogLevel, "message observed from shim", observation.ZapFields(zap.Stringer("signature", tx.Signatures[0]))...)
+	}
+
+	if err := s.PublishMessage(observation); err != nil {
+		return err
+	}
 	if isReobservation {
 		watchers.ReobservationsByChain.WithLabelValues(s.chainID.String(), "shim").Inc()
 	}
-
-	if logger.Level().Enabled(s.msgObservedLogLevel) {
-		logger.Log(s.msgObservedLogLevel, "message observed from shim",
-			zap.Stringer("signature", tx.Signatures[0]),
-			zap.Time("timestamp", observation.Timestamp),
-			zap.Uint32("nonce", observation.Nonce),
-			zap.Uint64("sequence", observation.Sequence),
-			zap.Stringer("emitter_chain", observation.EmitterChain),
-			zap.Stringer("emitter_address", observation.EmitterAddress),
-			zap.Bool("isReobservation", observation.IsReobservation),
-			zap.Binary("payload", observation.Payload),
-			zap.Uint8("consistency_level", observation.ConsistencyLevel),
-		)
-	}
-
-	s.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	return nil
 }

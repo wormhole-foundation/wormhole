@@ -266,7 +266,7 @@ func TestVerifyAndPublish_Samples(t *testing.T) {
 	testCtx := context.TODO()
 	testLogger := zap.NewNop()
 
-	// Run verifyAndPublish on samples
+	// Run verify plus PublishMessage on samples
 	for _, sample := range Samples {
 
 		t.Run(sample.description, func(t *testing.T) {
@@ -285,8 +285,9 @@ func TestVerifyAndPublish_Samples(t *testing.T) {
 
 			mockApiConnection.SetPastObjects(objectId, version, previousVersion, pastObjects)
 
-			// call verify and publish
-			_ = testWatcher.verifyAndPublish(testCtx, &sample.messagePublication, sample.txDigest, testLogger)
+			verifiedMsg, err := testWatcher.verify(testCtx, &sample.messagePublication, sample.txDigest, testLogger)
+			require.NoError(t, err)
+			require.NoError(t, testWatcher.PublishMessage(&verifiedMsg))
 
 			newMessagePublication := <-msgChan
 			require.Equal(t, sample.expectedState, newMessagePublication.VerificationState())

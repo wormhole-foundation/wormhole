@@ -11,6 +11,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/mr-tron/base58"
@@ -50,6 +51,8 @@ var (
 	nearBlockchainMaxGaps = 5
 )
 
+var _ watchers.Watcher = (*Watcher)(nil)
+
 type (
 	transactionProcessingJob struct {
 		txHash          string
@@ -58,12 +61,14 @@ type (
 		retryCounter    uint
 		delay           time.Duration
 		isReobservation bool
+		validated       *watchers.ValidObservation
 
 		// set during processing
 		hasWormholeMsg bool // set during processing; whether this transaction emitted a Wormhole message
 	}
 
 	Watcher struct {
+		chainID         vaa.ChainID
 		mainnet         bool
 		wormholeAccount string // name of the Wormhole Account on the NEAR blockchain
 		nearRPC         string
@@ -100,6 +105,7 @@ func NewWatcher(
 	mainnet bool,
 ) *Watcher {
 	return &Watcher{
+		chainID:                      vaa.ChainIDNear,
 		mainnet:                      mainnet,
 		wormholeAccount:              wormholeContract,
 		nearRPC:                      nearRPC,
@@ -113,7 +119,7 @@ func NewWatcher(
 	}
 }
 
-func newTransactionProcessingJob(txHash string, senderAccountId string, isReobservation bool) *transactionProcessingJob {
+func newTransactionProcessingJob(txHash string, senderAccountId string, isReobservation bool, validated *watchers.ValidObservation) *transactionProcessingJob {
 	return &transactionProcessingJob{
 		txHash,
 		senderAccountId,
@@ -121,8 +127,44 @@ func newTransactionProcessingJob(txHash string, senderAccountId string, isReobse
 		0,
 		initialTxProcDelay,
 		isReobservation,
+		validated,
 		false,
 	}
+}
+
+func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
+	if err != nil {
+		return watchers.ValidObservation{}, err
+	}
+
+	return validatedObservation, nil
+}
+
+func (e *Watcher) ChainID() vaa.ChainID {
+	return e.chainID
+}
+
+func (e *Watcher) PublishMessage(msg *common.MessagePublication) error {
+	if msg == nil {
+		return fmt.Errorf("message publication is nil")
+	}
+
+	e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(e.chainID.String(), "std").Inc()
+	}
+
+	return nil
+}
+
+func (e *Watcher) PublishReobservation(observation watchers.ValidObservation, msg *common.MessagePublication) error {
+	if err := watchers.ValidateReobservedMessage(observation, msg); err != nil {
+		return err
+	}
+
+	msg.IsReobservation = true
+	return e.PublishMessage(msg)
 }
 
 func (e *Watcher) runBlockPoll(ctx context.Context) error {
@@ -200,23 +242,22 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
-			// and only writes to the channel for this chain id.
-			// If either of the below cases are true, something has gone wrong
-			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDNear {
-				panic("invalid chain ID")
+			validatedObservation, err := e.Validate(r)
+			if err != nil {
+				watchers.LogInvalidObservationRequest(logger, r, err, zap.String("txIDBase58", base58.Encode(r.GetTxHash())))
+				continue
 			}
 
-			txHash := base58.Encode(r.TxHash)
+			txHash := base58.Encode(validatedObservation.TxHash())
 
-			logger.Info("Received obsv request", zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", txHash))
+			logger.Info("received observation request", validatedObservation.ZapFields(zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", txHash))...)
 
 			// TODO e.wormholeContract is not the correct value for senderAccountId. Instead, it should be the account id of the transaction sender.
 			// This value is used by NEAR to determine which shard to query. An incorrect value here is not a security risk but could lead to reobservation requests failing.
 			// Guardians currently run nodes for all shards and the API seems to be returning the correct results independent of the set senderAccountId but this could change in the future.
 			// Fixing this would require adding the transaction sender account ID to the observation request.
-			job := newTransactionProcessingJob(txHash, e.wormholeAccount, true)
-			err := e.schedule(ctx, job, time.Nanosecond)
+			job := newTransactionProcessingJob(txHash, e.wormholeAccount, true, &validatedObservation)
+			err = e.schedule(ctx, job, time.Nanosecond)
 			if err != nil {
 				// Error-level logging here because this is after an re-observation request already, which should be infrequent
 				logger.Error("error scheduling transaction processing job", zap.Error(err))

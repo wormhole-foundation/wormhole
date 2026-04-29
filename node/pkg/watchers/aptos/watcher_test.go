@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -162,7 +164,7 @@ func TestObserveData(t *testing.T) {
 
 			// Must not panic for any input.
 			require.NotPanics(t, func() {
-				w.observeData(logger, gjson.Parse(tc.json), tc.nativeSeq, false)
+				w.observeData(logger, gjson.Parse(tc.json), tc.nativeSeq, nil)
 			})
 
 			if tc.expectError != "" {
@@ -199,7 +201,10 @@ func TestObserveDataFields(t *testing.T) {
 		"consistency_level": "15"
 	}`
 
-	w.observeData(logger, gjson.Parse(json), 123, true)
+	validatedObservation, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, common.TxIDLenMin)}, vaa.ChainIDAptos)
+	require.NoError(t, err)
+
+	w.observeData(logger, gjson.Parse(json), 123, &validatedObservation)
 	require.Len(t, msgC, 1)
 	msg := <-msgC
 
