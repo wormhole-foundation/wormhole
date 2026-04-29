@@ -41,6 +41,18 @@ pub struct CloseSignatureSetAndPostedVAA<'b> {
     pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// The signature set account to close.
+    ///
+    /// Constraints (verified in the handler — SignatureSet has no magic
+    /// prefix, so each one matters):
+    ///   1. Owned by the core bridge program.
+    ///   2. Bytes parse exactly into a `SignatureSetData` (try_from_slice
+    ///      enforces both "no leftover bytes" and "no missing bytes"; this
+    ///      is the primary defense against arbitrary-account-close attacks
+    ///      since there is no discriminator).
+    ///   3. Its `hash` derives the `posted_vaa` account passed below.
+    ///   4. If `posted_vaa` is uninitialized: the `guardian_set` whose
+    ///      index matches `sig_data.guardian_set_index` must be expired.
+    ///
     /// Uses Info to avoid Persist serializing back into a zeroed account.
     pub signature_set: Mut<Info<'b>>,
 
@@ -121,6 +133,25 @@ pub fn close_signature_set_and_posted_vaa(
             MessageData::try_from_slice(&data[3..])
                 .map_err(|_| SolitaireError::ProgramError(ProgramError::InvalidAccountData))?
         };
+
+        // Defense-in-depth shape checks for the PostedVAA. post_vaa fills all
+        // three of these out of the verified VAA, so a posted_vaa that fails
+        // any of them is either corrupt or a different account masquerading
+        // under a "vaa" prefix — refuse to close it.
+        //
+        //   - vaa_version: legitimate VAAs are version 1 or higher.
+        //   - vaa_time: legitimate VAAs always carry a non-zero timestamp.
+        //   - vaa_signature_account: pins the close to the *specific*
+        //     signature_set that verified this VAA, blocking pairings with
+        //     unrelated signature sets that happen to share a payload hash.
+        if vaa_data.vaa_version == 0
+            || vaa_data.vaa_time == 0
+            || &vaa_data.vaa_signature_account != accs.signature_set.key
+        {
+            return Err(SolitaireError::ProgramError(
+                ProgramError::InvalidAccountData,
+            ));
+        }
 
         let submission_time = if vaa_data.submission_time == 0 {
             DEFAULT_SUBMISSION_TIME

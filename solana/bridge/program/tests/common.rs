@@ -138,7 +138,7 @@ mod helpers {
         emitter_chain: u16,
     ) -> (PostVAAData, [u8; 32], [u8; 32]) {
         let vaa = PostVAAData {
-            version: 0,
+            version: 1,
             guardian_set_index,
 
             // Body part

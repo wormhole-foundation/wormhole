@@ -10,6 +10,7 @@ use crate::{
         MessageWithinRetentionWindow,
     },
     MessageData,
+    OUR_CHAIN_ID,
 };
 use solana_program::{
     program_error::ProgramError,
@@ -72,6 +73,26 @@ pub fn close_posted_message(
 
         let message_data = MessageData::try_from_slice(&data[3..])
             .map_err(|_| SolitaireError::ProgramError(ProgramError::InvalidAccountData))?;
+
+        // Defense-in-depth shape checks. All three are invariants that
+        // post_message has always upheld, so a posted_message that fails any
+        // of them is either corrupt or impersonating a different account
+        // type. We refuse to close it (and reclaim rent into a different
+        // account) under those conditions.
+        //
+        // - submission_time is set to clock.unix_timestamp at post time and
+        //   would only be 0 for a synthetic / cosplay account.
+        // - vaa_time is *only* written by post_vaa, which targets a separate
+        //   "vaa"-prefixed account; a "msg"/"msu" account always has 0 here.
+        // - emitter_chain is set to OUR_CHAIN_ID at post time.
+        if message_data.submission_time == 0
+            || message_data.vaa_time != 0
+            || message_data.emitter_chain != OUR_CHAIN_ID
+        {
+            return Err(SolitaireError::ProgramError(
+                ProgramError::InvalidAccountData,
+            ));
+        }
 
         // Check retention: submission_time must be at or before (now - RETENTION_PERIOD).
         if (message_data.submission_time as i64) > accs.clock.unix_timestamp - RETENTION_PERIOD {

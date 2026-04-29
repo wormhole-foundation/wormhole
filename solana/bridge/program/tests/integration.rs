@@ -199,7 +199,7 @@ async fn bridge_messages() {
         let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
         // Verify on chain Message
-        assert_eq!(posted_message.message.vaa_version, 0);
+        assert_eq!(posted_message.message.vaa_version, 1);
         assert_eq!(
             posted_message.message.consistency_level,
             ConsistencyLevel::Confirmed as u8
@@ -287,7 +287,7 @@ async fn bridge_messages() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 1);
     assert_eq!(
         posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
@@ -382,7 +382,7 @@ async fn test_bridge_messages_unreliable() {
         let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
         // Verify on chain vaa
-        assert_eq!(posted_message.message.vaa_version, 0);
+        assert_eq!(posted_message.message.vaa_version, 1);
         assert_eq!(posted_message.message.vaa_signature_account, signature_set);
         assert_eq!(posted_message.message.nonce, nonce);
         assert_eq!(posted_message.message.sequence, sequence);
@@ -771,7 +771,7 @@ async fn guardian_set_change() {
     let guardian_set: GuardianSetData = common::get_account_data(client, guardian_set_key).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 1);
     assert_eq!(
         posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
@@ -841,7 +841,7 @@ async fn guardian_set_change() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 1);
     assert_eq!(
         posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
@@ -1034,7 +1034,7 @@ async fn set_fees() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 1);
     assert_eq!(
         posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
@@ -1213,7 +1213,7 @@ async fn free_fees() {
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
     // Verify on chain Message
-    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 1);
     assert_eq!(
         posted_message.message.consistency_level,
         ConsistencyLevel::Confirmed as u8
@@ -1458,7 +1458,7 @@ async fn foreign_bridge_messages() {
     let posted_message: PostedVAAData = common::get_account_data(client, message_key).await;
     let signatures: SignatureSetData = common::get_account_data(client, signature_set).await;
 
-    assert_eq!(posted_message.message.vaa_version, 0);
+    assert_eq!(posted_message.message.vaa_version, 1);
     assert_eq!(posted_message.message.vaa_signature_account, signature_set);
     assert_eq!(posted_message.message.nonce, nonce);
     assert_eq!(posted_message.message.sequence, sequence);
