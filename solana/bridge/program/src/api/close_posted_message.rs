@@ -95,7 +95,10 @@ pub fn close_posted_message(
         &account_data,
     )?;
 
-    // 7. Close the account: transfer lamports to fee_collector.
+    // 7. Close the account: drain lamports, truncate data, hand back to system program.
+    // Using realloc(0, false) (rather than fill(0) on the existing buffer) makes the
+    // account match every other "closed" definition in the bridge: zero data length,
+    // zero lamports, owned by the system program.
     let message_lamports = accs.message.lamports();
     **accs.fee_collector.lamports.borrow_mut() = accs
         .fee_collector
@@ -103,7 +106,7 @@ pub fn close_posted_message(
         .checked_add(message_lamports)
         .ok_or(MathOverflow)?;
     **accs.message.lamports.borrow_mut() = 0;
-    accs.message.data.borrow_mut().fill(0);
+    accs.message.realloc(0, false)?;
     accs.message.assign(&solana_program::system_program::id());
 
     // 8. Update bridge.last_lamports to prevent fee waiver.

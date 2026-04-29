@@ -92,8 +92,12 @@ pub fn close_signature_set_and_posted_vaa(
         return Err(InvalidDerivedAccount.into());
     }
 
-    // 4. Determine if PostedVAA is initialised
-    let vaa_initialized = accs.posted_vaa.data_len() > 0 && accs.posted_vaa.owner == ctx.program_id;
+    // 4. Determine if PostedVAA is initialised. We use the same conjunction
+    // (lamports + data + owner) the bridge uses elsewhere for "live" accounts;
+    // after a close (below) all three become zero/system-owned at once.
+    let vaa_initialized = accs.posted_vaa.lamports() > 0
+        && accs.posted_vaa.data_len() > 0
+        && accs.posted_vaa.owner == ctx.program_id;
 
     // 5. Branched validation.
     if vaa_initialized {
@@ -128,7 +132,7 @@ pub fn close_signature_set_and_posted_vaa(
             return Err(MessageWithinRetentionWindow.into());
         }
 
-        // Close PostedVAA: transfer lamports to fee_collector.
+        // Close PostedVAA: drain lamports, truncate data, hand back to system program.
         let vaa_lamports = accs.posted_vaa.lamports();
         **accs.fee_collector.lamports.borrow_mut() = accs
             .fee_collector
@@ -136,7 +140,7 @@ pub fn close_signature_set_and_posted_vaa(
             .checked_add(vaa_lamports)
             .ok_or(MathOverflow)?;
         **accs.posted_vaa.lamports.borrow_mut() = 0;
-        accs.posted_vaa.data.borrow_mut().fill(0);
+        accs.posted_vaa.realloc(0, false)?;
         accs.posted_vaa
             .assign(&solana_program::system_program::id());
     } else {
@@ -154,7 +158,7 @@ pub fn close_signature_set_and_posted_vaa(
         }
     }
 
-    // 6. Close signature_set: transfer lamports to fee_collector.
+    // 6. Close signature_set: drain lamports, truncate data, hand back to system program.
     let sig_lamports = accs.signature_set.lamports();
     **accs.fee_collector.lamports.borrow_mut() = accs
         .fee_collector
@@ -162,7 +166,7 @@ pub fn close_signature_set_and_posted_vaa(
         .checked_add(sig_lamports)
         .ok_or(MathOverflow)?;
     **accs.signature_set.lamports.borrow_mut() = 0;
-    accs.signature_set.data.borrow_mut().fill(0);
+    accs.signature_set.realloc(0, false)?;
     accs.signature_set
         .assign(&solana_program::system_program::id());
 
