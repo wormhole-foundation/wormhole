@@ -133,6 +133,7 @@ Contracts that consume VAAs may process "new" governance VAAs _before_ processin
 A common suggestion is that the contracts should strictly enforce VAA ordering such that this is
 not possible.
 
+**Justification**
 We do not want to implement this mechanism because it creates a denial-of-service risk. If we do
 enforce ordering, and a message fails for some reason, then a contract could get totally bricked
 if it refuses to process VAAs in the future. This could happen due to a bug, or it could be
