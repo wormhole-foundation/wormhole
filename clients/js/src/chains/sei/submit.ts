@@ -7,7 +7,7 @@ import { getSigningCosmWasmClient } from "@sei-js/core";
 
 import { NETWORKS } from "../../consts";
 import { impossible, Payload } from "../../vaa";
-import { contracts, Network } from "@wormhole-foundation/sdk";
+import { contracts, Network } from "@wormhole-foundation/sdk-base";
 
 export const submit = async (
   payload: Payload,

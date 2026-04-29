@@ -11,7 +11,7 @@ import {
 } from "./publish";
 import { SuiBuildOutput } from "./types";
 import { getPackageId } from "./utils";
-import { Network } from "@wormhole-foundation/sdk";
+import { Network } from "@wormhole-foundation/sdk-base";
 
 export const buildCoin = async (
   provider: JsonRpcProvider,

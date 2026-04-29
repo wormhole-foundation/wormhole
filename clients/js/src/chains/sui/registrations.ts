@@ -6,7 +6,7 @@ import {
   Network,
   chainIdToChain,
   contracts,
-} from "@wormhole-foundation/sdk";
+} from "@wormhole-foundation/sdk-base";
 
 export async function queryRegistrationsSui(
   network: Network,
