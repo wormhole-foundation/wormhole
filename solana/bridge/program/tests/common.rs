@@ -536,8 +536,23 @@ mod helpers {
             .banks_client
             .get_account(account)
             .await
-            .unwrap()
-            .unwrap();
+            .expect("banks_client get_account failed")
+            .expect("cannot patch submission_time: account does not exist");
+        // The hard-coded 41..45 slice below would silently corrupt unrelated
+        // bytes if the layout shifted or the wrong account was passed in.
+        // Sanity-check the size and the magic prefix so a layout change
+        // surfaces as an explicit panic.
+        assert!(
+            account_data.data.len() >= 45,
+            "set_submission_time: account data too short ({} bytes, need >=45)",
+            account_data.data.len()
+        );
+        let prefix = &account_data.data[..3];
+        assert!(
+            matches!(prefix, b"msg" | b"msu" | b"vaa"),
+            "set_submission_time: unexpected account prefix {:?}",
+            prefix
+        );
         account_data.data[41..45].copy_from_slice(&submission_time.to_le_bytes());
         ctx.set_account(&account, &account_data.into());
     }

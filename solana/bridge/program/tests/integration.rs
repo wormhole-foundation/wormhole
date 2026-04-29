@@ -1847,7 +1847,7 @@ async fn test_close_posted_message_happy_path() {
     let message_lamports =
         common::get_account_balance(&mut test_ctx.banks_client, message_key).await;
 
-    // Set submission_time to 0 (epoch) so it passes the 30-day retention check.
+    // Backdate submission_time to 31 days ago so it passes the 30-day retention check.
     common::set_submission_time(test_ctx, message_key, old_submission_time()).await;
 
     // Close the message.
@@ -1908,7 +1908,7 @@ async fn test_close_posted_message_unreliable() {
     .await
     .unwrap();
 
-    // Set submission_time to 0 so it passes the retention check.
+    // Backdate submission_time to 31 days ago so it passes the retention check.
     common::set_submission_time(test_ctx, message_key.pubkey(), old_submission_time()).await;
 
     // Close should succeed for "msu" prefix too.
@@ -1988,7 +1988,7 @@ async fn test_close_signature_set_and_posted_vaa_happy_path() {
     let vaa_lamports =
         common::get_account_balance(&mut test_ctx.banks_client, posted_vaa_key).await;
 
-    // Set submission_time to 0 on the PostedVAA so it passes the retention check.
+    // Backdate submission_time on the PostedVAA to 31 days ago so it passes the retention check.
     common::set_submission_time(test_ctx, posted_vaa_key, old_submission_time()).await;
 
     // Close both.
@@ -2173,7 +2173,7 @@ async fn test_fee_enforcement_after_close() {
     .await
     .unwrap();
 
-    // Set submission_time to 0 so it passes retention check, then close.
+    // Backdate submission_time to 31 days ago so it passes retention check, then close.
     common::set_submission_time(test_ctx, message_key, old_submission_time()).await;
 
     common::close_posted_message(
