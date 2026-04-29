@@ -6,6 +6,7 @@ use crate::{
     error::Error::{
         InvalidAccountPrefix,
         InvalidProgramOwner,
+        MathOverflow,
         MessageWithinRetentionWindow,
     },
     MessageData,
@@ -96,7 +97,11 @@ pub fn close_posted_message(
 
     // 7. Close the account: transfer lamports to fee_collector.
     let message_lamports = accs.message.lamports();
-    **accs.fee_collector.lamports.borrow_mut() += message_lamports;
+    **accs.fee_collector.lamports.borrow_mut() = accs
+        .fee_collector
+        .lamports()
+        .checked_add(message_lamports)
+        .ok_or(MathOverflow)?;
     **accs.message.lamports.borrow_mut() = 0;
     accs.message.data.borrow_mut().fill(0);
     accs.message.assign(&solana_program::system_program::id());

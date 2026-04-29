@@ -13,6 +13,7 @@ use crate::{
         GuardianSetStillActive,
         InvalidDerivedAccount,
         InvalidProgramOwner,
+        MathOverflow,
         MessageWithinRetentionWindow,
     },
     MessageData,
@@ -129,7 +130,11 @@ pub fn close_signature_set_and_posted_vaa(
 
         // Close PostedVAA: transfer lamports to fee_collector.
         let vaa_lamports = accs.posted_vaa.lamports();
-        **accs.fee_collector.lamports.borrow_mut() += vaa_lamports;
+        **accs.fee_collector.lamports.borrow_mut() = accs
+            .fee_collector
+            .lamports()
+            .checked_add(vaa_lamports)
+            .ok_or(MathOverflow)?;
         **accs.posted_vaa.lamports.borrow_mut() = 0;
         accs.posted_vaa.data.borrow_mut().fill(0);
         accs.posted_vaa
@@ -151,7 +156,11 @@ pub fn close_signature_set_and_posted_vaa(
 
     // 6. Close signature_set: transfer lamports to fee_collector.
     let sig_lamports = accs.signature_set.lamports();
-    **accs.fee_collector.lamports.borrow_mut() += sig_lamports;
+    **accs.fee_collector.lamports.borrow_mut() = accs
+        .fee_collector
+        .lamports()
+        .checked_add(sig_lamports)
+        .ok_or(MathOverflow)?;
     **accs.signature_set.lamports.borrow_mut() = 0;
     accs.signature_set.data.borrow_mut().fill(0);
     accs.signature_set
