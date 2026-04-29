@@ -5,27 +5,16 @@ use crate::{
     },
     error::Error::{
         InvalidAccountPrefix,
-        InvalidEventAuthority,
         InvalidProgramOwner,
         MessageWithinRetentionWindow,
     },
     MessageData,
 };
 use solana_program::{
-    instruction::{
-        AccountMeta,
-        Instruction,
-    },
-    program::invoke_signed,
     program_error::ProgramError,
-    pubkey::Pubkey,
     sysvar::clock::Clock,
 };
-use solitaire::{
-    EVENT_AUTHORITY_SEED,
-    EVENT_IX_TAG_LE,
-    *,
-};
+use solitaire::*;
 
 use super::RETENTION_PERIOD;
 
@@ -92,59 +81,28 @@ pub fn close_posted_message(
         // data borrow dropped here
     };
 
-    // 5. Emit Anchor CPI event with the full account data (prefix + message).
-    emit_message_event(
+    // 5. Verify self_program (used as the CPI target) really is this program.
+    if accs.self_program.key != ctx.program_id {
+        return Err(InvalidProgramOwner.into());
+    }
+
+    // 6. Emit Anchor CPI event with the full account data (prefix + message).
+    emit_event_cpi(
         ctx,
         &accs.event_authority,
-        &accs.self_program,
+        &MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR,
         &account_data,
     )?;
 
-    // 6. Close the account: transfer lamports to fee_collector.
+    // 7. Close the account: transfer lamports to fee_collector.
     let message_lamports = accs.message.lamports();
     **accs.fee_collector.lamports.borrow_mut() += message_lamports;
     **accs.message.lamports.borrow_mut() = 0;
     accs.message.data.borrow_mut().fill(0);
     accs.message.assign(&solana_program::system_program::id());
 
-    // 7. Update bridge.last_lamports to prevent fee waiver.
+    // 8. Update bridge.last_lamports to prevent fee waiver.
     accs.bridge.last_lamports = accs.fee_collector.lamports();
-
-    Ok(())
-}
-
-/// Emit an Anchor-compliant CPI event containing the full account data.
-fn emit_message_event(
-    ctx: &ExecutionContext,
-    event_authority: &Info,
-    self_program: &Info,
-    account_data: &[u8],
-) -> Result<()> {
-    // Verify self_program is actually our program.
-    if self_program.key != ctx.program_id {
-        return Err(InvalidEventAuthority.into());
-    }
-
-    // Compute event authority PDA and verify.
-    let (expected_authority, bump) =
-        Pubkey::find_program_address(&[EVENT_AUTHORITY_SEED], ctx.program_id);
-    if event_authority.key != &expected_authority {
-        return Err(InvalidEventAuthority.into());
-    }
-
-    // Build instruction data: selector + discriminator + raw account data.
-    let mut ix_data = Vec::with_capacity(8 + 8 + account_data.len());
-    ix_data.extend_from_slice(&EVENT_IX_TAG_LE);
-    ix_data.extend_from_slice(&MESSAGE_ACCOUNT_CLOSED_DISCRIMINATOR);
-    ix_data.extend_from_slice(account_data);
-
-    let ix = Instruction {
-        program_id: *ctx.program_id,
-        accounts: vec![AccountMeta::new_readonly(expected_authority, true)],
-        data: ix_data,
-    };
-
-    invoke_signed(&ix, ctx.accounts, &[&[EVENT_AUTHORITY_SEED, &[bump]]])?;
 
     Ok(())
 }

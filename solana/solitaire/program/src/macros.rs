@@ -44,10 +44,13 @@ macro_rules! solitaire_event_guard {
     (@event_cpi, $p:ident, $a:ident, $d:ident) => {
         // Handle Anchor event CPI (self-invocation for event emission).
         if $d.len() >= 8 && $d[..8] == $crate::EVENT_IX_TAG_LE {
-            if $a.is_empty() || !$a[0].is_signer {
+            if $a.is_empty() {
                 return Err(SolitaireError::InvalidSigner(
                     solana_program::pubkey::Pubkey::default(),
                 ));
+            }
+            if !$a[0].is_signer {
+                return Err(SolitaireError::InvalidSigner(*$a[0].key));
             }
             let (expected_authority, _) = solana_program::pubkey::Pubkey::find_program_address(
                 &[$crate::EVENT_AUTHORITY_SEED],

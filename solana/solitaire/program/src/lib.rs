@@ -25,6 +25,7 @@ pub use borsh::{
 
 // Expose all submodules for consumption.
 pub mod error;
+pub mod event_cpi;
 pub mod macros;
 pub mod processors;
 pub mod types;
@@ -37,6 +38,7 @@ pub use crate::{
         Result,
         SolitaireError,
     },
+    event_cpi::emit_event_cpi,
     macros::*,
     processors::{
         keyed::Keyed,
