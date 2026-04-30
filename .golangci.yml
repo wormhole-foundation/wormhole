@@ -128,6 +128,8 @@ linters:
       forbid:
         - pattern: 'io\.ReadAll'
           msg: "method can cause DoS for large user-controlled inputs. Use common.SafeRead instead."
+        - pattern: 'time\.Sleep'
+          msg: "time.Sleep blocks the goroutine unconditionally. Use time.After with select, context.WithTimeout, or time.Ticker instead."
       exclude-godoc-examples: true
       analyze-types: true
     gocritic:
@@ -203,6 +205,10 @@ linters:
       - legacy
       - std-error-handling
     rules:
+        # node/hack/ scripts are allowed to use time.Sleep.
+      - linters:
+          - forbidigo
+        path: node/hack/
         # This file contains hard-coded Sui core contract addresses that are marked as hardcoded credentials.
       - path: pkg/txverifier/sui_test.go
         text: 'G101: Potential hardcoded credentials'

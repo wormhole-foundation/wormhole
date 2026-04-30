@@ -60,7 +60,7 @@ func (c *MockAccountantWormchainConn) SignAndBroadcastTx(ctx context.Context, ms
 			return resp, nil
 		}
 		c.lock.Unlock()
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 }
 
@@ -83,7 +83,7 @@ func (c *MockAccountantWormchainConn) TxRespPending() bool {
 func (c *MockAccountantWormchainConn) WaitUntilTxRespConsumed() {
 	for {
 		stillPending := c.TxRespPending()
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 		if !stillPending {
 			break
 		}

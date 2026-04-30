@@ -161,6 +161,6 @@ func main() {
 				}
 			}
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 }

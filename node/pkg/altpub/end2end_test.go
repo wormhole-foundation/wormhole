@@ -53,7 +53,7 @@ func TestEndToEnd(t *testing.T) {
 	go wormscanEP.run()
 
 	// Give the endpoints some time to start.
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	// Create an alternate publisher with two endpoints. Note that the labels start with "e2e_" so our metrics don't clash with other tests.
 	ap, err := NewAlternatePublisher(logger, guardianAddr, []string{"e2e_pyth;" + pythEP.url + ";0;pythnet", "e2e_wormholescan;" + wormscanEP.url + ";10ms"})
@@ -72,7 +72,7 @@ func TestEndToEnd(t *testing.T) {
 	}()
 
 	// Give the alternate publisher some time to start.
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	logger.Info("Publishing some observations across pythnet and solana")
 	pythSeqNum := 0
@@ -94,14 +94,14 @@ func TestEndToEnd(t *testing.T) {
 		}
 
 		// Put in some delay so batching can do something.
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 
 	logger.Info("Sleeping to give time for things to calm down")
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	logger.Info("Canceling context")
 	cancel()
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	// Make sure we didn't drop anything.
 	require.Equal(t, 0.0, getCounterValue(obsvDropped, "e2e_pyth"))

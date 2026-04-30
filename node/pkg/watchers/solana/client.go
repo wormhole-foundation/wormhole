@@ -524,7 +524,7 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 			return
 		}
 
-		time.Sleep(retryDelay)
+		time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 		if logger.Level().Enabled(zapcore.DebugLevel) {
 			logger.Debug("retrying block",
@@ -581,7 +581,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			// Schedule a single retry just in case the Solana node was confused about the block being missing.
 			if emptyRetry < maxEmptyRetry {
 				common.RunWithScissors(ctx, s.errC, "delayedFetchBlock", func(ctx context.Context) error {
-					time.Sleep(retryDelay)
+					time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 					s.fetchBlock(ctx, logger, slot, emptyRetry+1, isReobservation)
 					return nil
 				})
@@ -878,7 +878,7 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient 
 			return
 		}
 
-		time.Sleep(retryDelay)
+		time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 		s.logger.Info("retrying account",
 			zap.Uint64("slot", slot),

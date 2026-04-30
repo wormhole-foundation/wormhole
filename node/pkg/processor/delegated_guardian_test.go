@@ -661,7 +661,7 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	t.Cleanup(func() {
 		createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
 		t.Log("Waiting for guardian to pick up configuration...")
-		time.Sleep(20 * time.Second)
+		time.Sleep(20 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	})
 
 	// Undelegate chain 4
@@ -674,14 +674,14 @@ func TestDelegateChainUndelegated(t *testing.T) {
 
 	createAndSubmitDelegatedGuardiansConfig(t, config)
 	t.Log("Waiting for guardian to pick up configuration...")
-	time.Sleep(20 * time.Second)
+	time.Sleep(20 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
 	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, true)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(30 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	messages := stopGossipCollector(t, collector)
 	logDelegateObservations(t, messages.DelegateObservations...)
@@ -719,7 +719,7 @@ func TestNonDelegableChainDelegated(t *testing.T) {
 	t.Cleanup(func() {
 		createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
 		t.Log("Waiting for guardian to pick up configuration...")
-		time.Sleep(20 * time.Second)
+		time.Sleep(20 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	})
 
 	// Delegate chain 2
@@ -736,14 +736,14 @@ func TestNonDelegableChainDelegated(t *testing.T) {
 
 	createAndSubmitDelegatedGuardiansConfig(t, config)
 	t.Log("Waiting for guardian to pick up configuration...")
-	time.Sleep(20 * time.Second)
+	time.Sleep(20 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
 	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, false)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(30 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	messages := stopGossipCollector(t, collector)
 	logDelegateObservations(t, messages.DelegateObservations...)
@@ -757,14 +757,14 @@ func TestDelegateObservationScenario(t *testing.T) {
 	// Ensure delegated guardians are configured for chain 4
 	createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
 	t.Log("Waiting for guardian to pick up configuration...")
-	time.Sleep(20 * time.Second)
+	time.Sleep(20 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
 	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, true)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(30 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	messages := stopGossipCollector(t, collector)
 	logDelegateObservations(t, messages.DelegateObservations...)

@@ -37,7 +37,7 @@ See [DEVELOP.md](./DEVELOP.md) for more information on how to run the developmen
 ### Core Principles
 - **Pin as much as possible**: Versions, hashes, and dependencies
 - **Minimize attack surface**: Fewer dependencies = fewer risks
-- **Verify integrity**: Use lockfiles and checksums
+- **Verify integrity**: Use lockfiles, dependency cooldowns, and checksums
 
 ### Working with Node dependencies
 Do not change the dependencies of the package.json by hand! 

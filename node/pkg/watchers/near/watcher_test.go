@@ -208,7 +208,7 @@ func (testCase *testCase) setupAndRun(logger *zap.Logger) {
 	assert.NoError(testCase.t, err)
 
 	// wait 10ms for things to shut down gracefully
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 10) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 }
 
 // TestWatcherSimple() tests the most simple case: "final" API only retruns one block which contains a Wormhole transaction. No re-observation requests.

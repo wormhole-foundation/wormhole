@@ -447,7 +447,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 						}
 					}
 				}
-				time.Sleep(e.loopDelay)
+				time.Sleep(e.loopDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 			}
 		}
 	})

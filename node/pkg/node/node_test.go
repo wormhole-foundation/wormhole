@@ -215,8 +215,9 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		}
 
 		<-ctx.Done()
-		time.Sleep(time.Second * 1) // Wait 1s for all sorts of things to complete.
-		db.Close()                  // close BadgerDb
+		time.Sleep(time.Second * 1) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // Wait 1s for all sorts of things to complete.
+
+		db.Close() // close BadgerDb
 
 		return nil
 	}
@@ -258,7 +259,7 @@ func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, g
 				}
 			}
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 }
 
@@ -318,7 +319,8 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 				readyCounter++
 			}
 		}
-		time.Sleep(time.Second * 5) // TODO
+		time.Sleep(time.Second * 5) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // TODO
+
 	}
 }
 
@@ -345,7 +347,7 @@ func waitForVaa(t testing.TB, ctx context.Context, c publicrpcv1.PublicRPCServic
 			// no need to re-try because we're expecting an error.
 			return r, err
 		}
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 10) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 }
 
@@ -489,8 +491,8 @@ func waitForStatusServer(ctx context.Context, logger *zap.Logger, statusAddr str
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
-			time.Sleep(time.Millisecond * 100)
-			continue // try again
+			time.Sleep(time.Millisecond * 100) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
+			continue                           // try again
 		}
 		// success, we're done
 		io.Copy(io.Discard, resp.Body) //nolint:errcheck
@@ -508,8 +510,8 @@ func waitForStatusServer(ctx context.Context, logger *zap.Logger, statusAddr str
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
-			time.Sleep(time.Millisecond * 100)
-			continue // try again
+			time.Sleep(time.Millisecond * 100) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
+			continue                           // try again
 		}
 		// success, we're done
 		io.Copy(io.Discard, resp.Body) //nolint:errcheck
@@ -670,7 +672,8 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb) // #nosec G115 -- Guardian set will never be that large
 			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 			if i == 0 && numGuardians > 1 {
-				time.Sleep(time.Second) // give the bootstrap guardian some time to start up
+				time.Sleep(time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // give the bootstrap guardian some time to start up
+
 			}
 			assert.NoError(t, err)
 		}
@@ -740,7 +743,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 			for i := 0; i < numGuardians; i++ {
 				for zapObserver.FilterMessage("admin server listening on").FilterField(zap.String("path", gs[i].config.adminSocket)).Len() == 0 {
 					logger.Info("admin server seems to be offline (according to logs). Waiting 100ms...")
-					time.Sleep(time.Microsecond * 100)
+					time.Sleep(time.Microsecond * 100) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 				}
 
 				s := fmt.Sprintf("unix:///%s", gs[i].config.adminSocket)
@@ -783,7 +786,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 		// Wait for publicrpc to come online
 		for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[vaaCheckGuardianIndex].config.publicRpc)).Len() == 0 {
 			logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
-			time.Sleep(time.Microsecond * 100)
+			time.Sleep(time.Microsecond * 100) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 		}
 
 		// check that the VAAs were generated
@@ -854,7 +857,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 	// is shutdown. Namely some pkg/db bits, metrics sinks, and p2p logging. This gives them time to shutdown so the
 	// tests are happy.
 	zapLogger.Info("Test root context cancelled, waiting for everything to shut down properly...")
-	time.Sleep(time.Millisecond * 50)
+	time.Sleep(time.Millisecond * 50) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 }
 
 type testCaseGuardianConfig struct {
@@ -962,7 +965,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				// wait for all options to get applied
 				// If we were expecting an error, we should never get past this point.
 				for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
-					time.Sleep(time.Millisecond * 10)
+					time.Sleep(time.Millisecond * 10) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 				}
 
 				// Test done.
@@ -989,7 +992,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 			// There is a race condition where the logger can get destroyed before the supervisor finishes logging on exit. Wait for the last log message from the supervisor.
 			count := 0
 			for len(zapObserver.FilterMessage("supervisor exited").All()) == 0 {
-				time.Sleep(time.Millisecond * 10)
+				time.Sleep(time.Millisecond * 10) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 				count++
 				assert.Greater(t, 100, count)
 			}
@@ -1182,7 +1185,8 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb) // #nosec G115 -- This conversion is safe based on the constant used above
 				err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 				if i == 0 && numGuardians > 1 {
-					time.Sleep(time.Second) // give the bootstrap guardian some time to start up
+					time.Sleep(time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // give the bootstrap guardian some time to start up
+
 				}
 				assert.NoError(t, err)
 			}
@@ -1219,7 +1223,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			// Wait for publicrpc to come online.
 			for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", gs[vaaCheckGuardianIndex].config.publicRpc)).Len() == 0 {
 				logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
-				time.Sleep(time.Microsecond * 100)
+				time.Sleep(time.Microsecond * 100) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 			}
 			// now that it's online, connect to publicrpc of guardian-0
 			conn, err := grpc.DialContext(ctx, gs[vaaCheckGuardianIndex].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -1291,6 +1295,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 
 		// wait for everything to shut down gracefully
 		//time.Sleep(time.Second * 11) // 11s is needed to gracefully shutdown libp2p, but since switching to dedicated ports per `testId`, this is no longer necessary
-		time.Sleep(time.Second * 1) // 1s is needed to gracefully shutdown BadgerDB
+		time.Sleep(time.Second * 1) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // 1s is needed to gracefully shutdown BadgerDB
+
 	})
 }

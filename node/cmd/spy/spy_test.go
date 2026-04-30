@@ -53,7 +53,7 @@ func waitForClientSubscriptionInit(server *spyServer) {
 		subs := len(server.subsSignedVaa)
 		server.subsSignedVaaMu.Unlock()
 
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 10) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 		if subs > 0 {
 			return

@@ -130,7 +130,7 @@ func runP2P(
 			logger.Warn("Still waiting for peers")
 			count = 0
 		}
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 100) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 	logger.Info("Found peers", zap.Int("numPeers", len(thReq.ListPeers())))
 

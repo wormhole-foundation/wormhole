@@ -178,7 +178,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 			result[key] = value
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 
 	now := time.Now()

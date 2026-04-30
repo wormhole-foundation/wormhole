@@ -257,12 +257,13 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		if statServer != nil && *shutdownDelay1 != 0 {
 			logger.Info("Received sigterm. disabling health checks and pausing.")
 			statServer.disableHealth()
-			time.Sleep(time.Duration(*shutdownDelay1) * time.Second) // #nosec G115 -- Defaults to 25 seconds, overflowing is infeasible
+			time.Sleep(time.Duration(*shutdownDelay1) * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // #nosec G115 -- Defaults to 25 seconds, overflowing is infeasible
+
 			numPending := 0
 			logger.Info("Waiting for any outstanding requests to complete before shutting down.")
 			// #nosec G115 -- Defaults to 65 seconds, overflowing is infeasible
 			for count := 0; count < int(*shutdownDelay2); count++ {
-				time.Sleep(time.Second)
+				time.Sleep(time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 				numPending = pendingResponses.NumPending()
 				if numPending == 0 {
 					break
