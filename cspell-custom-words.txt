@@ -43,6 +43,7 @@ collateralization
 colour
 Concat
 conftest
+cooldowns
 Cosm
 cosmoshub
 cosmwasm
