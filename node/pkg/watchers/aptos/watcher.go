@@ -421,6 +421,7 @@ func (w *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		Payload:          pl,
 		ConsistencyLevel: uint8(consistencyLevel.Uint()), // #nosec G115 -- This is validated above
 		IsReobservation:  isReobservation,
+		Unreliable:       false,
 	}
 
 	logger.Info("message observed", observation.ZapFields(zap.String("txHash", observation.TxIDString()), zap.Uint8("consistencyLevel", observation.ConsistencyLevel))...)
