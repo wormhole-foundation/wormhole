@@ -645,6 +645,60 @@ fn rogue_hub_inheritance_blocked_without_preregistration() {
 }
 
 #[test]
+fn inheritance_blocked_known_chain_unknown_address() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+    setup_legitimate_network(&wh, &mut contract, &mut seq);
+
+    // Hub pre-registered (SPOKE_CHAIN_A, SPOKE_ADDR_A); a different address on
+    // that same chain must still be blocked at inheritance.
+    let vaa = build_signed_vaa(
+        &wh,
+        SPOKE_CHAIN_A,
+        ROGUE_ADDR_X,
+        seq.next(),
+        &registration_payload(HUB_CHAIN, HUB_ADDR),
+    );
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("known chain + unknown address should fail");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("hub has not registered this transceiver as a peer"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn inheritance_blocked_unknown_chain_known_address() {
+    let (wh, mut contract) = proper_instantiate();
+    let mut seq = Seq::new();
+    setup_legitimate_network(&wh, &mut contract, &mut seq);
+
+    // SPOKE_ADDR_A is the registered transceiver address on SPOKE_CHAIN_A; a
+    // VAA carrying that address from a chain the hub has not pre-registered
+    // must produce the same error as the known-chain/unknown-address case.
+    let unregistered_chain: u16 = 99;
+    let vaa = build_signed_vaa(
+        &wh,
+        unregistered_chain,
+        SPOKE_ADDR_A,
+        seq.next(),
+        &registration_payload(HUB_CHAIN, HUB_ADDR),
+    );
+    let err = contract
+        .submit_vaas(vec![vaa])
+        .expect_err("unknown chain + known address should fail");
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("hub has not registered this transceiver as a peer"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
 fn rogue_pair_transfer_blocked() {
     let (wh, mut contract) = proper_instantiate();
     let mut seq = Seq::new();
