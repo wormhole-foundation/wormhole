@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +21,9 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
+	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
@@ -644,10 +647,11 @@ func TestProcessInstructionValidPostMessage(t *testing.T) {
 
 			proposal := testMessagePublicationAccount([]byte("hello"), 32)
 			accountData := encodeMessagePublicationAccount(t, tc.accountPrefix, proposal)
-			srv := newAccountInfoServer(t, contract.String(), accountData)
-			defer srv.Close()
+			m := newMockRPCServer(t)
+			defer m.Close()
+			m.SetAccount(messageAccount, contract.String(), accountData)
 
-			rpcClient := rpc.New(srv.URL)
+			rpcClient := rpc.New(m.URL)
 
 			tx := &solana.Transaction{
 				Message: solana.Message{
@@ -700,9 +704,16 @@ func TestProcessTransaction(t *testing.T) {
 		Accounts:       []uint16{0, 2, 0, 0, 0, 0, 0, 0},
 	}
 
+	// Pure noise; never a container for matching inner instructions.
 	nonMatchingInstruction := solana.CompiledInstruction{
 		ProgramIDIndex: 0,
 		Data:           []byte{0xFF},
+	}
+
+	// Outer integrator program whose inner CPIs include a Wormhole call.
+	integratorInstruction := solana.CompiledInstruction{
+		ProgramIDIndex: 0,
+		Data:           []byte{0xAB, 0xCD},
 	}
 
 	standardKeys := []solana.PublicKey{otherKey, contract, messageAccount}
@@ -747,13 +758,6 @@ func TestProcessTransaction(t *testing.T) {
 			instructions: []solana.CompiledInstruction{matchingInstruction},
 		},
 		{
-			name:        "contract_at_index_zero",
-			accountKeys: []solana.PublicKey{contract, messageAccount},
-			instructions: []solana.CompiledInstruction{
-				{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, postMsgData...), Accounts: []uint16{0, 1, 0, 0, 0, 0, 0, 0}},
-			},
-		},
-		{
 			name:        "contract_not_in_accounts",
 			accountKeys: []solana.PublicKey{otherKey, messageAccount},
 			instructions: []solana.CompiledInstruction{
@@ -772,9 +776,19 @@ func TestProcessTransaction(t *testing.T) {
 			wantObservations: 1,
 		},
 		{
+			// Regression: prior code treated programIndex==0 as "contract not found",
+			// silently dropping any tx where the core contract sat at account index 0.
+			name:        "contract_at_index_zero_publishes",
+			accountKeys: []solana.PublicKey{contract, messageAccount},
+			instructions: []solana.CompiledInstruction{
+				{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, postMsgData...), Accounts: []uint16{0, 1, 0, 0, 0, 0, 0, 0}},
+			},
+			wantObservations: 1,
+		},
+		{
 			name:         "top_level_non_matching_with_inner_match",
 			accountKeys:  standardKeys,
-			instructions: []solana.CompiledInstruction{nonMatchingInstruction},
+			instructions: []solana.CompiledInstruction{integratorInstruction},
 			innerInstructions: []rpc.InnerInstruction{
 				{Index: 0, Instructions: []solana.CompiledInstruction{matchingInstruction}},
 			},
@@ -785,7 +799,7 @@ func TestProcessTransaction(t *testing.T) {
 			accountKeys: standardKeys,
 			instructions: []solana.CompiledInstruction{
 				matchingInstruction,
-				nonMatchingInstruction,
+				integratorInstruction,
 			},
 			innerInstructions: []rpc.InnerInstruction{
 				{Index: 1, Instructions: []solana.CompiledInstruction{matchingInstruction}},
@@ -800,6 +814,38 @@ func TestProcessTransaction(t *testing.T) {
 				matchingInstruction,
 			},
 			wantObservations: 2,
+		},
+		// Erroring instructions must be logged-and-skipped; later valid ones still publish.
+		{
+			name:        "malformed_top_level_then_valid_top_level",
+			accountKeys: standardKeys,
+			instructions: []solana.CompiledInstruction{
+				// Borsh error: postMessage opcode, 8 accounts, but no body to deserialize.
+				{ProgramIDIndex: contractIdx, Data: []byte{postMessageInstructionID}, Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+				matchingInstruction,
+			},
+			wantObservations: 1,
+		},
+		{
+			name:         "malformed_inner_then_valid_inner",
+			accountKeys:  standardKeys,
+			instructions: []solana.CompiledInstruction{integratorInstruction},
+			innerInstructions: []rpc.InnerInstruction{
+				{Index: 0, Instructions: []solana.CompiledInstruction{
+					// Borsh error inner: erroring CPI in front of a valid one.
+					{ProgramIDIndex: contractIdx, Data: []byte{postMessageInstructionID}, Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+					matchingInstruction,
+				}},
+			},
+			wantObservations: 1,
+		},
+		{
+			// shimEnabled gate check: shim-shaped top-level falls through to processInstruction.
+			name:             "shim_disabled_with_shim_shaped_top_level",
+			shimEnabled:      false,
+			accountKeys:      shimKeys,
+			instructions:     []solana.CompiledInstruction{shimTopLevelInst},
+			wantObservations: 0,
 		},
 		// Shim cases.
 		{
@@ -826,13 +872,69 @@ func TestProcessTransaction(t *testing.T) {
 			name:         "shim_inner_integrator",
 			shimEnabled:  true,
 			accountKeys:  shimKeys,
-			instructions: []solana.CompiledInstruction{nonMatchingInstruction},
+			instructions: []solana.CompiledInstruction{integratorInstruction},
 			innerInstructions: []rpc.InnerInstruction{
 				{Index: 0, Instructions: []solana.CompiledInstruction{
 					{ProgramIDIndex: shimContractIdx, Data: shimPostMsgData},
 					shimCoreInnerInst,
 					shimEventInnerInst,
 				}},
+			},
+			wantObservations: 1,
+		},
+		{
+			name:        "mixed_shim_and_non_shim_top_level",
+			shimEnabled: true,
+			accountKeys: shimKeys,
+			instructions: []solana.CompiledInstruction{
+				matchingInstruction,
+				shimTopLevelInst,
+			},
+			innerInstructions: []rpc.InnerInstruction{
+				{Index: 1, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
+			},
+			wantObservations: 2,
+		},
+		{
+			name:        "mixed_shim_and_non_shim_top_level_and_inner",
+			shimEnabled: true,
+			accountKeys: shimKeys,
+			// idx 0: non-shim top-level match
+			// idx 1: integrator top-level, hosts a non-shim inner match
+			// idx 2: pure noise top-level with a noise inner (no matches anywhere)
+			// idx 3: shim top-level match (consumes its inner core+event)
+			// idx 4: integrator top-level, hosts a shim inner integrator
+			instructions: []solana.CompiledInstruction{
+				matchingInstruction,
+				integratorInstruction,
+				nonMatchingInstruction,
+				shimTopLevelInst,
+				integratorInstruction,
+			},
+			innerInstructions: []rpc.InnerInstruction{
+				{Index: 1, Instructions: []solana.CompiledInstruction{matchingInstruction}},
+				{Index: 2, Instructions: []solana.CompiledInstruction{nonMatchingInstruction}},
+				{Index: 3, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
+				{Index: 4, Instructions: []solana.CompiledInstruction{
+					{ProgramIDIndex: shimContractIdx, Data: shimPostMsgData},
+					shimCoreInnerInst,
+					shimEventInnerInst,
+				}},
+			},
+			wantObservations: 4,
+		},
+		{
+			name:        "shim_malformed_top_level_then_valid_shim",
+			shimEnabled: true,
+			accountKeys: shimKeys,
+			instructions: []solana.CompiledInstruction{
+				// idx 0: shim top-level with no matching inner instructions -> errors.
+				shimTopLevelInst,
+				// idx 1: valid shim top-level with proper inner core+event.
+				shimTopLevelInst,
+			},
+			innerInstructions: []rpc.InnerInstruction{
+				{Index: 1, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
 			},
 			wantObservations: 1,
 		},
@@ -859,9 +961,10 @@ func TestProcessTransaction(t *testing.T) {
 				s.shimSetup()
 			}
 
-			srv := newAccountInfoServer(t, contract.String(), accountData)
-			defer srv.Close()
-			rpcClient := rpc.New(srv.URL)
+			m := newMockRPCServer(t)
+			defer m.Close()
+			m.SetAccount(messageAccount, contract.String(), accountData)
+			rpcClient := rpc.New(m.URL)
 
 			tx := &solana.Transaction{
 				Message: solana.Message{
@@ -890,6 +993,286 @@ func TestProcessTransaction(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+func TestFetchMessageAccount(t *testing.T) {
+	contract := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0xAA}, solana.PublicKeyLength))
+	messageAccount := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0xBB}, solana.PublicKeyLength))
+	otherKey := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0xCC}, solana.PublicKeyLength))
+
+	baseMessage := encodeMessagePublicationAccount(t, "msg", testMessagePublicationAccount([]byte{0x11, 0x22, 0x33}, 32))
+	baseMessageUnreliable := encodeMessagePublicationAccount(t, "msu", testMessagePublicationAccount([]byte{0x11, 0x22, 0x33}, 32))
+	invalidPrefix := encodeMessagePublicationAccount(t, "AAA", testMessagePublicationAccount([]byte{0x11, 0x22, 0x33}, 32))
+	wrongConsistencyLevel := encodeMessagePublicationAccount(t, "msg", testMessagePublicationAccount([]byte{0x11, 0x22, 0x33}, 0))
+
+	tests := []struct {
+		name             string
+		accountData      []byte
+		accountOwner     string
+		wantObservations uint32
+		reobservation    bool
+		retryable        bool
+	}{
+		{
+			name:             "happy path",
+			accountData:      baseMessage,
+			accountOwner:     contract.String(),
+			wantObservations: 1,
+			reobservation:    false,
+			retryable:        false,
+		},
+		{
+			name:             "happy path unreliable",
+			accountData:      baseMessageUnreliable,
+			accountOwner:     contract.String(),
+			wantObservations: 1,
+			reobservation:    false,
+			retryable:        false,
+		},
+		{
+			name:             "happy path reobservation",
+			accountData:      baseMessage,
+			accountOwner:     contract.String(),
+			wantObservations: 1,
+			reobservation:    true,
+			retryable:        false,
+		},
+		{
+			name:             "invalid type prefix",
+			accountData:      invalidPrefix,
+			accountOwner:     contract.String(),
+			wantObservations: 0,
+			reobservation:    false,
+			retryable:        false,
+		},
+		{
+			name:             "wrong account owner",
+			accountData:      baseMessage,
+			accountOwner:     otherKey.String(),
+			wantObservations: 0,
+			reobservation:    false,
+			retryable:        false,
+		},
+		{
+			name:             "incorrect consistency level for watcher",
+			accountData:      wrongConsistencyLevel,
+			accountOwner:     contract.String(),
+			wantObservations: 0,
+			reobservation:    false,
+			retryable:        false,
+		},
+		{
+			name:             "incorrect consistency level for watcher skips on reobservation",
+			accountData:      wrongConsistencyLevel,
+			accountOwner:     contract.String(),
+			wantObservations: 0,
+			reobservation:    true,
+			retryable:        false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			msgC := make(chan *common.MessagePublication, 10)
+			s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, msgC)
+			s.errC = make(chan error, 10)
+			s.contract = contract
+
+			m := newMockRPCServer(t)
+			defer m.Close()
+			m.SetAccount(messageAccount, tc.accountOwner, tc.accountData)
+			rpcClient := rpc.New(m.URL)
+
+			numObservations, retryable := s.fetchMessageAccount(context.TODO(), rpcClient, messageAccount, 1, tc.reobservation, solana.SignatureFromBytes([]byte{}))
+
+			assert.Equal(t, tc.wantObservations, numObservations)
+			assert.Equal(t, tc.retryable, retryable)
+		})
+	}
+
+	// Retryable RPC failure modes don't fit the data-driven shape above, so
+	// they live as standalone sub-tests.
+	newWatcher := func() (*SolanaWatcher, *mockRPCServer) {
+		s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, make(chan *common.MessagePublication, 1))
+		s.errC = make(chan error, 1)
+		s.contract = contract
+		return s, newMockRPCServer(t)
+	}
+
+	t.Run("rpc error is retryable", func(t *testing.T) {
+		s, m := newWatcher()
+		defer m.Close()
+		m.SetAccountError(messageAccount, "rpc down")
+
+		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), messageAccount, 1, false, solana.Signature{})
+		assert.Equal(t, uint32(0), num)
+		assert.True(t, retryable)
+	})
+
+	t.Run("missing account is retryable", func(t *testing.T) {
+		s, m := newWatcher()
+		defer m.Close()
+		// No account registered: handler returns value=null.
+
+		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), messageAccount, 1, false, solana.Signature{})
+		assert.Equal(t, uint32(0), num)
+		assert.True(t, retryable)
+	})
+}
+
+func TestPopulateLookupTableAccounts(t *testing.T) {
+	// Pool of named pubkeys used across the cases below. Same byte pattern
+	// always produces the same key, so identifiers can be reused freely.
+	var (
+		staticAddr  = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x02}, solana.PublicKeyLength))
+		tableAAddr  = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x01}, solana.PublicKeyLength))
+		tableBAddr  = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x05}, solana.PublicKeyLength))
+		nonALTOwner = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0xEE}, solana.PublicKeyLength))
+
+		// Generic entries used as table contents.
+		entry0 = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x10}, solana.PublicKeyLength))
+		entry1 = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x11}, solana.PublicKeyLength))
+		entry2 = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x12}, solana.PublicKeyLength))
+		entry3 = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x13}, solana.PublicKeyLength))
+		entry4 = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x20}, solana.PublicKeyLength))
+		entry5 = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x21}, solana.PublicKeyLength))
+		entry6 = solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x22}, solana.PublicKeyLength))
+	)
+
+	// tableSpec describes one on-chain lookup-table account.
+	type tableSpec struct {
+		addr     solana.PublicKey
+		entries  []solana.PublicKey
+		badOwner bool // when true, register the account under nonALTOwner instead
+	}
+	// lookupSpec is one entry in tx.Message.AddressTableLookups.
+	type lookupSpec struct {
+		tableAddr solana.PublicKey
+		// These are INDEXES into the 'entries' of the table specification above.
+		writable []uint8
+		readonly []uint8
+	}
+
+	/*
+		Ordering of the account keys with versioned transactions is as follows:
+		- Static Account Keys
+		- Table 0 Writable Keys
+		- Table N Writable Keys
+		- Table 0 Readable Keys
+		- Table N Readable Keys
+
+		These are tests to confirm the ordering and other edge cases.
+	*/
+	tests := []struct {
+		name       string
+		staticKeys []solana.PublicKey
+		tables     []tableSpec
+		lookups    []lookupSpec
+		wantKeys   []solana.PublicKey // expected AccountKeys after resolution; ignored when wantErrSub != ""
+		wantErrSub string             // when non-empty, expect an error containing this substring
+	}{
+		{
+			name:       "no lookups is a no-op",
+			staticKeys: []solana.PublicKey{staticAddr},
+			tables:     nil,
+			lookups:    nil,
+			wantKeys:   []solana.PublicKey{staticAddr},
+		},
+		{
+			name:       "single readonly",
+			staticKeys: []solana.PublicKey{staticAddr},
+			tables:     []tableSpec{{addr: tableAAddr, entries: []solana.PublicKey{entry0, entry1}}},
+			lookups:    []lookupSpec{{tableAddr: tableAAddr, readonly: []uint8{1}}},
+			wantKeys:   []solana.PublicKey{staticAddr, entry1},
+		},
+		{
+			name:       "single writable",
+			staticKeys: []solana.PublicKey{staticAddr},
+			tables:     []tableSpec{{addr: tableAAddr, entries: []solana.PublicKey{entry0, entry1}}},
+			lookups:    []lookupSpec{{tableAddr: tableAAddr, writable: []uint8{1}}},
+			wantKeys:   []solana.PublicKey{staticAddr, entry1},
+		},
+		{
+			name:       "writable and readonly from one table",
+			staticKeys: []solana.PublicKey{staticAddr},
+			tables:     []tableSpec{{addr: tableAAddr, entries: []solana.PublicKey{entry0, entry1, entry2, entry3}}},
+			lookups:    []lookupSpec{{tableAddr: tableAAddr, writable: []uint8{1}, readonly: []uint8{2}}},
+			wantKeys:   []solana.PublicKey{staticAddr, entry1, entry2},
+		},
+		{
+			name:       "two tables each with writable and readonly",
+			staticKeys: []solana.PublicKey{staticAddr},
+			tables: []tableSpec{
+				{addr: tableAAddr, entries: []solana.PublicKey{entry0, entry1, entry2}},
+				{addr: tableBAddr, entries: []solana.PublicKey{entry4, entry5, entry6}},
+			},
+			lookups: []lookupSpec{
+				{tableAddr: tableAAddr, writable: []uint8{1}, readonly: []uint8{2}},
+				{tableAddr: tableBAddr, writable: []uint8{2}, readonly: []uint8{0}},
+			},
+			wantKeys: []solana.PublicKey{staticAddr, entry1, entry6, entry2, entry4},
+		},
+		{
+			name:       "wrong owner is rejected",
+			staticKeys: []solana.PublicKey{staticAddr},
+			tables:     []tableSpec{{addr: tableAAddr, entries: []solana.PublicKey{entry0}, badOwner: true}},
+			lookups:    []lookupSpec{{tableAddr: tableAAddr, readonly: []uint8{0}}},
+			wantErrSub: "invalid owner",
+		},
+		{
+			// If an ALT is deleted, then the message becomes unobservable.
+			// This is a known security issue that could be used to make a message unobservable.
+			// Effectively a self DoS in most cases.
+			name:       "missing table account is rejected",
+			staticKeys: []solana.PublicKey{staticAddr},
+			tables:     nil,
+			lookups:    []lookupSpec{{tableAddr: tableAAddr, readonly: []uint8{0}}},
+			wantErrSub: "failed to get account info",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newMockRPCServer(t)
+			defer m.Close()
+
+			for _, tbl := range tc.tables {
+				if tbl.badOwner {
+					m.SetAccount(tbl.addr, nonALTOwner.String(), encodeLookupTableState(t, tbl.entries))
+				} else {
+					m.SetLookupTable(tbl.addr, tbl.entries)
+				}
+			}
+
+			tx := &solana.Transaction{
+				Message: solana.Message{
+					AccountKeys: append([]solana.PublicKey{}, tc.staticKeys...),
+				},
+			}
+			lookups := make([]solana.MessageAddressTableLookup, len(tc.lookups))
+			for i, l := range tc.lookups {
+				lookups[i] = solana.MessageAddressTableLookup{
+					AccountKey:      l.tableAddr,
+					WritableIndexes: l.writable,
+					ReadonlyIndexes: l.readonly,
+				}
+			}
+			tx.Message.SetAddressTableLookups(lookups)
+
+			s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, nil)
+			err := s.populateLookupTableAccounts(context.Background(), rpc.New(m.URL), tx)
+
+			if tc.wantErrSub != "" {
+				require.ErrorContains(t, err, tc.wantErrSub)
+				// On error, AccountKeys must not have been mutated.
+				require.Equal(t, tc.staticKeys, []solana.PublicKey(tx.Message.AccountKeys))
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.wantKeys, []solana.PublicKey(tx.Message.AccountKeys))
 		})
 	}
 }
@@ -1000,41 +1383,133 @@ func buildSubscriptionPayload(t *testing.T, owner, pubkey string, accountData []
 	return data
 }
 
-// newAccountInfoServer provides a minimal JSON-RPC getAccountInfo responder.
-// It does not validate params or exercise network error handling.
-func newAccountInfoServer(t *testing.T, owner string, accountData []byte) *httptest.Server {
+// mockAccount is the data the mock RPC returns for a given pubkey.
+type mockAccount struct {
+	Owner string
+	Data  []byte
+}
+
+// mockRPCServer is a configurable JSON-RPC stub for getAccountInfo.
+// Unregistered pubkeys return value=null, mirroring real RPC behavior.
+type mockRPCServer struct {
+	*httptest.Server
+	t        *testing.T
+	accounts map[solana.PublicKey]mockAccount
+	errors   map[solana.PublicKey]string
+}
+
+func newMockRPCServer(t *testing.T) *mockRPCServer {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := common.SafeRead(r.Body)
-		require.NoError(t, err)
-		_ = r.Body.Close()
+	m := &mockRPCServer{
+		t:        t,
+		accounts: map[solana.PublicKey]mockAccount{},
+		errors:   map[solana.PublicKey]string{},
+	}
+	m.Server = httptest.NewServer(http.HandlerFunc(m.handle))
+	return m
+}
 
-		var req map[string]interface{}
-		require.NoError(t, json.Unmarshal(body, &req))
-		id := req["id"]
+func (m *mockRPCServer) SetAccount(key solana.PublicKey, owner string, data []byte) {
+	m.accounts[key] = mockAccount{Owner: owner, Data: data}
+}
 
-		method, _ := req["method"].(string)
-		if method != "getAccountInfo" {
-			w.WriteHeader(http.StatusBadRequest)
-			return
+func (m *mockRPCServer) SetAccountError(key solana.PublicKey, msg string) {
+	m.errors[key] = msg
+}
+
+// encodeLookupTableState produces the on-wire bytes for an AddressLookupTableState
+// containing addrs, using the upstream MarshalWithEncoder.
+func encodeLookupTableState(t *testing.T, addrs []solana.PublicKey) []byte {
+	t.Helper()
+	state := lookup.AddressLookupTableState{
+		TypeIndex:        1,
+		DeactivationSlot: math.MaxUint64,
+		Addresses:        solana.PublicKeySlice(addrs),
+	}
+	buf := new(bytes.Buffer)
+	enc := bin.NewBinEncoder(buf)
+	require.NoError(t, state.MarshalWithEncoder(enc))
+	return buf.Bytes()
+}
+
+// SetLookupTable registers a valid AddressLookupTableState under key,
+// owned by the address-lookup-table program (the realistic case).
+func (m *mockRPCServer) SetLookupTable(key solana.PublicKey, addrs []solana.PublicKey) {
+	m.t.Helper()
+	m.SetAccount(key, addressLookupTableProgramID.String(), encodeLookupTableState(m.t, addrs))
+}
+
+func (m *mockRPCServer) handle(w http.ResponseWriter, r *http.Request) {
+	body, err := common.SafeRead(r.Body)
+	require.NoError(m.t, err)
+	_ = r.Body.Close()
+
+	var req map[string]interface{}
+	require.NoError(m.t, json.Unmarshal(body, &req))
+	id := req["id"]
+
+	method, _ := req["method"].(string)
+	if method != "getAccountInfo" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	params, _ := req["params"].([]interface{})
+	var key solana.PublicKey
+	if len(params) > 0 {
+		if s, ok := params[0].(string); ok {
+			parsed, err := solana.PublicKeyFromBase58(s)
+			require.NoError(m.t, err)
+			key = parsed
 		}
+	}
 
+	if errMsg, ok := m.errors[key]; ok {
+		writeRPCError(m.t, w, id, errMsg)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	acct, ok := m.accounts[key]
+	if !ok {
 		resp := map[string]interface{}{
 			"jsonrpc": "2.0",
 			"id":      id,
 			"result": map[string]interface{}{
 				"context": map[string]interface{}{"slot": int64(1)},
-				"value": map[string]interface{}{
-					"data":       []interface{}{base64.StdEncoding.EncodeToString(accountData), "base64"},
-					"owner":      owner,
-					"lamports":   int64(1),
-					"executable": false,
-					"rentEpoch":  int64(0),
-				},
+				"value":   nil,
 			},
 		}
+		require.NoError(m.t, json.NewEncoder(w).Encode(resp))
+		return
+	}
 
-		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(resp))
-	}))
+	resp := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"result": map[string]interface{}{
+			"context": map[string]interface{}{"slot": int64(1)},
+			"value": map[string]interface{}{
+				"data":       []interface{}{base64.StdEncoding.EncodeToString(acct.Data), "base64"},
+				"owner":      acct.Owner,
+				"lamports":   int64(1),
+				"executable": false,
+				"rentEpoch":  int64(0),
+			},
+		},
+	}
+	require.NoError(m.t, json.NewEncoder(w).Encode(resp))
+}
+
+func writeRPCError(t *testing.T, w http.ResponseWriter, id interface{}, msg string) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	resp := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"error": map[string]interface{}{
+			"code":    -32000,
+			"message": msg,
+		},
+	}
+	require.NoError(t, json.NewEncoder(w).Encode(resp))
 }

@@ -59,15 +59,76 @@ func Test_shimParsePostMessage(t *testing.T) {
 	assert.Equal(t, consistencyLevelFinalized, postMsgData.ConsistencyLevel)
 	assert.Equal(t, 11, len(postMsgData.Payload))
 	assert.True(t, bytes.Equal([]byte("hello world"), postMsgData.Payload))
+
+	// Same payload with the first discriminator byte flipped: prefix no longer
+	// matches the shim PostMessage discriminator. Should fail.
+	mismatched, err := hex.DecodeString("d73264d12622074c2a000000010b00000068656c6c6f20776f726c64")
+	require.NoError(t, err)
+
+	postMsgData, err = shimParsePostMessage(shimPostMessage, mismatched)
+	require.NoError(t, err)
+	assert.Nil(t, postMsgData)
 }
 
 func Test_shimVerifyCoreMessage(t *testing.T) {
-	data, err := hex.DecodeString("082a0000000000000001")
-	require.NoError(t, err)
+	// PostMessage instruction data layout (borsh):
+	//   [0]   instruction ID (1 byte): 0x08 = PostMessageUnreliable, 0x01 = PostMessage (reliable)
+	//   [1:5] nonce (u32 LE)
+	//   [5:9] payload length (u32 LE)
+	//   ...   payload bytes
+	//   [...] consistency level (1 byte)
+	tests := []struct {
+		name    string
+		hexData string
+		want    bool
+		wantErr bool
+	}{
+		{
+			name:    "unreliable with empty payload is accepted",
+			hexData: "082a0000000000000001", // id=0x08, nonce=42, payload=[], level=finalized
+			want:    true,
+		},
+		{
+			name:    "unreliable with empty payload and confirmed level is accepted",
+			hexData: "082a0000000000000000", // id=0x08, nonce=42, payload=[], level=confirmed
+			want:    true,
+		},
+		{
+			name:    "empty buffer is rejected without error",
+			hexData: "",
+			want:    false,
+		},
+		{
+			name:    "reliable PostMessage instruction id is rejected",
+			hexData: "012a0000000000000001", // id=0x01 instead of 0x08
+			want:    false,
+		},
+		{
+			name:    "unreliable with non-empty payload is rejected",
+			hexData: "082a00000001000000ff01", // id=0x08, nonce=42, payload=[0xff], level=finalized
+			want:    false,
+		},
+		{
+			name:    "truncated instruction data returns an error",
+			hexData: "082a00", // id=0x08 followed by partial nonce
+			wantErr: true,
+		},
+	}
 
-	coreMsgDataAsExpected, err := shimVerifyCoreMessage(data)
-	require.NoError(t, err)
-	assert.True(t, coreMsgDataAsExpected)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := hex.DecodeString(tc.hexData)
+			require.NoError(t, err)
+
+			got, err := shimVerifyCoreMessage(data)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func Test_shimParseMessageEvent(t *testing.T) {
@@ -87,6 +148,19 @@ func Test_shimParseMessageEvent(t *testing.T) {
 	assert.True(t, bytes.Equal(expectedEmitter, msgEventData.EmitterAddress[:]))
 	assert.Equal(t, uint64(0), msgEventData.Sequence)
 	assert.Equal(t, uint32(1736530812), msgEventData.Timestamp)
+}
+
+func Test_shimParseMessageEventDiscriminatorMismatch(t *testing.T) {
+	shimMessageEvent, err := hex.DecodeString("e445a52e51cb9a1d441b8f004d4c8970")
+	require.NoError(t, err)
+
+	// First byte flipped (e4 -> e5) so the prefix no longer matches. This shouldn't parse.
+	mismatched, err := hex.DecodeString("e545a52e51cb9a1d441b8f004d4c8970041c657e845d65d009d59ceeb1dda172bd6bc9e7ee5a19e56573197cf7fdffde00000000000000007c5b8167")
+	require.NoError(t, err)
+
+	msgEventData, err := shimParseMessageEvent(shimMessageEvent, mismatched)
+	require.NoError(t, err)
+	assert.Nil(t, msgEventData)
 }
 
 func TestShimAlreadyProcessed(t *testing.T) {
@@ -131,8 +205,12 @@ func TestVerifyShimSetup(t *testing.T) {
 	assert.Equal(t, shimMessageEventDiscriminatorStr, hex.EncodeToString(s.shimMessageEventDiscriminator))
 }
 
-func TestShimDirect(t *testing.T) {
-	eventJson := `
+// shimDirectEventJSON is the canonical happy-path transaction for the shim
+// "direct" flow (a top-level shim PostMessage with the core PostMessage as an
+// inner instruction). It is shared between tests that exercise the direct
+// path and tests that drive shimProcessRest in isolation. Tests that need
+// variations should json.Unmarshal a copy and mutate fields locally.
+const shimDirectEventJSON = `
 	{
 		"blockTime": 1736530812,
 		"meta": {
@@ -285,6 +363,9 @@ func TestShimDirect(t *testing.T) {
 		"version": "legacy"
 	}
 	`
+
+func TestShimDirect(t *testing.T) {
+	eventJson := shimDirectEventJSON
 
 	///////// A bunch of checks to verify we parsed the JSON correctly.
 	var txRpc rpc.TransactionWithMeta
@@ -2089,159 +2170,7 @@ func TestShimWhPostMessageInUnexpectedFormatShouldNotBeCountedAsShimMessage(t *t
 }
 
 func TestShimProcessRestWithNullEventShouldFail(t *testing.T) {
-	eventJson := `
-	{
-		"blockTime": 1736530812,
-		"meta": {
-			"computeUnitsConsumed": 84252,
-			"err": null,
-			"fee": 5000,
-			"innerInstructions": [
-				{
-					"index": 1,
-					"instructions": [
-						{
-							"accounts": [1, 3, 0, 4, 0, 2, 8, 5, 9],
-							"data": "TbyPDfUoyRxsr",
-							"programIdIndex": 10,
-							"stackHeight": 2
-						},
-						{
-							"accounts": [0, 4],
-							"data": "3Bxs4NLhqXb3ofom",
-							"programIdIndex": 5,
-							"stackHeight": 3
-						},
-						{
-							"accounts": [4],
-							"data": "9krTD1mFP1husSVM",
-							"programIdIndex": 5,
-							"stackHeight": 3
-						},
-						{
-							"accounts": [4],
-							"data": "SYXsBvR59WTsF4KEVN8LCQ1X9MekXCGPPNo3Af36taxCQBED",
-							"programIdIndex": 5,
-							"stackHeight": 3
-						},
-						{
-							"accounts": [0, 3],
-							"data": "3Bxs4bm7oSCPMeKR",
-							"programIdIndex": 5,
-							"stackHeight": 3
-						},
-						{
-							"accounts": [3],
-							"data": "9krTDGKFuDw9nLmM",
-							"programIdIndex": 5,
-							"stackHeight": 3
-						},
-						{
-							"accounts": [3],
-							"data": "SYXsBvR59WTsF4KEVN8LCQ1X9MekXCGPPNo3Af36taxCQBED",
-							"programIdIndex": 5,
-							"stackHeight": 3
-						},
-						{
-							"accounts": [7],
-							"data": "hTEY7jEqBPdDRkTWweeDPgyCUykRXEQVCUwrYmn4HZo84DdQrTJT2nBMiJFB3jXUVxHVd9mGq7BX9htuAN",
-							"programIdIndex": 6,
-							"stackHeight": 2
-						}
-					]
-				}
-			],
-			"loadedAddresses": {
-				"readonly": [],
-				"writable": []
-			},
-			"logMessages": [
-				"Program 11111111111111111111111111111111 invoke [1]",
-				"Program 11111111111111111111111111111111 success",
-				"Program EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX invoke [1]",
-				"Program log: Instruction: PostMessage",
-				"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth invoke [2]",
-				"Program 11111111111111111111111111111111 invoke [3]",
-				"Program 11111111111111111111111111111111 success",
-				"Program 11111111111111111111111111111111 invoke [3]",
-				"Program 11111111111111111111111111111111 success",
-				"Program 11111111111111111111111111111111 invoke [3]",
-				"Program 11111111111111111111111111111111 success",
-				"Program log: Sequence: 0",
-				"Program 11111111111111111111111111111111 invoke [3]",
-				"Program 11111111111111111111111111111111 success",
-				"Program 11111111111111111111111111111111 invoke [3]",
-				"Program 11111111111111111111111111111111 success",
-				"Program 11111111111111111111111111111111 invoke [3]",
-				"Program 11111111111111111111111111111111 success",
-				"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth consumed 60384 of 380989 compute units",
-				"Program worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth success",
-				"Program EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX invoke [2]",
-				"Program EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX consumed 2000 of 318068 compute units",
-				"Program EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX success",
-				"Program EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX consumed 84102 of 399850 compute units",
-				"Program EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX success"
-			],
-			"postBalances": [
-				499999999997496260, 1057920, 2350640170, 1552080, 946560, 1, 1141440, 0,
-				1169280, 1009200, 1141440
-			],
-			"postTokenBalances": [],
-			"preBalances": [
-				500000000000000000, 1057920, 2350640070, 0, 0, 1, 1141440, 0, 1169280,
-				1009200, 1141440
-			],
-			"preTokenBalances": [],
-			"rewards": [],
-			"status": {
-				"Ok": null
-			}
-		},
-		"slot": 3,
-		"transaction": {
-			"message": {
-				"header": {
-					"numReadonlySignedAccounts": 0,
-					"numReadonlyUnsignedAccounts": 6,
-					"numRequiredSignatures": 1
-				},
-				"accountKeys": [
-					"H3kCPjpQDT4hgwWHr9E9pC99rZT2yHAwiwSwku6Bne9",
-					"2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn",
-					"9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy",
-					"9vohBn118ZEctRmuTRvoUZg1B1HGfSH8C5QX6twtUFrJ",
-					"HeccUHmoyMi5S6nuTcyUBh4w4me3FP541a52ErYJRT8a",
-					"11111111111111111111111111111111",
-					"EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX",
-					"HQS31aApX3DDkuXgSpV9XyDUNtFgQ31pUn5BNWHG2PSp",
-					"SysvarC1ock11111111111111111111111111111111",
-					"SysvarRent111111111111111111111111111111111",
-					"worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-				],
-				"recentBlockhash": "CMqPGm4icRdNuHsWJUK4Kgu4Cbe2nDQkYNqugQkKPa4Y",
-				"instructions": [
-					{
-						"accounts": [0, 2],
-						"data": "3Bxs4HanWsHUZCbH",
-						"programIdIndex": 5,
-						"stackHeight": null
-					},
-					{
-						"accounts": [1, 3, 0, 4, 0, 2, 8, 5, 9, 10, 7, 6],
-						"data": "3Cn8VBJReY7Bku3RduhBfYpk7tiw1R6pKcTWv9R",
-						"programIdIndex": 6,
-						"stackHeight": null
-					}
-				],
-				"indexToProgramIds": {}
-			},
-			"signatures": [
-				"3NACxoZLehbdKGjTWZKTTXJPuovyqAih1AD1BrkYj8nzDAtjiQUEaNmhkoU1jcFfoPTAjrvnaLFgTafNWr3fBrdB"
-			]
-		},
-		"version": "legacy"
-	}
-	`
+	eventJson := shimDirectEventJSON
 
 	///////// A bunch of checks to verify we parsed the JSON correctly.
 	var txRpc rpc.TransactionWithMeta
@@ -2283,4 +2212,103 @@ func TestShimProcessRestWithNullEventShouldFail(t *testing.T) {
 	require.ErrorContains(t, err, "postMessage is nil")
 	require.Equal(t, 0, len(s.msgC))
 	require.Equal(t, 0, len(alreadyProcessed))
+}
+
+// Inner instructions contain neither a core PostMessage nor a shim event, so
+// shimProcessRest's loop completes without setting verifiedCoreEvent.
+func TestShimProcessRestWithoutCoreEventShouldFail(t *testing.T) {
+	var txRpc rpc.TransactionWithMeta
+	require.NoError(t, json.Unmarshal([]byte(shimDirectEventJSON), &txRpc))
+	tx, err := txRpc.GetParsedTransaction()
+	require.NoError(t, err)
+
+	s := shimNewWatcherForTest(t, make(chan *common.MessagePublication, 10))
+	var whProgramIndex, shimProgramIndex uint16
+	for n, key := range tx.Message.AccountKeys {
+		if key.Equals(s.contract) {
+			whProgramIndex = uint16(n) // #nosec G115
+		}
+		if key.Equals(s.shimContractAddr) {
+			shimProgramIndex = uint16(n) // #nosec G115
+		}
+	}
+
+	var filtered []solana.CompiledInstruction
+	for _, inst := range txRpc.Meta.InnerInstructions[0].Instructions {
+		if inst.ProgramIDIndex != whProgramIndex && inst.ProgramIDIndex != shimProgramIndex {
+			filtered = append(filtered, inst)
+		}
+	}
+	require.NotEmpty(t, filtered)
+
+	err = s.shimProcessRest(zap.NewNop(), whProgramIndex, shimProgramIndex, tx, filtered, 0, 0,
+		&ShimPostMessageData{ConsistencyLevel: consistencyLevelFinalized}, ShimAlreadyProcessed{}, false, true)
+	require.ErrorContains(t, err, "failed to find inner core instruction")
+}
+
+// Inner instructions contain the core PostMessage but no shim MessageEvent, so
+// shimProcessRest verifies the core event but exits with messageEvent still nil.
+func TestShimProcessRestWithoutShimEventShouldFail(t *testing.T) {
+	var txRpc rpc.TransactionWithMeta
+	require.NoError(t, json.Unmarshal([]byte(shimDirectEventJSON), &txRpc))
+	tx, err := txRpc.GetParsedTransaction()
+	require.NoError(t, err)
+
+	s := shimNewWatcherForTest(t, make(chan *common.MessagePublication, 10))
+	var whProgramIndex, shimProgramIndex uint16
+	for n, key := range tx.Message.AccountKeys {
+		if key.Equals(s.contract) {
+			whProgramIndex = uint16(n) // #nosec G115
+		}
+		if key.Equals(s.shimContractAddr) {
+			shimProgramIndex = uint16(n) // #nosec G115
+		}
+	}
+
+	var filtered []solana.CompiledInstruction
+	for _, inst := range txRpc.Meta.InnerInstructions[0].Instructions {
+		if inst.ProgramIDIndex != shimProgramIndex {
+			filtered = append(filtered, inst)
+		}
+	}
+
+	err = s.shimProcessRest(zap.NewNop(), whProgramIndex, shimProgramIndex, tx, filtered, 0, 0,
+		&ShimPostMessageData{ConsistencyLevel: consistencyLevelFinalized}, ShimAlreadyProcessed{}, false, true)
+	require.ErrorContains(t, err, "failed to find inner shim message event instruction")
+}
+
+// The core inner instruction has the unreliable PostMessage id (0x08) but its
+// trailing bytes can't be borsh-deserialized, so shimVerifyCoreMessage returns
+// an error and shimProcessRest wraps it.
+func TestShimProcessRestWithMalformedCoreInstructionShouldFail(t *testing.T) {
+	var txRpc rpc.TransactionWithMeta
+	require.NoError(t, json.Unmarshal([]byte(shimDirectEventJSON), &txRpc))
+	tx, err := txRpc.GetParsedTransaction()
+	require.NoError(t, err)
+
+	s := shimNewWatcherForTest(t, make(chan *common.MessagePublication, 10))
+	var whProgramIndex, shimProgramIndex uint16
+	for n, key := range tx.Message.AccountKeys {
+		if key.Equals(s.contract) {
+			whProgramIndex = uint16(n) // #nosec G115
+		}
+		if key.Equals(s.shimContractAddr) {
+			shimProgramIndex = uint16(n) // #nosec G115
+		}
+	}
+
+	insts := append([]solana.CompiledInstruction(nil), txRpc.Meta.InnerInstructions[0].Instructions...)
+	replaced := false
+	for i := range insts {
+		if insts[i].ProgramIDIndex == whProgramIndex {
+			insts[i].Data = []byte{0x08, 0x2a, 0x00} // unreliable id + truncated nonce → borsh decode fails
+			replaced = true
+			break
+		}
+	}
+	require.True(t, replaced)
+
+	err = s.shimProcessRest(zap.NewNop(), whProgramIndex, shimProgramIndex, tx, insts, 0, 0,
+		&ShimPostMessageData{ConsistencyLevel: consistencyLevelFinalized}, ShimAlreadyProcessed{}, false, true)
+	require.ErrorContains(t, err, "failed to verify inner core instruction")
 }
