@@ -633,11 +633,10 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 			return false, err
 		}
 
-		pe := &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData}
-		idx := sort.Search(len(emitterChainEntry.pending), func(i int) bool {
-			return releaseTime.Before(emitterChainEntry.pending[i].dbData.ReleaseTime)
-		})
-		emitterChainEntry.pending = slices.Insert(emitterChainEntry.pending, idx, pe)
+		emitterChainEntry.pending = append(
+			emitterChainEntry.pending,
+			&pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData},
+		)
 		gov.msgsSeen[hash] = transferEnqueued
 		return false, nil
 	}

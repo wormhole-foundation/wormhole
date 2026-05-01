@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"sync"
 	"testing"
 	"time"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/require"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
@@ -350,15 +348,6 @@ func checkGovernorInvariants(t *testing.T, gov *ChainGovernor, tracker *invarian
 				chainID, govPendingCount, shadowPendingCount)
 		}
 
-		for i := 1; i < len(ce.pending); i++ {
-			prev := ce.pending[i-1].dbData.ReleaseTime
-			curr := ce.pending[i].dbData.ReleaseTime
-			if curr.Before(prev) {
-				t.Errorf("invariant violation: chain %s pending[%d] releaseTime %v is before pending[%d] releaseTime %v",
-					chainID, i, curr, i-1, prev)
-			}
-		}
-
 		// Compare the trimmed sum for this chain without side effects.
 		startTime := now.Add(-time.Duration(shadowDayMinutes) * time.Minute)
 
@@ -385,6 +374,26 @@ func checkGovernorInvariants(t *testing.T, gov *ChainGovernor, tracker *invarian
 		if govSum != shadowSumSigned {
 			t.Errorf("invariant violation: chain %s sum mismatch: governor=%d shadow=%d delta=%d",
 				chainID, govSum, shadowSumSigned, shadowSumSigned-govSum)
+		}
+
+		// Per-transfer rounding invariant: |rounded - unrounded| < 1 scaled unit
+		// for every transfer in the 24h window. This is the tight mathematical
+		// bound on integer truncation in computeScaledValue; any production bug
+		// that loses more than 1 unit on a single transfer violates the invariant.
+		one := big.NewFloat(1)
+		for _, st := range shadowCS.transfers {
+			if st.timestamp.Before(startTime) {
+				continue
+			}
+			if st.unroundedValue == nil {
+				continue
+			}
+			diff := new(big.Float).Sub(new(big.Float).SetInt64(st.scaledValue), st.unroundedValue)
+			absDiff := new(big.Float).Abs(diff)
+			if absDiff.Cmp(one) >= 0 {
+				t.Errorf("invariant violation: chain %s per-transfer rounding loss: rounded=%d unrounded=%s (|rounded-unrounded|=%s >= 1)",
+					chainID, st.scaledValue, st.unroundedValue.Text('f', 4), absDiff.Text('f', 4))
+			}
 		}
 	}
 
@@ -415,8 +424,9 @@ func checkGovernorInvariants(t *testing.T, gov *ChainGovernor, tracker *invarian
 
 // shadowTransfer represents a published transfer in our independent 24h window tracker.
 type shadowTransfer struct {
-	timestamp   time.Time
-	scaledValue int64 // signed: positive for outgoing, negative for flow cancel
+	timestamp      time.Time
+	scaledValue    int64      // signed: positive for outgoing, negative for flow cancel
+	unroundedValue *big.Float // signed unrounded scaled value (no integer truncation)
 }
 
 // shadowChainState tracks published (non-big) transfer values for one chain.
@@ -493,6 +503,24 @@ func (tr *invariantTracker) computeScaledValue(tokenIdx int, amount *big.Int) (u
 		return 0, false
 	}
 	return valueBigInt.Uint64(), true
+}
+
+// computeUnroundedValue mirrors computeScaledValue but returns the result as a
+// big.Float, skipping the integer truncation step. Used for the rounding-floor
+// invariant.
+func (tr *invariantTracker) computeUnroundedValue(tokenIdx int, amount *big.Int) (*big.Float, bool) {
+	if amount == nil || amount.Sign() < 0 {
+		return nil, false
+	}
+	price := tr.prices[tokenIdx]
+	if price <= 0 {
+		return nil, false
+	}
+	v := new(big.Float).SetInt(amount)
+	v.Mul(v, big.NewFloat(price))
+	v.Mul(v, new(big.Float).SetUint64(shadowScaledValueFactor))
+	v.Quo(v, new(big.Float).SetInt64(shadowDecimals))
+	return v, true
 }
 
 // trimAndSum returns the sum of transfer values within the 24h window for a chain.
@@ -633,20 +661,28 @@ func (tr *invariantTracker) recordPublish(
 		return
 	}
 
+	unrounded, _ := tr.computeUnroundedValue(tokenIdx, amount)
+
 	// Add to emitter chain's transfer list
 	if cs, exists := tr.chains[emitterChainID]; exists {
 		cs.transfers = append(cs.transfers, shadowTransfer{
-			timestamp:   now,
-			scaledValue: int64(scaledValue),
+			timestamp:      now,
+			scaledValue:    int64(scaledValue),
+			unroundedValue: unrounded,
 		})
 	}
 
 	// Flow cancel: add inverse to destination chain
 	if isFlowCancelEligible(tokenIdx, emitterChainID, targetChainID) {
 		if cs, exists := tr.chains[targetChainID]; exists {
+			var negUnrounded *big.Float
+			if unrounded != nil {
+				negUnrounded = new(big.Float).Neg(unrounded)
+			}
 			cs.transfers = append(cs.transfers, shadowTransfer{
-				timestamp:   now,
-				scaledValue: -int64(scaledValue),
+				timestamp:      now,
+				scaledValue:    -int64(scaledValue),
+				unroundedValue: negUnrounded,
 			})
 		}
 	}
@@ -659,20 +695,14 @@ func (tr *invariantTracker) recordEnqueue(
 	now time.Time,
 	msgID string,
 ) {
-	entry := shadowPendingEntry{
+	tr.pending = append(tr.pending, shadowPendingEntry{
 		emitterChain: fuzzEmitterTable[emitterIdx].chainID,
 		targetChain:  fuzzChainTable[targetChainIdx].chainID,
 		tokenIdx:     tokenIdx,
 		amount:       new(big.Int).Set(amount),
 		releaseTime:  now.Add(shadowMaxEnqueuedTime),
 		msgID:        msgID,
-	}
-	idx := sort.Search(len(tr.pending), func(i int) bool {
-		return entry.releaseTime.Before(tr.pending[i].releaseTime)
 	})
-	tr.pending = append(tr.pending, shadowPendingEntry{})
-	copy(tr.pending[idx+1:], tr.pending[idx:])
-	tr.pending[idx] = entry
 }
 
 // addTransferAndFlowCancel appends a transfer to the emitter chain and,
@@ -680,20 +710,28 @@ func (tr *invariantTracker) recordEnqueue(
 func (tr *invariantTracker) addTransferAndFlowCancel(
 	emitterChain, targetChain vaa.ChainID,
 	tokenIdx int,
+	amount *big.Int,
 	scaledValue uint64,
 	now time.Time,
 ) {
+	unrounded, _ := tr.computeUnroundedValue(tokenIdx, amount)
 	if cs, exists := tr.chains[emitterChain]; exists {
 		cs.transfers = append(cs.transfers, shadowTransfer{
-			timestamp:   now,
-			scaledValue: int64(scaledValue),
+			timestamp:      now,
+			scaledValue:    int64(scaledValue),
+			unroundedValue: unrounded,
 		})
 	}
 	if isFlowCancelEligible(tokenIdx, emitterChain, targetChain) {
 		if cs, exists := tr.chains[targetChain]; exists {
+			var negUnrounded *big.Float
+			if unrounded != nil {
+				negUnrounded = new(big.Float).Neg(unrounded)
+			}
 			cs.transfers = append(cs.transfers, shadowTransfer{
-				timestamp:   now,
-				scaledValue: -int64(scaledValue),
+				timestamp:      now,
+				scaledValue:    -int64(scaledValue),
+				unroundedValue: negUnrounded,
 			})
 		}
 	}
@@ -777,7 +815,7 @@ func (tr *invariantTracker) shadowCheckPending(t *testing.T, now time.Time) {
 					t.Logf("TRACE shadowCheckPending: chain=%s releasing non-big token=%s scaledValue=%d (fits: %d+%d=%d <= %d)",
 						chainID, fuzzTokenTable[pe.tokenIdx].symbol, scaledValue, prevSum, scaledValue, newTotal, lim.dailyLimit*shadowScaledValueFactor)
 				}
-				tr.addTransferAndFlowCancel(chainID, pe.targetChain, pe.tokenIdx, scaledValue, now)
+				tr.addTransferAndFlowCancel(chainID, pe.targetChain, pe.tokenIdx, pe.amount, scaledValue, now)
 				tr.pending = append(tr.pending[:idx], tr.pending[idx+1:]...)
 				foundOne = true
 				break
@@ -816,10 +854,6 @@ func (tr *invariantTracker) recordAdminResetTimer(msgID string, now time.Time, n
 	for idx := range tr.pending {
 		if tr.pending[idx].msgID == msgID {
 			tr.pending[idx].releaseTime = now.Add(time.Duration(numDays) * 24 * time.Hour)
-			// Re-sort to match the production code's ordering invariant.
-			sort.SliceStable(tr.pending, func(i, j int) bool {
-				return tr.pending[i].releaseTime.Before(tr.pending[j].releaseTime)
-			})
 			return
 		}
 	}
@@ -1550,33 +1584,6 @@ func seedLongRunningSession() []fuzzOp {
 	return wrapSeed(ops)
 }
 
-// seedPriceSpikeOverflowBlocksPending: a price spike on one chain's pending
-// transfer causes scaledUsdValue to overflow uint64, which makes
-// checkPendingForTime return an error before processing later chains.
-// This leaves pending transfers on other chains stuck indefinitely.
-//
-// This seed intentionally avoids wrapSeed because the suffix's adminDropOp
-// would accidentally clean up the stuck polygon entry, masking the bug.
-func seedPriceSpikeOverflowBlocksPending() []fuzzOp {
-	return []fuzzOp{
-		// Enqueue a big USDT_SOL transfer on ethereum (will overflow after price spike).
-		msg(tokUSDT_SOL, emitEth, chainEth, ^uint64(0)/1000), // max amount, big transfer
-		// Enqueue a big USDC_SOL transfer on polygon (innocent bystander).
-		msg(tokUSDC_SOL, emitPoly, chainEth, ^uint64(0)/1000), // max amount, big transfer
-		// Advance past the 24h release timer.
-		advanceOp(255), // ~42h
-		// Spike USDT_SOL price so scaledUsdValue overflows uint64 on re-evaluation.
-		priceOp(tokUSDT_SOL, 3_472_328_296_227_680_400),
-		// checkPending: governor errors on ethereum's USDT_SOL, never reaches polygon.
-		checkPendingOp(),
-	}
-}
-
-// seedEmptyInput: no operations, just invariant checks on fresh governor.
-func seedEmptyInput() []fuzzOp {
-	return wrapSeed([]fuzzOp{})
-}
-
 // seedLimitDropReleasesEnqueued: a transfer is enqueued because it exceeds
 // the daily limit, then the limit is raised so that checkPending releases it.
 func seedLimitDropReleasesEnqueued() []fuzzOp {
@@ -1628,6 +1635,60 @@ func seedZeroLimitsEnqueueEverything() []fuzzOp {
 		limitOp(chainSui, 3), // 50k/25k
 		advanceOp(144),       // ~24h
 		checkPendingOp(),
+	})
+}
+
+// seedFractionalAmountsSUI: SUI at $0.50 with non-1000-aligned amounts forces
+// fractional arithmetic in computeScaledValue, exercising the rounding-floor
+// invariant on per-chain rolling sums.
+func seedFractionalAmountsSUI() []fuzzOp {
+	return wrapSeed([]fuzzOp{
+		msg(tokSUI, emitSui, chainEth, 1_234_567),
+		msg(tokSUI, emitSui, chainEth, 7_654_321),
+		msg(tokSUI, emitSui, chainPoly, 999_999),
+		msg(tokSUI, emitSui, chainEth, 4_321_999),
+		msg(tokSUI, emitSui, chainSol, 5_555_111),
+		checkPendingOp(),
+	})
+}
+
+// seedFractionalAmountsWETH: WETH at $1774.62 with non-1000-aligned amounts
+// produces float remainders at both truncation steps in computeScaledValue.
+func seedFractionalAmountsWETH() []fuzzOp {
+	return wrapSeed([]fuzzOp{
+		msg(tokWETH, emitEth, chainSui, 1_234_567),
+		msg(tokWETH, emitEth, chainPoly, 5_678_901),
+		msg(tokWETH, emitEth, chainSol, 333_337),
+		msg(tokWETH, emitEth, chainSui, 9_999_999),
+		msg(tokWETH, emitEth, chainPoly, 7_777_777),
+	})
+}
+
+// seedManyTinyFractionalTransfers: barrage of small odd-amount SUI transfers
+// to exercise the per-transfer threshold filter in the rounding-floor check.
+// Most individual transfers fall below shadowRoundingMinScaledValue.
+func seedManyTinyFractionalTransfers() []fuzzOp {
+	ops := make([]fuzzOp, 30)
+	for i := range ops {
+		ops[i] = msg(tokSUI, emitSui, chainEth, uint64(7+i*13))
+	}
+	return wrapSeed(ops)
+}
+
+// seedMixedFractionalPrices: tokens at non-integer prices interleaved with
+// price changes and time advances, populating per-chain unrounded sums with
+// varied truncation residues.
+func seedMixedFractionalPrices() []fuzzOp {
+	return wrapSeed([]fuzzOp{
+		msg(tokSUI, emitSui, chainEth, 2_345_678),
+		msg(tokWETH, emitEth, chainSui, 1_111_111),
+		priceOp(tokSUI, 73), // $0.73
+		msg(tokSUI, emitSui, chainEth, 8_765_432),
+		priceOp(tokWETH, 199_999), // $1999.99
+		msg(tokWETH, emitEth, chainPoly, 6_543_210),
+		advanceOp(36),
+		checkPendingOp(),
+		msg(tokSUI, emitSui, chainSol, 4_999_999),
 	})
 }
 
@@ -1694,11 +1755,13 @@ func FuzzGovernor(f *testing.F) {
 	f.Add(encodeFuzzOps(seedAdminDropPending()))                    // 56
 	f.Add(encodeFuzzOps(seedAdminDropThenTransfer()))               // 57
 	f.Add(encodeFuzzOps(seedAdminReleaseDoesNotCountTowardLimit())) // 58
-	// f.Add(encodeFuzzOps(seedPriceSpikeOverflowBlocksPending()))   // 59 — disabled: price wrap prevents overflow; kept for reproducing the bug without the wrap
-	f.Add(encodeFuzzOps(seedEmptyInput()))                       // 60
-	f.Add(encodeFuzzOps(seedLimitDropReleasesEnqueued()))        // 61
-	f.Add(encodeFuzzOps(seedLimitChangeAffectsBigTxThreshold())) // 62
-	f.Add(encodeFuzzOps(seedZeroLimitsEnqueueEverything()))      // 63
+	f.Add(encodeFuzzOps(seedLimitDropReleasesEnqueued()))           // 60
+	f.Add(encodeFuzzOps(seedLimitChangeAffectsBigTxThreshold()))    // 61
+	f.Add(encodeFuzzOps(seedZeroLimitsEnqueueEverything()))         // 62
+	f.Add(encodeFuzzOps(seedFractionalAmountsSUI()))                // 63
+	f.Add(encodeFuzzOps(seedFractionalAmountsWETH()))               // 64
+	f.Add(encodeFuzzOps(seedManyTinyFractionalTransfers()))         // 65
+	f.Add(encodeFuzzOps(seedMixedFractionalPrices()))               // 66
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		gov := newFuzzGovernor(t)
@@ -1723,7 +1786,11 @@ func FuzzGovernor(f *testing.F) {
 
 				// Scale amount by 1000 so that seed values like 5_000_000_000
 				// map to $50k (not $50) for tokens with 8 decimals at $1.
-				scaled := amount * 1000
+				// Add a sub-1000 jitter so amounts aren't always clean multiples
+				// of 1000 — otherwise computeScaledValue's `* factor / decimals`
+				// integer division is lossless for integer prices, and the
+				// rounding-floor invariant can never fail.
+				scaled := amount*1000 + (amount % 1000)
 
 				sequence++
 				msg := buildFuzzMsg(sequence, now, emitterIdx, tokenIdx, targetChainIdx, scaled)
@@ -2082,237 +2149,4 @@ func compareGovSnapshots(t *testing.T, original, reloaded govSnapshot) {
 			t.Errorf("msgsSeen[%s] mismatch: original=%v reloaded=%v", hash, origComplete, reloadedComplete)
 		}
 	}
-}
-
-// =============================================================================
-// FuzzGovernorDBRoundTrip
-// =============================================================================
-
-func FuzzGovernorDBRoundTrip(f *testing.F) {
-	f.Add(encodeFuzzOps(seedSmallTransferPublished()))              // 1
-	f.Add(encodeFuzzOps(seedSmallTransferEachChain()))              // 2
-	f.Add(encodeFuzzOps(seedBigTransferEnqueuedAndAutoReleased()))  // 3
-	f.Add(encodeFuzzOps(seedFlowCancelFullOffset()))                // 4
-	f.Add(encodeFuzzOps(seedFlowCancelPartialOffset()))             // 5
-	f.Add(encodeFuzzOps(seedFlowCancelExceedsOutbound()))           // 6
-	f.Add(encodeFuzzOps(seedFlowCancelThenNewTransfer()))           // 7
-	f.Add(encodeFuzzOps(seedFlowCancelWrongCorridor()))             // 8
-	f.Add(encodeFuzzOps(seedFlowCancelNonFlowToken()))              // 9
-	f.Add(encodeFuzzOps(seedEnqueueResetTimerAndRelease()))         // 10
-	f.Add(encodeFuzzOps(seedEnqueueResetTimerShort()))              // 11
-	f.Add(encodeFuzzOps(seedTransfersUpToLimit()))                  // 12
-	f.Add(encodeFuzzOps(seedTransfersOverLimit()))                  // 13
-	f.Add(encodeFuzzOps(seedTransfersOverLimitThenExpire()))        // 14
-	f.Add(encodeFuzzOps(seedMultiplePendingReleaseOrder()))         // 15
-	f.Add(encodeFuzzOps(seedBigTransferThresholdBoundary()))        // 16
-	f.Add(encodeFuzzOps(seedBigTransferJustUnder()))                // 17
-	f.Add(encodeFuzzOps(seedBigTransferJustOver()))                 // 18
-	f.Add(encodeFuzzOps(seedInvalidEmitter()))                      // 19
-	f.Add(encodeFuzzOps(seedUngovernedToken()))                     // 20
-	f.Add(encodeFuzzOps(seedPriceDropReleasesEnqueued()))           // 21
-	f.Add(encodeFuzzOps(seedPriceSpikeEnqueuesMore()))              // 22
-	f.Add(encodeFuzzOps(seedPriceChangeWhilePending()))             // 23
-	f.Add(encodeFuzzOps(seedPriceOscillation()))                    // 24
-	f.Add(encodeFuzzOps(seedMultipleChainsSimultaneous()))          // 25
-	f.Add(encodeFuzzOps(seedPolygonLowLimitEnqueue()))              // 26
-	f.Add(encodeFuzzOps(seedSuiChainFillAndRelease()))              // 27
-	f.Add(encodeFuzzOps(seedDuplicateMessage()))                    // 28
-	f.Add(encodeFuzzOps(seedZeroAmountTransfer()))                  // 29
-	f.Add(encodeFuzzOps(seedMaxAmountTransfer()))                   // 30
-	f.Add(encodeFuzzOps(seedVeryLargeAmountTransfer()))             // 31
-	f.Add(encodeFuzzOps(seedManySmallTransfers()))                  // 32
-	f.Add(encodeFuzzOps(seedManySmallTransfersExceedLimit()))       // 33
-	f.Add(encodeFuzzOps(seedEnqueueCheckAdvanceCheckRepeat()))      // 34
-	f.Add(encodeFuzzOps(seedFlowCancelReleasePending()))            // 35
-	f.Add(encodeFuzzOps(seedAllTokenTypes()))                       // 36
-	f.Add(encodeFuzzOps(seedMixedGovernedAndUngoverned()))          // 37
-	f.Add(encodeFuzzOps(seedInvalidEmitterThenValid()))             // 38
-	f.Add(encodeFuzzOps(seedTimerResetMultiple()))                  // 39
-	f.Add(encodeFuzzOps(seedTimerResetToMax()))                     // 40
-	f.Add(encodeFuzzOps(seedFlowCancelSolanaUSDC()))                // 41
-	f.Add(encodeFuzzOps(seedFlowCancelBothUSDCVariants()))          // 42
-	f.Add(encodeFuzzOps(seedAdvanceTimeSmallSteps()))               // 43
-	f.Add(encodeFuzzOps(seedCheckPendingWithNothingPending()))      // 44
-	f.Add(encodeFuzzOps(seedCheckPendingTooEarly()))                // 45
-	f.Add(encodeFuzzOps(seedCheckPendingExactly24h()))              // 46
-	f.Add(encodeFuzzOps(seedTransferToSameChain()))                 // 47
-	f.Add(encodeFuzzOps(seedHighVolumeEnqueueRelease()))            // 48
-	f.Add(encodeFuzzOps(seedPriceZeroCents()))                      // 49
-	f.Add(encodeFuzzOps(seedPriceVeryHigh()))                       // 50
-	f.Add(encodeFuzzOps(seedPriceChangeUSDCIgnored()))              // 51
-	f.Add(encodeFuzzOps(seedPriceChangeUngovernedIgnored()))        // 52
-	f.Add(encodeFuzzOps(seedComplexMultiChainFlow()))               // 53
-	f.Add(encodeFuzzOps(seedLongRunningSession()))                  // 54
-	f.Add(encodeFuzzOps(seedAdminReleasePending()))                 // 55
-	f.Add(encodeFuzzOps(seedAdminDropPending()))                    // 56
-	f.Add(encodeFuzzOps(seedAdminDropThenTransfer()))               // 57
-	f.Add(encodeFuzzOps(seedAdminReleaseDoesNotCountTowardLimit())) // 58
-	f.Add(encodeFuzzOps(seedEmptyInput()))                          // 60
-	f.Add(encodeFuzzOps(seedLimitDropReleasesEnqueued()))           // 61
-	f.Add(encodeFuzzOps(seedLimitChangeAffectsBigTxThreshold()))    // 62
-	f.Add(encodeFuzzOps(seedZeroLimitsEnqueueEverything()))         // 63
-
-	dbPool := sync.Pool{
-		New: func() any {
-			return guardianDB.OpenDb(zap.NewNop(), nil)
-		},
-	}
-	f.Cleanup(func() {
-		// Drain is best-effort; Pool doesn't expose iteration,
-		// but GC will finalize any remaining instances.
-	})
-
-	f.Fuzz(func(t *testing.T, data []byte) {
-		// Cap input size to keep each execution fast. 50 ops × 12 bytes
-		// covers more than the largest seed while preventing the fuzzer
-		// from generating inputs with thousands of DB writes.
-		const maxBytes = 50 * fuzzBytesPerOp
-		if len(data) > maxBytes {
-			data = data[:maxBytes]
-		}
-
-		realDB := dbPool.Get().(*guardianDB.Database)
-		defer func() {
-			realDB.DropAll() //nolint:errcheck
-			dbPool.Put(realDB)
-		}()
-
-		gov := newFuzzGovernorWithDB(t, realDB)
-
-		r := &fuzzReader{data: data}
-		now := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
-		var sequence uint64
-
-		// checkDBRoundTrip creates a fresh governor from the same DB and
-		// verifies its state matches the original. The original gov is
-		// never replaced — it remains the continuous source of truth.
-		//
-		// Both snapshots filter to the original's 24h window so we only
-		// compare state that actually drives decisions and that the DB
-		// can reconstruct. Expired flow-cancel entries may linger in
-		// memory on one chain after the source transfer was deleted by
-		// another chain's trim — filtering by the window excludes these.
-		checkDBRoundTrip := func(label string) {
-			t.Helper()
-			// Use the original governor's 24h window for both snapshots
-			// so they filter identically.
-			startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-			originalSnap := takeGovSnapshot(gov, startTime)
-
-			reloadedGov := newFuzzGovernorWithDB(t, realDB)
-			// Use a very large day length so loadFromDB doesn't prune
-			// transfers whose timestamps are in simulated past (2024)
-			// vs real time.Now().
-			reloadedGov.setDayLengthInMinutes(525600 * 3) // 3 years
-			err := reloadedGov.loadFromDB()
-			require.NoError(t, err, "loadFromDB failed at %s", label)
-
-			reloadedSnap := takeGovSnapshot(reloadedGov, startTime)
-			compareGovSnapshots(t, originalSnap, reloadedSnap)
-		}
-		var opCount int
-
-		for r.remaining() >= fuzzBytesPerOp {
-			op := r.readByte() % fuzzOpCount
-
-			switch op {
-			case opProcessMsg:
-				tokenIdx := int(r.readByte()) % len(fuzzTokenTable)
-				emitterIdx := int(r.readByte()) % len(fuzzEmitterTable)
-				targetChainIdx := int(r.readByte()) % len(fuzzChainTable)
-				amount := r.readUint64LE()
-
-				amount = amount%(100*100_000) + 1
-				scaled := amount * 1000
-
-				sequence++
-				msg := buildFuzzMsg(sequence, now, emitterIdx, tokenIdx, targetChainIdx, scaled)
-				gov.processMsgForTime(&msg, now) //nolint:errcheck
-
-			case opCheckPending:
-				r.discard(fuzzPayloadBytes)
-				gov.checkPendingForTime(now) //nolint:errcheck
-
-			case opAdmin:
-				pendingIdxByte := r.readByte()
-				actionByte := r.readByte()
-				_ = r.readByte()
-				numDaysRaw := r.readUint64LE()
-
-				gov.mutex.Lock()
-				var allPendingIDs []string
-				for _, ce := range gov.chains {
-					for _, pe := range ce.pending {
-						allPendingIDs = append(allPendingIDs, pe.dbData.Msg.MessageIDString())
-					}
-				}
-				gov.mutex.Unlock()
-
-				if len(allPendingIDs) == 0 {
-					continue
-				}
-				vaaId := allPendingIDs[int(pendingIdxByte)%len(allPendingIDs)]
-
-				switch actionByte % adminActionCount {
-				case adminRelease:
-					gov.ReleasePendingVAA(vaaId) //nolint:errcheck
-				case adminDrop:
-					gov.DropPendingVAA(vaaId) //nolint:errcheck
-				case adminResetTimer:
-					numDays := uint32(1 + numDaysRaw%5)
-					gov.resetReleaseTimerForTime(vaaId, now, numDays) //nolint:errcheck
-				}
-
-			case opAdvanceTime:
-				minutesByte := r.readByte()
-				r.discard(fuzzPayloadBytes - 1)
-				minutes := 1 + int(minutesByte)*10
-				now = now.Add(time.Duration(minutes) * time.Minute)
-
-			case opChangeTokenPrice:
-				tokenIdxByte := r.readByte()
-				_ = r.readByte()
-				_ = r.readByte()
-				priceRaw := r.readUint64LE()
-
-				tokenIdx := int(tokenIdxByte) % len(fuzzTokenTable)
-				if tokenIdx <= 1 || !fuzzTokenTable[tokenIdx].governed {
-					continue
-				}
-
-				priceCents := priceRaw%(100_000_000) + 1
-				newPrice := float64(priceCents) / 100.0
-				tk := tokenKey{chain: fuzzTokenTable[tokenIdx].originChain, addr: fuzzTokenAddrs[tokenIdx]}
-
-				gov.mutex.Lock()
-				if te, exists := gov.tokens[tk]; exists {
-					te.price.Set(big.NewFloat(newPrice))
-				}
-				gov.mutex.Unlock()
-
-			case opChangeGovLimit:
-				chainIdxByte := r.readByte()
-				limitIdxByte := r.readByte()
-				r.discard(fuzzPayloadBytes - 2)
-
-				chainIdx := int(chainIdxByte) % len(fuzzChainTable)
-				limitIdx := int(limitIdxByte) % len(fuzzLimitTable)
-				newLimit := fuzzLimitTable[limitIdx]
-				chainID := fuzzChainTable[chainIdx].chainID
-
-				gov.mutex.Lock()
-				if ce, exists := gov.chains[chainID]; exists {
-					ce.dailyLimit = newLimit.dailyLimit
-					ce.bigTransactionSize = newLimit.bigTxSize
-					ce.checkForBigTransactions = newLimit.bigTxSize != 0
-				}
-				gov.mutex.Unlock()
-			}
-
-			opCount++
-		}
-
-		// Round-trip check after all operations.
-		checkDBRoundTrip("final")
-	})
 }

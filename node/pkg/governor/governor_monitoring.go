@@ -248,10 +248,6 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time, 
 					return "", err
 				}
 
-				sort.SliceStable(ce.pending, func(i, j int) bool {
-					return ce.pending[i].dbData.ReleaseTime.Before(ce.pending[j].dbData.ReleaseTime)
-				})
-
 				str := fmt.Sprintf("release time on pending vaa \"%v\" has been updated to %v", msgId, pe.dbData.ReleaseTime.String())
 				return str, nil
 			}
