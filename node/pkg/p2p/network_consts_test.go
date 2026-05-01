@@ -44,7 +44,7 @@ func TestValidateMainnetCcqBootstrapPeers(t *testing.T) {
 	// Make sure we can parse the result.
 	logger := zap.NewNop()
 	bootStrappers, _ := BootstrapAddrs(logger, bootstrapPeers, "somePeerID")
-	assert.Equal(t, 3, len(bootStrappers))
+	assert.Equal(t, 5, len(bootStrappers))
 }
 
 func TestValidateTestnetBootstrapPeers(t *testing.T) {
