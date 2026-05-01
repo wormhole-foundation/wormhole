@@ -16,42 +16,35 @@ import (
 )
 
 func TestReobserveSingleMessage(t *testing.T) {
-	w, mock, msgC := newTestWatcher(t)
-	w.contract = testEmitter
+	tests := []struct {
+		name             string
+		consistencyLevel uint8
+	}{
+		{"finalized", vaa.ConsistencyLevelFinalized},
+		{"safe", vaa.ConsistencyLevelSafe},
+		{"instant", vaa.ConsistencyLevelPublishImmediately},
+	}
 
-	log := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
-	mock.seedLog(log, 1234)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			w, mock, msgC := newTestWatcher(t)
 
-	numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log.TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
-	require.NoError(t, err)
-	require.Equal(t, uint32(1), numObs)
-	require.Equal(t, 1, len(msgC))
+			log := newValidWormholeLog(t, testBlockNumber, tc.consistencyLevel)
+			mock.seedLog(log, 1234)
 
-	ev, err := mock.ParseLogMessagePublished(*log)
-	require.NoError(t, err)
-	msg := <-msgC
-	require.True(t, msg.IsReobservation)
-	require.Equal(t, common.NotVerified, msg.VerificationState())
-	assertMessageMatchesEvent(t, msg, ev, 1234)
-}
+			numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log.TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
+			require.NoError(t, err)
+			require.Equal(t, uint32(1), numObs)
+			require.Equal(t, 1, len(msgC))
 
-func TestReobserveInstant(t *testing.T) {
-	w, mock, msgC := newTestWatcher(t)
-	w.contract = testEmitter
-
-	log := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelPublishImmediately)
-	mock.seedLog(log, 1234)
-
-	numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log.TxHash.Bytes(), mock, 1, 1)
-	require.NoError(t, err)
-	require.Equal(t, uint32(1), numObs)
-	require.Equal(t, 1, len(msgC))
-
-	ev, err := mock.ParseLogMessagePublished(*log)
-	require.NoError(t, err)
-	msg := <-msgC
-	require.True(t, msg.IsReobservation)
-	assertMessageMatchesEvent(t, msg, ev, 1234)
+			ev, err := mock.ParseLogMessagePublished(*log)
+			require.NoError(t, err)
+			msg := recvMsg(t, msgC)
+			require.True(t, msg.IsReobservation)
+			require.Equal(t, common.NotVerified, msg.VerificationState())
+			assertMessageMatchesEvent(t, msg, ev, 1234)
+		})
+	}
 }
 
 // TestReobserveSingleMessageEarly covers cases where the log's block number is ahead of the
@@ -70,7 +63,6 @@ func TestReobserveSingleMessageEarly(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			w, mock, msgC := newTestWatcher(t)
-			w.contract = testEmitter
 
 			log := newValidWormholeLog(t, testBlockNumber, tc.consistencyLevel)
 			mock.seedLog(log, 1234)
@@ -94,7 +86,6 @@ func TestReobserveInvalidChainId(t *testing.T) {
 
 func TestReobserveReceiptError(t *testing.T) {
 	w, mock, msgC := newTestWatcher(t)
-	w.contract = testEmitter
 
 	txHash := eth_common.HexToHash("0x1234")
 	mock.errors[txHash] = errors.New("rpc failure")
@@ -107,7 +98,6 @@ func TestReobserveReceiptError(t *testing.T) {
 
 func TestReobserveFailedTransactionStatus(t *testing.T) {
 	w, mock, msgC := newTestWatcher(t)
-	w.contract = testEmitter
 
 	log := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
 	receipt := newTestReceipt(log.BlockNumber, []*types.Log{log})
@@ -157,7 +147,6 @@ func TestReobserveLogSkipped(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			w, mock, msgC := newTestWatcher(t)
-			w.contract = testEmitter
 
 			log := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
 			tc.mutate(log)
@@ -181,7 +170,6 @@ func TestReobserveDeterministicOrdering(t *testing.T) {
 	var firstRun []uint64
 	for run := 0; run < numRuns; run++ {
 		w, mock, _ := newTestWatcher(t)
-		w.contract = testEmitter
 		msgC := make(chan *common.MessagePublication, numEvents)
 		w.msgC = msgC
 
@@ -207,7 +195,7 @@ func TestReobserveDeterministicOrdering(t *testing.T) {
 
 		seqs := make([]uint64, numEvents)
 		for i := 0; i < numEvents; i++ {
-			seqs[i] = (<-msgC).Sequence
+			seqs[i] = recvMsg(t, msgC).Sequence
 		}
 
 		if run == 0 {
@@ -224,7 +212,6 @@ func TestReobserve1KEventsInReceipt(t *testing.T) {
 	const numEvents = 1000
 
 	w, mock, _ := newTestWatcher(t)
-	w.contract = testEmitter
 	msgC := make(chan *common.MessagePublication, numEvents)
 	w.msgC = msgC
 
@@ -250,7 +237,7 @@ func TestReobserve1KEventsInReceipt(t *testing.T) {
 	require.Equal(t, numEvents, len(msgC))
 
 	for i := 0; i < numEvents; i++ {
-		msg := <-msgC
+		msg := recvMsg(t, msgC)
 		require.True(t, msg.IsReobservation)
 		require.Equal(t, uint64(i), msg.Sequence)
 	}
@@ -258,7 +245,6 @@ func TestReobserve1KEventsInReceipt(t *testing.T) {
 
 func TestReobserveTwoValidEvents(t *testing.T) {
 	w, mock, msgC := newTestWatcher(t)
-	w.contract = testEmitter
 
 	log1 := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
 	mock.seedLog(log1, 1234)
@@ -282,20 +268,19 @@ func TestReobserveTwoValidEvents(t *testing.T) {
 
 	ev, err := mock.ParseLogMessagePublished(*log1)
 	require.NoError(t, err)
-	msg := <-msgC
+	msg := recvMsg(t, msgC)
 	require.True(t, msg.IsReobservation)
 	assertMessageMatchesEvent(t, msg, ev, 1234)
 
 	ev, err = mock.ParseLogMessagePublished(log2)
 	require.NoError(t, err)
-	msg = <-msgC
+	msg = recvMsg(t, msgC)
 	require.True(t, msg.IsReobservation)
 	assertMessageMatchesEvent(t, msg, ev, 1234)
 }
 
 func TestReobserveValidAndInvalid(t *testing.T) {
 	w, mock, msgC := newTestWatcher(t)
-	w.contract = testEmitter
 
 	log1 := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
 	mock.seedLog(log1, 1234)
@@ -321,7 +306,7 @@ func TestReobserveValidAndInvalid(t *testing.T) {
 
 	ev, err := mock.ParseLogMessagePublished(*log1)
 	require.NoError(t, err)
-	msg := <-msgC
+	msg := recvMsg(t, msgC)
 	require.True(t, msg.IsReobservation)
 	assertMessageMatchesEvent(t, msg, ev, 1234)
 }
@@ -344,7 +329,6 @@ func TestReobserveTxVerifierIntegration(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			w, mock, msgC := newTestWatcher(t)
-			w.contract = testEmitter
 			w.txVerifier = tc.verifier
 
 			log := newTestLog(t, testLogParams{
@@ -363,7 +347,7 @@ func TestReobserveTxVerifierIntegration(t *testing.T) {
 
 			ev, err := mock.ParseLogMessagePublished(log)
 			require.NoError(t, err)
-			msg := <-msgC
+			msg := recvMsg(t, msgC)
 			require.True(t, msg.IsReobservation)
 			require.Equal(t, tc.expectState, msg.VerificationState())
 			assertMessageMatchesEvent(t, msg, ev, 1234)

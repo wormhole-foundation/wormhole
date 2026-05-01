@@ -87,13 +87,12 @@ func TestVerifyAndPublish(t *testing.T) {
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(msgC))
-	publishedMsg := <-msgC
+	publishedMsg := recvMsg(t, msgC)
 	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
-	tbAddr, byteErr := vaa.BytesToAddress([]byte{0x01})
-	require.NoError(t, byteErr)
+	tbAddr := PadAddress(testTokenBridge)
 
 	// Check scenario where transfer verifier is enabled on the watcher level but
 	// there is no Transfer Verifier instantiated. In this case, fail open and continue
@@ -107,7 +106,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(msgC))
-	publishedMsg = <-msgC
+	publishedMsg = recvMsg(t, msgC)
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
 	// Check that message status is not changed if it didn't come from token bridge.
@@ -118,7 +117,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.Nil(t, err)
 	require.Equal(t, 1, len(msgC))
-	publishedMsg = <-msgC
+	publishedMsg = recvMsg(t, msgC)
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
 	// Check scenario where the message already has a verification status.
@@ -146,7 +145,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.Nil(t, err)
 	require.Equal(t, 1, len(msgC))
-	publishedMsg = <-msgC
+	publishedMsg = recvMsg(t, msgC)
 	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Rejected.String(), publishedMsg.VerificationState().String())
@@ -159,7 +158,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.Nil(t, err)
 	require.Equal(t, 1, len(msgC))
-	publishedMsg = <-msgC
+	publishedMsg = recvMsg(t, msgC)
 	require.Equal(t, common.NotApplicable.String(), publishedMsg.VerificationState().String())
 
 	// Check happy path where txverifier is enabled, initialized, and the message is from the token bridge.
@@ -173,7 +172,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(msgC))
-	publishedMsg = <-msgC
+	publishedMsg = recvMsg(t, msgC)
 	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Valid.String(), publishedMsg.VerificationState().String())
@@ -182,8 +181,7 @@ func TestVerifyAndPublish(t *testing.T) {
 // TestVerifyDoesNotMutateOriginalMessage checks that verify() does not modify
 // the original MessagePublication passed to it.
 func TestVerifyDoesNotMutateOriginalMessage(t *testing.T) {
-	tbAddr, err := vaa.BytesToAddress([]byte{0x01})
-	require.NoError(t, err)
+	tbAddr := PadAddress(testTokenBridge)
 
 	msg := &common.MessagePublication{
 		EmitterAddress: tbAddr,
@@ -227,7 +225,7 @@ func TestProcessBlockPendingByFinality(t *testing.T) {
 			blockHash := eth_common.BigToHash(big.NewInt(100))
 
 			w.addPendingMsg(txHash, blockHash, 100, tc.cl, 0, 1)
-			mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash}
+			mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHash}
 
 			err := w.processNewBlock(context.TODO(), newBlock(tc.blockNumber, tc.finality))
 			require.NoError(t, err)
@@ -235,7 +233,7 @@ func TestProcessBlockPendingByFinality(t *testing.T) {
 			assert.Equal(t, tc.expectPending, len(w.pending))
 			if tc.expectPublish {
 				require.Equal(t, 1, len(msgC))
-				assert.Equal(t, txHash.Bytes(), (<-msgC).TxID)
+				assert.Equal(t, txHash.Bytes(), recvMsg(t, msgC).TxID)
 			} else {
 				assert.Equal(t, 0, len(msgC))
 			}
@@ -253,8 +251,8 @@ func TestProcessBlockPendingFinalizedAndSafe(t *testing.T) {
 
 	w.addPendingMsg(txHash1, blockHash1, 100, vaa.ConsistencyLevelFinalized, 0, 1)
 	w.addPendingMsg(txHash2, blockHash2, 100, vaa.ConsistencyLevelSafe, 0, 1)
-	mock.receipts[txHash1] = &types.Receipt{Status: 1, BlockHash: blockHash1}
-	mock.receipts[txHash2] = &types.Receipt{Status: 1, BlockHash: blockHash2}
+	mock.receipts[txHash1] = &types.Receipt{Status: 1, BlockHash: blockHash1, TxHash: txHash1}
+	mock.receipts[txHash2] = &types.Receipt{Status: 1, BlockHash: blockHash2, TxHash: txHash2}
 
 	err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
 	require.NoError(t, err)
@@ -264,7 +262,7 @@ func TestProcessBlockPendingFinalizedAndSafe(t *testing.T) {
 
 	// Published finalized message
 	require.Equal(t, 1, len(msgC))
-	assert.Equal(t, txHash1.Bytes(), (<-msgC).TxID)
+	assert.Equal(t, txHash1.Bytes(), recvMsg(t, msgC).TxID)
 
 	err = w.processNewBlock(context.TODO(), newBlock(105, connectors.Safe))
 	require.NoError(t, err)
@@ -274,7 +272,7 @@ func TestProcessBlockPendingFinalizedAndSafe(t *testing.T) {
 
 	// Published safe message
 	require.Equal(t, 1, len(msgC))
-	assert.Equal(t, txHash2.Bytes(), (<-msgC).TxID)
+	assert.Equal(t, txHash2.Bytes(), recvMsg(t, msgC).TxID)
 }
 
 // Removal of the message without publication if the blockhash differs
@@ -285,7 +283,7 @@ func TestProcessBlockPendingWrongBlockHash(t *testing.T) {
 	blockHashMessage := eth_common.BigToHash(big.NewInt(222))
 
 	w.addPendingMsg(txHash, blockHashMessage, 100, vaa.ConsistencyLevelFinalized, 0, 1)
-	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHashBlock}
+	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHashBlock, TxHash: txHash}
 
 	err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
 	require.NoError(t, err)
@@ -304,7 +302,7 @@ func TestProcessBlockPendingFailedTx(t *testing.T) {
 	blockHash := eth_common.BigToHash(big.NewInt(100))
 
 	w.addPendingMsg(txHash, blockHash, 100, vaa.ConsistencyLevelFinalized, 0, 1)
-	mock.receipts[txHash] = &types.Receipt{Status: 0, BlockHash: blockHash}
+	mock.receipts[txHash] = &types.Receipt{Status: 0, BlockHash: blockHash, TxHash: txHash}
 
 	err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
 	require.NoError(t, err)
@@ -323,7 +321,7 @@ func TestProcessBlockValidReceiptWithError(t *testing.T) {
 	blockHash := eth_common.BigToHash(big.NewInt(100))
 
 	w.addPendingMsg(txHash, blockHash, 100, vaa.ConsistencyLevelFinalized, 0, 1)
-	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash}
+	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHash}
 	mock.errors[txHash] = errors.New("not found")
 
 	err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
@@ -359,8 +357,8 @@ func TestProcessBlockTransientError(t *testing.T) {
 	w, mock, msgC := newTestWatcher(t)
 	txHash := eth_common.HexToHash("0xd2d35ab0d18dd19e81a58dfe8d97ad8c68659bd81d7017bcdf4d9719b32119ef")
 	blockHash := eth_common.BigToHash(big.NewInt(100))
-	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash}
-	mock.errors[txHash] = errors.New("transient error")
+	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHash}
+	mock.errors[txHash] = errors.New("rate limit 429 error")
 
 	w.addPendingMsg(txHash, blockHash, 100, vaa.ConsistencyLevelFinalized, 0, 1)
 
@@ -383,7 +381,28 @@ func TestProcessBlockTransientError(t *testing.T) {
 
 	// Published with correct TxID
 	require.Equal(t, 1, len(msgC))
-	assert.Equal(t, txHash.Bytes(), (<-msgC).TxID)
+	assert.Equal(t, txHash.Bytes(), recvMsg(t, msgC).TxID)
+}
+
+// A transient error that persists past MaxWaitConfirmations should remove the pending entry.
+func TestProcessBlockTransientErrorTimeout(t *testing.T) {
+	w, mock, msgC := newTestWatcher(t)
+	txHash := eth_common.HexToHash("0xd2d35ab0d18dd19e81a58dfe8d97ad8c68659bd81d7017bcdf4d9719b32119ef")
+	blockHash := eth_common.BigToHash(big.NewInt(100))
+	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHash}
+	mock.errors[txHash] = errors.New("transient error")
+
+	w.addPendingMsg(txHash, blockHash, 100, vaa.ConsistencyLevelFinalized, 0, 1)
+
+	// blockNumberU = pLock.height + MaxWaitConfirmations exactly hits the timeout branch.
+	err := w.processNewBlock(context.TODO(), newBlock(100+MaxWaitConfirmations, connectors.Finalized))
+	require.NoError(t, err)
+
+	// Removed from pending after timeout
+	assert.Equal(t, 0, len(w.pending))
+
+	// Not published
+	assert.Equal(t, 0, len(msgC))
 }
 
 // AdditionalBlocks test cases for waiting the proper amount of time before publication
@@ -411,7 +430,7 @@ func TestProcessBlockAdditionalBlocks(t *testing.T) {
 			blockHash := eth_common.BigToHash(big.NewInt(100))
 
 			w.addPendingMsg(txHash, blockHash, 100, tc.cl, tc.additionalBlocks, 1)
-			mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash}
+			mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHash}
 
 			err := w.processNewBlock(context.TODO(), newBlock(tc.blockNumber, tc.finality))
 			require.NoError(t, err)
@@ -419,7 +438,7 @@ func TestProcessBlockAdditionalBlocks(t *testing.T) {
 			assert.Equal(t, tc.expectPending, len(w.pending))
 			if tc.expectPublish {
 				require.Equal(t, 1, len(msgC))
-				assert.Equal(t, txHash.Bytes(), (<-msgC).TxID)
+				assert.Equal(t, txHash.Bytes(), recvMsg(t, msgC).TxID)
 			} else {
 				assert.Equal(t, 0, len(msgC))
 			}
@@ -436,7 +455,7 @@ func TestProcessBlockCCLEffectiveCLDiffersFromMessageCL(t *testing.T) {
 	// Simulate CCL: message.ConsistencyLevel = Custom, but effectiveCL = Finalized
 	key := w.addPendingMsg(txHash, blockHash, 100, vaa.ConsistencyLevelFinalized, 5, 1)
 	w.pending[key].message.ConsistencyLevel = vaa.ConsistencyLevelCustom
-	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash}
+	mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHash}
 
 	// Finalized block at height+additionalBlocks: should confirm based on effectiveCL
 	err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
@@ -447,7 +466,7 @@ func TestProcessBlockCCLEffectiveCLDiffersFromMessageCL(t *testing.T) {
 	require.Equal(t, 1, len(msgC))
 
 	// The published message must still have ConsistencyLevelCustom for VAA hash consistency
-	published := <-msgC
+	published := recvMsg(t, msgC)
 	assert.Equal(t, vaa.ConsistencyLevelCustom, published.ConsistencyLevel)
 }
 
@@ -461,11 +480,11 @@ func TestProcessBlockCCLMultiplePendingDifferentAdditionalBlocks(t *testing.T) {
 
 	// Message A: effectiveCL=Finalized, additionalBlocks=0, height=100 -> ready at block 100
 	w.addPendingMsg(txHashA, blockHash, 100, vaa.ConsistencyLevelFinalized, 0, 1)
-	mock.receipts[txHashA] = &types.Receipt{Status: 1, BlockHash: blockHash}
+	mock.receipts[txHashA] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHashA}
 
 	// Message B: effectiveCL=Finalized, additionalBlocks=10, height=100 -> ready at block 110
 	w.addPendingMsg(txHashB, blockHash, 100, vaa.ConsistencyLevelFinalized, 10, 2)
-	mock.receipts[txHashB] = &types.Receipt{Status: 1, BlockHash: blockHash}
+	mock.receipts[txHashB] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHashB}
 
 	// Send finalized block at 105: A should confirm, B should stay pending
 	err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
@@ -473,7 +492,7 @@ func TestProcessBlockCCLMultiplePendingDifferentAdditionalBlocks(t *testing.T) {
 
 	assert.Equal(t, 1, len(w.pending), "only message B should remain pending")
 	require.Equal(t, 1, len(msgC), "only message A should be published")
-	assert.Equal(t, txHashA.Bytes(), (<-msgC).TxID)
+	assert.Equal(t, txHashA.Bytes(), recvMsg(t, msgC).TxID)
 
 	// Send finalized block at 110: B should now confirm
 	err = w.processNewBlock(context.TODO(), newBlock(110, connectors.Finalized))
@@ -481,7 +500,7 @@ func TestProcessBlockCCLMultiplePendingDifferentAdditionalBlocks(t *testing.T) {
 
 	assert.Equal(t, 0, len(w.pending), "no messages should remain pending")
 	require.Equal(t, 1, len(msgC), "message B should now be published")
-	assert.Equal(t, txHashB.Bytes(), (<-msgC).TxID)
+	assert.Equal(t, txHashB.Bytes(), recvMsg(t, msgC).TxID)
 }
 
 // Orphaned tx handling
@@ -496,7 +515,7 @@ func TestProcessBlockOneConfirmedOneOrphaned(t *testing.T) {
 	w.addPendingMsg(txHashOrphaned, blockHash, 100, vaa.ConsistencyLevelFinalized, 0, 2)
 
 	// Good tx has a valid receipt
-	mock.receipts[txHashGood] = &types.Receipt{Status: 1, BlockHash: blockHash}
+	mock.receipts[txHashGood] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHashGood}
 
 	// Orphaned tx returns nil receipt (not in mock.receipts, so defaults to nil)
 	err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
@@ -508,7 +527,7 @@ func TestProcessBlockOneConfirmedOneOrphaned(t *testing.T) {
 	// Only the valid message was published
 	assert.Equal(t, 1, len(msgC))
 
-	published := <-msgC
+	published := recvMsg(t, msgC)
 	assert.Equal(t, txHashGood.Bytes(), published.TxID)
 }
 
@@ -549,7 +568,7 @@ func TestProcessBlockTxVerifier(t *testing.T) {
 			if tc.useTokenBridge {
 				w.pending[key].message.EmitterAddress = PadAddress(testTokenBridge)
 			}
-			mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash}
+			mock.receipts[txHash] = &types.Receipt{Status: 1, BlockHash: blockHash, TxHash: txHash}
 
 			err := w.processNewBlock(context.TODO(), newBlock(105, connectors.Finalized))
 			require.NoError(t, err)
@@ -557,7 +576,7 @@ func TestProcessBlockTxVerifier(t *testing.T) {
 			assert.Equal(t, 0, len(w.pending))
 			require.Equal(t, 1, len(msgC))
 
-			msg := <-msgC
+			msg := recvMsg(t, msgC)
 			assert.Equal(t, txHash.Bytes(), msg.TxID)
 			assert.Equal(t, tc.expectState, msg.VerificationState())
 		})
@@ -694,16 +713,17 @@ func TestPostMessageCustomAdditionalBlocks(t *testing.T) {
 
 // Instant message is published instead of being added to the pending queue
 func TestPostMessageInstantPublishes(t *testing.T) {
-	w, _, msgC := newTestWatcher(t)
+	w, mock, msgC := newTestWatcher(t)
 
 	ev := newTestLogEvent(100, vaa.ConsistencyLevelPublishImmediately)
+	mock.receipts[ev.Raw.TxHash] = newTestReceipt(ev.Raw.BlockNumber, nil)
 	w.postMessage(context.TODO(), ev, 1234)
 
 	// Should be published instead of being added to the pending queue
 	require.Equal(t, 0, len(w.pending))
 	assert.Equal(t, 1, len(msgC))
 
-	msg := <-msgC
+	msg := recvMsg(t, msgC)
 
 	assertMessageMatchesEvent(t, msg, ev, 1234)
 	assert.Equal(t, common.NotVerified, msg.VerificationState())
@@ -711,7 +731,7 @@ func TestPostMessageInstantPublishes(t *testing.T) {
 
 // Multiple instant publishes are handled properly
 func TestPostMessageTwoInstantPublishes(t *testing.T) {
-	w, _, msgC := newTestWatcher(t)
+	w, mock, msgC := newTestWatcher(t)
 
 	ev1 := newTestLogEvent(100, vaa.ConsistencyLevelPublishImmediately)
 
@@ -720,6 +740,8 @@ func TestPostMessageTwoInstantPublishes(t *testing.T) {
 	ev2.Nonce = 20
 	ev2.Sequence = 2
 
+	mock.receipts[ev1.Raw.TxHash] = newTestReceipt(ev1.Raw.BlockNumber, nil)
+	mock.receipts[ev2.Raw.TxHash] = newTestReceipt(ev2.Raw.BlockNumber, nil)
 	w.postMessage(context.TODO(), ev1, 1234)
 	w.postMessage(context.TODO(), ev2, 1234)
 
@@ -727,8 +749,8 @@ func TestPostMessageTwoInstantPublishes(t *testing.T) {
 	require.Equal(t, 0, len(w.pending))
 	assert.Equal(t, 2, len(msgC))
 
-	msg1 := <-msgC
-	msg2 := <-msgC
+	msg1 := recvMsg(t, msgC)
+	msg2 := recvMsg(t, msgC)
 
 	assertMessageMatchesEvent(t, msg1, ev1, 1234)
 	assert.Equal(t, common.NotVerified, msg1.VerificationState())
@@ -739,7 +761,7 @@ func TestPostMessageTwoInstantPublishes(t *testing.T) {
 
 // An instant and a final message go to the proper spots (msgC and pending)
 func TestPostMessageInstantAndFinalized(t *testing.T) {
-	w, _, msgC := newTestWatcher(t)
+	w, mock, msgC := newTestWatcher(t)
 
 	// ev1: instant publish
 	ev1 := newTestLogEvent(100, vaa.ConsistencyLevelPublishImmediately)
@@ -752,6 +774,7 @@ func TestPostMessageInstantAndFinalized(t *testing.T) {
 		consistencyLevel: vaa.ConsistencyLevelFinalized,
 	})
 
+	mock.receipts[ev1.Raw.TxHash] = newTestReceipt(ev1.Raw.BlockNumber, nil)
 	w.postMessage(context.TODO(), ev1, 1234)
 	w.postMessage(context.TODO(), ev2, 1234)
 
@@ -760,7 +783,7 @@ func TestPostMessageInstantAndFinalized(t *testing.T) {
 	assert.Equal(t, 1, len(msgC))
 
 	// Verify the instant-published message
-	msg := <-msgC
+	msg := recvMsg(t, msgC)
 	assertMessageMatchesEvent(t, msg, ev1, 1234)
 	assert.Equal(t, common.NotVerified, msg.VerificationState())
 
@@ -886,7 +909,7 @@ func TestPostMessageTxVerifier(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			w, _, msgC := newTestWatcher(t)
+			w, mock, msgC := newTestWatcher(t)
 			w.txVerifier = &MockTransferVerifier[ethclient.Client, connectors.Connector]{success: tc.success}
 
 			sender := testEmitter
@@ -899,22 +922,46 @@ func TestPostMessageTxVerifier(t *testing.T) {
 				blockNumber:      100,
 				consistencyLevel: vaa.ConsistencyLevelPublishImmediately,
 			})
+			mock.receipts[ev.Raw.TxHash] = newTestReceipt(ev.Raw.BlockNumber, nil)
 			w.postMessage(context.TODO(), ev, 1234)
 
 			require.Equal(t, 0, len(w.pending))
 			require.Equal(t, 1, len(msgC))
 
-			msg := <-msgC
+			msg := recvMsg(t, msgC)
 			assertMessageMatchesEvent(t, msg, ev, 1234)
 			assert.Equal(t, tc.expectState, msg.VerificationState())
 		})
 	}
 }
 
-/*
-TODO - add failed transaction status to the flow.
-- Requires mocking the receipt gathering in every RPC call.
-*/
+// Instant publish must drop the message when the receipt cannot be fetched.
+func TestPostMessageInstantReceiptError(t *testing.T) {
+	w, mock, msgC := newTestWatcher(t)
+
+	ev := newTestLogEvent(100, vaa.ConsistencyLevelPublishImmediately)
+	mock.errors[ev.Raw.TxHash] = errors.New("rpc failure")
+
+	w.postMessage(context.TODO(), ev, 1234)
+
+	assert.Equal(t, 0, len(w.pending))
+	assert.Equal(t, 0, len(msgC))
+}
+
+// Instant publish must drop the message when the receipt reports a non-success status.
+func TestPostMessageInstantTxFailed(t *testing.T) {
+	w, mock, msgC := newTestWatcher(t)
+
+	ev := newTestLogEvent(100, vaa.ConsistencyLevelPublishImmediately)
+	receipt := newTestReceipt(ev.Raw.BlockNumber, nil)
+	receipt.Status = 0
+	mock.receipts[ev.Raw.TxHash] = receipt
+
+	w.postMessage(context.TODO(), ev, 1234)
+
+	assert.Equal(t, 0, len(w.pending))
+	assert.Equal(t, 0, len(msgC))
+}
 
 func TestConsistencyLevelMatches(t *testing.T) {
 	// Success cases.

@@ -18,6 +18,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -900,6 +901,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock) 
 	w.updateNetworkStats(&stats)
 
 	w.pendingMu.Lock()
+	defer w.pendingMu.Unlock()
 	for key, pLock := range w.pending {
 		// Don't process the observation if it is waiting on a different consistency level.
 		if !consistencyLevelMatches(thisConsistencyLevel, pLock.effectiveCL) {
@@ -925,8 +927,8 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock) 
 		//
 		// Check multiple possible error cases - the node seems to return a
 		// "not found" error most of the time, but it could conceivably also
-		// return a nil tx or rpc.ErrNoResult.
-		if tx == nil || errors.Is(err, rpc.ErrNoResult) || (err != nil && err.Error() == "not found") {
+		// return a rpc.ErrNoResult.
+		if errors.Is(err, rpc.ErrNoResult) || errors.Is(err, ethereum.NotFound) || (err != nil && err.Error() == "not found") {
 			logger.Warn("tx was orphaned",
 				zap.String("msgId", pLock.message.MessageIDString()),
 				zap.String("txHash", pLock.message.TxIDString()),
@@ -942,26 +944,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock) 
 			continue
 		}
 
-		// This should never happen - if we got this far, it means that logs were emitted,
-		// which is only possible if the transaction succeeded. We check it anyway just
-		// in case the EVM implementation is buggy.
-		if tx.Status != 1 {
-			logger.Error("transaction receipt with non-success status",
-				zap.String("msgId", pLock.message.MessageIDString()),
-				zap.String("txHash", pLock.message.TxIDString()),
-				zap.Stringer("blockHash", key.BlockHash),
-				zap.Uint64("observedHeight", pLock.height),
-				zap.Uint64("additionalBlocks", pLock.additionalBlocks),
-				zap.Stringer("current_blockNum", ev.Number),
-				zap.Stringer("finality", ev.Finality),
-				zap.Stringer("current_blockHash", currentHash),
-				zap.Error(err))
-			delete(w.pending, key)
-			ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_failed").Inc()
-			continue
-		}
-
-		// Any error other than "not found" is likely transient - we retry next block.
+		// Transient errors (rate limit, transport, etc.) retry next block.
 		if err != nil {
 			if pLock.height+MaxWaitConfirmations <= blockNumberU {
 				// An error from this "transient" case has persisted for more than MaxWaitConfirmations.
@@ -989,6 +972,56 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock) 
 					zap.Stringer("current_blockHash", currentHash),
 					zap.Error(err))
 			}
+			continue
+		}
+
+		// tx is nil and err is nil. A check to prevent panics later
+		if tx == nil {
+			logger.Error("connector returned nil receipt with no error",
+				zap.String("msgId", pLock.message.MessageIDString()),
+				zap.String("txHash", pLock.message.TxIDString()),
+				zap.Stringer("blockHash", key.BlockHash),
+				zap.Stringer("current_blockNum", ev.Number),
+				zap.Stringer("finality", ev.Finality),
+			)
+			delete(w.pending, key)
+			ethMessagesOrphaned.WithLabelValues(w.networkName, "nil_receipt").Inc()
+			continue
+		}
+
+		// SECURITY: Defense in depth against a buggy or malicious connector returning
+		// a receipt for a different transaction than the one we queried.
+		expectedTxHash := eth_common.BytesToHash(pLock.message.TxID)
+		if tx.TxHash != expectedTxHash {
+			logger.Error("transaction receipt hash does not match queried tx",
+				zap.String("msgId", pLock.message.MessageIDString()),
+				zap.String("expectedTxHash", expectedTxHash.Hex()),
+				zap.Stringer("receiptTxHash", tx.TxHash),
+				zap.Stringer("blockHash", key.BlockHash),
+				zap.Stringer("current_blockNum", ev.Number),
+				zap.Stringer("finality", ev.Finality),
+			)
+			delete(w.pending, key)
+			ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_hash_mismatch").Inc()
+			continue
+		}
+
+		// This should never happen - if we got this far, it means that logs were emitted,
+		// which is only possible if the transaction succeeded. We check it anyway just
+		// in case the EVM implementation is buggy.
+		if tx.Status != gethTypes.ReceiptStatusSuccessful {
+			logger.Error("transaction receipt with non-success status",
+				zap.String("msgId", pLock.message.MessageIDString()),
+				zap.String("txHash", pLock.message.TxIDString()),
+				zap.Stringer("blockHash", key.BlockHash),
+				zap.Uint64("observedHeight", pLock.height),
+				zap.Uint64("additionalBlocks", pLock.additionalBlocks),
+				zap.Stringer("current_blockNum", ev.Number),
+				zap.Stringer("finality", ev.Finality),
+				zap.Stringer("current_blockHash", currentHash),
+				zap.Error(err))
+			delete(w.pending, key)
+			ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_failed").Inc()
 			continue
 		}
 
@@ -1035,7 +1068,6 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock) 
 		}
 	}
 
-	w.pendingMu.Unlock()
 	logger.Debug("processed new header",
 		zap.Stringer("current_block", ev.Number),
 		zap.Stringer("finality", ev.Finality),
