@@ -162,6 +162,10 @@ func (acct *Accountant) createAuditMap(isNTT bool) map[string][]*pendingEntry {
 
 	tmpMap := make(map[string][]*pendingEntry)
 	for _, pe := range acct.pendingTransfers {
+		// Skip over nil entries
+		if pe == nil {
+			continue
+		}
 		if pe.isNTT == isNTT {
 			if pe.hasBeenPendingForTooLong() {
 				auditErrors.Inc()
@@ -192,6 +196,10 @@ func (acct *Accountant) performAudit(tmpMap map[string][]*pendingEntry, wormchai
 		acct.logger.Error("unable to perform audit, failed to query missing observations", zap.Error(err))
 		for _, entries := range tmpMap {
 			for _, pe := range entries {
+				// We already do a nil check in `createAuditMap`, but we'll do the same here
+				if pe == nil {
+					continue
+				}
 				acct.logger.Error("unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
 			}
 		}
@@ -203,6 +211,10 @@ func (acct *Accountant) performAudit(tmpMap map[string][]*pendingEntry, wormchai
 		entries, exists := tmpMap[key]
 		if exists {
 			for _, pe := range entries {
+				// We already do a nil check in `createAuditMap`, but we'll do the same here
+				if pe == nil {
+					continue
+				}
 				if acct.submitObservation(pe) {
 					auditErrors.Inc()
 					acct.logger.Error("contract reported pending observation as missing, resubmitted it", zap.String("msgID", pe.msgId))
@@ -222,7 +234,7 @@ func (acct *Accountant) performAudit(tmpMap map[string][]*pendingEntry, wormchai
 		var pendingTransfers []*pendingEntry
 		for _, entries := range tmpMap {
 			for _, pe := range entries {
-				// Skip nil entries
+				// We already do a nil check in `createAuditMap`, but we'll do the same here
 				if pe == nil {
 					continue
 				}
@@ -236,12 +248,20 @@ func (acct *Accountant) performAudit(tmpMap map[string][]*pendingEntry, wormchai
 		if err != nil {
 			acct.logger.Error("unable to finish audit, failed to query for transfer statuses", zap.Error(err))
 			for _, pe := range pendingTransfers {
+				// We already do a nil check in `createAuditMap`, but we'll do the same here
+				if pe == nil {
+					continue
+				}
 				acct.logger.Error("unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
 			}
 			return
 		}
 
 		for _, pe := range pendingTransfers {
+			// There should be no nil entries, but we'll skip to be safe
+			if pe == nil {
+				continue
+			}
 			status, exists := transferDetails[pe.msgId]
 			if !exists {
 				if acct.submitObservation(pe) {
