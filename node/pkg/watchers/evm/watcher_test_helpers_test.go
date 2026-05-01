@@ -3,7 +3,6 @@ package evm
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -30,7 +29,7 @@ import (
 var testEmitter = eth_common.HexToAddress("0x0290FB167208Af455bB137780163b7B7a9a10C16")
 
 // testTokenBridge is the token bridge address used by MockTransferVerifier.
-var testTokenBridge = eth_common.HexToAddress("0x3ee18B2214AFF97000D974cf647E7C347E8fa585")
+var testTokenBridge = eth_common.BytesToAddress([]byte{0x01})
 
 // Default block heights used across reobserve tests: the log is observed at testBlockNumber,
 // with testFinalizedBlockNum / testSafeBlockNum representing current chain heads.
@@ -70,9 +69,24 @@ func newTestWatcher(t *testing.T) (*Watcher, *mockConnector, chan *common.Messag
 		pending:     make(map[pendingKey]*pendingMessage),
 		networkName: "test",
 		chainID:     vaa.ChainIDEthereum,
+		contract:    testEmitter,
 	}
 
 	return w, mock, msgC
+}
+
+// recvMsg reads from msgC, failing the test (rather than blocking forever) if no
+// message arrives within a short timeout. Prefer this over a bare `<-msgC` so a
+// missing publish surfaces as a clear failure instead of a `go test` hang.
+func recvMsg(t *testing.T, msgC <-chan *common.MessagePublication) *common.MessagePublication {
+	t.Helper()
+	select {
+	case msg := <-msgC:
+		return msg
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for message on msgC")
+		return nil
+	}
 }
 
 type MockTransferVerifier[E ethclient.Client, C connectors.Connector] struct {
@@ -133,13 +147,12 @@ func (m *mockConnector) seedLog(log *types.Log, blockTime uint64) {
 // it returns a "not found" error to match the real ethclient behavior (and avoid nil-deref in
 // callers that don't check err before dereferencing the receipt).
 func (m *mockConnector) TransactionReceipt(_ context.Context, txHash eth_common.Hash) (*types.Receipt, error) {
-	if err, ok := m.errors[txHash]; ok {
-		return nil, err
+	err := m.errors[txHash]
+	r, hasReceipt := m.receipts[txHash]
+	if err == nil && !hasReceipt {
+		return nil, ethereum.NotFound
 	}
-	if r, ok := m.receipts[txHash]; ok {
-		return r, nil
-	}
-	return nil, fmt.Errorf("receipt not found for tx %s", txHash.Hex())
+	return r, err
 }
 
 // Stub implementations that are required by the interface
@@ -340,8 +353,8 @@ func newTestLog(t *testing.T, p testLogParams) types.Log {
 
 // newValidWormholeLog returns a pointer to a LogMessagePublished log entry with valid ABI-encoded
 // data that MessageEventsForTransaction will parse and surface as a MessagePublication.
-// Defaults: sender = testEmitter, contract address = testEmitter, sequence = 1. Caller must set
-// w.contract = testEmitter so the by_transaction.go address filter passes.
+// Defaults: sender = testEmitter, contract address = testEmitter, sequence = 1.
+// newTestWatcher sets w.contract = testEmitter by default, so the by_transaction.go address filter passes.
 // For full control over fields, use newTestLog with a testLogParams struct.
 func newValidWormholeLog(t *testing.T, blockNumber uint64, consistencyLevel uint8) *types.Log {
 	t.Helper()
@@ -408,6 +421,8 @@ func newTestLogEventFromParams(p testLogEventParams) *ethabi.AbiLogMessagePublis
 		Payload:          []byte{},
 		ConsistencyLevel: p.consistencyLevel,
 		Raw: types.Log{
+			Address:     testEmitter,
+			Topics:      []eth_common.Hash{LogMessagePublishedTopic},
 			TxHash:      txHash,
 			BlockHash:   blockHash,
 			BlockNumber: p.blockNumber,
