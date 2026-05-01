@@ -80,7 +80,6 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 	}
 
 	// Broadcast the signed VAA. The channel is buffered. If it overflows, just drop it and rely on a reobservation if necessary.
-	common.WriteToChannelWithoutBlocking(p.gossipVaaSendC, msg, "vaa_broadcast")
 	select {
 	case p.gossipVaaSendC <- msg:
 		signedVAAsBroadcast.Inc()
