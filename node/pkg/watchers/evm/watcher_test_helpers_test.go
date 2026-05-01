@@ -210,7 +210,7 @@ func (m *mockConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 // Hash is deterministically derived from the block number.
 func newBlock(number uint64, finality connectors.FinalityLevel) *connectors.NewBlock {
 	return &connectors.NewBlock{
-		Number:   big.NewInt(int64(number)), // #nosec G115 -- test-only
+		Number:   big.NewInt(int64(number)),                       // #nosec G115 -- test-only
 		Hash:     eth_common.BigToHash(big.NewInt(int64(number))), // #nosec G115 -- test-only
 		Time:     number,
 		Finality: finality,
