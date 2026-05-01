@@ -30,7 +30,7 @@ func TestReobserveSingleMessage(t *testing.T) {
 			w, mock, msgC := newTestWatcher(t)
 
 			log := newValidWormholeLog(t, testBlockNumber, tc.consistencyLevel)
-			mock.seedLog(log, 1234)
+			mock.seedLog(log)
 
 			numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log.TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
 			require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestReobserveSingleMessage(t *testing.T) {
 			msg := recvMsg(t, msgC)
 			require.True(t, msg.IsReobservation)
 			require.Equal(t, common.NotVerified, msg.VerificationState())
-			assertMessageMatchesEvent(t, msg, ev, 1234)
+			assertMessageMatchesEvent(t, msg, ev)
 		})
 	}
 }
@@ -65,7 +65,7 @@ func TestReobserveSingleMessageEarly(t *testing.T) {
 			w, mock, msgC := newTestWatcher(t)
 
 			log := newValidWormholeLog(t, testBlockNumber, tc.consistencyLevel)
-			mock.seedLog(log, 1234)
+			mock.seedLog(log)
 
 			numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log.TxHash.Bytes(), mock, tc.finalizedBlockNum, tc.safeBlockNum)
 			require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestReobserveLogSkipped(t *testing.T) {
 
 			log := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
 			tc.mutate(log)
-			mock.seedLog(log, 1234)
+			mock.seedLog(log)
 
 			numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log.TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
 			require.NoError(t, err)
@@ -178,7 +178,7 @@ func TestReobserveDeterministicOrdering(t *testing.T) {
 			log := newTestLog(t, testLogParams{
 				sender:           testTokenBridge,
 				contractAddr:     testEmitter,
-				sequence:         uint64(i),
+				sequence:         uint64(i), // #nosec G115 -- test-only
 				consistencyLevel: vaa.ConsistencyLevelFinalized,
 				blockNumber:      testBlockNumber,
 			})
@@ -187,7 +187,7 @@ func TestReobserveDeterministicOrdering(t *testing.T) {
 
 		receipt := newTestReceipt(testBlockNumber, logs)
 		mock.receipts[logs[0].TxHash] = receipt
-		mock.blockTimes[receipt.BlockHash] = 1234
+		mock.blockTimes[receipt.BlockHash] = testBlockTime
 
 		numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, logs[0].TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
 		require.NoError(t, err)
@@ -220,7 +220,7 @@ func TestReobserve1KEventsInReceipt(t *testing.T) {
 		log := newTestLog(t, testLogParams{
 			sender:           testTokenBridge,
 			contractAddr:     testEmitter,
-			sequence:         uint64(i),
+			sequence:         uint64(i), // #nosec G115 -- test-only
 			consistencyLevel: vaa.ConsistencyLevelFinalized,
 			blockNumber:      testBlockNumber,
 		})
@@ -229,7 +229,7 @@ func TestReobserve1KEventsInReceipt(t *testing.T) {
 
 	receipt := newTestReceipt(testBlockNumber, logs)
 	mock.receipts[logs[0].TxHash] = receipt
-	mock.blockTimes[receipt.BlockHash] = 1234
+	mock.blockTimes[receipt.BlockHash] = testBlockTime
 
 	numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, logs[0].TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
 	require.NoError(t, err)
@@ -239,7 +239,7 @@ func TestReobserve1KEventsInReceipt(t *testing.T) {
 	for i := 0; i < numEvents; i++ {
 		msg := recvMsg(t, msgC)
 		require.True(t, msg.IsReobservation)
-		require.Equal(t, uint64(i), msg.Sequence)
+		require.Equal(t, uint64(i), msg.Sequence) // #nosec G115 -- test-only
 	}
 }
 
@@ -247,7 +247,7 @@ func TestReobserveTwoValidEvents(t *testing.T) {
 	w, mock, msgC := newTestWatcher(t)
 
 	log1 := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
-	mock.seedLog(log1, 1234)
+	mock.seedLog(log1)
 
 	log2 := newTestLog(t, testLogParams{
 		sender:           testTokenBridge,
@@ -259,7 +259,7 @@ func TestReobserveTwoValidEvents(t *testing.T) {
 
 	receipt := newTestReceipt(log1.BlockNumber, []*types.Log{log1, &log2})
 	mock.receipts[log1.TxHash] = receipt
-	mock.blockTimes[receipt.BlockHash] = 1234
+	mock.blockTimes[receipt.BlockHash] = testBlockTime
 
 	numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log1.TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
 	require.NoError(t, err)
@@ -270,20 +270,20 @@ func TestReobserveTwoValidEvents(t *testing.T) {
 	require.NoError(t, err)
 	msg := recvMsg(t, msgC)
 	require.True(t, msg.IsReobservation)
-	assertMessageMatchesEvent(t, msg, ev, 1234)
+	assertMessageMatchesEvent(t, msg, ev)
 
 	ev, err = mock.ParseLogMessagePublished(log2)
 	require.NoError(t, err)
 	msg = recvMsg(t, msgC)
 	require.True(t, msg.IsReobservation)
-	assertMessageMatchesEvent(t, msg, ev, 1234)
+	assertMessageMatchesEvent(t, msg, ev)
 }
 
 func TestReobserveValidAndInvalid(t *testing.T) {
 	w, mock, msgC := newTestWatcher(t)
 
 	log1 := newValidWormholeLog(t, testBlockNumber, vaa.ConsistencyLevelFinalized)
-	mock.seedLog(log1, 1234)
+	mock.seedLog(log1)
 
 	log2 := newTestLog(t, testLogParams{
 		sender:           testTokenBridge,
@@ -297,7 +297,7 @@ func TestReobserveValidAndInvalid(t *testing.T) {
 
 	receipt := newTestReceipt(log1.BlockNumber, []*types.Log{log1, &log2})
 	mock.receipts[log1.TxHash] = receipt
-	mock.blockTimes[receipt.BlockHash] = 1234
+	mock.blockTimes[receipt.BlockHash] = testBlockTime
 
 	numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log1.TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
 	require.NoError(t, err)
@@ -308,7 +308,7 @@ func TestReobserveValidAndInvalid(t *testing.T) {
 	require.NoError(t, err)
 	msg := recvMsg(t, msgC)
 	require.True(t, msg.IsReobservation)
-	assertMessageMatchesEvent(t, msg, ev, 1234)
+	assertMessageMatchesEvent(t, msg, ev)
 }
 
 func TestReobserveTxVerifierIntegration(t *testing.T) {
@@ -338,7 +338,7 @@ func TestReobserveTxVerifierIntegration(t *testing.T) {
 				consistencyLevel: vaa.ConsistencyLevelFinalized,
 				blockNumber:      testBlockNumber,
 			})
-			mock.seedLog(&log, 1234)
+			mock.seedLog(&log)
 
 			numObs, err := w.handleReobservationRequest(context.TODO(), w.chainID, log.TxHash.Bytes(), mock, testFinalizedBlockNum, testSafeBlockNum)
 			require.NoError(t, err)
@@ -350,7 +350,7 @@ func TestReobserveTxVerifierIntegration(t *testing.T) {
 			msg := recvMsg(t, msgC)
 			require.True(t, msg.IsReobservation)
 			require.Equal(t, tc.expectState, msg.VerificationState())
-			assertMessageMatchesEvent(t, msg, ev, 1234)
+			assertMessageMatchesEvent(t, msg, ev)
 		})
 	}
 }

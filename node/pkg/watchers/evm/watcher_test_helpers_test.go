@@ -37,6 +37,7 @@ var (
 	testBlockNumber       = uint64(100)
 	testFinalizedBlockNum = uint64(200)
 	testSafeBlockNum      = uint64(150)
+	testBlockTime         = uint64(1234)
 )
 
 // NewWatcherForTest creates a minimal Watcher for verifyAndPublish tests.
@@ -137,10 +138,10 @@ func newMockConnector(t *testing.T) *mockConnector {
 // seedLog wires the mock to return a successful receipt wrapping `log` (keyed by its TxHash)
 // and the given block time (keyed by the receipt's BlockHash). For receipts with Status != 1
 // or custom shapes, write directly to mock.receipts / mock.blockTimes.
-func (m *mockConnector) seedLog(log *types.Log, blockTime uint64) {
+func (m *mockConnector) seedLog(log *types.Log) {
 	receipt := newTestReceipt(log.BlockNumber, []*types.Log{log})
 	m.receipts[log.TxHash] = receipt
-	m.blockTimes[receipt.BlockHash] = blockTime
+	m.blockTimes[receipt.BlockHash] = testBlockTime
 }
 
 // TransactionReceipt returns the configured receipt/error. When neither is set for the txHash,
@@ -209,8 +210,8 @@ func (m *mockConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.H
 // Hash is deterministically derived from the block number.
 func newBlock(number uint64, finality connectors.FinalityLevel) *connectors.NewBlock {
 	return &connectors.NewBlock{
-		Number:   big.NewInt(int64(number)),
-		Hash:     eth_common.BigToHash(big.NewInt(int64(number))),
+		Number:   big.NewInt(int64(number)), // #nosec G115 -- test-only
+		Hash:     eth_common.BigToHash(big.NewInt(int64(number))), // #nosec G115 -- test-only
 		Time:     number,
 		Finality: finality,
 	}
@@ -221,7 +222,6 @@ func newBlock(number uint64, finality connectors.FinalityLevel) *connectors.NewB
 func (w *Watcher) addPendingMsg(
 	txHash eth_common.Hash,
 	blockHash eth_common.Hash,
-	height uint64,
 	effectiveCL uint8,
 	additionalBlocks uint64,
 	sequence uint64,
@@ -239,7 +239,7 @@ func (w *Watcher) addPendingMsg(
 
 	w.pending[key] = &pendingMessage{
 		message:          msg,
-		height:           height,
+		height:           testBlockNumber,
 		effectiveCL:      effectiveCL,
 		additionalBlocks: additionalBlocks,
 	}
@@ -326,11 +326,11 @@ func newTestLog(t *testing.T, p testLogParams) types.Log {
 
 	txHash := p.txHash
 	if txHash == (eth_common.Hash{}) {
-		txHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber)))
+		txHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber))) // #nosec G115 -- test-only
 	}
 	blockHash := p.blockHash
 	if blockHash == (eth_common.Hash{}) {
-		blockHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber + 0xff)))
+		blockHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber + 0xff))) // #nosec G115 -- test-only
 	}
 
 	data, err := logMessagePublishedArgs().Pack(p.sequence, uint32(0), []byte{}, p.consistencyLevel)
@@ -394,11 +394,11 @@ type testLogEventParams struct {
 
 // newTestLogEvent creates an AbiLogMessagePublished with sensible non-zero defaults for postMessage tests.
 // Only blockNumber and consistencyLevel are required; sender and sequence get deterministic non-zero values.
-func newTestLogEvent(blockNumber uint64, consistencyLevel uint8) *ethabi.AbiLogMessagePublished {
+func newTestLogEvent(consistencyLevel uint8) *ethabi.AbiLogMessagePublished {
 	return newTestLogEventFromParams(testLogEventParams{
 		sender:           testEmitter,
 		sequence:         1,
-		blockNumber:      blockNumber,
+		blockNumber:      testBlockNumber,
 		consistencyLevel: consistencyLevel,
 	})
 }
@@ -408,11 +408,11 @@ func newTestLogEvent(blockNumber uint64, consistencyLevel uint8) *ethabi.AbiLogM
 func newTestLogEventFromParams(p testLogEventParams) *ethabi.AbiLogMessagePublished {
 	txHash := p.txHash
 	if txHash == (eth_common.Hash{}) {
-		txHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber)))
+		txHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber))) // #nosec G115 -- test-only
 	}
 	blockHash := p.blockHash
 	if blockHash == (eth_common.Hash{}) {
-		blockHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber + 0xff)))
+		blockHash = eth_common.BigToHash(big.NewInt(int64(p.blockNumber + 0xff))) // #nosec G115 -- test-only
 	}
 
 	return &ethabi.AbiLogMessagePublished{
@@ -431,10 +431,10 @@ func newTestLogEventFromParams(p testLogEventParams) *ethabi.AbiLogMessagePublis
 }
 
 // assertMessageMatchesEvent verifies that all fields on a MessagePublication match the source event.
-func assertMessageMatchesEvent(t *testing.T, msg *common.MessagePublication, ev *ethabi.AbiLogMessagePublished, blockTime int64) {
+func assertMessageMatchesEvent(t *testing.T, msg *common.MessagePublication, ev *ethabi.AbiLogMessagePublished) {
 	t.Helper()
 	assert.Equal(t, ev.Raw.TxHash.Bytes(), msg.TxID)
-	assert.Equal(t, time.Unix(blockTime, 0), msg.Timestamp)
+	assert.Equal(t, time.Unix(int64(testBlockTime), 0), msg.Timestamp) // #nosec G115 -- test-only
 	assert.Equal(t, ev.Nonce, msg.Nonce)
 	assert.Equal(t, ev.Sequence, msg.Sequence)
 	assert.Equal(t, vaa.ChainIDEthereum, msg.EmitterChain)
@@ -444,9 +444,9 @@ func assertMessageMatchesEvent(t *testing.T, msg *common.MessagePublication, ev 
 }
 
 // assertPendingMetadata verifies the metadata fields on a pendingMessage.
-func assertPendingMetadata(t *testing.T, pe *pendingMessage, effectiveCL uint8, height uint64, additionalBlocks uint64) {
+func assertPendingMetadata(t *testing.T, pe *pendingMessage, effectiveCL uint8, additionalBlocks uint64) {
 	t.Helper()
 	assert.Equal(t, effectiveCL, pe.effectiveCL)
-	assert.Equal(t, height, pe.height)
+	assert.Equal(t, testBlockNumber, pe.height)
 	assert.Equal(t, additionalBlocks, pe.additionalBlocks)
 }
