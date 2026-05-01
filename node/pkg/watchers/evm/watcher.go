@@ -433,7 +433,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 				numObservations, handleErr := w.handleReobservationRequest(
 					ctx,
-					vaa.ChainID(r.ChainId),
+					vaa.ChainID(r.ChainId), // #nosec G115 -- bounded by MaxUint16 check above
 					r.TxHash,
 					w.ethConn,
 					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
@@ -503,6 +503,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	defer headerSubscription.Unsubscribe()
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_headers", func(ctx context.Context) error {
+		stats := gossipv1.Heartbeat_Network{ContractAddress: w.contract.Hex()}
 		for {
 			select {
 			case <-ctx.Done():
@@ -533,10 +534,10 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				)
 				readiness.SetReady(w.readinessSync)
 
-				if err := w.processNewBlock(ctx, ev); err != nil {
+				if err := w.processNewBlock(ctx, ev, &stats); err != nil {
 					errC <- err //nolint:channelcheck // The watcher will exit anyway
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					return nil
+					return nil //nolint:nilerr // error propagated via errC
 				}
 			}
 		}
@@ -869,10 +870,9 @@ func (w *Watcher) postMessage(
 }
 
 // processNewBlock handles a new incoming block from the subscriber. It loops through all w.pending messages for processing.
-func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock) error {
+func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, stats *gossipv1.Heartbeat_Network) error {
 	start := time.Now()
 	logger := w.logger
-	stats := gossipv1.Heartbeat_Network{ContractAddress: w.contract.Hex()}
 	currentHash := ev.Hash
 
 	blockNumberU := ev.Number.Uint64()
@@ -896,10 +896,9 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock) 
 		stats.FinalizedHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 	default:
 		logger.Error("unexpected finality in block", zap.Stringer("finality", ev.Finality), zap.Any("event", ev))
-		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("unexpected finality in block: %v", ev.Finality)
 	}
-	w.updateNetworkStats(&stats)
+	w.updateNetworkStats(stats)
 
 	w.pendingMu.Lock()
 	defer w.pendingMu.Unlock()
