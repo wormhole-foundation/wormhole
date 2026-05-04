@@ -111,7 +111,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		// Filecoin is not supported in the guardian.
 		{"Sei", vaa.ChainIDSei},
 		// Rootstock is not supported in the guardian.
-		{"Scroll", vaa.ChainIDScroll},
 		{"Mantle", vaa.ChainIDMantle},
 		{"XLayer", vaa.ChainIDXLayer},
 		{"Linea", vaa.ChainIDLinea},

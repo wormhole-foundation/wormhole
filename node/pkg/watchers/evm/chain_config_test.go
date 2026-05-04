@@ -66,7 +66,6 @@ func TestGetFinality(t *testing.T) {
 		{env: common.MainNet, input: vaa.ChainIDSepolia, err: ErrNotFound},
 		{env: common.MainNet, input: vaa.ChainIDEthereum, finalized: true, safe: true},
 		{env: common.MainNet, input: vaa.ChainIDBSC, finalized: true, safe: true},
-		{env: common.MainNet, input: vaa.ChainIDScroll, finalized: true, safe: false},
 		{env: common.TestNet, input: vaa.ChainIDUnset, err: ErrNotFound},
 		{env: common.TestNet, input: vaa.ChainIDSepolia, finalized: true, safe: true},
 		{env: common.TestNet, input: vaa.ChainIDEthereum, finalized: true, safe: true},

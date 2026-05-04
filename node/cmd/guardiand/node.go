@@ -169,9 +169,6 @@ var (
 	baseRPC      *string
 	baseContract *string
 
-	scrollRPC      *string
-	scrollContract *string
-
 	mantleRPC      *string
 	mantleContract *string
 
@@ -434,9 +431,6 @@ func init() {
 
 	optimismRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "optimismRPC", "Optimism RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
-
-	scrollRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "scrollRPC", "Scroll RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	scrollContract = NodeCmd.Flags().String("scrollContract", "", "Scroll contract address")
 
 	mantleRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mantleRPC", "Mantle RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
@@ -893,7 +887,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, vaa.ChainIDArbitrum)
 	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, vaa.ChainIDOptimism)
 	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, vaa.ChainIDBase)
-	*scrollContract = checkEvmArgs(logger, *scrollRPC, *scrollContract, vaa.ChainIDScroll)
 	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, vaa.ChainIDMantle)
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, vaa.ChainIDXLayer)
 	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, vaa.ChainIDLinea)
@@ -1075,7 +1068,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["baseRPC"] = *baseRPC
 	// ChainIDSei is supported over IBC, so it's not listed here.
 	// ChainIDRootstock is not supported in the guardian.
-	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["mantleRPC"] = *mantleRPC
 	rpcMap["xlayerRPC"] = *xlayerRPC
 	rpcMap["lineaRPC"] = *lineaRPC
@@ -1419,19 +1411,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:          *baseContract,
 			CcqBackfillCache:  *ccqBackfillCache,
 			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBase),
-		}
-
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if shouldStart(scrollRPC) {
-		wc := &evm.WatcherConfig{
-			NetworkID:         "scroll",
-			ChainID:           vaa.ChainIDScroll,
-			Rpc:               *scrollRPC,
-			Contract:          *scrollContract,
-			CcqBackfillCache:  *ccqBackfillCache,
-			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDScroll),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
