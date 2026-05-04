@@ -271,8 +271,7 @@ const (
 	// ChainIDRootstock is the ChainID of Rootstock
 	ChainIDRootstock ChainID = 33
 	// OBSOLETE: ChainIDScroll ChainID = 34
-	// ChainIDMantle is the ChainID of Mantle
-	ChainIDMantle ChainID = 35
+	// OBSOLETE: ChainIDMantle ChainID = 35
 	// OBSOLETE: ChainIDBlast ChainID = 36
 	// ChainIDXLayer is the ChainID of XLayer
 	ChainIDXLayer ChainID = 37

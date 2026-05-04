@@ -169,9 +169,6 @@ var (
 	baseRPC      *string
 	baseContract *string
 
-	mantleRPC      *string
-	mantleContract *string
-
 	xlayerRPC      *string
 	xlayerContract *string
 
@@ -431,9 +428,6 @@ func init() {
 
 	optimismRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "optimismRPC", "Optimism RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
-
-	mantleRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mantleRPC", "Mantle RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
 
 	xlayerRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xlayerRPC", "XLayer RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xlayerContract = NodeCmd.Flags().String("xlayerContract", "", "XLayer contract address")
@@ -887,7 +881,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, vaa.ChainIDArbitrum)
 	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, vaa.ChainIDOptimism)
 	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, vaa.ChainIDBase)
-	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, vaa.ChainIDMantle)
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, vaa.ChainIDXLayer)
 	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, vaa.ChainIDLinea)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, vaa.ChainIDBerachain)
@@ -1068,7 +1061,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["baseRPC"] = *baseRPC
 	// ChainIDSei is supported over IBC, so it's not listed here.
 	// ChainIDRootstock is not supported in the guardian.
-	rpcMap["mantleRPC"] = *mantleRPC
 	rpcMap["xlayerRPC"] = *xlayerRPC
 	rpcMap["lineaRPC"] = *lineaRPC
 	rpcMap["berachainRPC"] = *berachainRPC
@@ -1411,19 +1403,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:          *baseContract,
 			CcqBackfillCache:  *ccqBackfillCache,
 			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBase),
-		}
-
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if shouldStart(mantleRPC) {
-		wc := &evm.WatcherConfig{
-			NetworkID:         "mantle",
-			ChainID:           vaa.ChainIDMantle,
-			Rpc:               *mantleRPC,
-			Contract:          *mantleContract,
-			CcqBackfillCache:  *ccqBackfillCache,
-			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMantle),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)

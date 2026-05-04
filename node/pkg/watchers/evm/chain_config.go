@@ -81,7 +81,6 @@ var (
 		// vaa.ChainIDFileCoin:   Not supported in the guardian.
 		// vaa.ChainIDRootstock:  Not supported in the guardian.
 
-		vaa.ChainIDMantle: {Finalized: true, Safe: true, EvmChainID: 5000, PublicRPC: "https://mantle-rpc.publicnode.com", ContractAddr: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"},
 		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 196, PublicRPC: "https://xlayerrpc.okx.com", ContractAddr: "0x194B123c5E96B9b2E49763619985790Dc241CAC0"},
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea:     {Finalized: true, Safe: false, EvmChainID: 59144, PublicRPC: "https://rpc.linea.build", ContractAddr: "0x0C56aebD76E6D9e4a1Ec5e94F4162B4CBbf77b32"},
@@ -128,7 +127,6 @@ var (
 		// vaa.ChainIDFileCoin:    Not supported in the guardian.
 		// vaa.ChainIDRootstock:   Not supported in the guardian.
 
-		vaa.ChainIDMantle: {Finalized: true, Safe: true, EvmChainID: 5003, PublicRPC: "https://rpc.sepolia.mantle.xyz", ContractAddr: "0x376428e7f26D5867e69201b275553C45B09EE090"},
 		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 195, PublicRPC: "https://xlayertestrpc.okx.com", ContractAddr: "0xA31aa3FDb7aF7Db93d18DDA4e19F811342EDF780"},
 
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
