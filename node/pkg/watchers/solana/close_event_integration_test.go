@@ -98,6 +98,9 @@ func TestCloseEventReobservation(t *testing.T) {
 		assert.Equal(t, expectedConsistencyLevel, msg.ConsistencyLevel, "consistency level mismatch")
 		assert.Equal(t, expectedPayload, msg.Payload, "payload mismatch")
 		assert.True(t, msg.IsReobservation, "expected IsReobservation to be true")
+		assert.Equal(t, signature[:], msg.TxID, "TxID should be the Solana transaction signature")
+		assert.False(t, msg.Unreliable, "expected Unreliable to be false for reliable message prefix")
+		assert.Equal(t, common.NotVerified, msg.VerificationState(), "expected VerificationState to be NotVerified")
 
 		// Verify both hash formats
 		v := msg.CreateVAA(0)

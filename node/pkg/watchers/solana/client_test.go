@@ -412,7 +412,7 @@ func TestProcessMessageAccount(t *testing.T) {
 			data := encodeMessagePublicationAccount(t, tc.prefix, proposal)
 
 			acc := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x11}, solana.PublicKeyLength))
-			num := s.processMessageAccount(s.logger, data, acc, tc.isReobservation, solana.Signature{})
+			num := s.processMessageAccount(s.logger, data, acc, tc.isReobservation, solana.Signature{}, false)
 			assert.Equal(t, tc.wantCount, num)
 
 			if tc.wantCount == 0 {

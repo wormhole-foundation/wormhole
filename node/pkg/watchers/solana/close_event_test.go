@@ -226,6 +226,11 @@ func TestClosePostedMessageDirect(t *testing.T) {
 	require.True(t, found)
 	require.Equal(t, 1, len(msgC))
 
+	// The CPI event inner instruction (outerIdx=0, innerIdx=0) should be
+	// recorded so the outer transaction loop does not re-process it.
+	require.Equal(t, 1, len(alreadyProcessed))
+	assert.True(t, alreadyProcessed.exists(0, 0))
+
 	msg := <-msgC
 	require.NotNil(t, msg)
 

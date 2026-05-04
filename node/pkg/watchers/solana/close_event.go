@@ -87,11 +87,11 @@ func (s *SolanaWatcher) processClosePostedMessageEvent(
 		}
 		for innerIdx, inst := range innerSet.Instructions {
 			if isCloseEventInstruction(programIndex, inst) {
-				alreadyProcessed.add(outerIdx, innerIdx)
 				messageAccount, accountData, err := resolveCloseEventMessageAccount(tx, topLevelInst, inst.Data)
 				if err != nil {
 					return false, err
 				}
+				alreadyProcessed.add(outerIdx, innerIdx)
 				return s.processMessageAccount(logger, accountData, messageAccount, true, signature, true) > 0, nil
 			}
 		}
@@ -121,11 +121,11 @@ func (s *SolanaWatcher) processInnerClosePostedMessageEvent(
 	for i := closeIdx + 1; i < len(innerInstructions); i++ {
 		inst := innerInstructions[i]
 		if isCloseEventInstruction(programIndex, inst) {
-			alreadyProcessed.add(outerIdx, i)
 			messageAccount, accountData, err := resolveCloseEventMessageAccount(tx, closeInst, inst.Data)
 			if err != nil {
 				return false, err
 			}
+			alreadyProcessed.add(outerIdx, i)
 			return s.processMessageAccount(logger, accountData, messageAccount, true, signature, true) > 0, nil
 		}
 	}
