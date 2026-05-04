@@ -43,7 +43,6 @@ contract Implementation is Governance {
             } else if (chain == 6)  { evmChainId = 43114;      // avalanche
             } else if (chain == 7)  { evmChainId = 42262;      // oasis
             } else if (chain == 9)  { evmChainId = 1313161554; // aurora
-            } else if (chain == 10) { evmChainId = 250;        // fantom
             } else if (chain == 11) { evmChainId = 686;        // karura
             } else if (chain == 12) { evmChainId = 787;        // acala
             } else if (chain == 13) { evmChainId = 8217;       // klaytn
