@@ -94,6 +94,8 @@ export const submit = async (
         }
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on Sui");
+        case "TransferFees":
+          throw new Error("TransferFees not supported on Sui");
         default:
           impossible(payload);
       }
