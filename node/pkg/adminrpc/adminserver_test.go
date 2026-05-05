@@ -444,7 +444,7 @@ func TestChainGovernorResetReleaseTimer(t *testing.T) {
 
 func TestDelegatedGuardiansConfigToVaa(t *testing.T) {
 	configJSON := `{
-		"3": {
+		"5": {
 			"keys": [
 				"0x1111111111111111111111111111111111111111",
 				"0x2222222222222222222222222222222222222222",

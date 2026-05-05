@@ -216,8 +216,7 @@ const (
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum ChainID = 2
-	// WARNING: ChainIDTerra is only supported in devnet / Tilt.
-	ChainIDTerra ChainID = 3
+	// OBSOLETE: ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon

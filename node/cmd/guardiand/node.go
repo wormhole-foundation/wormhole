@@ -95,10 +95,6 @@ var (
 	moonbeamRPC      *string
 	moonbeamContract *string
 
-	terraWS       *string
-	terraLCD      *string
-	terraContract *string
-
 	terra2WS       *string
 	terra2LCD      *string
 	terra2Contract *string
@@ -353,10 +349,6 @@ func init() {
 
 	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
-
-	terraWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraWS", "Path to terrad root for websocket connection", "ws://terra-terrad:26657/websocket", []string{"ws", "wss"})
-	terraLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraLCD", "Path to LCD service root for http calls", "http://terra-terrad:1317", []string{"http", "https"})
-	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 
 	terra2WS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2WS", "Path to terrad root for websocket connection", "ws://terra2-terrad:26657/websocket", []string{"ws", "wss"})
 	terra2LCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2LCD", "Path to LCD service root for http calls", "http://terra2-terrad:1317", []string{"http", "https"})
@@ -922,10 +914,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if !argsConsistent([]string{*pythnetContract, *pythnetRPC, *pythnetWS}) {
 		logger.Fatal("Either --pythnetContract, --pythnetRPC and --pythnetWS must all be set or all unset")
-	}
-
-	if !argsConsistent([]string{*terraContract, *terraWS, *terraLCD}) {
-		logger.Fatal("Either --terraContract, --terraWS and --terraLCD must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*terra2Contract, *terra2WS, *terra2LCD}) {
@@ -1601,22 +1589,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:         *zeroGravityContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if shouldStart(terraWS) {
-		if env != common.UnsafeDevNet {
-			logger.Fatal("Terra classic is only allowed in unsafe dev mode")
-		}
-
-		wc := &cosmwasm.WatcherConfig{
-			NetworkID: "terra",
-			ChainID:   vaa.ChainIDTerra,
-			Websocket: *terraWS,
-			Lcd:       *terraLCD,
-			Contract:  *terraContract,
-		}
-
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
