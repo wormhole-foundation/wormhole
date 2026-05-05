@@ -1260,6 +1260,104 @@ func TestUTXOUnlockPayloadHexEncoding(t *testing.T) {
 	assert.Equal(t, "00000001", hexStr[20:28])
 }
 
+func TestEmptyPayloadVaa(t *testing.T) {
+	buf, err := EmptyPayloadVaa("Core", 0x05, ChainIDEthereum)
+	require.NoError(t, err)
+	assert.NotEmpty(t, buf)
+
+	_, err = EmptyPayloadVaa("ModuleNameIsMoreThanThirtyTwoCharacters", 0x01, ChainIDSolana)
+	require.ErrorContains(t, err, "payload longer than 32 bytes")
+}
+
+func TestBodyGatewayScheduleUpgrade_Serialize(t *testing.T) {
+	body := BodyGatewayScheduleUpgrade{
+		Name:   "v0.1.0",
+		Height: 123456,
+	}
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.NotEmpty(t, buf)
+	assert.Equal(t, GatewayModuleStr, string(buf[:len(GatewayModuleStr)]))
+}
+
+func TestBodyGatewayScheduleUpgrade_Deserialize(t *testing.T) {
+	original := BodyGatewayScheduleUpgrade{
+		Name:   "v0.1.0",
+		Height: 123456,
+	}
+	buf, err := original.Serialize()
+	require.NoError(t, err)
+
+	// Strip the governance VAA prefix to get just the payload bytes
+	// The governance VAA prefix is 32 (module) + 1 (action) + 2 (chain) = 35 bytes
+	var deserialized BodyGatewayScheduleUpgrade
+	err = deserialized.Deserialize(buf[32+1+2:])
+	require.NoError(t, err)
+	assert.Equal(t, original.Name, deserialized.Name)
+	assert.Equal(t, original.Height, deserialized.Height)
+}
+
+func TestBodyGatewayScheduleUpgrade_DeserializeEmptyName(t *testing.T) {
+	body := BodyGatewayScheduleUpgrade{
+		Name:   "",
+		Height: 42,
+	}
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+
+	var deserialized BodyGatewayScheduleUpgrade
+	err = deserialized.Deserialize(buf[32+1+2:])
+	require.NoError(t, err)
+	assert.Equal(t, "", deserialized.Name)
+	assert.Equal(t, uint64(42), deserialized.Height)
+}
+
+func TestBodyGeneralPurposeGovernanceEvm_Serialize(t *testing.T) {
+	govContract := common.HexToAddress("0x1111111111111111111111111111111111111111")
+	targetContract := common.HexToAddress("0x2222222222222222222222222222222222222222")
+	payload := []byte{0xde, 0xad, 0xbe, 0xef}
+
+	body := BodyGeneralPurposeGovernanceEvm{
+		ChainID:            ChainIDEthereum,
+		GovernanceContract: govContract,
+		TargetContract:     targetContract,
+		Payload:            payload,
+	}
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.NotEmpty(t, buf)
+}
+
+func TestBodyGeneralPurposeGovernanceEvm_PayloadTooLong(t *testing.T) {
+	govContract := common.HexToAddress("0x1111111111111111111111111111111111111111")
+	targetContract := common.HexToAddress("0x2222222222222222222222222222222222222222")
+	// Create a payload larger than math.MaxUint16
+	largePayload := make([]byte, 65536)
+
+	body := BodyGeneralPurposeGovernanceEvm{
+		ChainID:            ChainIDEthereum,
+		GovernanceContract: govContract,
+		TargetContract:     targetContract,
+		Payload:            largePayload,
+	}
+	_, err := body.Serialize()
+	require.ErrorContains(t, err, "payload too long")
+}
+
+func TestBodyGeneralPurposeGovernanceSolana_Serialize(t *testing.T) {
+	govContract := Address{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20}
+	instruction := []byte{0x01, 0x02, 0x03, 0x04}
+
+	body := BodyGeneralPurposeGovernanceSolana{
+		ChainID:            ChainIDSolana,
+		GovernanceContract: govContract,
+		Instruction:        instruction,
+	}
+	buf, err := body.Serialize()
+	require.NoError(t, err)
+	assert.NotEmpty(t, buf)
+}
+
 func TestUTXOUnlockPayloadEmptyInputsOutputs(t *testing.T) {
 	payload := UTXOUnlockPayload{
 		DestinationChain:         ChainIDDogecoin,
