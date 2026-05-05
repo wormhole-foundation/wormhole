@@ -1592,6 +1592,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(nexusRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "nexus",
+			ChainID:          vaa.ChainIDNexus,
+			Rpc:              *nexusRPC,
+			Contract:         *nexusContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terra2WS) {
 		if env != common.UnsafeDevNet {
 			logger.Fatal("Terra2 classic is only allowed in unsafe dev mode")
@@ -1868,18 +1879,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				ChainID:          vaa.ChainIDTempo,
 				Rpc:              *tempoRPC,
 				Contract:         *tempoContract,
-				CcqBackfillCache: *ccqBackfillCache,
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
-
-		if shouldStart(nexusRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID:        "nexus",
-				ChainID:          vaa.ChainIDNexus,
-				Rpc:              *nexusRPC,
-				Contract:         *nexusContract,
 				CcqBackfillCache: *ccqBackfillCache,
 			}
 
