@@ -607,8 +607,14 @@ func CoreBridgeTransferFeesUsesCosmWasmLayout(c ChainID) bool {
 }
 
 func (r BodyCoreBridgeTransferFees) Serialize() ([]byte, error) {
-	if r.Amount == nil {
-		return nil, fmt.Errorf("amount is required")
+	if r.ChainID == ChainIDUnset {
+		return nil, fmt.Errorf("chain id is required")
+	}
+	if r.Amount == nil || r.Amount.IsZero() {
+		return nil, fmt.Errorf("amount must be non-zero")
+	}
+	if r.Recipient == (Address{}) {
+		return nil, fmt.Errorf("recipient must be non-zero")
 	}
 	amountBytes := r.Amount.Bytes()
 	if len(amountBytes) > 32 {

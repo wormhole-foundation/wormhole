@@ -529,7 +529,37 @@ func TestBodyCoreBridgeTransferFeesSerialize(t *testing.T) {
 			Recipient: recipient,
 		}
 		_, err := body.Serialize()
-		require.Error(t, err)
+		require.ErrorContains(t, err, "amount must be non-zero")
+	})
+
+	t.Run("rejects zero amount", func(t *testing.T) {
+		body := BodyCoreBridgeTransferFees{
+			ChainID:   ChainIDSolana,
+			Amount:    uint256.NewInt(0),
+			Recipient: recipient,
+		}
+		_, err := body.Serialize()
+		require.ErrorContains(t, err, "amount must be non-zero")
+	})
+
+	t.Run("rejects unset chain id", func(t *testing.T) {
+		body := BodyCoreBridgeTransferFees{
+			ChainID:   ChainIDUnset,
+			Amount:    uint256.NewInt(0x123),
+			Recipient: recipient,
+		}
+		_, err := body.Serialize()
+		require.ErrorContains(t, err, "chain id is required")
+	})
+
+	t.Run("rejects all-zero recipient", func(t *testing.T) {
+		body := BodyCoreBridgeTransferFees{
+			ChainID: ChainIDSolana,
+			Amount:  uint256.NewInt(0x123),
+			// Recipient left as zero-value Address{}
+		}
+		_, err := body.Serialize()
+		require.ErrorContains(t, err, "recipient must be non-zero")
 	})
 }
 

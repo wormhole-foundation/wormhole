@@ -719,6 +719,9 @@ func coreBridgeTransferFeesToVaa(req *nodev1.CoreBridgeTransferFees, timestamp t
 	if amountBig.Sign() < 0 {
 		return nil, errors.New("amount cannot be negative")
 	}
+	if amountBig.Sign() == 0 {
+		return nil, errors.New("amount must be non-zero")
+	}
 	amount, overflow := uint256.FromBig(amountBig)
 	if overflow {
 		return nil, errors.New("amount overflow")
@@ -730,6 +733,9 @@ func coreBridgeTransferFeesToVaa(req *nodev1.CoreBridgeTransferFees, timestamp t
 	}
 	var recipient vaa.Address
 	copy(recipient[:], recipientBytes)
+	if recipient == (vaa.Address{}) {
+		return nil, errors.New("recipient must be non-zero")
+	}
 
 	body, err := vaa.BodyCoreBridgeTransferFees{
 		ChainID:   chainId,

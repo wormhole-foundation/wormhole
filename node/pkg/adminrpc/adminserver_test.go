@@ -560,11 +560,15 @@ func TestCoreBridgeTransferFeesToVaa_Errors(t *testing.T) {
 		{"AmountOverflow", func(r *nodev1.CoreBridgeTransferFees) {
 			r.Amount = "115792089237316195423570985008687907853269984665640564039457584007913129639936" // 2^256
 		}, "amount overflow"},
+		{"ZeroAmount", func(r *nodev1.CoreBridgeTransferFees) { r.Amount = "0" }, "amount must be non-zero"},
 		{"BadRecipientHex", func(r *nodev1.CoreBridgeTransferFees) { r.Recipient = "zz" }, "invalid recipient"},
 		{"ShortRecipient", func(r *nodev1.CoreBridgeTransferFees) { r.Recipient = "01" }, "invalid recipient"},
 		{"LongRecipient", func(r *nodev1.CoreBridgeTransferFees) {
 			r.Recipient = recipientHex + "00"
 		}, "invalid recipient"},
+		{"ZeroRecipient", func(r *nodev1.CoreBridgeTransferFees) {
+			r.Recipient = "0000000000000000000000000000000000000000000000000000000000000000"
+		}, "recipient must be non-zero"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
