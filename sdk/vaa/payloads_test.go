@@ -486,6 +486,62 @@ func TestBodyCoreBridgeSetMessageFeeSerialize(t *testing.T) {
 	assert.Equal(t, expected, hex.EncodeToString(buf))
 }
 
+func TestBodyCoreBridgeTransferFeesSerialize(t *testing.T) {
+	const header = "00000000000000000000000000000000000000000000000000000000436f726504"
+	const amountHex = "0000000000000000000000000000000000000000000000000000000000000123"
+	const recipientHex = "00000000000000000000000000000000000000000000000000000000deadbeef"
+
+	var recipient Address
+	recipient[28] = 0xde
+	recipient[29] = 0xad
+	recipient[30] = 0xbe
+	recipient[31] = 0xef
+
+	t.Run("spec layout (Solana)", func(t *testing.T) {
+		body := BodyCoreBridgeTransferFees{
+			ChainID:   ChainIDSolana,
+			Amount:    uint256.NewInt(0x123),
+			Recipient: recipient,
+		}
+		buf, err := body.Serialize()
+		require.NoError(t, err)
+		// chain (uint16) || Amount || Recipient
+		expected := header + "0001" + amountHex + recipientHex
+		assert.Equal(t, expected, hex.EncodeToString(buf))
+	})
+
+	t.Run("cosmwasm layout (Injective)", func(t *testing.T) {
+		body := BodyCoreBridgeTransferFees{
+			ChainID:   ChainIDInjective,
+			Amount:    uint256.NewInt(0x123),
+			Recipient: recipient,
+		}
+		buf, err := body.Serialize()
+		require.NoError(t, err)
+		// chain (uint16) || Recipient || Amount  (reversed per CosmWasm core contract)
+		expected := header + "0013" + recipientHex + amountHex
+		assert.Equal(t, expected, hex.EncodeToString(buf))
+	})
+
+	t.Run("rejects nil amount", func(t *testing.T) {
+		body := BodyCoreBridgeTransferFees{
+			ChainID:   ChainIDSolana,
+			Recipient: recipient,
+		}
+		_, err := body.Serialize()
+		require.Error(t, err)
+	})
+}
+
+func TestCoreBridgeTransferFeesUsesCosmWasmLayout(t *testing.T) {
+	for _, c := range []ChainID{ChainIDTerra2, ChainIDInjective, ChainIDSei} {
+		assert.True(t, CoreBridgeTransferFeesUsesCosmWasmLayout(c), "chain %d should use cosmwasm layout", c)
+	}
+	for _, c := range []ChainID{ChainIDSolana, ChainIDEthereum, ChainIDSui, ChainIDWormchain, ChainIDSeiEVM} {
+		assert.False(t, CoreBridgeTransferFeesUsesCosmWasmLayout(c), "chain %d should not use cosmwasm layout", c)
+	}
+}
+
 func TestBodyDelegatedGuardianSetConfig(t *testing.T) {
 	expected := "000000000000000000000000000044656c656761746564477561726469616e73010000000000000000000000000000000000000000000000000000000000000000000102000302031111111111111111111111111111111111111111222222222222222222222222222222222222222233333333333333333333333333333333333333330004010244444444444444444444444444444444444444445555555555555555555555555555555555555555"
 	bodyDelegatedGuardianSetConfig := BodyDelegatedGuardiansSetConfig{

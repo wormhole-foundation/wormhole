@@ -507,3 +507,91 @@ func TestDelegatedGuardiansConfigToVaa_InvalidChainID(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid chain ID")
 }
+
+func TestCoreBridgeTransferFeesToVaa(t *testing.T) {
+	const recipientHex = "00000000000000000000000000000000000000000000000000000000deadbeef"
+	const expectedAmount = "0000000000000000000000000000000000000000000000000000000000002710"
+	const moduleAndAction = "00000000000000000000000000000000000000000000000000000000436f726504"
+
+	t.Run("Solana spec layout", func(t *testing.T) {
+		req := &nodev1.CoreBridgeTransferFees{
+			ChainId:   uint32(vaa.ChainIDSolana),
+			Amount:    "10000",
+			Recipient: recipientHex,
+		}
+		v, err := coreBridgeTransferFeesToVaa(req, time.Now(), 4, 7, 7)
+		require.NoError(t, err)
+		// chain (uint16 = 1) || amount || recipient
+		expected := moduleAndAction + "0001" + expectedAmount + recipientHex
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Injective cosmwasm reversed layout", func(t *testing.T) {
+		req := &nodev1.CoreBridgeTransferFees{
+			ChainId:   uint32(vaa.ChainIDInjective),
+			Amount:    "10000",
+			Recipient: recipientHex,
+		}
+		v, err := coreBridgeTransferFeesToVaa(req, time.Now(), 4, 7, 7)
+		require.NoError(t, err)
+		// chain (uint16 = 19 = 0x0013) || recipient || amount
+		expected := moduleAndAction + "0013" + recipientHex + expectedAmount
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+}
+
+func TestCoreBridgeTransferFeesToVaa_Errors(t *testing.T) {
+	const recipientHex = "00000000000000000000000000000000000000000000000000000000deadbeef"
+	base := func() *nodev1.CoreBridgeTransferFees {
+		return &nodev1.CoreBridgeTransferFees{
+			ChainId:   uint32(vaa.ChainIDSolana),
+			Amount:    "1",
+			Recipient: recipientHex,
+		}
+	}
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.CoreBridgeTransferFees)
+		errText string
+	}{
+		{"UnknownChain", func(r *nodev1.CoreBridgeTransferFees) { r.ChainId = 0xffff }, "convert chain id"},
+		{"InvalidAmount", func(r *nodev1.CoreBridgeTransferFees) { r.Amount = "not-a-number" }, "invalid amount"},
+		{"NegativeAmount", func(r *nodev1.CoreBridgeTransferFees) { r.Amount = "-1" }, "amount cannot be negative"},
+		{"AmountOverflow", func(r *nodev1.CoreBridgeTransferFees) {
+			r.Amount = "115792089237316195423570985008687907853269984665640564039457584007913129639936" // 2^256
+		}, "amount overflow"},
+		{"BadRecipientHex", func(r *nodev1.CoreBridgeTransferFees) { r.Recipient = "zz" }, "invalid recipient"},
+		{"ShortRecipient", func(r *nodev1.CoreBridgeTransferFees) { r.Recipient = "01" }, "invalid recipient"},
+		{"LongRecipient", func(r *nodev1.CoreBridgeTransferFees) {
+			r.Recipient = recipientHex + "00"
+		}, "invalid recipient"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := coreBridgeTransferFeesToVaa(req, time.Now(), 4, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}
+
+func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
+	msg := &nodev1.GovernanceMessage{
+		Sequence: 11,
+		Nonce:    22,
+		Payload: &nodev1.GovernanceMessage_CoreBridgeTransferFees{
+			CoreBridgeTransferFees: &nodev1.CoreBridgeTransferFees{
+				ChainId:   uint32(vaa.ChainIDSolana),
+				Amount:    "1",
+				Recipient: "00000000000000000000000000000000000000000000000000000000deadbeef",
+			},
+		},
+	}
+	v, err := GovMsgToVaa(msg, 4, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	assert.Equal(t, uint64(11), v.Sequence)
+	assert.Equal(t, uint32(22), v.Nonce)
+}

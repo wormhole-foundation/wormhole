@@ -706,6 +706,43 @@ func coreBridgeSetMessageFeeToVaa(req *nodev1.CoreBridgeSetMessageFee, timestamp
 	return v, nil
 }
 
+func coreBridgeTransferFeesToVaa(req *nodev1.CoreBridgeTransferFees, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	chainId, err := vaa.KnownChainIDFromNumber[uint32](req.ChainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert chain id: %w", err)
+	}
+
+	amountBig, ok := new(big.Int).SetString(req.Amount, 10)
+	if !ok {
+		return nil, errors.New("invalid amount")
+	}
+	if amountBig.Sign() < 0 {
+		return nil, errors.New("amount cannot be negative")
+	}
+	amount, overflow := uint256.FromBig(amountBig)
+	if overflow {
+		return nil, errors.New("amount overflow")
+	}
+
+	recipientBytes, err := hex.DecodeString(req.Recipient)
+	if err != nil || len(recipientBytes) != 32 {
+		return nil, errors.New("invalid recipient (expected 32-byte hex address)")
+	}
+	var recipient vaa.Address
+	copy(recipient[:], recipientBytes)
+
+	body, err := vaa.BodyCoreBridgeTransferFees{
+		ChainID:   chainId,
+		Amount:    amount,
+		Recipient: recipient,
+	}.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	return vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body), nil
+}
+
 func delegatedGuardiansConfigToVaa(req *nodev1.DelegatedGuardiansConfig, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	var rawConfig map[string]struct {
 		Keys      []string `json:"keys"`
@@ -923,6 +960,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = suiCallToVaa(payload.SuiCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CoreBridgeSetMessageFee:
 		v, err = coreBridgeSetMessageFeeToVaa(payload.CoreBridgeSetMessageFee, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_CoreBridgeTransferFees:
+		v, err = coreBridgeTransferFeesToVaa(payload.CoreBridgeTransferFees, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_DelegatedGuardiansConfig:
 		v, err = delegatedGuardiansConfigToVaa(payload.DelegatedGuardiansConfig, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_DelegatedManagerSetUpdate:

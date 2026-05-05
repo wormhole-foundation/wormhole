@@ -169,6 +169,10 @@ message GovernanceMessage {
 
     // Delegated Manager
     DelegatedManagerSetUpdate delegated_manager_set_update = 33;
+
+    // Transfer collected fees from the core bridge fee account to a recipient
+    // (whitepaper 0004).
+    CoreBridgeTransferFees core_bridge_transfer_fees = 34;
   }
 }
 
@@ -625,6 +629,17 @@ message CoreBridgeSetMessageFee {
   uint32 chain_id = 1;
   // New message fee.
   string message_fee = 2;
+}
+
+// CoreBridgeTransferFees transfers collected fees from the core bridge's fee
+// account on a chain to a recipient. See whitepapers/0004_message_publishing.md.
+message CoreBridgeTransferFees {
+  // ID of the chain of the core bridge contract where the fees should be transferred from (uint16).
+  uint32 chain_id = 1;
+  // Amount to transfer (decimal-formatted string).
+  string amount = 2;
+  // Hex-encoded 32-byte recipient address (without leading 0x). Left-zero-padded if shorter.
+  string recipient = 3;
 }
 
 message DelegatedGuardiansConfig {

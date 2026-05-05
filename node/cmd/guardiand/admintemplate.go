@@ -80,6 +80,10 @@ var governanceCallData *string
 var coreBridgeSetMessageFeeChainId *string
 var coreBridgeSetMessageFeeMessageFee *string
 
+var coreBridgeTransferFeesChainId *string
+var coreBridgeTransferFeesAmount *string
+var coreBridgeTransferFeesRecipient *string
+
 var delegatedGuardiansConfigJson *string
 var delegatedGuardiansConfigId *string
 
@@ -98,7 +102,7 @@ func init() {
 	moduleFlagSet := pflag.NewFlagSet("module", pflag.ExitOnError)
 	module = moduleFlagSet.String("module", "", "Module name")
 
-	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 5, "Default current guardian set index")
+	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 6, "Default current guardian set index")
 
 	setUpdateNumGuardians = AdminClientGuardianSetTemplateCmd.Flags().Int("num", 1, "Number of devnet guardians in example file")
 	TemplateCmd.AddCommand(AdminClientGuardianSetTemplateCmd)
@@ -223,6 +227,14 @@ func init() {
 	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.String("message-fee", "", "New message fee")
 	AdminClientCoreBridgeSetMessageFeeCmd.Flags().AddFlagSet(coreBridgeSetMessageFeeFlagSet)
 	TemplateCmd.AddCommand(AdminClientCoreBridgeSetMessageFeeCmd)
+
+	// flags for the core-bridge-transfer-fees command
+	coreBridgeTransferFeesFlagSet := pflag.NewFlagSet("core-bridge-transfer-fees", pflag.ExitOnError)
+	coreBridgeTransferFeesChainId = coreBridgeTransferFeesFlagSet.String("chain-id", "", "Chain ID")
+	coreBridgeTransferFeesAmount = coreBridgeTransferFeesFlagSet.String("amount", "", "Amount of native fee tokens to transfer (decimal)")
+	coreBridgeTransferFeesRecipient = coreBridgeTransferFeesFlagSet.String("recipient", "", "Recipient address (hex, base58 or bech32)")
+	AdminClientCoreBridgeTransferFeesCmd.Flags().AddFlagSet(coreBridgeTransferFeesFlagSet)
+	TemplateCmd.AddCommand(AdminClientCoreBridgeTransferFeesCmd)
 
 	// flags for delegated guardian set configuration command
 	delegatedGuardiansConfigFlagSet := pflag.NewFlagSet("delegated-guardians-config", pflag.ExitOnError)
@@ -388,6 +400,12 @@ var AdminClientCoreBridgeSetMessageFeeCmd = &cobra.Command{
 	Use:   "core-bridge-set-message-fee",
 	Short: "Generate a 'set message fee' template for specified chain and address",
 	Run:   runCoreBridgeSetMessageFeeTemplate,
+}
+
+var AdminClientCoreBridgeTransferFeesCmd = &cobra.Command{
+	Use:   "core-bridge-transfer-fees",
+	Short: "Generate a 'transfer fees' template for the core bridge (whitepaper 0004)",
+	Run:   runCoreBridgeTransferFeesTemplate,
 }
 
 var AdminClientDelegatedGuardiansConfigCmd = &cobra.Command{
@@ -1194,6 +1212,48 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 					CoreBridgeSetMessageFee: &nodev1.CoreBridgeSetMessageFee{
 						ChainId:    uint32(chainID),
 						MessageFee: *coreBridgeSetMessageFeeMessageFee,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+func runCoreBridgeTransferFeesTemplate(cmd *cobra.Command, args []string) {
+	chainID, err := parseChainID(*coreBridgeTransferFeesChainId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if *coreBridgeTransferFeesAmount == "" {
+		log.Fatal("--amount must be specified")
+	}
+	if *coreBridgeTransferFeesRecipient == "" {
+		log.Fatal("--recipient must be specified")
+	}
+	recipient, err := parseAddress(*coreBridgeTransferFeesRecipient)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seq, nonce := randSeqNonce()
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_CoreBridgeTransferFees{
+					CoreBridgeTransferFees: &nodev1.CoreBridgeTransferFees{
+						ChainId:   uint32(chainID),
+						Amount:    *coreBridgeTransferFeesAmount,
+						Recipient: recipient,
 					},
 				},
 			},

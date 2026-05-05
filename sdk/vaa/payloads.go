@@ -315,6 +315,14 @@ type (
 		MessageFee *uint256.Int
 	}
 
+	// BodyCoreBridgeTransferFees is a governance message to transfer collected fees from the core bridge
+	// fee_collector account to a recipient. See whitepapers/0004_message_publishing.md.
+	BodyCoreBridgeTransferFees struct {
+		ChainID   ChainID
+		Amount    *uint256.Int
+		Recipient Address
+	}
+
 	// BodyDelegatedGuardiansSetConfig is a governance message to set delegated guardian configurations for multiple chains.
 	BodyDelegatedGuardiansSetConfig struct {
 		ConfigIndex *uint256.Int
@@ -584,6 +592,41 @@ func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
 	copy(padded[32-len(feeBytes):], feeBytes)
 	payload.Write(padded)
 	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
+}
+
+// CoreBridgeTransferFeesUsesCosmWasmLayout reports whether the core bridge on
+// the given chain expects the TransferFees payload in CosmWasm layout
+// (Recipient || Amount) rather than the spec layout (Amount || Recipient).
+// See whitepapers/0004_message_publishing.md and cosmwasm/contracts/wormhole/src/state.rs.
+func CoreBridgeTransferFeesUsesCosmWasmLayout(c ChainID) bool {
+	switch c {
+	case ChainIDTerra2, ChainIDInjective, ChainIDSei:
+		return true
+	}
+	return false
+}
+
+func (r BodyCoreBridgeTransferFees) Serialize() ([]byte, error) {
+	if r.Amount == nil {
+		return nil, fmt.Errorf("amount is required")
+	}
+	amountBytes := r.Amount.Bytes()
+	if len(amountBytes) > 32 {
+		return nil, fmt.Errorf("amount too large")
+	}
+	padded := make([]byte, 32)
+	copy(padded[32-len(amountBytes):], amountBytes)
+
+	payload := &bytes.Buffer{}
+	if CoreBridgeTransferFeesUsesCosmWasmLayout(r.ChainID) {
+		// CosmWasm core contract deserializes recipient first, then amount.
+		payload.Write(r.Recipient[:])
+		payload.Write(padded)
+	} else {
+		payload.Write(padded)
+		payload.Write(r.Recipient[:])
+	}
+	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreTransferFees, r.ChainID, payload.Bytes())
 }
 
 func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
