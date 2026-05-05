@@ -1077,7 +1077,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 			zap.String("data", messageAccountData.String()))
 	}
 
-	return s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, signature), false
+	return s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, signature, false), false
 }
 
 // processAccountSubscriptionData processes the data received from the account subscription.
