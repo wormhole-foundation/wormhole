@@ -89,11 +89,14 @@ func TestEndToEnd(t *testing.T) {
 		time.Sleep(time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 
-	logger.Info("Sleeping to give time for things to calm down")
-	time.Sleep(10 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
+	logger.Info("Waiting for all observations to be received before shutting down")
+	require.Eventually(t, func() bool {
+		return len(pythEP.getStatus().observations) == len(expectedPythObsv) &&
+			len(wormscanEP.getStatus().observations) == len(expectedWormscanObsv)
+	}, 5*time.Second, 5*time.Millisecond)
+
 	logger.Info("Canceling context")
 	cancel()
-	time.Sleep(10 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	// Make sure we didn't drop anything.
 	require.Equal(t, 0.0, getCounterValue(obsvDropped, "e2e_pyth"))
