@@ -62,8 +62,6 @@ func (c ChainID) String() string {
 		return "sei"
 	case ChainIDRootstock:
 		return "rootstock"
-	case ChainIDXLayer:
-		return "xlayer"
 	case ChainIDLinea:
 		return "linea"
 	case ChainIDBerachain:
@@ -226,8 +224,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDSei, nil
 	case "rootstock":
 		return ChainIDRootstock, nil
-	case "xlayer":
-		return ChainIDXLayer, nil
 	case "linea":
 		return ChainIDLinea, nil
 	case "berachain":
@@ -363,7 +359,6 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDFileCoin,
 		ChainIDSei,
 		ChainIDRootstock,
-		ChainIDXLayer,
 		ChainIDLinea,
 		ChainIDBerachain,
 		ChainIDSeiEVM,

@@ -43,7 +43,6 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDArbitrum:   "https://api.arbiscan.io",
 	vaa.ChainIDOptimism:   "https://api-optimistic.etherscan.io",
 	vaa.ChainIDBase:       "https://api.basescan.org",
-	vaa.ChainIDXLayer:     "", // TODO: Does X Layer have an etherscan API endpoint?
 	vaa.ChainIDBerachain:  "https://api.berascan.com/",
 	vaa.ChainIDSeiEVM:     "", // TODO: Does SeiEVM have an etherscan API endpoint?
 	vaa.ChainIDUnichain:   "https://api.uniscan.xyz/",

@@ -273,8 +273,7 @@ const (
 	// OBSOLETE: ChainIDScroll ChainID = 34
 	// OBSOLETE: ChainIDMantle ChainID = 35
 	// OBSOLETE: ChainIDBlast ChainID = 36
-	// ChainIDXLayer is the ChainID of XLayer
-	ChainIDXLayer ChainID = 37
+	// OBSOLETE: ChainIDXLayer ChainID = 37
 	// ChainIDLinea is the ChainID of Linea
 	ChainIDLinea ChainID = 38
 	// ChainIDBerachain is the ChainID of Berachain

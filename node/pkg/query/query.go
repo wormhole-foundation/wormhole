@@ -119,7 +119,6 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDArbitrum:        {NumWorkers: 5, TimestampCacheSupported: true},
 	vaa.ChainIDOptimism:        {NumWorkers: 5, TimestampCacheSupported: true},
 	vaa.ChainIDBase:            {NumWorkers: 5, TimestampCacheSupported: true},
-	vaa.ChainIDXLayer:          {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDLinea:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDBerachain:       {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDUnichain:        {NumWorkers: 1, TimestampCacheSupported: true},

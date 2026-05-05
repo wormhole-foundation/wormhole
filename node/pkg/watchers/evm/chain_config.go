@@ -81,7 +81,6 @@ var (
 		// vaa.ChainIDFileCoin:   Not supported in the guardian.
 		// vaa.ChainIDRootstock:  Not supported in the guardian.
 
-		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 196, PublicRPC: "https://xlayerrpc.okx.com", ContractAddr: "0x194B123c5E96B9b2E49763619985790Dc241CAC0"},
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea:     {Finalized: true, Safe: false, EvmChainID: 59144, PublicRPC: "https://rpc.linea.build", ContractAddr: "0x0C56aebD76E6D9e4a1Ec5e94F4162B4CBbf77b32"},
 		vaa.ChainIDBerachain: {Finalized: true, Safe: true, EvmChainID: 80094, PublicRPC: "https://berachain-rpc.publicnode.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
@@ -126,8 +125,6 @@ var (
 		vaa.ChainIDBase: {Finalized: true, Safe: true, EvmChainID: 84531, ContractAddr: "0x23908A62110e21C04F3A4e011d24F901F911744A"}, // Base Goerli is deprecated.
 		// vaa.ChainIDFileCoin:    Not supported in the guardian.
 		// vaa.ChainIDRootstock:   Not supported in the guardian.
-
-		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 195, PublicRPC: "https://xlayertestrpc.okx.com", ContractAddr: "0xA31aa3FDb7aF7Db93d18DDA4e19F811342EDF780"},
 
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59141, PublicRPC: "https://rpc.sepolia.linea.build", ContractAddr: "0x79A1027a6A159502049F10906D333EC57E95F083"},
