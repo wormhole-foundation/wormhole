@@ -162,7 +162,7 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 	s.subsSignedVaaMu.Unlock()
 
 	for _, sub := range targets {
-		sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
+		sub.ch <- message{vaaBytes: vaaBytes} // Don't want to drop incoming VAAs
 	}
 
 	return nil
