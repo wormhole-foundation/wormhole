@@ -265,7 +265,7 @@ func TestIsWTT(t *testing.T) {
 		},
 		{
 			name:           "failure - chain without token bridge",
-			emitterChain:   vaa.ChainIDTerra,
+			emitterChain:   vaa.ChainIDOsmosis,
 			emitterAddrHex: ethTokenBridgeHex,
 			payload:        []byte{0x01},
 			env:            EnvMainNet,

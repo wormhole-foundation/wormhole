@@ -16,7 +16,6 @@ func TestChainID_String(t *testing.T) {
 		{name: "unset", c: ChainIDUnset, want: "unset"},
 		{name: "solana", c: ChainIDSolana, want: "solana"},
 		{name: "ethereum", c: ChainIDEthereum, want: "ethereum"},
-		{name: "terra", c: ChainIDTerra, want: "terra"},
 		{name: "bsc", c: ChainIDBSC, want: "bsc"},
 		{name: "polygon", c: ChainIDPolygon, want: "polygon"},
 		{name: "avalanche", c: ChainIDAvalanche, want: "avalanche"},
