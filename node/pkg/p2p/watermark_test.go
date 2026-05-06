@@ -64,7 +64,7 @@ func NewG(t *testing.T, nodeName string) *G {
 		panic(err)
 	}
 
-	_, rootCtxCancel := context.WithCancel(context.Background())
+	_, rootCtxCancel := context.WithCancel(context.Background()) // #nosec G118 -- Cancel is invoked by p2p.Run when the runnable exits.
 
 	g := &G{
 		batchObsvC:                make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], cs),
@@ -115,21 +115,20 @@ func TestWatermark(t *testing.T) {
 
 	// Create 4 nodes
 	var guardianset = &node_common.GuardianSet{}
-	var gs [4]*G
+	var gs [4]*G // #nosec G602 -- Array size is known at compile time, loop uses range
 	for i := range gs {
-		gs[i] = NewG(t, fmt.Sprintf("n%d", i))
-		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i) // #nosec G115 -- This is safe as the inputs are constants
-		gs[i].networkID = "/wormhole/localdev"
-
-		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx)))
+		gs[i] = NewG(t, fmt.Sprintf("n%d", i))                                                                   // #nosec G602 -- Loop uses range over fixed-size array
+		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)                                              // #nosec G115 G602 -- This is safe as the inputs are constants
+		gs[i].networkID = "/wormhole/localdev"                                                                   // #nosec G602 -- Loop uses range over fixed-size array
+		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx))) // #nosec G602 -- Loop uses range over fixed-size array
 
 		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		require.NoError(t, err)
 
-		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, id.String())
-		gs[i].gst.Set(guardianset)
+		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, id.String()) // #nosec G602 -- Loop uses range over fixed-size array
+		gs[i].gst.Set(guardianset)                                                                                      // #nosec G602 -- Loop uses range over fixed-size array
 
-		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
+		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second)) // #nosec G602 -- Loop uses range over fixed-size array
 	}
 
 	// The 4th guardian does not put its libp2p key in the heartbeat
@@ -181,15 +180,14 @@ func TestManualProtectedPeers(t *testing.T) {
 
 	// Create 4 protected nodes
 	var guardianset = &node_common.GuardianSet{}
-	var gs [4]*G
+	var gs [4]*G // #nosec G602 -- Array size is known at compile time, loop uses range
 	for i := range gs {
-		gs[i] = NewG(t, fmt.Sprintf("n%d", i))
-		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i) // #nosec G115 -- This is safe as the inputs are constants
-		gs[i].networkID = "/wormhole/localdev"
+		gs[i] = NewG(t, fmt.Sprintf("n%d", i))                                                                   // #nosec G602 -- Loop uses range over fixed-size array
+		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)                                              // #nosec G115 G602 -- This is safe as the inputs are constants
+		gs[i].networkID = "/wormhole/localdev"                                                                   // #nosec G602 -- Loop uses range over fixed-size array
+		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx))) // #nosec G602 -- Loop uses range over fixed-size array
 
-		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx)))
-
-		id, err := p2ppeer.IDFromPublicKey(gs[i].priv.GetPublic())
+		id, err := p2ppeer.IDFromPublicKey(gs[i].priv.GetPublic()) // #nosec G602 -- Loop uses range over fixed-size array
 		require.NoError(t, err)
 		protectedPeers = append(protectedPeers, id.String()) // Protect all nodes
 
@@ -197,31 +195,31 @@ func TestManualProtectedPeers(t *testing.T) {
 		bootstrapId, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		require.NoError(t, err)
 
-		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, bootstrapId.String())
+		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, bootstrapId.String()) // #nosec G602 -- Loop uses range over fixed-size array
 
-		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
+		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second)) // #nosec G602 -- Loop uses range over fixed-size array
 	}
 
 	// Create 4 random nodes that will not be protected
-	var randomGs [4]*G
+	var randomGs [4]*G // #nosec G602 -- Array size is known at compile time, loop uses range
 	for i := range randomGs {
-		randomGs[i] = NewG(t, fmt.Sprintf("r%d", i))
-		randomGs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + 10 + i) // #nosec G115 -- This is safe as the inputs are constants
-		randomGs[i].networkID = "/wormhole/localdev"
+		randomGs[i] = NewG(t, fmt.Sprintf("r%d", i))                           // #nosec G602 -- Loop uses range over fixed-size array
+		randomGs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + 10 + i) // #nosec G115 G602 -- This is safe as the inputs are constants
+		randomGs[i].networkID = "/wormhole/localdev"                           // #nosec G602 -- Loop uses range over fixed-size array
 
 		// Set bootstrap to the first protected node
 		bootstrapId, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		require.NoError(t, err)
 
 		// Use the real booststrap peer of the protected nodes
-		randomGs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, bootstrapId.String())
+		randomGs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, bootstrapId.String()) // #nosec G602 -- Loop uses range over fixed-size array
 
-		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
+		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second)) // #nosec G602 -- Loop uses range over fixed-size array
 	}
 
 	// Start the nodes with the manual list of protected peers
 	for i, g := range gs {
-		gs[i].gst.Set(guardianset) // Set guardian set
+		gs[i].gst.Set(guardianset) // #nosec G602 -- Loop uses range over fixed-size array
 		startGuardian(t, ctx, g, protectedPeers)
 	}
 

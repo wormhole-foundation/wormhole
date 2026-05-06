@@ -110,7 +110,7 @@ func New(ctx context.Context, logger *zap.Logger, rootRunnable Runnable, opts ..
 
 	go sup.processor(ctx)
 
-	sup.pReq <- &processorRequest{ //nolint:channelcheck // Only does one write
+	sup.pReq <- &processorRequest{ // Note on channel capacity: Only does one write
 		schedule: &processorRequestSchedule{dn: "root"},
 	}
 
