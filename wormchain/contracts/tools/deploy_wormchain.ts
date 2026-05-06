@@ -295,8 +295,9 @@ async function main() {
   );
 
   // Generated VAA using
-  // `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 32 --target-chain-id 3104 > wormchain.prototxt`
-  // `guardiand admin governance-vaa-verify wormchain.prototxt`
+  // `kubectl exec -it -n wormhole guardian-0 -- sh`
+  // `/guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 4002 --target-chain-id 3104 > wormchain.prototxt`
+  // `/guardiand admin governance-vaa-verify wormchain.prototxt`
   let wormchainIbcReceiverWhitelistVaa: VAA<Other> = {
     version: 1,
     guardianSetIndex: 0,
@@ -309,7 +310,7 @@ async function main() {
     consistencyLevel: 0,
     payload: {
       type: "Other",
-      hex: `0000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300020`,
+      hex: `0000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300fa2`,
     },
   };
   wormchainIbcReceiverWhitelistVaa.signatures = sign(

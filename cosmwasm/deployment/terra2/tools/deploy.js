@@ -10,10 +10,13 @@ import { Bech32, toHex } from "@cosmjs/encoding";
 import { zeroPad } from "ethers/lib/utils.js";
 
 // Generated using
-// `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 3104 --target-chain-id 32 > terra2.prototxt`
-// `guardiand admin governance-vaa-verify terra2.prototxt`
+// `kubectl exec -it -n wormhole guardian-0 -- sh`
+// `/guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 3104 --target-chain-id 4002 --idx 0 > terra2.prototxt`
+// `/guardiand admin governance-vaa-verify terra2.prototxt`
+// `/guardiand admin governance-vaa-inject --socket /tmp/admin.sock terra2.prototxt`
+// http://localhost:7071/v1/signed_vaa/1/0000000000000000000000000000000000000000000000000000000000000004/sequence
 const WORMHOLE_IBC_WHITELIST_VAA =
-  "0100000000010025e55ab23c8d0a7fddd4686f41801792cdce1ff7335a2b9436192bd552fa0f9b5c18016057b0d4b3f24c759eafe3e5fedd7fce76fe6f21cec815ffbaf4ec3ad801000000009b9a6b2d0001000000000000000000000000000000000000000000000000000000000000000460efd4405060ac0c200000000000000000000000000000000000000000004962635265636569766572010020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300c20";
+  "010000000001003d89310a91636a17c3a82c8bd4903681d1892d1a01df269d5dd39fe45bec3f83778485ec7f51791789f6a3a20496a26bd29ac44a47b45684e92baf197a9bffe10100000000c96dd8240001000000000000000000000000000000000000000000000000000000000000000423880251f492b5df200000000000000000000000000000000000000000004962635265636569766572010fa2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300c20";
 
 /*
   NOTE: Only append to this array: keeping the ordering is crucial, as the
@@ -213,7 +216,7 @@ addresses["wormhole_ibc.wasm"] = await instantiate(
       ],
       expiration_time: 0,
     },
-    chain_id: 32,
+    chain_id: 4002,
     fee_denom: "uluna",
   },
   "wormholeIbc"
