@@ -103,6 +103,10 @@ var (
 	injectiveLCD      *string
 	injectiveContract *string
 
+	seiWS       *string
+	seiLCD      *string
+	seiContract *string
+
 	gatewayWS       *string
 	gatewayLCD      *string
 	gatewayContract *string
@@ -357,6 +361,10 @@ func init() {
 	injectiveWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveWS", "Path to root for Injective websocket connection", "ws://injective:26657/websocket", []string{"ws", "wss"})
 	injectiveLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveLCD", "Path to LCD service root for Injective http calls", "http://injective:1317", []string{"http", "https"})
 	injectiveContract = NodeCmd.Flags().String("injectiveContract", "", "Wormhole contract address on Injective blockchain")
+
+	seiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiWS", "Path to root for Sei websocket connection", "ws://sei:26657/websocket", []string{"ws", "wss"})
+	seiLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiLCD", "Path to LCD service root for Sei http calls", "http://sei:1317", []string{"http", "https"})
+	seiContract = NodeCmd.Flags().String("seiContract", "", "Wormhole contract address on Sei blockchain")
 
 	gatewayWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayWS", "Path to root for Gateway watcher websocket connection", "ws://wormchain:26657/websocket", []string{"ws", "wss"})
 	gatewayLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayLCD", "Path to LCD service root for Gateway watcher http calls", "http://wormchain:1317", []string{"http", "https"})
@@ -924,6 +932,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --injectiveContract, --injectiveWS and --injectiveLCD must all be set or all unset")
 	}
 
+	if !argsConsistent([]string{*seiContract, *seiWS, *seiLCD}) {
+		logger.Fatal("Either --seiContract, --seiWS and --seiLCD must all be set or all unset")
+	}
+
 	if !argsConsistent([]string{*algorandIndexerRPC, *algorandAlgodRPC, *algorandAlgodToken}) {
 		logger.Fatal("Either --algorandIndexerRPC, --algorandAlgodRPC and --algorandAlgodToken must all be set or all unset")
 	}
@@ -1040,7 +1052,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["pythnetWS"] = *pythnetWS
 	// ChainIDBtc is not supported in the guardian.
 	rpcMap["baseRPC"] = *baseRPC
-	// ChainIDSei is supported over IBC, so it's not listed here.
+	rpcMap["seiWS"] = *seiWS
+	rpcMap["seiLCD"] = *seiLCD
 	// ChainIDRootstock is not supported in the guardian.
 	rpcMap["lineaRPC"] = *lineaRPC
 	rpcMap["berachainRPC"] = *berachainRPC
@@ -1626,6 +1639,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			Websocket: *injectiveWS,
 			Lcd:       *injectiveLCD,
 			Contract:  *injectiveContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(seiWS) {
+		wc := &cosmwasm.WatcherConfig{
+			NetworkID: "sei",
+			ChainID:   vaa.ChainIDSei,
+			Websocket: *seiWS,
+			Lcd:       *seiLCD,
+			Contract:  *seiContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
