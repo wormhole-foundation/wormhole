@@ -147,7 +147,7 @@ if [ "$DOCKER" == "true" ]; then
     if ! [[ "$GOIMPORTS_ARGS" =~ "w" ]]; then
         MOUNT+=",readonly"
     fi
-    docker run --workdir /app "$MOUNT" "$DOCKER_IMAGE" "$DOCKER_EXEC" $SELF_ARGS_WITHOUT_DOCKER "$COMMAND"
+    docker run --rm --workdir /app "$MOUNT" "$DOCKER_IMAGE" "$DOCKER_EXEC" $SELF_ARGS_WITHOUT_DOCKER "$COMMAND"
     exit "$?"
 fi
 

@@ -5,6 +5,7 @@ RUN npm install -g cspell@9.8.0
 
 FROM docker.io/golang:1.24.13-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac
 
+# Direct Go module/state under /tmp so the non-root user can write to it.
 ENV GOPATH=/tmp/go
 ENV GOCACHE=/tmp/go-build
 ENV PATH=/tmp/go/bin:$PATH
@@ -14,6 +15,9 @@ COPY --from=node-tools /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 RUN ln -s /usr/local/lib/node_modules/cspell/bin.mjs /usr/local/bin/cspell
 
+# Create a non-root user for the lint container (matches host UID convention).
+# Direct Go caches to /tmp with world-writable perms so goimports/golangci-lint
+# can download modules at runtime regardless of user.
 RUN useradd -u 1000 -U -m -d /home/lint lint && mkdir -p /tmp/go /tmp/go-build && chmod -R 1777 /tmp/go /tmp/go-build
 
 # install goimports (pinned to match CI)
@@ -23,6 +27,7 @@ RUN go install golang.org/x/tools/cmd/goimports@v0.42.0
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
 	sh -s -- -b $(go env GOPATH)/bin v2.8.0
 
+# Re-apply perms after go install wrote into /tmp/go as root.
 RUN chmod -R 1777 /tmp/go /tmp/go-build
 
 USER 1000
