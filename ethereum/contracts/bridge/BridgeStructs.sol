@@ -108,4 +108,19 @@ contract BridgeStructs {
         // Chain ID
         uint16 newChainId;
     }
+
+    struct SetPauserAddresses {
+        // Governance Header
+        // module: "TokenBridge" left-padded
+        bytes32 module;
+        // governance action: 4 (SetPauserAddressesEvm) on EVM
+        uint8 action;
+        // governance packet chain id: this or 0
+        uint16 chainId;
+
+        // Address authorized to call pause(). Typically the WormholePauser contract.
+        address pauser;
+        // Address authorized to call unpause(). Typically the guardian governance contract.
+        address unpauser;
+    }
 }

@@ -32,10 +32,39 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint64 indexed sequence
     );
 
+    /// @notice Emitted when the bridge is paused.
+    event Paused(address indexed by);
+
+    /// @notice Emitted when the bridge is unpaused.
+    event Unpaused(address indexed by);
+
+    /// @dev Reverts if the bridge is paused. See whitepapers/0018_pauser.md.
+    modifier notPaused() {
+        require(!paused(), "paused");
+        _;
+    }
+
+    /// @notice Pause the bridge. Only callable by the configured pauser. Configured via the
+    ///         SetPauserAddressesEvm (action 4) governance VAA.
+    function pause() external {
+        require(msg.sender == pauser(), "not pauser");
+        setPaused(true);
+        emit Paused(msg.sender);
+    }
+
+    /// @notice Unpause the bridge. Only callable by the configured unpauser. Configured via the
+    ///         SetPauserAddressesEvm (action 4) governance VAA. Note that `unpause` is intentionally
+    ///         exempt from the `notPaused` modifier.
+    function unpause() external {
+        require(msg.sender == unpauser(), "not unpauser");
+        setPaused(false);
+        emit Unpaused(msg.sender);
+    }
+
     /*
      *  @dev Produce a AssetMeta message for a given token
      */
-    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence) {
+    function attestToken(address tokenAddress, uint32 nonce) public payable notPaused returns (uint64 sequence) {
         // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
         (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
         (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
@@ -78,7 +107,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint256 arbiterFee,
         uint32 nonce
-    ) public payable returns (uint64 sequence) {
+    ) public payable notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(arbiterFee);
         sequence = logTransfer(
@@ -110,7 +139,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint32 nonce,
         bytes memory payload
-    ) public payable returns (uint64 sequence) {
+    ) public payable notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(0);
         sequence = logTransferWithPayload(
@@ -170,7 +199,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint256 arbiterFee,
         uint32 nonce
-    ) public payable nonReentrant returns (uint64 sequence) {
+    ) public payable nonReentrant notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
@@ -207,7 +236,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint32 nonce,
         bytes memory payload
-    ) public payable nonReentrant returns (uint64 sequence) {
+    ) public payable nonReentrant notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
@@ -362,7 +391,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         );
     }
 
-    function updateWrapped(bytes memory encodedVm) external returns (address token) {
+    function updateWrapped(bytes memory encodedVm) external notPaused returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -382,7 +411,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         return wrapped;
     }
 
-    function createWrapped(bytes memory encodedVm) external returns (address token) {
+    function createWrapped(bytes memory encodedVm) external notPaused returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -440,7 +469,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @return The byte array representing a BridgeStructs.TransferWithPayload.
      */
-    function completeTransferWithPayload(bytes memory encodedVm) public returns (bytes memory) {
+    function completeTransferWithPayload(bytes memory encodedVm) public notPaused returns (bytes memory) {
         return _completeTransfer(encodedVm, false);
     }
 
@@ -454,7 +483,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @return The byte array representing a BridgeStructs.TransferWithPayload.
      */
-    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm) public returns (bytes memory) {
+    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm) public notPaused returns (bytes memory) {
         return _completeTransfer(encodedVm, true);
     }
 
@@ -465,7 +494,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @param encodedVm A byte array containing a VAA signed by the guardians.
      */
-    function completeTransfer(bytes memory encodedVm) public {
+    function completeTransfer(bytes memory encodedVm) public notPaused {
         _completeTransfer(encodedVm, false);
     }
 
@@ -476,7 +505,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @param encodedVm A byte array containing a VAA signed by the guardians.
      */
-    function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
+    function completeTransferAndUnwrapETH(bytes memory encodedVm) public notPaused {
         _completeTransfer(encodedVm, true);
     }
 

@@ -55,6 +55,29 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         upgradeImplementation(address(uint160(uint256(implementation.newContract))));
     }
 
+    /// @notice Emitted when the pauser/unpauser addresses are updated via governance.
+    /// @param pauser The address authorized to call pause().
+    /// @param unpauser The address authorized to call unpause().
+    event PauserAddressesSet(address indexed pauser, address indexed unpauser);
+
+    /// @notice Set the pauser and unpauser addresses via a SetPauserAddressesEvm (action 4) governance VAA.
+    /// @dev See whitepapers/0018_pauser.md.
+    function submitSetPauserAddresses(bytes memory encodedVM) public {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        require(valid, reason);
+
+        setGovernanceActionConsumed(vm.hash);
+
+        BridgeStructs.SetPauserAddresses memory spa = parseSetPauserAddresses(vm.payload);
+
+        require(spa.chainId == chainId(), "wrong chain id");
+
+        setPauser(spa.pauser);
+        setUnpauser(spa.unpauser);
+
+        emit PauserAddressesSet(spa.pauser, spa.unpauser);
+    }
+
     /**
     * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
     */
@@ -159,6 +182,35 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         chain.newContract = encoded.toBytes32(index);
         index += 32;
+
+        require(encoded.length == index, "wrong length");
+    }
+
+    /// @dev Parse a SetPauserAddresses governance message. Action 4 = SetPauserAddressesEvm; action 5
+    ///      (SetPauserAddressesSolana) is rejected on EVM.
+    function parseSetPauserAddresses(bytes memory encoded) public pure returns (BridgeStructs.SetPauserAddresses memory spa) {
+        uint index = 0;
+
+        // governance header
+
+        spa.module = encoded.toBytes32(index);
+        index += 32;
+        require(spa.module == module, "wrong module");
+
+        spa.action = encoded.toUint8(index);
+        index += 1;
+        require(spa.action == 4, "wrong action");
+
+        spa.chainId = encoded.toUint16(index);
+        index += 2;
+
+        // payload: pauser (20) + unpauser (20)
+
+        spa.pauser = encoded.toAddress(index);
+        index += 20;
+
+        spa.unpauser = encoded.toAddress(index);
+        index += 20;
 
         require(encoded.length == index, "wrong length");
     }

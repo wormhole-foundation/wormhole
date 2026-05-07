@@ -62,9 +62,24 @@ interface ITokenBridge {
         uint16 newChainId;
     }
 
+    struct SetPauserAddresses {
+        bytes32 module;
+        uint8 action;
+        uint16 chainId;
+
+        address pauser;
+        address unpauser;
+    }
+
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
     event TransferRedeemed(uint16 indexed emitterChainId, bytes32 indexed emitterAddress, uint64 indexed sequence);
+
+    event PauserAddressesSet(address indexed pauser, address indexed unpauser);
+
+    event Paused(address indexed by);
+
+    event Unpaused(address indexed by);
 
     function _parseTransferCommon(bytes memory encoded) external pure returns (Transfer memory transfer);
 
@@ -136,6 +151,12 @@ interface ITokenBridge {
 
     function finality() external view returns (uint8);
 
+    function pauser() external view returns (address);
+
+    function unpauser() external view returns (address);
+
+    function paused() external view returns (bool);
+
     function implementation() external view returns (address);
 
     function initialize() external;
@@ -146,9 +167,17 @@ interface ITokenBridge {
 
     function submitRecoverChainId(bytes memory encodedVM) external;
 
+    function submitSetPauserAddresses(bytes memory encodedVM) external;
+
+    function pause() external;
+
+    function unpause() external;
+
     function parseRegisterChain(bytes memory encoded) external pure returns (RegisterChain memory chain);
 
     function parseUpgrade(bytes memory encoded) external pure returns (UpgradeContract memory chain);
 
     function parseRecoverChainId(bytes memory encodedRecoverChainId) external pure returns (RecoverChainId memory rci);
+
+    function parseSetPauserAddresses(bytes memory encoded) external pure returns (SetPauserAddresses memory spa);
 }

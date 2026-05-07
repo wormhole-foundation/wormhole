@@ -64,4 +64,16 @@ contract BridgeSetters is BridgeState {
         require(evmChainId == block.chainid, "invalid evmChainId");
         _state.evmChainId = evmChainId;
     }
+
+    function setPauser(address pauser) internal {
+        _state.pauser = pauser;
+    }
+
+    function setUnpauser(address unpauser) internal {
+        _state.unpauser = unpauser;
+    }
+
+    function setPaused(bool paused) internal {
+        _state.paused = paused;
+    }
 }
