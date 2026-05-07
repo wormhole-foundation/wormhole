@@ -92,6 +92,11 @@ type MessagePublisher interface {
 // The interface is intentionally small. If a new method does not apply cleanly
 // to all watchers without forcing chain-specific parsing or construction details
 // into a shared abstraction, it likely does not belong here.
+//
+// TODO: Once multiple watchers implement this contract, revisit
+// WatcherConfig.Create so it can expose the constructed Watcher alongside the
+// supervisor.Runnable. The current Create API returns only a bound Run method,
+// which prevents central watcher wiring from using this interface directly.
 type Watcher interface {
 	ChainID() vaa.ChainID
 	ObservationValidator

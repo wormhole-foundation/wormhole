@@ -15,8 +15,7 @@ import (
 func TestValidateObservationRequest(t *testing.T) {
 	t.Run("rejects nil request", func(t *testing.T) {
 		_, err := ValidateObservationRequest(nil, vaa.ChainIDSui)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "nil")
+		require.ErrorIs(t, err, ErrNilObservationRequest)
 	})
 
 	t.Run("accepts expected chain", func(t *testing.T) {
@@ -65,14 +64,15 @@ func TestValidateObservationRequest(t *testing.T) {
 }
 
 func TestValidateReobservedMessage(t *testing.T) {
+	txHash := make([]byte, common.TxIDLenMin)
 	validatedObservation, err := ValidateObservationRequest(&gossipv1.ObservationRequest{
 		ChainId: uint32(vaa.ChainIDSui),
-		TxHash:  make([]byte, common.TxIDLenMin),
+		TxHash:  txHash,
 	}, vaa.ChainIDSui)
 	require.NoError(t, err)
 
 	t.Run("rejects nil message", func(t *testing.T) {
-		require.Error(t, ValidateReobservedMessage(validatedObservation, nil))
+		require.ErrorIs(t, ValidateReobservedMessage(validatedObservation, nil), ErrNilMessagePublication)
 	})
 
 	t.Run("rejects mismatched chain", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestValidateReobservedMessage(t *testing.T) {
 		require.Error(t, ValidateReobservedMessage(validatedObservation, msg))
 	})
 
-	msg := &common.MessagePublication{EmitterChain: vaa.ChainIDSui}
+	msg := &common.MessagePublication{TxID: txHash, EmitterChain: vaa.ChainIDSui}
 	require.NoError(t, ValidateReobservedMessage(validatedObservation, msg))
 }
 

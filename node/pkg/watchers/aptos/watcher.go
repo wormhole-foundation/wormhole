@@ -92,8 +92,8 @@ func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObse
 	// SECURITY: This acts as a bounds check for the BigEndian.Uint64 call in the
 	// reobservation handler.
 	const aptosTxIDSize = 32
-	if len(validatedObservation.TxHash()) != aptosTxIDSize {
-		return watchers.ValidObservation{}, fmt.Errorf("invalid TxID: expected size %d for uint64", aptosTxIDSize)
+	if err := validatedObservation.RequireTxHashLength(aptosTxIDSize); err != nil {
+		return watchers.ValidObservation{}, fmt.Errorf("invalid Aptos TxID: %w", err)
 	}
 
 	return validatedObservation, nil
@@ -105,7 +105,11 @@ func (e *Watcher) ChainID() vaa.ChainID {
 
 func (e *Watcher) PublishMessage(msg *common.MessagePublication) error {
 	if msg == nil {
-		return fmt.Errorf("message publication is nil")
+		return watchers.ErrNilMessagePublication
+	}
+
+	if msg.EmitterChain != e.chainID {
+		return watchers.MessagePublicationChainMismatchError(msg.EmitterChain, e.chainID)
 	}
 
 	e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
