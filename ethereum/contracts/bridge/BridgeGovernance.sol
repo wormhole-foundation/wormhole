@@ -24,33 +24,47 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     // "TokenBridge" (left padded)
     bytes32 constant module = 0x000000000000000000000000000000000000000000546f6b656e427269646765;
 
+    /// @dev Custom errors are used in place of revert strings to keep `BridgeImplementation` under
+    ///      the 24,576-byte EIP-170 limit.
+    error InvalidChainId();
+    error ChainAlreadyRegistered();
+    error WrongChainId();
+    error WrongLength();
+    error WrongModule();
+    error WrongAction();
+    error InvalidFork();
+    error NotAFork();
+    error InvalidEVMChain();
+    error WrongGovernanceChain();
+    error WrongGovernanceContract();
+    error GovernanceActionConsumed();
+    error InitializeFailed(bytes reason);
+
     // Execute a RegisterChain governance message
     function registerChain(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
-        require(valid, reason);
+        IWormhole.VM memory vm = verifyGovernanceVM(encodedVM);
 
         setGovernanceActionConsumed(vm.hash);
 
         BridgeStructs.RegisterChain memory chain = parseRegisterChain(vm.payload);
 
-        require((chain.chainId == chainId() && !isFork()) || chain.chainId == 0, "invalid chain id");
-        require(bridgeContracts(chain.emitterChainID) == bytes32(0), "chain already registered");
+        if (!((chain.chainId == chainId() && !isFork()) || chain.chainId == 0)) revert InvalidChainId();
+        if (bridgeContracts(chain.emitterChainID) != bytes32(0)) revert ChainAlreadyRegistered();
 
         setBridgeImplementation(chain.emitterChainID, chain.emitterAddress);
     }
 
     // Execute a UpgradeContract governance message
     function upgrade(bytes memory encodedVM) public {
-        require(!isFork(), "invalid fork");
+        if (isFork()) revert InvalidFork();
 
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
-        require(valid, reason);
+        IWormhole.VM memory vm = verifyGovernanceVM(encodedVM);
 
         setGovernanceActionConsumed(vm.hash);
 
         BridgeStructs.UpgradeContract memory implementation = parseUpgrade(vm.payload);
 
-        require(implementation.chainId == chainId(), "wrong chain id");
+        if (implementation.chainId != chainId()) revert WrongChainId();
 
         upgradeImplementation(address(uint160(uint256(implementation.newContract))));
     }
@@ -61,63 +75,61 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     event PauserAddressesSet(address indexed pauser, address indexed unpauser);
 
     /// @notice Set the pauser and unpauser addresses via a SetPauserAddressesEvm (action 4) governance VAA.
-    /// @dev See whitepapers/0018_pauser.md.
+    /// @dev Payload layout: module(32) | action(1)=4 | chainId(2) | pauser(20) | unpauser(20). Parsed
+    ///      inline (no separate `parseSetPauserAddresses` / struct) to keep `BridgeImplementation` under
+    ///      the 24,576-byte EIP-170 limit. See whitepapers/0018_pauser.md.
     function submitSetPauserAddresses(bytes memory encodedVM) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
-        require(valid, reason);
+        IWormhole.VM memory vm = verifyGovernanceVM(encodedVM);
 
         setGovernanceActionConsumed(vm.hash);
 
-        BridgeStructs.SetPauserAddresses memory spa = parseSetPauserAddresses(vm.payload);
+        bytes memory payload = vm.payload;
+        if (payload.length != 75) revert WrongLength();
+        if (payload.toBytes32(0) != module) revert WrongModule();
+        if (payload.toUint8(32) != 4) revert WrongAction();
+        if (payload.toUint16(33) != chainId()) revert WrongChainId();
 
-        require(spa.chainId == chainId(), "wrong chain id");
+        address newPauser = payload.toAddress(35);
+        address newUnpauser = payload.toAddress(55);
 
-        setPauser(spa.pauser);
-        setUnpauser(spa.unpauser);
+        setPauser(newPauser);
+        setUnpauser(newUnpauser);
 
-        emit PauserAddressesSet(spa.pauser, spa.unpauser);
+        emit PauserAddressesSet(newPauser, newUnpauser);
     }
 
     /**
     * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
     */
     function submitRecoverChainId(bytes memory encodedVM) public {
-        require(isFork(), "not a fork");
+        if (!isFork()) revert NotAFork();
 
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
-        require(valid, reason);
+        IWormhole.VM memory vm = verifyGovernanceVM(encodedVM);
 
         setGovernanceActionConsumed(vm.hash);
 
         BridgeStructs.RecoverChainId memory rci = parseRecoverChainId(vm.payload);
 
         // Verify the VAA is for this chain
-        require(rci.evmChainId == block.chainid, "invalid EVM Chain");
+        if (rci.evmChainId != block.chainid) revert InvalidEVMChain();
 
         // Update the chainIds
         setEvmChainId(rci.evmChainId);
         setChainId(rci.newChainId);
     }
 
-    function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason){
+    /// @dev Reverts directly on any failure path. Returns the parsed VM on success. Callers no longer
+    ///      need to unpack a `(vm, valid, reason)` tuple — saves bytecode at every call site.
+    function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
+        // Forwards the dynamic Wormhole core reason; cheaper than encoding a parameterized error.
+        require(valid, reason);
 
-        if (!valid) {
-            return (vm, valid, reason);
-        }
+        if (vm.emitterChainId != governanceChainId()) revert WrongGovernanceChain();
+        if (vm.emitterAddress != governanceContract()) revert WrongGovernanceContract();
+        if (governanceActionIsConsumed(vm.hash)) revert GovernanceActionConsumed();
 
-        if (vm.emitterChainId != governanceChainId()) {
-            return (vm, false, "wrong governance chain");
-        }
-        if (vm.emitterAddress != governanceContract()) {
-            return (vm, false, "wrong governance contract");
-        }
-
-        if (governanceActionIsConsumed(vm.hash)) {
-            return (vm, false, "governance action already consumed");
-        }
-
-        return (vm, true, "");
+        return vm;
     }
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
@@ -130,7 +142,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         // Call initialize function of the new implementation
         (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
 
-        require(success, string(reason));
+        if (!success) revert InitializeFailed(reason);
 
         emit ContractUpgraded(currentImplementation, newImplementation);
     }
@@ -142,11 +154,11 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         chain.module = encoded.toBytes32(index);
         index += 32;
-        require(chain.module == module, "wrong module");
+        if (chain.module != module) revert WrongModule();
 
         chain.action = encoded.toUint8(index);
         index += 1;
-        require(chain.action == 1, "wrong action");
+        if (chain.action != 1) revert WrongAction();
 
         chain.chainId = encoded.toUint16(index);
         index += 2;
@@ -159,7 +171,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         chain.emitterAddress = encoded.toBytes32(index);
         index += 32;
 
-        require(encoded.length == index, "wrong length");
+        if (encoded.length != index) revert WrongLength();
     }
 
     function parseUpgrade(bytes memory encoded) public pure returns (BridgeStructs.UpgradeContract memory chain) {
@@ -169,11 +181,11 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
 
         chain.module = encoded.toBytes32(index);
         index += 32;
-        require(chain.module == module, "wrong module");
+        if (chain.module != module) revert WrongModule();
 
         chain.action = encoded.toUint8(index);
         index += 1;
-        require(chain.action == 2, "wrong action");
+        if (chain.action != 2) revert WrongAction();
 
         chain.chainId = encoded.toUint16(index);
         index += 2;
@@ -183,49 +195,20 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         chain.newContract = encoded.toBytes32(index);
         index += 32;
 
-        require(encoded.length == index, "wrong length");
+        if (encoded.length != index) revert WrongLength();
     }
 
-    /// @dev Parse a SetPauserAddresses governance message. Action 4 = SetPauserAddressesEvm; action 5
-    ///      (SetPauserAddressesSolana) is rejected on EVM.
-    function parseSetPauserAddresses(bytes memory encoded) public pure returns (BridgeStructs.SetPauserAddresses memory spa) {
-        uint index = 0;
-
-        // governance header
-
-        spa.module = encoded.toBytes32(index);
-        index += 32;
-        require(spa.module == module, "wrong module");
-
-        spa.action = encoded.toUint8(index);
-        index += 1;
-        require(spa.action == 4, "wrong action");
-
-        spa.chainId = encoded.toUint16(index);
-        index += 2;
-
-        // payload: pauser (20) + unpauser (20)
-
-        spa.pauser = encoded.toAddress(index);
-        index += 20;
-
-        spa.unpauser = encoded.toAddress(index);
-        index += 20;
-
-        require(encoded.length == index, "wrong length");
-    }
-
-    /// @dev Parse a recoverChainId (action 3) with minimal validation
+/// @dev Parse a recoverChainId (action 3) with minimal validation
     function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (BridgeStructs.RecoverChainId memory rci) {
         uint index = 0;
 
         rci.module = encodedRecoverChainId.toBytes32(index);
         index += 32;
-        require(rci.module == module, "wrong module");
+        if (rci.module != module) revert WrongModule();
 
         rci.action = encodedRecoverChainId.toUint8(index);
         index += 1;
-        require(rci.action == 3, "wrong action");
+        if (rci.action != 3) revert WrongAction();
 
         rci.evmChainId = encodedRecoverChainId.toUint256(index);
         index += 32;
@@ -233,6 +216,6 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         rci.newChainId = encodedRecoverChainId.toUint16(index);
         index += 2;
 
-        require(encodedRecoverChainId.length == index, "wrong length");
+        if (encodedRecoverChainId.length != index) revert WrongLength();
     }
 }

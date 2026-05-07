@@ -118,7 +118,7 @@ contract TestBridge is Test {
     function testTruncate(bytes32 b) public {
         bool invalidAddress = bytes12(b) != 0;
         if (invalidAddress) {
-            vm.expectRevert("invalid EVM address");
+            vm.expectRevert(ITokenBridge.InvalidEVMAddress.selector);
         }
         bytes32 converted = bytes32(
             uint256(uint160(bytes20(bridge._truncateAddressPub(b))))
@@ -144,7 +144,7 @@ contract TestBridge is Test {
         assertEq(bridge.evmChainId(), 10001);
 
         // evmChainId must equal block.chainid
-        vm.expectRevert("invalid evmChainId");
+        vm.expectRevert(ITokenBridge.InvalidEvmChainId.selector);
         bridge.setEvmChainIdPub(1337);
     }
 
@@ -756,7 +756,7 @@ contract TestBridge is Test {
 
         address sender = address(0x1);
 
-        vm.expectRevert("invalid sender");
+        vm.expectRevert(ITokenBridge.InvalidSender.selector);
         vm.prank(sender);
         bridge.completeTransferWithPayload(vaa);
     }
@@ -1065,9 +1065,7 @@ contract TestBridge is Test {
             234
         );
 
-        vm.expectRevert(
-            "transfer exceeds max outstanding bridged token amount"
-        );
+        vm.expectRevert(ITokenBridge.OutstandingExceedsMax.selector);
         bridge.transferTokens(
             address(tokenImpl),
             amount - firstTransfer,
@@ -1212,7 +1210,7 @@ contract TestBridge is Test {
             2
         );
 
-        vm.expectRevert("invalid fork");
+        vm.expectRevert(ITokenBridge.InvalidFork.selector);
         bridge.upgrade(vaa);
     }
 

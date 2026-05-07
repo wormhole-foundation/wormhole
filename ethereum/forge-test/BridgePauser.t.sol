@@ -117,7 +117,7 @@ contract TestBridgePauser is Test {
 
     function testSubmitSetPauserAddresses_Revert_WrongChain() public {
         bytes memory payload = _setPauserAddressesPayload(uint16(99), PAUSER, UNPAUSER);
-        vm.expectRevert("wrong chain id");
+        vm.expectRevert(ITokenBridge.WrongChainId.selector);
         bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
     }
 
@@ -130,7 +130,7 @@ contract TestBridgePauser is Test {
             PAUSER,
             UNPAUSER
         );
-        vm.expectRevert("wrong action");
+        vm.expectRevert(ITokenBridge.WrongAction.selector);
         bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
     }
 
@@ -142,7 +142,7 @@ contract TestBridgePauser is Test {
             PAUSER,
             UNPAUSER
         );
-        vm.expectRevert("wrong module");
+        vm.expectRevert(ITokenBridge.WrongModule.selector);
         bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
     }
 
@@ -150,7 +150,7 @@ contract TestBridgePauser is Test {
         bytes memory payload = _setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER);
         bytes memory vaa = _signAndEncodeVM(payload, 0);
         bridge.submitSetPauserAddresses(vaa);
-        vm.expectRevert("governance action already consumed");
+        vm.expectRevert(ITokenBridge.GovernanceActionConsumed.selector);
         bridge.submitSetPauserAddresses(vaa);
     }
 
@@ -183,7 +183,7 @@ contract TestBridgePauser is Test {
 
     function testPause_Revert_NotPauser() public {
         _configurePauser();
-        vm.expectRevert("not pauser");
+        vm.expectRevert(ITokenBridge.NotPauser.selector);
         bridge.pause();
     }
 
@@ -203,7 +203,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("not unpauser");
+        vm.expectRevert(ITokenBridge.NotUnpauser.selector);
         bridge.unpause();
     }
 
@@ -222,7 +222,7 @@ contract TestBridgePauser is Test {
         vm.prank(PAUSER);
         bridge.pause();
 
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.attestToken(address(weth), 0);
     }
 
@@ -231,7 +231,7 @@ contract TestBridgePauser is Test {
         vm.prank(PAUSER);
         bridge.pause();
 
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.transferTokens(address(weth), 1, 2, bytes32(0), 0, 0);
     }
 
@@ -239,7 +239,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.transferTokensWithPayload(address(weth), 1, 2, bytes32(0), 0, hex"");
     }
 
@@ -247,7 +247,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.wrapAndTransferETH(2, bytes32(0), 0, 0);
     }
 
@@ -255,7 +255,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.wrapAndTransferETHWithPayload(2, bytes32(0), 0, hex"");
     }
 
@@ -263,7 +263,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.completeTransfer(hex"");
     }
 
@@ -271,7 +271,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.completeTransferAndUnwrapETH(hex"");
     }
 
@@ -279,7 +279,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.completeTransferWithPayload(hex"");
     }
 
@@ -287,7 +287,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.completeTransferAndUnwrapETHWithPayload(hex"");
     }
 
@@ -295,7 +295,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.createWrapped(hex"");
     }
 
@@ -303,7 +303,7 @@ contract TestBridgePauser is Test {
         _configurePauser();
         vm.prank(PAUSER);
         bridge.pause();
-        vm.expectRevert("paused");
+        vm.expectRevert(ITokenBridge.BridgePaused.selector);
         bridge.updateWrapped(hex"");
     }
 
@@ -318,22 +318,10 @@ contract TestBridgePauser is Test {
         assertEq(bridge.pauser(), address(0xFEED));
     }
 
-    // ============================ parseSetPauserAddresses ============================
-
-    function testParseSetPauserAddresses() public {
-        bytes memory payload = _setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER);
-        ITokenBridge.SetPauserAddresses memory spa = bridge.parseSetPauserAddresses(payload);
-        assertEq(spa.module, tokenBridgeModule);
-        assertEq(spa.action, ACTION_SET_PAUSER_ADDRESSES_EVM);
-        assertEq(spa.chainId, testChainId);
-        assertEq(spa.pauser, PAUSER);
-        assertEq(spa.unpauser, UNPAUSER);
-    }
-
-    function testParseSetPauserAddresses_Revert_WrongLength() public {
+    function testSubmitSetPauserAddresses_Revert_WrongLength() public {
         bytes memory payload = abi.encodePacked(_setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER), hex"ff");
-        vm.expectRevert("wrong length");
-        bridge.parseSetPauserAddresses(payload);
+        vm.expectRevert(ITokenBridge.WrongLength.selector);
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
     }
 
     // ============================ Internal ============================
