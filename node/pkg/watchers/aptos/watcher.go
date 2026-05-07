@@ -1,6 +1,7 @@
 package aptos
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -84,16 +85,24 @@ func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObse
 		return watchers.ValidObservation{}, err
 	}
 
-	// Aptos's TxID is a uint64. Historically, all TxIDs used a fixed 32-byte hash type.
-	// This parsing is leftover from that time period. It might be possible to refactor
-	// the gossip code such that the TxID received from p2p is exactly 8 bytes, which would
-	// obviate the need for the below bounds check and parsing.
+	// Aptos's TxID is a uint64 event sequence number. Observation requests use a
+	// shared protobuf TxHash field that is 32 bytes for chains with full
+	// transaction hashes, so Aptos encodes its sequence number in the low 8 bytes
+	// and requires the high 24 bytes to be zero. It might be possible to refactor
+	// the gossip code such that the TxID received from p2p is exactly 8 bytes,
+	// which would obviate the need for the below bounds check and parsing.
 	//
 	// SECURITY: This acts as a bounds check for the BigEndian.Uint64 call in the
 	// reobservation handler.
 	const aptosTxIDSize = 32
 	if err := validatedObservation.RequireTxHashLength(aptosTxIDSize); err != nil {
 		return watchers.ValidObservation{}, fmt.Errorf("invalid Aptos TxID: %w", err)
+	}
+
+	txHash := validatedObservation.TxHash()
+	var zeroTxIDPrefix [aptosTxIDSize - 8]byte
+	if !bytes.Equal(txHash[:aptosTxIDSize-8], zeroTxIDPrefix[:]) {
+		return watchers.ValidObservation{}, fmt.Errorf("invalid Aptos TxID: first %d bytes must be zero", len(zeroTxIDPrefix))
 	}
 
 	return validatedObservation, nil

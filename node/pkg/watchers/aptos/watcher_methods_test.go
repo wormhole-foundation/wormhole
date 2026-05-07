@@ -30,6 +30,9 @@ func TestWatcherChainID(t *testing.T) {
 }
 
 func TestWatcherValidate(t *testing.T) {
+	nonZeroPrefixTxHash := make([]byte, 32)
+	nonZeroPrefixTxHash[0] = 1
+
 	tests := []struct {
 		name      string
 		req       *gossipv1.ObservationRequest
@@ -40,6 +43,7 @@ func TestWatcherValidate(t *testing.T) {
 		{name: "rejects nil request", wantErr: true, wantIsErr: watchers.ErrNilObservationRequest},
 		{name: "rejects wrong chain", req: &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDSui), TxHash: make([]byte, 32)}, wantErr: true},
 		{name: "rejects too short aptos tx id", req: &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, 31)}, wantErr: true},
+		{name: "rejects non-zero aptos tx id prefix", req: &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: nonZeroPrefixTxHash}, wantErr: true},
 	}
 
 	for _, tt := range tests {
