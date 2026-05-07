@@ -87,6 +87,11 @@ func (d *Database) Close() error {
 	return d.db.Close()
 }
 
+// DropAll removes all data from the database without closing it.
+func (d *Database) DropAll() error {
+	return d.db.DropAll()
+}
+
 func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 	if len(v.Signatures) == 0 {
 		panic("StoreSignedVAA called for unsigned VAA")
