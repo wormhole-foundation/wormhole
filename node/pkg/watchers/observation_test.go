@@ -76,12 +76,24 @@ func TestValidateReobservedMessage(t *testing.T) {
 	})
 
 	t.Run("rejects mismatched chain", func(t *testing.T) {
-		msg := &common.MessagePublication{EmitterChain: vaa.ChainIDEthereum}
+		msg := &common.MessagePublication{TxID: txHash, EmitterChain: vaa.ChainIDEthereum}
+		require.Error(t, ValidateReobservedMessage(validatedObservation, msg))
+	})
+
+	t.Run("rejects mismatched tx id", func(t *testing.T) {
+		msg := &common.MessagePublication{TxID: []byte{1}, EmitterChain: vaa.ChainIDSui}
 		require.Error(t, ValidateReobservedMessage(validatedObservation, msg))
 	})
 
 	msg := &common.MessagePublication{TxID: txHash, EmitterChain: vaa.ChainIDSui}
 	require.NoError(t, ValidateReobservedMessage(validatedObservation, msg))
+}
+
+func TestWatcherErrors(t *testing.T) {
+	assert.Contains(t,
+		MessagePublicationChainMismatchError(vaa.ChainIDEthereum, vaa.ChainIDSui).Error(),
+		"message publication emitter chain",
+	)
 }
 
 func TestValidObservationZapFields(t *testing.T) {
