@@ -49,6 +49,19 @@ contract BridgeStorage {
 
         // EIP-155 Chain ID
         uint256 evmChainId;
+
+        // Address authorized to call pause(). Configured via the SetPauserAddresses governance action.
+        // Typically the WormholePauser contract.
+        // See whitepapers/0018_pauser.md.
+        address pauser;
+
+        // Address authorized to call unpause(). Configured via the SetPauserAddresses governance action.
+        // Typically the guardian governance contract for a higher-trust unpause path.
+        address unpauser;
+
+        // Whether the Token Bridge is currently paused. When true, all entry points except governance
+        // and unpause revert.
+        bool paused;
     }
 }
 
