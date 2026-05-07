@@ -41,9 +41,6 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 	if txIDLen > TxIDSizeMax {
 		return nil, fmt.Errorf("delegate observation tx_hash too long: got %d; want at most %d", txIDLen, TxIDSizeMax)
 	}
-	if txIDLen < node_common.TxIDLenMin {
-		return nil, fmt.Errorf("delegate observation tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
-	}
 
 	if d.ConsistencyLevel > math.MaxUint8 {
 		return nil, fmt.Errorf("invalid delegate observation consistency : %d", d.ConsistencyLevel)
@@ -98,9 +95,6 @@ func messagePublicationToDelegateObservation(m *node_common.MessagePublication) 
 	txIDLen := len(m.TxID)
 	if txIDLen > TxIDSizeMax {
 		return nil, fmt.Errorf("message publication tx_hash too long: got %d; want at most %d", txIDLen, TxIDSizeMax)
-	}
-	if txIDLen < node_common.TxIDLenMin {
-		return nil, fmt.Errorf("message publication tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
 	}
 
 	// Check if payload length is within max message size for p2p
