@@ -17,8 +17,6 @@ import (
 )
 
 const (
-	// TxIDLenMin is the minimum length of a txID.
-	TxIDLenMin = 32
 	// AddressLength is the length of a normalized Wormhole address in bytes.
 	AddressLength = 32
 
@@ -37,7 +35,6 @@ const (
 	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
 	// the fields plus length information for fields with variable lengths (TxID and Payload).
 	marshaledMsgLenMin = 1 + // TxID length (uint8)
-		TxIDLenMin + // TxID ([]byte), minimum length of 32 bytes (but may be longer)
 		8 + // Timestamp (int64)
 		4 + // Nonce (uint32)
 		8 + // Sequence (uint64)
@@ -103,7 +100,6 @@ var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
 var (
 	ErrBinaryWrite         = errors.New("failed to write binary data")
 	ErrTxIDTooLong         = errors.New("field TxID too long")
-	ErrTxIDTooShort        = errors.New("field TxID too short")
 	ErrInvalidPayload      = errors.New("field payload too long")
 	ErrDataTooShort        = errors.New("data too short")
 	ErrTimestampTooShort   = errors.New("data too short for timestamp")
@@ -191,6 +187,8 @@ type MessagePublication struct {
 	// whose buckets reach quorum at different observation subsets can still
 	// pick different majorities; recovery for that case is the audit /
 	// missing_observations reobs flow rather than the delegate-quorum path.
+	//
+	// TxID identifies the transaction that emitted this message. There is no minimum length.
 	TxID      []byte
 	Timestamp time.Time
 
@@ -357,17 +355,12 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 		return nil, ErrInputSize{Msg: "TxID too long", Want: TxIDSizeMax, Got: txIDLen}
 	}
 
-	if txIDLen < TxIDLenMin {
-		return nil, ErrInputSize{Msg: "TxID too short", Want: TxIDLenMin, Got: txIDLen}
-	}
-
 	payloadLen := len(msg.Payload)
 	// Set up for serialization
 	var (
 		be = binary.BigEndian
 		// Size of the buffer needed to hold the serialized message.
-		// TxIDLenMin is already accounted for in the marshaledMsgLenMin calculation.
-		bufSize = (marshaledMsgLenMin - TxIDLenMin) + txIDLen + payloadLen
+		bufSize = marshaledMsgLenMin + txIDLen + payloadLen
 		buf     = make([]byte, 0, bufSize)
 	)
 
@@ -528,12 +521,8 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	txIDLen := uint8(data[pos])
 	pos++
 
-	// Bounds checks. TxID length should be at least TxIDLenMin, but not larger than the length of the data.
-	// The second check is to avoid panics.
-	if int(txIDLen) < TxIDLenMin {
-		return ErrInputSize{Msg: "TxID length is too short", Got: int(txIDLen), Want: TxIDLenMin}
-	}
-
+	// Bounds check. TxID length should not be larger than the length of the data.
+	// This check avoids panics.
 	if int(txIDLen) > len(data) {
 		return ErrInputSize{Msg: "TxID length is longer than bytes", Got: int(txIDLen)}
 	}
