@@ -62,15 +62,6 @@ interface ITokenBridge {
         uint16 newChainId;
     }
 
-    struct SetPauserAddresses {
-        bytes32 module;
-        uint8 action;
-        uint16 chainId;
-
-        address pauser;
-        address unpauser;
-    }
-
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
     event TransferRedeemed(uint16 indexed emitterChainId, bytes32 indexed emitterAddress, uint64 indexed sequence);
@@ -80,6 +71,48 @@ interface ITokenBridge {
     event Paused(address indexed by);
 
     event Unpaused(address indexed by);
+
+    // Pauser-related (declared in Bridge contract).
+    error BridgePaused();
+    error NotPauser();
+    error NotUnpauser();
+
+    // Transfer/wrap-related (declared in Bridge contract).
+    error WormholeFeeTooLarge();
+    error FeeExceedsAmount();
+    error InvalidEmitter();
+    error WrappedAssetNotFound();
+    error OnlyForeignTokens();
+    error WrappedAssetAlreadyExists();
+    error InvalidEVMAddress();
+    error InvalidSender();
+    error TransferAlreadyCompleted();
+    error InvalidTargetChain();
+    error OnlyWETH();
+    error OutstandingExceedsMax();
+    error InvalidAssetMeta();
+    error InvalidTransferPayload();
+    error InvalidPayloadId();
+
+    // Governance-related (declared in BridgeGovernance contract).
+    error InvalidChainId();
+    error ChainAlreadyRegistered();
+    error WrongChainId();
+    error WrongLength();
+    error WrongModule();
+    error WrongAction();
+    error InvalidFork();
+    error NotAFork();
+    error InvalidEVMChain();
+    error WrongGovernanceChain();
+    error WrongGovernanceContract();
+    error GovernanceActionConsumed();
+    error InitializeFailed(bytes reason);
+
+    // Setter / initializer (declared in BridgeSetters / BridgeImplementation).
+    error InvalidImplementationAddress();
+    error InvalidEvmChainId();
+    error AlreadyInitialized();
 
     function _parseTransferCommon(bytes memory encoded) external pure returns (Transfer memory transfer);
 
@@ -178,6 +211,4 @@ interface ITokenBridge {
     function parseUpgrade(bytes memory encoded) external pure returns (UpgradeContract memory chain);
 
     function parseRecoverChainId(bytes memory encodedRecoverChainId) external pure returns (RecoverChainId memory rci);
-
-    function parseSetPauserAddresses(bytes memory encoded) external pure returns (SetPauserAddresses memory spa);
 }
