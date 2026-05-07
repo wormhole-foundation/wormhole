@@ -5,6 +5,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -22,27 +23,34 @@ func TestWatcherChainID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, newTestWatcher(make(chan *common.MessagePublication, 1)).ChainID())
+			watcher := watchers.Watcher(newTestWatcher(make(chan *common.MessagePublication, 1)))
+			assert.Equal(t, tt.want, watcher.ChainID())
 		})
 	}
 }
 
 func TestWatcherValidate(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     *gossipv1.ObservationRequest
-		wantErr bool
+		name      string
+		req       *gossipv1.ObservationRequest
+		wantErr   bool
+		wantIsErr error
 	}{
 		{name: "accepts valid request", req: &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, 32)}},
+		{name: "rejects nil request", wantErr: true, wantIsErr: watchers.ErrNilObservationRequest},
 		{name: "rejects wrong chain", req: &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDSui), TxHash: make([]byte, 32)}, wantErr: true},
 		{name: "rejects too short aptos tx id", req: &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, 31)}, wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validatedObservation, err := newTestWatcher(make(chan *common.MessagePublication, 1)).Validate(tt.req)
+			watcher := watchers.Watcher(newTestWatcher(make(chan *common.MessagePublication, 1)))
+			validatedObservation, err := watcher.Validate(tt.req)
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.wantIsErr != nil {
+					require.ErrorIs(t, err, tt.wantIsErr)
+				}
 				return
 			}
 			require.NoError(t, err)
@@ -53,20 +61,26 @@ func TestWatcherValidate(t *testing.T) {
 
 func TestWatcherPublishMessage(t *testing.T) {
 	tests := []struct {
-		name    string
-		msg     *common.MessagePublication
-		wantErr bool
+		name      string
+		msg       *common.MessagePublication
+		wantErr   bool
+		wantIsErr error
 	}{
-		{name: "rejects nil message", wantErr: true},
+		{name: "rejects nil message", wantErr: true, wantIsErr: watchers.ErrNilMessagePublication},
+		{name: "rejects mismatched chain", msg: &common.MessagePublication{EmitterChain: vaa.ChainIDSui}, wantErr: true},
 		{name: "publishes message", msg: &common.MessagePublication{EmitterChain: vaa.ChainIDAptos}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msgC := make(chan *common.MessagePublication, 1)
-			err := newTestWatcher(msgC).PublishMessage(tt.msg)
+			watcher := watchers.Watcher(newTestWatcher(msgC))
+			err := watcher.PublishMessage(tt.msg)
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.wantIsErr != nil {
+					require.ErrorIs(t, err, tt.wantIsErr)
+				}
 				return
 			}
 			require.NoError(t, err)
@@ -76,24 +90,31 @@ func TestWatcherPublishMessage(t *testing.T) {
 }
 
 func TestWatcherPublishReobservation(t *testing.T) {
-	validatedObservation, err := newTestWatcher(make(chan *common.MessagePublication, 1)).Validate(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, 32)})
+	txHash := make([]byte, 32)
+	validatedObservation, err := newTestWatcher(make(chan *common.MessagePublication, 1)).Validate(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: txHash})
 	require.NoError(t, err)
 
 	tests := []struct {
-		name    string
-		msg     *common.MessagePublication
-		wantErr bool
+		name      string
+		msg       *common.MessagePublication
+		wantErr   bool
+		wantIsErr error
 	}{
+		{name: "rejects nil message", wantErr: true, wantIsErr: watchers.ErrNilMessagePublication},
 		{name: "rejects mismatched chain", msg: &common.MessagePublication{EmitterChain: vaa.ChainIDSui}, wantErr: true},
-		{name: "publishes reobservation", msg: &common.MessagePublication{EmitterChain: vaa.ChainIDAptos}},
+		{name: "publishes reobservation", msg: &common.MessagePublication{TxID: txHash, EmitterChain: vaa.ChainIDAptos}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msgC := make(chan *common.MessagePublication, 1)
-			err := newTestWatcher(msgC).PublishReobservation(validatedObservation, tt.msg)
+			watcher := watchers.Watcher(newTestWatcher(msgC))
+			err := watcher.PublishReobservation(validatedObservation, tt.msg)
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.wantIsErr != nil {
+					require.ErrorIs(t, err, tt.wantIsErr)
+				}
 				return
 			}
 			require.NoError(t, err)

@@ -1,6 +1,7 @@
 package aptos
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -201,7 +202,9 @@ func TestObserveDataFields(t *testing.T) {
 		"consistency_level": "15"
 	}`
 
-	validatedObservation, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: make([]byte, common.TxIDLenMin)}, vaa.ChainIDAptos)
+	txID := make([]byte, common.TxIDLenMin)
+	binary.BigEndian.PutUint64(txID[24:], 123)
+	validatedObservation, err := watchers.ValidateObservationRequest(&gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDAptos), TxHash: txID}, vaa.ChainIDAptos)
 	require.NoError(t, err)
 
 	w.observeData(logger, gjson.Parse(json), 123, &validatedObservation)
