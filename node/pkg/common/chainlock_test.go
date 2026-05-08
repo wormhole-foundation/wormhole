@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"io"
 	"math"
 	"math/big"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
+	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -963,5 +965,115 @@ func TestMessagePublication_IsWTT(t *testing.T) {
 			got := msg.IsWTT(tt.env)
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// TestIsReobservationDoesNotSplitDelegateQuorumBucket asserts the protocol invariant
+// that two otherwise-identical MessagePublications differing only in IsReobservation
+// produce the SAME bucket key for the canonical guardian's delegate-quorum check
+// (pkg/processor/observation.go:648). Today the bucket key is Keccak256(MarshalBinary),
+// and MarshalBinary writes IsReobservation as a byte (chainlock.go:332-337) — so this
+// test FAILS under current code, demonstrating the bug: a delegate set where some
+// guardians sign with IsReobservation=true and others with false splits across two
+// buckets and never reaches quorum on either.
+func TestIsReobservationDoesNotSplitDelegateQuorumBucket(t *testing.T) {
+	makeMP := func(isReobs bool) *MessagePublication {
+		emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+		require.NoError(t, err)
+		return &MessagePublication{
+			TxID:             eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
+			Timestamp:        time.Unix(1746026862, 0), // 2026-04-28T15:27:42Z, from the field case
+			Nonce:            0,
+			Sequence:         95838,
+			ConsistencyLevel: 1,
+			EmitterChain:     vaa.ChainIDMoonbeam, // chain 16
+			EmitterAddress:   emitter,
+			Payload:          []byte("identical-tb-transfer-payload"),
+			IsReobservation:  isReobs,
+		}
+	}
+
+	original := makeMP(false)
+	reobs := makeMP(true)
+
+	require.Equal(t, original.MessageIDString(), reobs.MessageIDString(),
+		"sanity: VAA MessageID is identical")
+
+	bufA, err := original.MarshalBinary()
+	require.NoError(t, err)
+	bufB, err := reobs.MarshalBinary()
+	require.NoError(t, err)
+
+	hashA := eth_crypto.Keccak256Hash(bufA).Hex()
+	hashB := eth_crypto.Keccak256Hash(bufB).Hex()
+
+	t.Logf("MessageID:                   %s", original.MessageIDString())
+	t.Logf("hash (IsReobservation=false): %s", hashA)
+	t.Logf("hash (IsReobservation=true):  %s", hashB)
+
+	require.Equal(t, hashA, hashB,
+		"signatures for the same VAA must land in the same delegate-quorum bucket "+
+			"regardless of IsReobservation; today MarshalBinary includes the flag, "+
+			"which splits the bucket and prevents quorum")
+}
+
+// TestDelegateQuorumIsReobservationDoesNotPreventQuorum models the field case
+// (chain 16 / seq 95838): 8 valid delegate signatures split 4/4 because some
+// guardians signed with IsReobservation=false and others with true. With a
+// delegated set size of 7, quorum is 5, so neither sub-bucket reaches quorum
+// today. This test asserts the desired behavior: all 8 signatures must land
+// in a single bucket and that bucket must reach quorum. It FAILS under current
+// code, proving the bug.
+func TestDelegateQuorumIsReobservationDoesNotPreventQuorum(t *testing.T) {
+	emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+	require.NoError(t, err)
+	base := func(isReobs bool) *MessagePublication {
+		return &MessagePublication{
+			TxID:             eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
+			Timestamp:        time.Unix(1746026862, 0),
+			Sequence:         95838,
+			ConsistencyLevel: 1,
+			EmitterChain:     vaa.ChainIDMoonbeam,
+			EmitterAddress:   emitter,
+			Payload:          []byte("payload"),
+			IsReobservation:  isReobs,
+		}
+	}
+
+	// The bucket-key derivation must come from the canonical's actual call site:
+	//   pkg/processor/observation.go:648 → Keccak256(MarshalBinary(mp)).Hex()
+	bucketKeyFor := func(isReobs bool) string {
+		buf, err := base(isReobs).MarshalBinary()
+		require.NoError(t, err)
+		return hex.EncodeToString(eth_crypto.Keccak256Hash(buf).Bytes())
+	}
+
+	// 8 distinct delegate guardians; 4 sign as original observation, 4 re-observed.
+	originalGuardians := []string{"000ac007", "178e21ad", "da798f68", "938f104a"}
+	reobsGuardians := []string{"178e21ad", "11b39756", "af45ced1", "f93124b7"}
+
+	buckets := map[string]int{}
+	for range originalGuardians {
+		buckets[bucketKeyFor(false)]++
+	}
+	for range reobsGuardians {
+		buckets[bucketKeyFor(true)]++
+	}
+
+	for hash, count := range buckets {
+		t.Logf("bucket %s: %d sigs", hash, count)
+	}
+
+	// Desired behavior: a single bucket holds every signature for this VAA.
+	require.Len(t, buckets, 1,
+		"all delegate signatures for the same VAA must land in one bucket, "+
+			"regardless of IsReobservation")
+
+	// And that bucket must clear quorum for a delegated set of 7 (CalculateQuorum = 5).
+	const setSize = 7
+	const quorum = (setSize*2)/3 + 1
+	for _, count := range buckets {
+		require.GreaterOrEqual(t, count, quorum,
+			"the merged bucket should reach quorum on its own")
 	}
 }
