@@ -223,7 +223,7 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 	go func() {
 		defer cancel()
 
-		streamNilRespCounter := 0
+		streamNilRespCounter := uint64(0)
 
 		for {
 			select {
