@@ -6,7 +6,6 @@ package suiclient
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
 	"math"
@@ -16,7 +15,7 @@ import (
 	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
@@ -289,9 +288,8 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 // Create a new SuiClient, with the gRPC service as iplementation.
 func NewSuiGrpcClient(rpcURL string, logger *zap.Logger) (SuiClient, error) {
 
-	creds := credentials.NewTLS(&tls.Config{})
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
 	conn, err := grpc.NewClient(rpcURL, opts...)
