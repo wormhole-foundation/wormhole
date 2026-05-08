@@ -41,6 +41,7 @@ type GrpcSubscriptionServiceClientInterface interface {
 // of mocks that return different data. Requiring the implementations of the interfaces to do additional parsing
 // is unnecessary.
 type SuiGrpcClient struct {
+	conn                        *grpc.ClientConn
 	logger                      *zap.Logger
 	pbLedgerServiceClient       GrpcLedgerServiceClientInterface       //pb.LedgerServiceClient
 	pbSubscriptionServiceClient GrpcSubscriptionServiceClientInterface //pb.SubscriptionServiceClient
@@ -328,15 +329,16 @@ func NewSuiGrpcClient(rpcURL string, logger *zap.Logger) (SuiClient, error) {
 		pbSubscriptionServiceClient: pb.NewSubscriptionServiceClient(conn),
 	}
 
-	return newSuiGrpcClientWithServices(logger, grpcLedgerServiceClient, grpcSubscriptionServiceClient), nil
+	return newSuiGrpcClientWithServices(logger, conn, grpcLedgerServiceClient, grpcSubscriptionServiceClient), nil
 }
 
 // A private function to construct the gRPC client from its most basic components. This is kept private, since the intended use for production is
 // via NewSuiGrpcClient, which creates live service clients.  For testing, this function can be used to supply mock versions of the service clients.
 // There is no need to check that `ledgerServiceClient` or `subscriptionServiceClient` is nil, because the intended use is via `NewSuiGrpcClient`,
 // which instantiates these objects.
-func newSuiGrpcClientWithServices(logger *zap.Logger, ledgerServiceClient GrpcLedgerServiceClientInterface, subscriptionServiceClient GrpcSubscriptionServiceClientInterface) SuiClient {
+func newSuiGrpcClientWithServices(logger *zap.Logger, conn *grpc.ClientConn, ledgerServiceClient GrpcLedgerServiceClientInterface, subscriptionServiceClient GrpcSubscriptionServiceClientInterface) SuiClient {
 	return &SuiGrpcClient{
+		conn:                        conn,
 		logger:                      logger,
 		pbLedgerServiceClient:       ledgerServiceClient,
 		pbSubscriptionServiceClient: subscriptionServiceClient,
