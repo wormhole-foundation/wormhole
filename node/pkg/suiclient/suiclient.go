@@ -6,8 +6,8 @@ import (
 
 const (
 	SuiRPCMainnet = "fullnode.mainnet.sui.io:443"
-	SuiRPCTestnet = "https://fullnode.testnet.sui.io:443"
-	SuiRPCDevnet  = "https://fullnode.devnet.sui.io:443"
+	SuiRPCTestnet = "fullnode.testnet.sui.io:443"
+	SuiRPCDevnet  = "fullnode.devnet.sui.io:443"
 )
 
 type SuiObject struct {

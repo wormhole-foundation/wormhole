@@ -6,8 +6,8 @@ package suiclient
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"log"
 	"math"
 	"slices"
 	"time"
@@ -15,7 +15,7 @@ import (
 	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
@@ -152,7 +152,7 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string) (SuiT
 
 	// gRPC call error check
 	if err != nil {
-		log.Fatalf("GetTransaction failed: %v", err)
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed: %v", err)
 	}
 
 	// nil-check for top-level properties
@@ -201,15 +201,16 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 		"transactions.events",
 	}
 
+	// Create a cancel context for use in the subscription
+	ctx, cancel := context.WithCancel(ctx)
+
 	// Create a stream
 	stream, err := s.createCheckpointStream(ctx, fields)
 
 	if err != nil {
+		cancel()
 		return SuiSubscription{}, fmt.Errorf("sui gRPC CheckpointStream creation failed: %v", err)
 	}
-
-	// Create a cancel context for use in the subscription
-	ctx, cancel := context.WithCancel(ctx)
 
 	// Set up subscription
 	errorChannel := make(chan error, 1)
@@ -225,61 +226,78 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 		streamNilRespCounter := uint64(0)
 
 		for {
-			select {
-			case <-ctx.Done():
-				s.logger.Debug("Closing Sui gRPC subscription")
-				return
-			default:
-				resp, err := stream.Recv()
+			// stream.Recv() is interrupeted automatically when the context is cancelled.
+			resp, err := stream.Recv()
 
-				// Note that the stream isn't ended here. It's up to the subscription creator to decide if they want to end the stream by
-				// unsubscribing from the subscription.
-				if err != nil {
-					errorChannel <- err
+			if err != nil {
+
+				// This is indicative of a context getting cancelled or a context timing out.
+				if ctx.Err() != nil {
+					s.logger.Debug("Closing Sui gRPC subscription")
+					return
 				}
 
-				// Check that the response and Checkpoint are non-nil before further processing.
-				if resp == nil || resp.Checkpoint == nil {
+				// An RPC communication error occurred. Note that this terminates the goroutine.
+				errorChannel <- err
+				return
+			}
 
-					// Whenever the stream produces nil, the nil responses counter is incremented. When the counter
-					// reaches a certain threshold, a debug log is produced.
-					streamNilRespCounter = streamNilRespCounter + 1
-					if streamNilRespCounter%SuiGrpcSteamNilThreshold == 0 {
-						s.logger.Debug("Sui gRPC nil response update", zap.Uint64("streamNilRespCounter", uint64(streamNilRespCounter)))
-					}
+			// Check that the response and Checkpoint are non-nil before further processing.
+			if resp == nil || resp.Checkpoint == nil {
 
+				// Whenever the stream produces nil, the nil responses counter is incremented. When the counter
+				// reaches a certain threshold, a debug log is produced.
+				streamNilRespCounter = streamNilRespCounter + 1
+				if streamNilRespCounter%SuiGrpcSteamNilThreshold == 0 {
+					s.logger.Debug("Sui gRPC nil response update", zap.Uint64("streamNilRespCounter", uint64(streamNilRespCounter)))
+				}
+
+				continue
+			}
+
+			executedTransactions := resp.Checkpoint.Transactions
+
+			// Iterate over all executed transactions.
+			for _, tx := range executedTransactions {
+
+				// If there are no events, proceed to next transaction
+				if tx.Events == nil || len(tx.Events.Events) == 0 {
 					continue
 				}
 
-				executedTransactions := resp.Checkpoint.Transactions
+				// Iterate over events.
+				for _, grpcEvent := range tx.Events.Events {
 
-				// Iterate over all executed transactions
-				for _, tx := range executedTransactions {
-
-					// If there are no events, proceed to next transaction
-					if tx.Events == nil || len(tx.Events.Events) == 0 {
+					// EventType cannot be nil.
+					if grpcEvent.EventType == nil {
 						continue
 					}
 
-					grpcEvents := tx.Events.Events
-
-					// Iterate over events
-					for _, grpcEvent := range grpcEvents {
-
-						// If the event types match, write it to the channel
-						if slices.Contains(eventTypes, *grpcEvent.EventType) {
-							suiEvent := grpcEventToSuiEvent(grpcEvent)
-
-							// Only write to the event channel if the gRPC Event -> SuiEvent conversion succeeded
-							if suiEvent != nil {
-								eventWriteChannel <- *suiEvent
-							}
-
-						}
+					// If the event type does not match the event types passed to the function, ignore it.
+					if !slices.Contains(eventTypes, *grpcEvent.EventType) {
+						continue
 					}
+
+					suiEvent := grpcEventToSuiEvent(grpcEvent)
+
+					// The grpcEvent was malformed, so ignore it.
+					if suiEvent == nil {
+						s.logger.Debug("Sui gRPC event was malformed")
+						continue
+					}
+
+					// Writing to eventWriteChannel could be blocking if there are no readers. Use a select to include
+					// a simultaneous check to bail out if the context is cancelled.
+					select {
+					case eventWriteChannel <- *suiEvent:
+					case <-ctx.Done():
+						return
+					}
+
 				}
 			}
 		}
+
 	}()
 
 	return subscription, nil
@@ -288,8 +306,12 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 // Create a new SuiClient, with the gRPC service as iplementation.
 func NewSuiGrpcClient(rpcURL string, logger *zap.Logger) (SuiClient, error) {
 
+	// Setting the minimum TLS version is a linting requirement, but should ideally be adheared to in production.
+	creds := credentials.NewTLS(&tls.Config{
+		MinVersion: tls.VersionTLS12,
+	})
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 	}
 
 	conn, err := grpc.NewClient(rpcURL, opts...)
