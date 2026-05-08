@@ -638,14 +638,11 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 		return nil
 	}
 
-	buf, err := mp.MarshalBinary()
-	if err != nil {
-		p.logger.Warn("failed to marshal message publication", mp.ZapFields(zap.Error(err))...)
-		delegateObservationsFailedTotal.WithLabelValues("invalid_message_publication").Inc()
-		return nil
-	}
-
-	hash := crypto.Keccak256Hash(buf).Hex()
+	// Key the delegate-state bucket by the VAA signing digest, matching the
+	// canonical observation path (pkg/processor/message.go:70). This excludes
+	// fields not encoded in the VAA (notably IsReobservation), so signatures
+	// from a partially-reobserved delegate set merge into one bucket.
+	hash := mp.CreateDigest()
 	s := p.delegateState.observations[hash]
 	if s != nil && s.submitted {
 		p.logger.Info("already submitted; ignoring additional observations for it",
@@ -757,12 +754,11 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 
 	delegateObservationsReceivedByGuardianAddressTotal.WithLabelValues(addr.Hex()).Inc()
 
-	buf, err := mp.MarshalBinary()
-	if err != nil {
-		p.logger.Warn("failed to marshal message publication", mp.ZapFields(zap.Error(err))...)
-		return nil
-	}
-	hash := crypto.Keccak256Hash(buf).Hex()
+	// Key the delegate-state bucket by the VAA signing digest, matching the
+	// canonical observation path (pkg/processor/message.go:70). This excludes
+	// fields not encoded in the VAA (notably IsReobservation), so signatures
+	// from a partially-reobserved delegate set merge into one bucket.
+	hash := mp.CreateDigest()
 
 	// Get / create our state entry.
 	s := p.delegateState.observations[hash]
