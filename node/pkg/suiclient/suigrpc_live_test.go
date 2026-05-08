@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -46,15 +46,16 @@ func TestGrpcClientGetObject(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Sample Object ID: https://suivision.xyz/object/0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9
 	objectId := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9"
 	obj, err := client.GetObject(ctx, objectId)
-	assert.NoError(t, err)
+
+	require.NoError(t, err)
 
 	state := DecodeBcs[WormholeState](obj.BcsBytes)
-	assert.NotNil(t, state)
+	require.NotNil(t, state)
 
 	fmt.Printf("[+] Object %s:\n", obj.ID)
 	fmt.Println("\tObjectType: ", obj.ObjectType)
@@ -85,13 +86,13 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Sample transaction block: https://suivision.xyz/txblock/55q6tfVjenQwG8Uyn5EDQBuAjZHbPqdDaB9t8qAhYgBi
 	transactionDigest := "HUcA9av3dfKgGmzZ8eiw157824Y1nBSEfmUHbo4fs9dS"
 	tx, err := client.GetTransaction(ctx, transactionDigest)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fmt.Println("[+] Transaction Digest: ", tx.Digest)
 	for _, ev := range tx.Events {
@@ -105,7 +106,7 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 		if ev.EventType == "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage" {
 			m := DecodeBcs[WormholeMessage](ev.BcsBytes)
 
-			assert.NotNil(t, m)
+			require.NotNil(t, m)
 
 			fmt.Println("\t\tMessage Publication:")
 			fmt.Println("\t\t\tSender: ", hex.EncodeToString(m.Sender[:]))
@@ -127,10 +128,10 @@ func TestGrpcClientGetCheckpointSN(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	sequenceNumber, err := client.GetLatestCheckpointSN(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	fmt.Println("Sequence Number: ", sequenceNumber)
 }
 
@@ -143,7 +144,7 @@ func TestGrpcClientSubscribeToEvents(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	eventTypes := []string{
 		"0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::order_info::OrderPlaced",
@@ -152,7 +153,7 @@ func TestGrpcClientSubscribeToEvents(t *testing.T) {
 
 	suiEventChan := make(chan SuiEvent)
 	subscription, err := client.SubscribeToEvents(ctx, eventTypes, suiEventChan)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer subscription.Unsubscribe()
 
 	ticker := time.NewTicker(5 * time.Second)

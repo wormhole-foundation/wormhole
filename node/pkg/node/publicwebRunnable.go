@@ -57,10 +57,8 @@ func publicwebServiceRunnable(
 	tlsCacheDir string,
 ) supervisor.Runnable {
 	return func(ctx context.Context) error {
-		conn, dialErr := grpc.DialContext(
-			ctx,
+		conn, dialErr := grpc.NewClient(
 			fmt.Sprintf("unix:///%s", upstreamAddr),
-			grpc.WithBlock(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if dialErr != nil {
 			return fmt.Errorf("failed to dial upstream: %s", dialErr)

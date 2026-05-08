@@ -1172,7 +1172,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Connect to wormchain for the accountant.
 		logger.Info("Connecting to wormchain for accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
-		accountantWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+		accountantWormchainConn, err = wormconn.NewConn(*wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain for accountant", zap.Error(err), zap.String("component", "gacct"))
 		}
@@ -1208,7 +1208,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Connect to wormchain for the NTT accountant.
 		logger.Info("Connecting to wormchain for NTT accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
-		accountantNttWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+		accountantNttWormchainConn, err = wormconn.NewConn(*wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain for NTT accountant", zap.Error(err), zap.String("component", "gacct"))
 		}
@@ -1242,7 +1242,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", wormchainKeyPathName), zap.String("component", "gwrelayer"))
-		gatewayRelayerWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+		gatewayRelayerWormchainConn, err = wormconn.NewConn(*wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
 		}
