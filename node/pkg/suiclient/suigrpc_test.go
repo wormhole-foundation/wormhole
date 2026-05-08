@@ -44,7 +44,7 @@ func FuzzSuiGrpcClientGetObject(f *testing.F) {
 
 	ledgerService := &MockLedgerServiceClient{}
 
-	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), ledgerService, nil)
+	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, ledgerService, nil)
 
 	corpusString := "random string"
 	corpusUint := uint64(0)
@@ -142,7 +142,7 @@ func FuzzSuiGrpcClientGetObject(f *testing.F) {
 func FuzzSuiGrpcClientGetCheckpoint(f *testing.F) {
 
 	ledgerService := &MockLedgerServiceClient{}
-	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), ledgerService, nil)
+	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, ledgerService, nil)
 
 	// Add a seed input for each property that can be nil
 	f.Add(true, false, uint64(0))
@@ -189,7 +189,7 @@ func FuzzSuiGrpcClientGetTransactionNoEvents(f *testing.F) {
 	// done separately.
 
 	ledgerService := &MockLedgerServiceClient{}
-	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), ledgerService, nil)
+	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, ledgerService, nil)
 
 	// Add a seed input for each property that can be nil
 	f.Add(true, false, false, "random string")

@@ -16,8 +16,11 @@ import (
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+const DialConnectTimeout = 10 * time.Second
 
 func allowCORSWrapper(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,9 +62,28 @@ func publicwebServiceRunnable(
 	return func(ctx context.Context) error {
 		conn, dialErr := grpc.NewClient(
 			fmt.Sprintf("unix:///%s", upstreamAddr),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
 		if dialErr != nil {
 			return fmt.Errorf("failed to dial upstream: %s", dialErr)
+		}
+
+		// grpc.NewClient does not support blocking dials. The following code attempts to preserve the old behaviour.
+		conn.Connect()
+		ctx, cancel := context.WithTimeout(ctx, DialConnectTimeout)
+		defer cancel()
+		for {
+			state := conn.GetState()
+
+			// If the connection is ready, just break from the loop.
+			if state == connectivity.Ready {
+				break
+			}
+
+			// Wait until the state changes.
+			if !conn.WaitForStateChange(ctx, state) {
+				panic("publicwebServiceRunnable failed to establish connection")
+			}
 		}
 
 		gwmux := runtime.NewServeMux()
