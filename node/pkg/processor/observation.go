@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -115,6 +116,29 @@ func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common
 	}
 
 	if !p.processWithNotary(k) || !p.processWithGovernor(k) {
+		return nil
+	}
+
+	return p.processWithAccountant(ctx, k)
+}
+
+// handleDelegateConsensusMessagePublication runs an MP that has reached
+// delegate-guardian quorum on a canonical guardian through governor and
+// accountant only. The notary is intentionally skipped: each delegate already
+// gated its own broadcast on its local notary (processor.go), and per-guardian
+// notary-managed fields (e.g. verificationState) are not part of consensus, so
+// running the canonical's notary here would couple signing to delegate build
+// lockstep and re-introduce the silent-stall failure mode.
+//
+// WARNING: like handleMessagePublication, an error from the accountant is
+// propagated to the processor and effectively acts as a panic.
+func (p *Processor) handleDelegateConsensusMessagePublication(ctx context.Context, k *node_common.MessagePublication) error {
+	if k == nil {
+		p.logger.Warn("nil message publication")
+		return nil
+	}
+
+	if !p.processWithGovernor(k) {
 		return nil
 	}
 
@@ -774,6 +798,29 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 		p.delegateState.observations[hash] = s
 	}
 
+	// Detect TxID disagreement among delegates for the same VAA. TxID is not
+	// part of the VAA digest and is not part of accountant's aggregation key,
+	// so different TxIDs do not affect quorum, signing, or accountant — but
+	// disagreement indicates a buggy or malicious delegate (or, rarely, a
+	// chain reorg) and is the only signal operators get for that. The
+	// downstream MP carries the bucket-majority TxID via consensusTxID, which
+	// is itself informational. This warn is the actionable piece.
+	for existingAddr, existing := range s.observations {
+		if existingAddr == addr {
+			continue
+		}
+		if !bytes.Equal(existing.TxHash, m.TxHash) {
+			p.logger.Warn("delegate TxID disagreement",
+				zap.String("msgID", mp.MessageIDString()),
+				zap.String("guardian_a", existingAddr.Hex()),
+				zap.String("txid_a", hex.EncodeToString(existing.TxHash)),
+				zap.String("guardian_b", addr.Hex()),
+				zap.String("txid_b", hex.EncodeToString(m.TxHash)),
+			)
+			break
+		}
+	}
+
 	// Update our state.
 	s.observations[addr] = m
 
@@ -843,5 +890,63 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 	}
 
 	s.submitted = true
-	return p.handleMessagePublication(ctx, mp)
+
+	// Pick a deterministic TxID for the canonical's downstream MP. This is
+	// informational only — TxID is not part of the VAA digest and is not part
+	// of accountant's aggregation key (the accountant contract aggregates by
+	// (chain, emitter, sequence); see pkg/accountant/submit_obs.go TransferKey).
+	// Picking a stable value just makes this canonical's logs, database row,
+	// and submitted observation payload consistent rather than reflecting
+	// whichever delegate's observation happened to push the bucket over quorum.
+	// Real divergence is surfaced separately by the warning log in
+	// handleCanonicalDelegateObservation.
+	if tx := s.consensusTxID(); tx != nil {
+		mp.TxID = tx
+	}
+
+	// Reset per-guardian metadata on the consensus MP so downstream processing
+	// doesn't depend on whichever delegate's observation happened to push the
+	// bucket over quorum.
+	mp.NormalizeForDelegateConsensus()
+	return p.handleDelegateConsensusMessagePublication(ctx, mp)
+}
+
+// consensusTxID returns the majority TxID across the bucket's observations,
+// breaking ties by lexicographic TxID order. The result is a pure function of
+// bucket contents — independent of cfg, delegate-set updates, and Go map
+// iteration order — so two canonicals with the same observations always pick
+// the same TxID. Returns nil for an empty bucket.
+//
+// NOTE: this is informational only. TxID is not part of the VAA signing
+// digest and is not part of accountant's aggregation key, so the choice does
+// not affect quorum, signing, or accountant correctness. Its only purpose is
+// to make a canonical's logs/persistence/observation payload deterministic
+// rather than last-writer-wins. Operationally meaningful TxID divergence is
+// surfaced by the "delegate TxID disagreement" warn log, not by this function.
+func (s *delegateState) consensusTxID() []byte {
+	type entry struct {
+		txID  []byte
+		count int
+	}
+	counts := map[string]*entry{}
+	for _, obs := range s.observations {
+		key := string(obs.TxHash)
+		if e, exists := counts[key]; exists {
+			e.count++
+		} else {
+			counts[key] = &entry{txID: obs.TxHash, count: 1}
+		}
+	}
+	var best *entry
+	for _, e := range counts {
+		if best == nil ||
+			e.count > best.count ||
+			(e.count == best.count && bytes.Compare(e.txID, best.txID) < 0) {
+			best = e
+		}
+	}
+	if best == nil {
+		return nil
+	}
+	return best.txID
 }

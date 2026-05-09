@@ -213,6 +213,37 @@ func (msg *MessagePublication) VerificationState() VerificationState {
 	return msg.verificationState
 }
 
+// NormalizeForDelegateConsensus resets per-guardian metadata to safe defaults
+// for an MP that is the product of delegate-guardian quorum on a canonical
+// guardian.
+//
+// The fields hashed into the VAA signing digest (Timestamp, Nonce, Sequence,
+// ConsistencyLevel, EmitterChain, EmitterAddress, Payload) are the consensus
+// inputs and are preserved. TxID is preserved as-is here; it is NOT part of
+// the VAA signing digest and is NOT part of accountant's aggregation key, so
+// its value here is informational only (logs, persistence, the bytes in the
+// canonical's accountant submission payload). Callers may set it to a
+// deterministic value before invoking this method for tidiness, but no
+// downstream consensus depends on it.
+//
+// The fields reset here are also per-guardian metadata, but unlike TxID they
+// have safe canonical defaults that don't depend on any single delegate:
+//
+//   - IsReobservation: forced true. Canonicals can't trigger a reobservation
+//     for a delegated chain (no watcher is running for it), so treat the
+//     consensus result as already a reobservation and avoid further cycles.
+//   - Unreliable: forced false. Solana-only shortcut for skipping cleanup;
+//     never appropriate for a delegate-derived MP.
+//   - verificationState: forced NotApplicable. The canonical did not verify
+//     the transaction itself, and per-guardian verification results are not
+//     part of consensus. NotApplicable matches the documented contract for
+//     "no verification was performed on this guardian."
+func (msg *MessagePublication) NormalizeForDelegateConsensus() {
+	msg.IsReobservation = true
+	msg.Unreliable = false
+	msg.verificationState = NotApplicable
+}
+
 // SetVerificationState is the setter for verificationState. Returns an error if called in a way that likely indicates a programming mistake.
 // This includes cases where:
 // - an existing state would be overwritten by the NotVerified state

@@ -966,6 +966,42 @@ func TestMessagePublication_IsWTT(t *testing.T) {
 	}
 }
 
+// TestNormalizeForDelegateConsensus verifies the per-guardian fields are reset
+// to safe defaults while consensus inputs (those hashed into CreateDigest) are
+// preserved.
+func TestNormalizeForDelegateConsensus(t *testing.T) {
+	emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+	require.NoError(t, err)
+
+	mp := &MessagePublication{
+		TxID:              eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
+		Timestamp:         time.Unix(1746026862, 0),
+		Nonce:             42,
+		Sequence:          95838,
+		ConsistencyLevel:  1,
+		EmitterChain:      vaa.ChainIDMoonbeam,
+		EmitterAddress:    emitter,
+		Payload:           []byte("payload"),
+		IsReobservation:   false,
+		Unreliable:        true,
+		verificationState: Anomalous, // start in a non-default state
+	}
+
+	digestBefore := mp.CreateDigest()
+
+	mp.NormalizeForDelegateConsensus()
+
+	// Per-guardian fields are reset to safe defaults.
+	require.True(t, mp.IsReobservation, "IsReobservation must be forced true")
+	require.False(t, mp.Unreliable, "Unreliable must be forced false")
+	require.Equal(t, NotApplicable, mp.VerificationState(),
+		"verificationState must be NotApplicable on canonical delegate-derived MPs")
+
+	// Fields hashed into the VAA digest are preserved — verified by digest stability.
+	require.Equal(t, digestBefore, mp.CreateDigest(),
+		"CreateDigest must be unchanged because the normalized fields are not part of the VAA digest")
+}
+
 // TestIsReobservationDoesNotSplitDelegateQuorumBucket asserts the protocol invariant
 // that two otherwise-identical MessagePublications differing only in IsReobservation
 // produce the SAME bucket key for the canonical guardian's delegate-quorum check
