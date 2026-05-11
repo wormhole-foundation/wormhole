@@ -1,16 +1,22 @@
 package processor
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	guardianNotary "github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
@@ -328,4 +334,178 @@ func TestHandleCanonicalDelegateObservation_TxIDDisagreementWarn(t *testing.T) {
 		assert.NotEmpty(t, fields["guardian_b"])
 		assert.NotEmpty(t, fields["msgID"])
 	}
+}
+
+// TestCheckForDelegateQuorum_ConsensusPathContract locks down the
+// security-relevant invariants of checkForDelegateQuorum that the other unit
+// tests in this file exercise only in isolation:
+//
+//   - the bucket-majority TxID is copied to the MP that downstream sees,
+//   - per-guardian metadata (IsReobservation, Unreliable, verificationState)
+//     is normalized to canonical-safe defaults before downstream is called,
+//   - the bucket is marked submitted so late observations are dropped,
+//   - the MP reaches handleMessage (i.e. downstream routing completes through
+//     processWithGovernor and processWithAccountant).
+//
+// All assertions are positive-existence checks: the test asserts that
+// specific mutations and side effects DID happen, rather than that some log
+// line did NOT appear.
+//
+// What this test does NOT verify:
+//
+//  1. That the notary is skipped on the delegate-consensus path. The notary
+//     in this setup is non-nil but, for Moonbeam, returns Approve immediately
+//     (txverifier doesn't support Moonbeam), so a regression that re-introduces
+//     processWithNotary into handleDelegateConsensusMessagePublication would
+//     still pass every assertion here. The notary-skip property is enforced
+//     by code review of handleDelegateConsensusMessagePublication's body
+//     (no call to processWithNotary). Asserting it positively in a test
+//     requires either pre-populating the notary's blackhole set (no public
+//     API for that today) or refactoring Processor.notary to an interface
+//     so a recording fake can be injected — neither is part of this PR.
+//
+//  2. That governor and accountant are individually invoked. They are nil
+//     here, so processWithGovernor and processWithAccountant pass through
+//     trivially. The state.signatures assertion below proves handleMessage
+//     was reached, which proves both wrappers returned the "continue" branch,
+//     but it doesn't distinguish "called and approved" from "skipped because
+//     nil". A regression that drops processWithGovernor entirely from the
+//     consensus handler wouldn't be caught here.
+//
+//  3. That handleDelegateConsensusMessagePublication (vs handleMessagePublication)
+//     is the function called. The mp mutations happen BEFORE the dispatch at
+//     the end of checkForDelegateQuorum, so they fire regardless of which
+//     handler is invoked. Distinguishing the two handlers requires the same
+//     interface-based fake described in (1).
+func TestCheckForDelegateQuorum_ConsensusPathContract(t *testing.T) {
+	signers := []ethcommon.Address{
+		ethcommon.HexToAddress("0x000ac0076727b35fbea2dac28fee5ccb0fea768e"),
+		ethcommon.HexToAddress("0x178e21ad2e77ae06711549cfbb1f9c7a9d8096e8"),
+		ethcommon.HexToAddress("0xda798f6896a3331f64b48c12d1d57fd9cbe70811"),
+		ethcommon.HexToAddress("0x938f104aeb5581293216ce97d771e0cb721221b1"),
+		ethcommon.HexToAddress("0x42579bffbcf4276e290ab8e4c162bd4052b97970"),
+	}
+	cfg, err := NewDelegatedGuardianChainConfig(signers, vaa.CalculateQuorum(len(signers)))
+	require.NoError(t, err)
+
+	// Mixed TxIDs across the bucket: 3× txMaj, 2× txMin → txMaj is the majority.
+	// txMin is lexicographically smaller than txMaj, so a buggy implementation
+	// that fell back to lex-smallest regardless of count would pick txMin and
+	// fail the TxID assertion below.
+	txMaj := ethcommon.HexToHash("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb").Bytes()
+	txMin := ethcommon.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").Bytes()
+	txAssign := [][]byte{txMaj, txMaj, txMaj, txMin, txMin}
+
+	bucket := &delegateState{
+		firstObserved: time.Now(),
+		observations:  map[ethcommon.Address]*gossipv1.DelegateObservation{},
+		cfg:           cfg,
+	}
+	for i, sg := range signers {
+		bucket.observations[sg] = makeDelegateObs(t, sg, txAssign[i], false)
+	}
+
+	// Build a minimal-but-real Processor: enough state for handleMessage to
+	// run to completion (which is the downstream we want to observe), but
+	// nothing more. We use a non-nil notary to mirror the production setup —
+	// the canonical guardian DOES have a notary configured; the contract
+	// under test is that it's not consulted on the delegate-consensus path.
+	guardianDB := db.OpenDb(zap.NewNop(), nil)
+	t.Cleanup(func() { _ = guardianDB.Close() })
+	notary := guardianNotary.NewNotary(context.Background(), zap.NewNop(), guardianDB, common.GoTest)
+
+	ourSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	require.NoError(t, err)
+	ourAddr := crypto.PubkeyToAddress(ourSigner.PublicKey(t.Context()))
+
+	// 19-key guardian set so a single signature can't reach quorum and trigger
+	// HandleQuorum (which would pull in storeSignedVAA / broadcastSignedVAA).
+	// We only need handleMessage to run far enough to create the state entry.
+	gsKeys := make([]ethcommon.Address, 0, 19)
+	gsKeys = append(gsKeys, ourAddr)
+	for range 18 {
+		filler, fillerErr := crypto.GenerateKey()
+		require.NoError(t, fillerErr)
+		gsKeys = append(gsKeys, crypto.PubkeyToAddress(filler.PublicKey))
+	}
+	gs := common.NewGuardianSet(gsKeys, 0)
+
+	p := &Processor{
+		logger:         zap.NewNop(),
+		notary:         notary,
+		guardianSigner: ourSigner,
+		ourAddr:        ourAddr,
+		gs:             gs,
+		state:          &aggregationState{signatures: observationMap{}},
+		delegateState:  &delegateAggregationState{delegateObservationMap{}},
+		batchObsvPubC:  make(chan *gossipv1.Observation, 8),
+		gossipVaaSendC: make(chan []byte, 8),
+		updateVAALock:  sync.Mutex{},
+		updatedVAAs:    make(map[string]*updateVaaEntry),
+	}
+
+	emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+	require.NoError(t, err)
+
+	// mp going in has non-default per-guardian metadata. After quorum, those
+	// fields must be normalized regardless of what the trigger observation
+	// carried. TxID is set to the minority value so a regression that forgets
+	// to overwrite mp.TxID would leave the minority value in place.
+	mp := &common.MessagePublication{
+		TxID:             txMin,
+		Timestamp:        time.Unix(1746026862, 0),
+		Nonce:            0,
+		Sequence:         95838,
+		ConsistencyLevel: 1,
+		EmitterChain:     vaa.ChainIDMoonbeam,
+		EmitterAddress:   emitter,
+		Payload:          []byte("payload"),
+		IsReobservation:  false, // must be forced to true
+		Unreliable:       true,  // must be forced to false
+	}
+	require.NoError(t, mp.SetVerificationState(common.Anomalous)) // must be forced to NotApplicable
+
+	// The state entry handleMessage creates will be keyed by the VAA signing
+	// digest. CreateDigest hashes only the consensus fields (none of which
+	// NormalizeForDelegateConsensus touches), so this digest is stable across
+	// the call.
+	expectedHash := mp.CreateDigest()
+	require.Empty(t, p.state.signatures, "precondition: state map is empty before the call")
+
+	require.NoError(t, p.checkForDelegateQuorum(t.Context(), mp, bucket, cfg))
+
+	// Bucket-state contract: late observations for this digest must now be dropped.
+	require.True(t, bucket.submitted, "bucket must be marked submitted after quorum")
+
+	// MP-mutation contract — these are positive fingerprints that the
+	// delegate-consensus code path executed (NormalizeForDelegateConsensus and
+	// consensusTxID are only ever called from checkForDelegateQuorum).
+	assert.Equal(t, txMaj, mp.TxID,
+		"canonical MP must carry the bucket-majority TxID, not the trigger observation's TxID")
+	assert.True(t, mp.IsReobservation,
+		"IsReobservation must be normalized to true on canonical delegate-consensus MPs")
+	assert.False(t, mp.Unreliable,
+		"Unreliable must be normalized to false on canonical delegate-consensus MPs")
+	assert.Equal(t, common.NotApplicable, mp.VerificationState(),
+		"verificationState must be normalized to NotApplicable on canonical delegate-consensus MPs")
+
+	// Downstream-routing contract: the MP must have flowed through
+	// handleDelegateConsensusMessagePublication → processWithGovernor →
+	// processWithAccountant → handleMessage. handleMessage's side effect is
+	// to create p.state.signatures[hash] and populate s.txHash + s.signatures
+	// with our local signature. Asserting the entry exists is positive
+	// evidence the consensus handler routed correctly all the way through.
+	require.Len(t, p.state.signatures, 1,
+		"handleMessage must have created exactly one state entry for the consensus MP")
+	stateEntry := p.state.signatures[expectedHash]
+	require.NotNil(t, stateEntry, "state entry must be keyed by mp.CreateDigest()")
+	assert.Equal(t, txMaj, stateEntry.txHash,
+		"state entry must carry the consensus TxID (majority pick), not the trigger TxID")
+	assert.Contains(t, stateEntry.signatures, ourAddr,
+		"state entry must hold our own signature, produced by handleMessage")
+	require.NotNil(t, stateEntry.ourObservation, "state entry must hold the signed observation")
+	assert.True(t, stateEntry.ourObservation.IsReobservation(),
+		"signed observation must carry the normalized Reobservation=true flag")
+	assert.True(t, stateEntry.ourObservation.IsReliable(),
+		"signed observation must carry the normalized Unreliable=false flag (IsReliable returns !Unreliable)")
 }
