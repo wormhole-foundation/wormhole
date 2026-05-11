@@ -463,7 +463,7 @@ func TestCheckForDelegateQuorum_ConsensusPathContract(t *testing.T) {
 		IsReobservation:  false, // must be forced to true
 		Unreliable:       true,  // must be forced to false
 	}
-	require.NoError(t, mp.SetVerificationState(common.Anomalous)) // must be forced to NotApplicable
+	require.NoError(t, mp.SetVerificationState(common.Anomalous)) // must be forced to NotVerified
 
 	// The state entry handleMessage creates will be keyed by the VAA signing
 	// digest. CreateDigest hashes only the consensus fields (none of which
@@ -486,8 +486,8 @@ func TestCheckForDelegateQuorum_ConsensusPathContract(t *testing.T) {
 		"IsReobservation must be normalized to true on canonical delegate-consensus MPs")
 	assert.False(t, mp.Unreliable,
 		"Unreliable must be normalized to false on canonical delegate-consensus MPs")
-	assert.Equal(t, common.NotApplicable, mp.VerificationState(),
-		"verificationState must be normalized to NotApplicable on canonical delegate-consensus MPs")
+	assert.Equal(t, common.NotVerified, mp.VerificationState(),
+		"verificationState must be normalized to NotVerified on canonical delegate-consensus MPs")
 
 	// Downstream-routing contract: the MP must have flowed through
 	// handleDelegateConsensusMessagePublication → processWithGovernor →

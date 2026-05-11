@@ -32,28 +32,23 @@ func (p *Processor) publishDelegateObservation(d *gossipv1.DelegateObservation) 
 // delegateObservationToMessagePublication converts a DelegateObservation into a MessagePublication that can be passed through the normal processor pipeline.
 // Returns error on invalid delegate observation input.
 //
-// VERSION SKEW: several of the checks below are forward-incompatible — a
-// delegate guardian on a newer build can produce values that an older
-// canonical rejects here, causing the observation to be dropped before it
-// reaches the delegate-quorum bucket. Two cases are particularly relevant:
+// VERSION SKEW: the NumVariantsVerificationState check below is
+// forward-incompatible in a way worth flagging: a delegate guardian on a
+// newer build that adds a VerificationState variant will produce observations
+// the canonical rejects here, even though the canonical's consensus path
+// normalizes this field away (NormalizeForDelegateConsensus → NotVerified).
+// If enough delegates upgrade ahead of canonicals, the silently-dropped
+// observations reduce the effective quorum count and reintroduce the stall
+// pattern — operators only see the per-observation "failed to convert
+// delegate observation to message publication" warn, with no aggregated
+// signal that quorum is being denied. When extending VerificationState,
+// either deploy canonicals first or relax this check.
 //
-//   - KnownChainIDFromNumber: a new chain ID added on delegates ahead of
-//     canonicals is rejected. This is the intended behavior — the canonical
-//     genuinely cannot reason about a chain it doesn't know — but it does
-//     mean enabling delegated guardians for a new chain requires canonicals
-//     to be updated first.
-//
-//   - NumVariantsVerificationState: a new VerificationState variant added on
-//     delegates is rejected even though the canonical's consensus path
-//     normalizes this field away (NormalizeForDelegateConsensus → NotApplicable).
-//     If enough delegates upgrade ahead of canonicals, the silently-dropped
-//     observations reduce the effective quorum count and re-introduce the
-//     stall pattern — operators only see the per-observation
-//     "failed to convert delegate observation to message publication" warns,
-//     not a per-message symptom.
-//
-// When introducing changes that touch either check, plan canonical-first or
-// add explicit forward-compat handling here.
+// The KnownChainIDFromNumber check has the same forward-incompatibility
+// shape but is not flagged separately: a canonical that doesn't know an
+// emitter chain can't reason about it downstream anyway (governor wouldn't
+// catch transfers from it, etc.), so the deploy-ordering constraint isn't
+// specific to delegated guardians.
 func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*node_common.MessagePublication, error) {
 	if d == nil {
 		return nil, fmt.Errorf("nil delegate observation")

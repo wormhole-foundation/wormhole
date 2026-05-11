@@ -122,13 +122,38 @@ func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common
 	return p.processWithAccountant(ctx, k)
 }
 
-// handleDelegateConsensusMessagePublication runs an MP that has reached
-// delegate-guardian quorum on a canonical guardian through governor and
-// accountant only. The notary is intentionally skipped: each delegate already
-// gated its own broadcast on its local notary (processor.go), and per-guardian
-// notary-managed fields (e.g. verificationState) are not part of consensus, so
-// running the canonical's notary here would couple signing to delegate build
-// lockstep and re-introduce the silent-stall failure mode.
+// handleDelegateConsensusMessagePublication is the downstream pipeline for an
+// MP that has reached delegate-guardian quorum on a canonical guardian. It
+// runs governor + accountant, in that order, and (intentionally) skips the
+// notary.
+//
+// Why the notary is skipped:
+//
+// The notary inspects per-guardian, per-transaction state — the transfer
+// verifier's verdict, the canonical's local blackhole/delay queue — none of
+// which is an input to delegate consensus. Each delegate already consulted
+// its own notary before broadcasting (see processor.go's delegate-publish
+// path), and per-guardian notary-managed fields like verificationState are
+// normalized away on the consensus MP (see NormalizeForDelegateConsensus).
+//
+// Running the canonical's notary at this point would gate publication of
+// the consensus VAA on state the canonical maintains locally rather than on
+// consensus state. The canonical has no watcher for a delegated chain, so
+// the local state could be:
+//   - Empty (no transfer-verifier verdict was ever recorded), in which case
+//     the notary may return Unknown and the message stalls.
+//   - Inconsistent with delegates' view (e.g. canonical's blackhole queue
+//     contains the message ID for unrelated reasons), in which case the
+//     notary returns Blackhole and the canonical silently refuses to sign
+//     despite enough delegates having approved.
+//
+// In both cases delegate quorum has been reached, but the canonical never
+// publishes its signature and operators only see a per-canonical notary log
+// — no aggregated signal that signing is being suppressed. Skipping the
+// notary here keeps consensus signing dependent only on consensus inputs.
+//
+// A future change may re-introduce a notary check here that is compatible
+// with the delegate guardian set conditions.
 //
 // WARNING: like handleMessagePublication, an error from the accountant is
 // propagated to the processor and effectively acts as a panic.
@@ -663,7 +688,7 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 	}
 
 	// Key the delegate-state bucket by the VAA signing digest, matching the
-	// canonical observation path (pkg/processor/message.go:70). This excludes
+	// canonical observation path (pkg/processor/message.go). This excludes
 	// fields not encoded in the VAA (notably IsReobservation), so signatures
 	// from a partially-reobserved delegate set merge into one bucket.
 	hash := mp.CreateDigest()
@@ -779,7 +804,7 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	delegateObservationsReceivedByGuardianAddressTotal.WithLabelValues(addr.Hex()).Inc()
 
 	// Key the delegate-state bucket by the VAA signing digest, matching the
-	// canonical observation path (pkg/processor/message.go:70). This excludes
+	// canonical observation path (pkg/processor/message.go). This excludes
 	// fields not encoded in the VAA (notably IsReobservation), so signatures
 	// from a partially-reobserved delegate set merge into one bucket.
 	hash := mp.CreateDigest()
@@ -799,12 +824,19 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	}
 
 	// Detect TxID disagreement among delegates for the same VAA. TxID is not
-	// part of the VAA digest and is not part of accountant's aggregation key,
-	// so different TxIDs do not affect quorum, signing, or accountant — but
-	// disagreement indicates a buggy or malicious delegate (or, rarely, a
-	// chain reorg) and is the only signal operators get for that. The
-	// downstream MP carries the bucket-majority TxID via consensusTxID, which
-	// is itself informational. This warn is the actionable piece.
+	// part of the VAA signing digest, so disagreement does not split delegate
+	// quorum here on the canonical — but TxID IS part of the global-accountant
+	// contract's per-entry match (see the TxID field godoc on
+	// common.MessagePublication), so if canonicals submit divergent TxIDs to
+	// the accountant their signatures land in separate pending entries and
+	// quorum is counted per entry. consensusTxID picks the bucket-majority
+	// TxID for the downstream MP, which converges canonicals when the
+	// majority is stable under observation arrival order — i.e. the typical
+	// case where one TxID dominates. With a near-even split (e.g. 4/3 of 7)
+	// two canonicals can still bucket-at-quorum-time with different majorities
+	// and submit different TxIDs; the audit / missing_observations reobs flow
+	// is what eventually recovers that. This warn surfaces the underlying
+	// delegate disagreement to operators regardless.
 	for existingAddr, existing := range s.observations {
 		if existingAddr == addr {
 			continue
@@ -891,15 +923,22 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 
 	s.submitted = true
 
-	// Pick a deterministic TxID for the canonical's downstream MP. This is
-	// informational only — TxID is not part of the VAA digest and is not part
-	// of accountant's aggregation key (the accountant contract aggregates by
-	// (chain, emitter, sequence); see pkg/accountant/submit_obs.go TransferKey).
-	// Picking a stable value just makes this canonical's logs, database row,
-	// and submitted observation payload consistent rather than reflecting
-	// whichever delegate's observation happened to push the bucket over quorum.
-	// Real divergence is surfaced separately by the warning log in
-	// handleCanonicalDelegateObservation.
+	// Pick a deterministic TxID for the canonical's downstream MP. TxID is
+	// not part of the VAA signing digest, so any value here produces the same
+	// VAA — but TxID IS part of the global-accountant contract's per-entry
+	// match within a pending transfer (see the TxID field godoc on
+	// common.MessagePublication). Picking the bucket-majority TxID
+	// deterministically — same delegate observations → same choice — converges
+	// canonicals onto the same tx_hash for the accountant in the typical case
+	// where one TxID has a clear majority that doesn't depend on observation
+	// arrival order. With a near-even TxID split, two canonicals whose buckets
+	// reach quorum at different observation subsets can still pick different
+	// majorities and submit different TxIDs, splitting signatures across
+	// accountant entries; the audit / missing_observations reobs flow handles
+	// recovery in that case. Picking deterministically also makes the
+	// canonical's logs, database row, and submitted observation payload stable
+	// rather than last-writer-wins. Delegate disagreement is surfaced
+	// separately by the warning log in handleCanonicalDelegateObservation.
 	if tx := s.consensusTxID(); tx != nil {
 		mp.TxID = tx
 	}
@@ -917,12 +956,20 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 // iteration order — so two canonicals with the same observations always pick
 // the same TxID. Returns nil for an empty bucket.
 //
-// NOTE: this is informational only. TxID is not part of the VAA signing
-// digest and is not part of accountant's aggregation key, so the choice does
-// not affect quorum, signing, or accountant correctness. Its only purpose is
-// to make a canonical's logs/persistence/observation payload deterministic
-// rather than last-writer-wins. Operationally meaningful TxID divergence is
-// surfaced by the "delegate TxID disagreement" warn log, not by this function.
+// Determinism here matters for accountant convergence: TxID is part of the
+// global-accountant contract's per-entry match within a pending transfer
+// (see the TxID field godoc on common.MessagePublication), so if canonicals
+// submit differing TxIDs for the same VAA the contract splits signatures
+// across separate Data entries and quorum is counted per entry. A
+// deterministic majority pick converges canonicals onto the same tx_hash
+// in the typical case where one TxID has a clear majority that's stable
+// under arrival-order reshuffling. It does NOT guarantee convergence when
+// canonicals' buckets reach quorum at different observation subsets and the
+// TxID split is near-even — two canonicals can correctly compute different
+// majorities from different bucket states. Recovery for that case relies on
+// the audit / missing_observations reobs flow rather than on this pick.
+// Operationally meaningful divergence among delegates is surfaced separately
+// by the "delegate TxID disagreement" warn log.
 func (s *delegateState) consensusTxID() []byte {
 	type entry struct {
 		txID  []byte

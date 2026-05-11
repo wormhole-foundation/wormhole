@@ -994,8 +994,8 @@ func TestNormalizeForDelegateConsensus(t *testing.T) {
 	// Per-guardian fields are reset to safe defaults.
 	require.True(t, mp.IsReobservation, "IsReobservation must be forced true")
 	require.False(t, mp.Unreliable, "Unreliable must be forced false")
-	require.Equal(t, NotApplicable, mp.VerificationState(),
-		"verificationState must be NotApplicable on canonical delegate-derived MPs")
+	require.Equal(t, NotVerified, mp.VerificationState(),
+		"verificationState must be NotVerified on canonical delegate-derived MPs — the canonical did not attempt verification")
 
 	// Fields hashed into the VAA digest are preserved — verified by digest stability.
 	require.Equal(t, digestBefore, mp.CreateDigest(),
@@ -1006,7 +1006,7 @@ func TestNormalizeForDelegateConsensus(t *testing.T) {
 // that two otherwise-identical MessagePublications differing only in IsReobservation
 // produce the SAME bucket key for the canonical guardian's delegate-quorum check
 // (pkg/processor/observation.go). The bucket key must match the canonical
-// observation path's key (pkg/processor/message.go:70 — the VAA SigningDigest,
+// observation path's key (pkg/processor/message.go — the VAA SigningDigest,
 // which is what CreateDigest returns), so that signatures across original and
 // re-observation flows merge into a single bucket.
 func TestIsReobservationDoesNotSplitDelegateQuorumBucket(t *testing.T) {
@@ -1067,7 +1067,7 @@ func TestDelegateQuorumIsReobservationDoesNotPreventQuorum(t *testing.T) {
 	}
 
 	// The bucket-key derivation must match the canonical observation path
-	// (pkg/processor/message.go:70 → v.SigningDigest()), which is exactly what
+	// (pkg/processor/message.go → v.SigningDigest()), which is exactly what
 	// MessagePublication.CreateDigest() returns.
 	bucketKeyFor := func(isReobs bool) string {
 		return base(isReobs).CreateDigest()
