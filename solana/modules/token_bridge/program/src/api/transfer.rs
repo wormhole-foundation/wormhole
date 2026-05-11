@@ -110,6 +110,8 @@ pub fn transfer_native(
     accs: &mut TransferNative,
     data: TransferNativeData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Prevent transferring to the same chain.
     if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
@@ -311,6 +313,8 @@ pub fn transfer_wrapped(
     accs: &mut TransferWrapped,
     data: TransferWrappedData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Prevent transferring to the same chain.
     if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());

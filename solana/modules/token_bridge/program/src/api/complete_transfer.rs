@@ -76,6 +76,8 @@ pub fn complete_native(
     accs: &mut CompleteNative,
     _data: CompleteNativeData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
     accs.chain_registration
@@ -207,6 +209,8 @@ pub fn complete_wrapped(
     accs: &mut CompleteWrapped,
     _data: CompleteWrappedData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
     accs.chain_registration

@@ -422,6 +422,69 @@ mod helpers {
         .await
     }
 
+    #[allow(dead_code)]
+    pub async fn set_pauser_addresses(
+        client: &mut BanksClient,
+        program: Pubkey,
+        bridge: Pubkey,
+        message_acc: Pubkey,
+        vaa: PostVAAData,
+        payer: &Keypair,
+    ) -> Result<(), BanksClientError> {
+        let instruction =
+            instructions::set_pauser_addresses(program, bridge, payer.pubkey(), message_acc, vaa)
+                .expect("Could not create SetPauserAddresses instruction");
+
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instruction],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    #[allow(dead_code)]
+    pub async fn pause(
+        client: &mut BanksClient,
+        program: Pubkey,
+        pauser: &Keypair,
+        payer: &Keypair,
+    ) -> Result<(), BanksClientError> {
+        let instruction = instructions::pause(program, pauser.pubkey())
+            .expect("Could not create Pause instruction");
+
+        execute(
+            client,
+            payer,
+            &[payer, pauser],
+            &[instruction],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    #[allow(dead_code)]
+    pub async fn unpause(
+        client: &mut BanksClient,
+        program: Pubkey,
+        unpauser: &Keypair,
+        payer: &Keypair,
+    ) -> Result<(), BanksClientError> {
+        let instruction = instructions::unpause(program, unpauser.pubkey())
+            .expect("Could not create Unpause instruction");
+
+        execute(
+            client,
+            payer,
+            &[payer, unpauser],
+            &[instruction],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
     pub async fn complete_native(
         client: &mut BanksClient,
         program: Pubkey,
