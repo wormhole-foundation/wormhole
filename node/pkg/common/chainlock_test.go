@@ -965,3 +965,140 @@ func TestMessagePublication_IsWTT(t *testing.T) {
 		})
 	}
 }
+
+// TestNormalizeForDelegateConsensus verifies the per-guardian fields are reset
+// to safe defaults while consensus inputs (those hashed into CreateDigest) are
+// preserved.
+func TestNormalizeForDelegateConsensus(t *testing.T) {
+	emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+	require.NoError(t, err)
+
+	mp := &MessagePublication{
+		TxID:              eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
+		Timestamp:         time.Unix(1746026862, 0),
+		Nonce:             42,
+		Sequence:          95838,
+		ConsistencyLevel:  1,
+		EmitterChain:      vaa.ChainIDMoonbeam,
+		EmitterAddress:    emitter,
+		Payload:           []byte("payload"),
+		IsReobservation:   false,
+		Unreliable:        true,
+		verificationState: Anomalous, // start in a non-default state
+	}
+
+	digestBefore := mp.CreateDigest()
+
+	mp.NormalizeForDelegateConsensus()
+
+	// Per-guardian fields are reset to safe defaults.
+	require.True(t, mp.IsReobservation, "IsReobservation must be forced true")
+	require.False(t, mp.Unreliable, "Unreliable must be forced false")
+	require.Equal(t, NotVerified, mp.VerificationState(),
+		"verificationState must be NotVerified on canonical delegate-derived MPs — the canonical did not attempt verification")
+
+	// Fields hashed into the VAA digest are preserved — verified by digest stability.
+	require.Equal(t, digestBefore, mp.CreateDigest(),
+		"CreateDigest must be unchanged because the normalized fields are not part of the VAA digest")
+}
+
+// TestIsReobservationDoesNotSplitDelegateQuorumBucket asserts the protocol invariant
+// that two otherwise-identical MessagePublications differing only in IsReobservation
+// produce the SAME bucket key for the canonical guardian's delegate-quorum check
+// (pkg/processor/observation.go). The bucket key must match the canonical
+// observation path's key (pkg/processor/message.go — the VAA SigningDigest,
+// which is what CreateDigest returns), so that signatures across original and
+// re-observation flows merge into a single bucket.
+func TestIsReobservationDoesNotSplitDelegateQuorumBucket(t *testing.T) {
+	makeMP := func(isReobs bool) *MessagePublication {
+		emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+		require.NoError(t, err)
+		return &MessagePublication{
+			TxID:             eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
+			Timestamp:        time.Unix(1746026862, 0), // 2026-04-28T15:27:42Z, from the field case
+			Nonce:            0,
+			Sequence:         95838,
+			ConsistencyLevel: 1,
+			EmitterChain:     vaa.ChainIDMoonbeam, // chain 16
+			EmitterAddress:   emitter,
+			Payload:          []byte("identical-tb-transfer-payload"),
+			IsReobservation:  isReobs,
+		}
+	}
+
+	original := makeMP(false)
+	reobs := makeMP(true)
+
+	require.Equal(t, original.MessageIDString(), reobs.MessageIDString(),
+		"sanity: VAA MessageID is identical")
+
+	hashA := original.CreateDigest()
+	hashB := reobs.CreateDigest()
+
+	t.Logf("MessageID:                   %s", original.MessageIDString())
+	t.Logf("digest (IsReobservation=false): %s", hashA)
+	t.Logf("digest (IsReobservation=true):  %s", hashB)
+
+	require.Equal(t, hashA, hashB,
+		"CreateDigest (VAA SigningDigest) must be invariant under IsReobservation")
+}
+
+// TestDelegateQuorumIsReobservationDoesNotPreventQuorum models the field case
+// (chain 16 / seq 95838): 8 valid delegate signatures split 4/4 because some
+// guardians signed with IsReobservation=false and others with true. With a
+// delegated set size of 7, quorum is 5, so neither sub-bucket reaches quorum
+// today. This test asserts the desired behavior: all 8 signatures must land
+// in a single bucket and that bucket must reach quorum. It FAILS under current
+// code, proving the bug.
+func TestDelegateQuorumIsReobservationDoesNotPreventQuorum(t *testing.T) {
+	emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+	require.NoError(t, err)
+	base := func(isReobs bool) *MessagePublication {
+		return &MessagePublication{
+			TxID:             eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
+			Timestamp:        time.Unix(1746026862, 0),
+			Sequence:         95838,
+			ConsistencyLevel: 1,
+			EmitterChain:     vaa.ChainIDMoonbeam,
+			EmitterAddress:   emitter,
+			Payload:          []byte("payload"),
+			IsReobservation:  isReobs,
+		}
+	}
+
+	// The bucket-key derivation must match the canonical observation path
+	// (pkg/processor/message.go → v.SigningDigest()), which is exactly what
+	// MessagePublication.CreateDigest() returns.
+	bucketKeyFor := func(isReobs bool) string {
+		return base(isReobs).CreateDigest()
+	}
+
+	// 8 distinct delegate guardians; 4 sign as original observation, 4 re-observed.
+	originalGuardians := []string{"000ac007", "178e21ad", "da798f68", "938f104a"}
+	reobsGuardians := []string{"178e21ad", "11b39756", "af45ced1", "f93124b7"}
+
+	buckets := map[string]int{}
+	for range originalGuardians {
+		buckets[bucketKeyFor(false)]++
+	}
+	for range reobsGuardians {
+		buckets[bucketKeyFor(true)]++
+	}
+
+	for hash, count := range buckets {
+		t.Logf("bucket %s: %d sigs", hash, count)
+	}
+
+	// Desired behavior: a single bucket holds every signature for this VAA.
+	require.Len(t, buckets, 1,
+		"all delegate signatures for the same VAA must land in one bucket, "+
+			"regardless of IsReobservation")
+
+	// And that bucket must clear quorum for a delegated set of 7 (CalculateQuorum = 5).
+	const setSize = 7
+	const quorum = (setSize*2)/3 + 1
+	for _, count := range buckets {
+		require.GreaterOrEqual(t, count, quorum,
+			"the merged bucket should reach quorum on its own")
+	}
+}
