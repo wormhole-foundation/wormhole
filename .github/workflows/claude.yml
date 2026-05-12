@@ -116,6 +116,7 @@ jobs:
             - **Self-check for contradictions**: After drafting each finding, re-read it and ask: does any sentence weaken or contradict the severity I assigned? If so, either downgrade the severity or remove the hedging language. Never flag something and then immediately explain why it is probably fine.
             - **Be concise**: No filler, no praise, no emoji. State the issue, show the problematic code, explain the fix. 2-4 sentences per finding.
             - **Respect the codebase**: Use CONTRIBUTING.md and SAFETY_CRITICAL_MODE.md for guidance on style, conventions, and project context. Follow existing patterns when suggesting fixes.
+            - **Code Quality**: Follow DRY: identify code reuse opportunities especially for common operations that can be done by standard library calls, common libraries (e.g. go-ethereum), or the project's sdk/ methods.
 
             ### Before Submitting Your Review
 

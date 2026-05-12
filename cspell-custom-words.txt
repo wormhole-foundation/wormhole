@@ -55,6 +55,8 @@ Cyfrin
 datagram
 denoms
 devnet
+doclink
+doclinks
 Dogecoin
 dymension
 Dymension
