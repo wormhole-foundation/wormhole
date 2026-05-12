@@ -9,7 +9,8 @@ FROM --platform=linux/amd64 node:22.16-bullseye-slim@sha256:550b434f7edc3a187586
 RUN apt-get update && apt-get -y install \
   git python make curl netcat vim
 
-RUN npm i typescript -g
+# keep in sync with sdk/js/package.json
+RUN npm i typescript@4.3.5 -g
 RUN apt-get -y install jq
 
 COPY --from=foundry /usr/local/bin/anvil /bin/anvil
