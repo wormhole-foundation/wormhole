@@ -5,7 +5,7 @@
 .FORCE:
 
 node_modules:
-	yarn
+	yarn install --frozen-lockfile
 
 artifacts:
 	cd ../../solana && \
