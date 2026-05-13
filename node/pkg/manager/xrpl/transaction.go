@@ -15,6 +15,28 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+const (
+	// xrplBaseFeeDrops is the XRPL base fee per signer in drops. The total fee
+	// for a multisigned transaction is xrplBaseFeeDrops * (N+1) where N is the
+	// number of signers.
+	xrplBaseFeeDrops = 12
+	// xrplBurnFeeDrops is the per-signer fee used for burn (no-op AccountSet)
+	// transactions that replace a previously submitted transaction. It must be
+	// at least 25% higher than the original fee.
+	xrplBurnFeeDrops = 15
+	// secp256k1CompressedPubKeyLen is the length of a compressed secp256k1 public key.
+	secp256k1CompressedPubKeyLen = 33
+
+	// DER signature encoding constants.
+	derSequenceTag = 0x30 // ASN.1 SEQUENCE tag
+	derIntegerTag  = 0x02 // ASN.1 INTEGER tag
+	// derFixedOverhead is the fixed byte overhead inside the DER SEQUENCE body:
+	// integer tag + length byte for r, plus integer tag + length byte for s.
+	derFixedOverhead = 4
+	// derSequenceHeaderLen is the SEQUENCE tag byte plus the total-length byte.
+	derSequenceHeaderLen = 2
+)
+
 // BuildPaymentTransaction builds and flattens an XRPL Payment transaction for multisigning.
 // The m parameter is the required number of signers in the manager set (used for fee calculation).
 // The returned map is ready for binary-codec encoding.
@@ -59,7 +81,7 @@ func BuildPaymentTransaction(payload *vaa.XRPLReleasePayload, m uint8) (transact
 	}
 
 	// Deterministic fee: 12 drops base fee * (N+1) for multisig
-	fee := uint64(m+1) * 12
+	fee := uint64(m+1) * xrplBaseFeeDrops
 
 	// Convert memos
 	memos := make([]types.MemoWrapper, 0, len(payload.Memos))
@@ -114,7 +136,7 @@ func BuildTicketCreateTransaction(payload *vaa.XRPLTicketRefillPayload, m uint8)
 	}
 
 	// Deterministic fee: 12 drops base fee * (M+1) for multisig
-	fee := uint64(m+1) * 12
+	fee := uint64(m+1) * xrplBaseFeeDrops
 
 	// Build TicketCreate transaction
 	ticketCreate := &transaction.TicketCreate{
@@ -152,7 +174,7 @@ func BuildBurnTicketTransaction(payload *vaa.XRPLBurnTicketPayload, m uint8) (tr
 
 	// Deterministic fee: 15 drops base fee * (M+1) for multisig
 	// NOTE: this must be at least 25% higher than the fee of the transaction being replaced
-	fee := uint64(m+1) * 15
+	fee := uint64(m+1) * xrplBurnFeeDrops
 
 	// Build AccountSet no-op transaction (no flags or fields set)
 	accountSet := &transaction.AccountSet{
@@ -206,17 +228,17 @@ func EncodeDERSignature(r, s []byte) []byte {
 
 	rLen := len(r)
 	sLen := len(s)
-	totalLen := 4 + rLen + sLen // 0x02 + rLen + r + 0x02 + sLen + s
+	totalLen := derFixedOverhead + rLen + sLen // 0x02 + rLen + r + 0x02 + sLen + s
 
-	sig := make([]byte, 0, totalLen+2) // +2 for 0x30 and totalLen
-	sig = append(sig, 0x30)            // DER sequence tag
-	sig = append(sig, byte(totalLen))  // Total length
-	sig = append(sig, 0x02)            // Integer tag for r
-	sig = append(sig, byte(rLen))      // r length
-	sig = append(sig, r...)            // r value
-	sig = append(sig, 0x02)            // Integer tag for s
-	sig = append(sig, byte(sLen))      // s length
-	sig = append(sig, s...)            // s value
+	sig := make([]byte, 0, totalLen+derSequenceHeaderLen) // +2 for 0x30 and totalLen
+	sig = append(sig, derSequenceTag)                     // DER sequence tag
+	sig = append(sig, byte(totalLen))                     // Total length
+	sig = append(sig, derIntegerTag)                      // Integer tag for r
+	sig = append(sig, byte(rLen))                         // r length
+	sig = append(sig, r...)                               // r value
+	sig = append(sig, derIntegerTag)                      // Integer tag for s
+	sig = append(sig, byte(sLen))                         // s length
+	sig = append(sig, s...)                               // s value
 
 	return sig
 }
@@ -244,8 +266,8 @@ func AccountIDToAddress(accountID []byte) (string, error) {
 
 // CompressedPubKeyToAddress derives an XRPL classic address from a compressed secp256k1 public key.
 func CompressedPubKeyToAddress(compressedPubKey []byte) (string, error) {
-	if len(compressedPubKey) != 33 {
-		return "", fmt.Errorf("invalid compressed public key length: expected 33, got %d", len(compressedPubKey))
+	if len(compressedPubKey) != secp256k1CompressedPubKeyLen {
+		return "", fmt.Errorf("invalid compressed public key length: expected %d, got %d", secp256k1CompressedPubKeyLen, len(compressedPubKey))
 	}
 	pubKeyHex := hex.EncodeToString(compressedPubKey)
 	return addresscodec.EncodeClassicAddressFromPublicKeyHex(pubKeyHex)

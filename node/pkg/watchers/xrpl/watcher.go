@@ -27,6 +27,18 @@ import (
 
 // NOTE: This watcher conforms to the guidelines in ../README.md
 
+const (
+	// txChanBufferSize is the buffer size of the transaction channel between
+	// the WebSocket handler and the main processing loop.
+	txChanBufferSize = 100
+	// ledgerHeightPollInterval is how often we poll the validated ledger index
+	// for metrics and readiness reporting.
+	ledgerHeightPollInterval = 5 * time.Second
+	// subscriptionRetryDelay is how long to wait before reconnecting after a
+	// subscription error.
+	subscriptionRetryDelay = 5 * time.Second
+)
+
 // Prometheus metrics
 var (
 	xrplConnectionErrors = promauto.NewCounterVec(
@@ -127,7 +139,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	w.parser = NewParser(w.contract, w.nttAccounts, w.fetchMPTAssetScale)
 
 	// Create the transaction channel once - handlers will write to this channel
-	w.txChan = make(chan *streamtypes.TransactionStream, 100)
+	w.txChan = make(chan *streamtypes.TransactionStream, txChanBufferSize)
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
@@ -150,7 +162,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 					logger.Error("Subscription error, reconnecting", zap.Error(err))
 					xrplConnectionErrors.WithLabelValues("subscription_error").Inc()
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDXRPL, 1)
-					time.Sleep(time.Second * 5)
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case <-time.After(subscriptionRetryDelay):
+					}
 				}
 			}
 		}
@@ -158,7 +174,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// GOROUTINE 2: Ledger index tracking (for metrics/heartbeat)
 	common.RunWithScissors(ctx, errC, "xrpl_ledger_height", func(ctx context.Context) error {
-		ticker := time.NewTicker(time.Second * 5)
+		ticker := time.NewTicker(ledgerHeightPollInterval)
 		defer ticker.Stop()
 
 		for {

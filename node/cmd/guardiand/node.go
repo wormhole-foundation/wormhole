@@ -1733,7 +1733,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		wc := &xrpl.WatcherConfig{
 			NetworkID:   "xrpl",
 			ChainID:     vaa.ChainIDXRPL,
-			Rpc:         *xrplRPC,
+			RPC:         *xrplRPC,
 			Contract:    *xrplContract,
 			NttAccounts: *xrplNttAccounts,
 		}

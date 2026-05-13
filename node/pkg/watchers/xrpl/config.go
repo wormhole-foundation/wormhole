@@ -13,7 +13,7 @@ import (
 type WatcherConfig struct {
 	NetworkID   watchers.NetworkID // Human-readable name: "xrpl"
 	ChainID     vaa.ChainID        // vaa.ChainIDXRPL (66)
-	Rpc         string             // XRPL WebSocket endpoint URL
+	RPC         string             // XRPL WebSocket endpoint URL
 	Contract    string
 	NttAccounts []string // NTT manager accounts to subscribe to
 }
@@ -38,7 +38,7 @@ func (wc *WatcherConfig) Create(
 	var devMode = (env == common.UnsafeDevNet)
 
 	watcher := NewWatcher(
-		wc.Rpc,
+		wc.RPC,
 		wc.Contract,
 		wc.NttAccounts,
 		devMode,

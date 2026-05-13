@@ -52,14 +52,24 @@ const (
 
 // NTT constants
 const (
-	memoDataLength        = 72 // Length of memo data: prefix(4) + recipientNTTManager(32) + recipientAddress(32) + recipientChain(2) + fromDecimals(1) + toDecimals(1)
-	tokenTypeXRP          = 0x00
-	tokenTypeIssued       = 0x01
-	tokenTypeMPT          = 0x02
-	xrpDecimals           = 6
-	maxNTTDecimals        = 8
-	nttManagerPayloadLen  = 145 // Fixed length of NTT manager payload: id(32) + sender(32) + payload_length(2) + internal(79)
-	nttInternalPayloadLen = 79  // Internal payload: prefix(4) + decimals(1) + amount(8) + source_token(32) + recipient_address(32) + recipient_chain(2)
+	memoDataLength               = 72 // Length of memo data: prefix(4) + recipientNTTManager(32) + recipientAddress(32) + recipientChain(2) + fromDecimals(1) + toDecimals(1)
+	tokenTypeXRP                 = 0x00
+	tokenTypeIssued              = 0x01
+	tokenTypeMPT                 = 0x02
+	xrpDecimals                  = 6
+	maxNTTDecimals               = 8
+	nttManagerPayloadLen         = 145 // Fixed length of NTT manager payload: id(32) + sender(32) + payload_length(2) + internal(79)
+	nttInternalPayloadLen        = 79  // Internal payload: prefix(4) + decimals(1) + amount(8) + source_token(32) + recipient_address(32) + recipient_chain(2)
+	xtcfPayloadLen               = 20  // XTCF payload: prefix(4) + ticket_start(8) + ticket_count(8)
+	coreMemoMinLen               = 5   // Minimum core memo data length: version(1) + nonce(4)
+	transceiverMessagePayloadLen = 217 // Full NTT TransceiverMessage payload length
+	ledgerIndexShift             = 32  // Bits to shift ledger index when packing sequence
+	decimalBase                  = 10  // Base for decimal string parsing
+	scientificMantissaParts      = 2   // SplitN count for mantissa "<int>.<frac>"
+	nonStandardCurrencyHexLen    = 40  // Non-standard currency hex length (20 bytes * 2)
+	normalizedCurrencyLen        = 20  // Internal canonical currency representation length
+	mptIssuanceIDLen             = 24  // MPT issuance ID byte length
+	nttEmitterDomainLen          = 3   // Length of "ntt" emitter domain prefix
 )
 
 // tesSUCCESS is the XRPL transaction result code for successful transactions
@@ -204,12 +214,12 @@ func (p *Parser) parseNttTransaction(
 	}
 
 	// Validate transaction result is tesSUCCESS
-	if err := p.validateTransactionResult(tx); err != nil {
+	if err = p.validateTransactionResult(tx); err != nil {
 		return nil, err
 	}
 
 	// Validate transaction type is Payment
-	if err := p.validateTransactionType(tx.Transaction); err != nil {
+	if err = p.validateTransactionType(tx.Transaction); err != nil {
 		return nil, err
 	}
 
@@ -294,6 +304,7 @@ func (p *Parser) parseNttTransaction(
 		Payload:          payload,
 		ConsistencyLevel: 0, // XRPL validated ledgers are final
 		IsReobservation:  false,
+		Unreliable:       false,
 	}, nil
 }
 
@@ -345,12 +356,12 @@ func (p *Parser) parseCoreTransaction(tx GenericTx) (*common.MessagePublication,
 	}
 
 	// Validate transaction result is tesSUCCESS
-	if err := p.validateTransactionResult(tx); err != nil {
+	if err = p.validateTransactionResult(tx); err != nil {
 		return nil, err
 	}
 
 	// Validate transaction type is Payment
-	if err := p.validateTransactionType(tx.Transaction); err != nil {
+	if err = p.validateTransactionType(tx.Transaction); err != nil {
 		return nil, err
 	}
 
@@ -375,6 +386,7 @@ func (p *Parser) parseCoreTransaction(tx GenericTx) (*common.MessagePublication,
 		Payload:          coreMemo.payload,
 		ConsistencyLevel: 0,
 		IsReobservation:  false,
+		Unreliable:       false,
 	}, nil
 }
 
@@ -436,8 +448,8 @@ func (p *Parser) parseCoreMessageMemoData(tx transaction.FlatTransaction) (*core
 	}
 
 	// Minimum length: 1 (version) + 4 (nonce) = 5 bytes
-	if len(data) < 5 {
-		return nil, fmt.Errorf("core memo data too short: got %d bytes, need at least 5", len(data))
+	if len(data) < coreMemoMinLen {
+		return nil, fmt.Errorf("core memo data too short: got %d bytes, need at least %d", len(data), coreMemoMinLen)
 	}
 
 	// Validate version
@@ -535,7 +547,7 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 	ticketCount := uint64(len(ticketSequences))
 
 	// Build XTCF payload (20 bytes)
-	payload := make([]byte, 20)
+	payload := make([]byte, xtcfPayloadLen)
 	copy(payload[0:4], xtcfPrefix[:])
 	binary.BigEndian.PutUint64(payload[4:12], ticketStart)
 	binary.BigEndian.PutUint64(payload[12:20], ticketCount)
@@ -561,6 +573,7 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 		Payload:          payload,
 		ConsistencyLevel: 0,
 		IsReobservation:  false,
+		Unreliable:       false,
 	}, nil
 }
 
@@ -683,6 +696,7 @@ func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication,
 		Payload:          payload,
 		ConsistencyLevel: 0,
 		IsReobservation:  false,
+		Unreliable:       false,
 	}, nil
 }
 
@@ -704,7 +718,7 @@ func (p *Parser) extractTxHashAndSequence(tx GenericTx) ([]byte, uint64, error) 
 		return nil, 0, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
 	}
 
-	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
+	sequence := (uint64(tx.LedgerIndex.Uint32()) << ledgerIndexShift) | tx.MetaTransactionIndex
 	return txHash, sequence, nil
 }
 
@@ -1031,7 +1045,7 @@ func (p *Parser) parseDecimalToUint64(valueStr string, targetDecimals uint8) (ui
 		return 0, nil
 	}
 
-	intVal, ok := new(big.Int).SetString(combined, 10)
+	intVal, ok := new(big.Int).SetString(combined, decimalBase)
 	if !ok {
 		return 0, fmt.Errorf("failed to parse decimal value %q: invalid number", valueStr)
 	}
@@ -1081,10 +1095,10 @@ func normalizeDecimal(s string) (string, bool, error) {
 	}
 
 	// Separate mantissa digits from its decimal point position.
-	parts := strings.SplitN(mantissa, ".", 2)
+	parts := strings.SplitN(mantissa, ".", scientificMantissaParts)
 	intDigits := parts[0]
 	fracDigits := ""
-	if len(parts) == 2 {
+	if len(parts) == scientificMantissaParts {
 		fracDigits = parts[1]
 	}
 
@@ -1140,7 +1154,7 @@ func (p *Parser) normalizeCurrency(currency string) ([20]byte, error) {
 	}
 
 	// Check if it's a hex string (40 characters = 20 bytes)
-	if len(currency) == 40 {
+	if len(currency) == nonStandardCurrencyHexLen {
 		// Non-standard currency code (hex encoded)
 		decoded, err := hex.DecodeString(currency)
 		if err != nil {
@@ -1180,9 +1194,9 @@ func (p *Parser) calculateTrustLineSourceToken(currency, issuer string) ([32]byt
 	}
 
 	// Concatenate and hash
-	data := make([]byte, 20+len(accountID))
-	copy(data[:20], normalizedCurrency[:])
-	copy(data[20:], accountID)
+	data := make([]byte, normalizedCurrencyLen+len(accountID))
+	copy(data[:normalizedCurrencyLen], normalizedCurrency[:])
+	copy(data[normalizedCurrencyLen:], accountID)
 
 	hash := ethcrypto.Keccak256(data)
 
@@ -1238,8 +1252,8 @@ func (p *Parser) calculateMPTSourceToken(mptID string) ([32]byte, error) {
 		return sourceToken, fmt.Errorf("failed to decode mpt_issuance_id: %w", err)
 	}
 
-	if len(mptIDBytes) != 24 {
-		return sourceToken, fmt.Errorf("invalid mpt_issuance_id length: got %d bytes, want 24", len(mptIDBytes))
+	if len(mptIDBytes) != mptIssuanceIDLen {
+		return sourceToken, fmt.Errorf("invalid mpt_issuance_id length: got %d bytes, want %d", len(mptIDBytes), mptIssuanceIDLen)
 	}
 
 	// Set token type prefix and left-pad the ID
@@ -1282,10 +1296,11 @@ func (p *Parser) scaleAmount(amount uint64, fromDecimals, toDecimals uint8) (uin
 // calculateEmitterAddress calculates the emitter address from source NTT manager and source token.
 // emitter = keccak256("ntt" + source_ntt_manager_address + source_token)
 func (p *Parser) calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte) vaa.Address {
-	data := make([]byte, 3+64)
-	copy(data[:3], "ntt")
-	copy(data[3:35], sourceNTTManager[:])
-	copy(data[35:], sourceToken[:])
+	const addrLen = len(sourceNTTManager)
+	data := make([]byte, nttEmitterDomainLen+2*addrLen)
+	copy(data[:nttEmitterDomainLen], "ntt")
+	copy(data[nttEmitterDomainLen:nttEmitterDomainLen+addrLen], sourceNTTManager[:])
+	copy(data[nttEmitterDomainLen+addrLen:], sourceToken[:])
 
 	hash := ethcrypto.Keccak256(data)
 
@@ -1311,7 +1326,7 @@ func (p *Parser) buildNTTPayload(
 	// NTT Manager Payload: 32 + 32 + 2 + 4 + 1 + 8 + 32 + 32 + 2 = 145 bytes
 	// Transceiver payload length: 2 bytes
 	// Total: 70 + 145 + 2 = 217 bytes
-	payload := make([]byte, 217)
+	payload := make([]byte, transceiverMessagePayloadLen)
 	offset := 0
 
 	// TransceiverMessage prefix (4 bytes)
