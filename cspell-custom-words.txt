@@ -184,9 +184,9 @@ runtimes
 rustup
 satoshi
 satoshis
+SECG
 secp
 SECQ
-SECG
 seda
 seievm
 Sepolia
@@ -223,14 +223,15 @@ uatom
 uluna
 unbond
 Uncompromised
+undelegated
 undercollateralization
 unforgeable
 unichain
 Unichain
-undelegated
 unmarshal
 unmarshals
 unnormalize
+unpauser
 untampered
 upserted
 utest
