@@ -106,11 +106,11 @@ be mapped to this identifier. A wrapped asset may only ever be created once for 
 
 ### Pausing
 
-The token bridge supports an emergency pause for use during an active exploit. While paused, every entry point reverts except for governance handlers and `unpause`. Two roles control the pause state: a `pauser` may call `pause` to set `paused` to `true`, and an `unpauser` may call `unpause` to set it back to `false`. Both roles are configured per chain via a `SetPauserAddresses` governance message.
+The token bridge supports an emergency pause for use during an active exploit. While paused, every entry point reverts except for governance handlers, `pause` (no-op), and `unpause`. Two roles control the pause state: a `pauser` may call `pause` to set `paused` to `true`, and an `unpauser` may call `unpause` to set it back to `false`. Both roles are configured per chain via a `SetPauserAddresses` governance message.
 
-The `pauser` and `unpauser` are kept as separate roles to allow for asymmetric authority between the two assigned addresses - for example, a 2/3 multisig empowered to pause while Wormhole governance is retained for unpause.
+The `pauser` and `unpauser` are kept as separate roles to allow for asymmetric authority between the two assigned addresses - for example, a 2/3 multisig empowered to pause while Wormhole governance is retained for unpause. These SHOULD be effectively different roles, but this is intentionally not enforced on-chain or in the Guardian VAA generation process.
 
-Either role may be left unset. A zero-length value or an all-zero address (of the target chain's native address size) is treated as the role being unassigned, and the corresponding entry point reverts. This allows governance to disable `pause` or `unpause` without removing the entry point - for example, leaving `pauser` unassigned on chains where pause authority is not yet desired, or zeroing a key suspected of compromise without first provisioning its replacement. If `unpauser` is unassigned while the bridge is paused, recovery requires Wormhole governance to first assign a non-zero `unpauser` via `SetPauserAddresses`.
+Either role may be left unset. A zero-length value or an all-zero address (of the target chain's native address size) is treated as the role being unassigned. When a role is unassigned, the corresponding entry point MUST revert before comparing the caller against the configured role. Implementations MUST NOT treat an all-zero address as an authorized caller. This allows governance to disable `pause` or `unpause` without removing the entry point - for example, leaving `pauser` unassigned on chains where pause authority is not yet desired, or zeroing a key suspected of compromise without first provisioning its replacement. If `unpauser` is unassigned while the bridge is paused, recovery requires Wormhole governance to first assign a non-zero `unpauser` via `SetPauserAddresses`.
 
 ### Handling of token amounts and decimals
 
@@ -300,6 +300,8 @@ UnpauserLen uint8
 Unpauser [UnpauserLen]uint8
 ```
 
+Implementations MUST perform length-based validation for `SetPauserAddresses` on the target runtime, ensuring each address is an expected length (e.g. 20 bytes for EVM, 32 bytes for SVM) and that there are no remaining bytes after parsing the two addresses.
+
 ## Caveats
 
 ### Transfer completion
@@ -321,7 +323,9 @@ Thus, any client wishing to present these as strings must validate them first, p
 
 ### Backwards compatibility of the pause check
 
-Adding the `paused` check is fully backwards compatible on EVM and Solana. On Solana, the bridge already passes the `config` account on all relevant instructions, so no client-side changes are required to begin enforcing the new check.
+Adding the `paused` check is interface backwards compatible on EVM and Solana. On Solana, the bridge already passes the `config` account on all relevant instructions, so no client-side changes are required to begin enforcing the new check.
+
+However, deploying pause support updates existing contract state. For example, the SVM implementation resizes account data and there is no built-in rollback path to the exact pre-upgrade state. This should not break existing deployments, but integrators, SDKs, and off-chain indexers that assume the previous storage layout or account size may need to account for the new pause fields.
 
 ## Alternatives Considered
 
