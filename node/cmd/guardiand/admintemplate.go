@@ -94,6 +94,10 @@ var delegatedManagerThreshold *string
 var delegatedManagerNumKeys *string
 var delegatedManagerPublicKeys *string
 
+var tokenBridgeSetPauserAddressesTargetChainId *string
+var tokenBridgeSetPauserAddressesPauser *string
+var tokenBridgeSetPauserAddressesUnpauser *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -269,6 +273,15 @@ func init() {
 	delegatedManagerPublicKeys = delegatedManagerFlagSet.String("public-keys", "", "Comma-separated list of compressed secp256k1 public keys (33 bytes each, hex-encoded)")
 	AdminClientDelegatedManagerSetUpdateCmd.Flags().AddFlagSet(delegatedManagerFlagSet)
 	TemplateCmd.AddCommand(AdminClientDelegatedManagerSetUpdateCmd)
+
+	// flags for the token-bridge-set-pauser-addresses command
+	tokenBridgeSetPauserAddressesFlagSet := pflag.NewFlagSet("token-bridge-set-pauser-addresses", pflag.ExitOnError)
+	tokenBridgeSetPauserAddressesTargetChainId = tokenBridgeSetPauserAddressesFlagSet.String("target-chain-id", "", "Target chain ID (name or uint16) where the pauser addresses should be set")
+	tokenBridgeSetPauserAddressesPauser = tokenBridgeSetPauserAddressesFlagSet.String("pauser", "", "Pauser address as hex (with or without 0x prefix), in the target chain's native size. Leave empty to unassign the role.")
+	tokenBridgeSetPauserAddressesUnpauser = tokenBridgeSetPauserAddressesFlagSet.String("unpauser", "", "Unpauser address as hex (with or without 0x prefix), in the target chain's native size. Leave empty to unassign the role.")
+	AdminClientTokenBridgeSetPauserAddressesCmd.Flags().AddFlagSet(tokenBridgeSetPauserAddressesFlagSet)
+	AdminClientTokenBridgeSetPauserAddressesCmd.Flags().AddFlagSet(moduleFlagSet)
+	TemplateCmd.AddCommand(AdminClientTokenBridgeSetPauserAddressesCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -438,6 +451,12 @@ var AdminClientDelegatedManagerSetUpdateCmd = &cobra.Command{
 	Run:   runDelegatedManagerSetUpdateTemplate,
 }
 
+var AdminClientTokenBridgeSetPauserAddressesCmd = &cobra.Command{
+	Use:   "token-bridge-set-pauser-addresses",
+	Short: "Generate a token bridge SetPauserAddresses governance VAA template (whitepaper 0003)",
+	Run:   runTokenBridgeSetPauserAddressesTemplate,
+}
+
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	// Use deterministic devnet addresses as examples in the template, such that this doubles as a test fixture.
 	guardians := make([]*nodev1.GuardianSetUpdate_Guardian, *setUpdateNumGuardians)
@@ -572,6 +591,81 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal("failed to marshal request: ", err)
 	}
 	fmt.Print(string(b))
+}
+
+func runTokenBridgeSetPauserAddressesTemplate(cmd *cobra.Command, args []string) {
+	if *module == "" {
+		log.Fatal("--module must be specified.")
+	}
+	// SetPauserAddresses is defined by whitepaper 0003 (token bridge) only.
+	if *module != vaa.TokenBridgeModuleName {
+		log.Fatalf("--module must be %q (got %q)", vaa.TokenBridgeModuleName, *module)
+	}
+	if *tokenBridgeSetPauserAddressesTargetChainId == "" {
+		log.Fatal("--target-chain-id must be specified.")
+	}
+	targetChainID, err := vaa.StringToKnownChainID(*tokenBridgeSetPauserAddressesTargetChainId)
+	if err != nil {
+		log.Fatal("failed to parse target chain id: ", err)
+	}
+
+	pauser, err := parsePauserAddressHex(*tokenBridgeSetPauserAddressesPauser)
+	if err != nil {
+		log.Fatal("failed to parse pauser: ", err)
+	}
+	unpauser, err := parsePauserAddressHex(*tokenBridgeSetPauserAddressesUnpauser)
+	if err != nil {
+		log.Fatal("failed to parse unpauser: ", err)
+	}
+
+	// The pauser/unpauser are kept as separate roles to allow asymmetric
+	// authority (whitepaper 0003). Setting them to the same value collapses
+	// that asymmetry and removes the higher-trust unpause path, so flag it -
+	// but the design permits it for flexibility.
+	if pauser != "" && pauser == unpauser {
+		log.Println("WARNING: --pauser and --unpauser are the same address. This removes the intended higher-trust unpause path. Use only if symmetric pause/unpause authority is intentional.")
+	}
+
+	seq, nonce := randSeqNonce()
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_BridgeSetPauserAddresses{
+					BridgeSetPauserAddresses: &nodev1.BridgeSetPauserAddresses{
+						Module:        *module,
+						TargetChainId: uint32(targetChainID),
+						Pauser:        pauser,
+						Unpauser:      unpauser,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+// parsePauserAddressHex parses a pauser/unpauser address argument and returns
+// the lower-case hex encoding used on the wire (no 0x prefix). An empty input
+// returns an empty string, which the admin server interprets as the role being
+// unassigned.
+//
+// The on-chain contract enforces that non-empty addresses match the target
+// chain's native address size, so this helper preserves the caller-supplied
+// length verbatim - unlike parseAddress, which left-pads to 32 bytes.
+func parsePauserAddressHex(s string) (string, error) {
+	b, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
+	if err != nil {
+		return "", fmt.Errorf("invalid hex address: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func runRecoverChainIdTemplate(cmd *cobra.Command, args []string) {

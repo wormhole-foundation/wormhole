@@ -310,6 +310,54 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 	return v, nil
 }
 
+// tokenBridgeSetPauserAddresses converts a nodev1.BridgeSetPauserAddresses message to its canonical VAA representation.
+// Returns an error if the data is invalid.
+func tokenBridgeSetPauserAddresses(req *nodev1.BridgeSetPauserAddresses, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.Module != vaa.TokenBridgeModuleName {
+		return nil, fmt.Errorf("unknown module %q (expected %q)", req.Module, vaa.TokenBridgeModuleName)
+	}
+
+	chainID, err := vaa.KnownChainIDFromNumber[uint32](req.TargetChainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert target_chain_id: %w", err)
+	}
+
+	pauser, err := decodePauserAddress("pauser", req.Pauser)
+	if err != nil {
+		return nil, err
+	}
+	unpauser, err := decodePauserAddress("unpauser", req.Unpauser)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := vaa.BodyTokenBridgeSetPauserAddresses{
+		Module:        req.Module,
+		TargetChainID: chainID,
+		Pauser:        pauser,
+		Unpauser:      unpauser,
+	}.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	return vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body), nil
+}
+
+// decodePauserAddress decodes a hex pauser/unpauser address string. An empty
+// string decodes to an empty slice, which the serializer encodes as a
+// zero-length address - i.e. the role being unassigned.
+func decodePauserAddress(field, s string) ([]byte, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s address encoding (expected hex): %w", field, err)
+	}
+	if len(b) > math.MaxUint8 {
+		return nil, fmt.Errorf("invalid %s address: %d bytes exceeds max %d", field, len(b), math.MaxUint8)
+	}
+	return b, nil
+}
+
 // tokenBridgeUpgradeContract converts a nodev1.TokenBridgeRegisterChain message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
@@ -930,6 +978,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_BridgeContractUpgrade:
 		v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_BridgeSetPauserAddresses:
+		v, err = tokenBridgeSetPauserAddresses(payload.BridgeSetPauserAddresses, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_RecoverChainId:
 		v, err = recoverChainId(payload.RecoverChainId, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_AccountantModifyBalance:

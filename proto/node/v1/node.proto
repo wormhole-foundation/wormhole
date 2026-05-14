@@ -173,6 +173,9 @@ message GovernanceMessage {
     // Transfer collected fees from the core bridge fee account to a recipient
     // (whitepaper 0004).
     CoreBridgeTransferFees core_bridge_transfer_fees = 34;
+
+    // Set the pauser/unpauser addresses on a token bridge (whitepaper 0003).
+    BridgeSetPauserAddresses bridge_set_pauser_addresses = 35;
   }
 }
 
@@ -263,6 +266,25 @@ message BridgeUpgradeContract {
 
   // Hex-encoded address (without leading 0x) of the new program/contract.
   string new_contract = 3;
+}
+
+// BridgeSetPauserAddresses sets the pauser and unpauser addresses on the
+// token bridge (whitepaper 0003). Each address is length-prefixed on the
+// wire; an empty string leaves the role unassigned. Non-empty addresses must
+// match the target chain's native address size (e.g. 20 bytes on EVM, 32
+// bytes on Solana); the receiving contract is authoritative for that check.
+message BridgeSetPauserAddresses {
+  // Module identifier. Only "TokenBridge" is supported.
+  string module = 1;
+
+  // ID of the chain where the pauser/unpauser addresses should be set (uint16).
+  uint32 target_chain_id = 2;
+
+  // Hex-encoded pauser address (without leading 0x). Empty leaves the role unassigned.
+  string pauser = 3;
+
+  // Hex-encoded unpauser address (without leading 0x). Empty leaves the role unassigned.
+  string unpauser = 4;
 }
 
 message RecoverChainId {
