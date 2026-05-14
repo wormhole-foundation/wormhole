@@ -499,6 +499,20 @@ CLI flags for the guardian:
 
 This feature shows up in the guardian heartbeats as `solshim`
 
+## Enabling the Fogo shim
+
+CLI flags for the guardian:
+
+<!-- cspell:disable -->
+
+```shell
+--solanaShimContract=[solana shim address]
+```
+
+<!-- cspell:enable -->
+
+This feature shows up in the guardian heartbeats as `solshim`
+
 ## Enabling the delegated guardian set
 
 Get the delegated guardians contract address from the [wormhole contract addresses reference](https://wormhole.com/docs/products/reference/contract-addresses/#delegated-guardians)
@@ -534,7 +548,7 @@ This enables the global accountant for WTT and NTT transfers:
 
 <!-- cspell:enable -->
 
-This feature shows up in the guardian heartbeats as `acct:ntt-acct` in enforcing mode and `acct-logonly:ntt-acct` without `accountantCheckEnabled`.
+This feature shows up in the guardian heartbeats as `acct:ntt-acct` in enforcing mode when NTT is enabled. It shows up as `acct-logonly:ntt-acct` without `accountantCheckEnabled`. It will just show up as `acct` if NTT is not enabled.
 
 ## Running a public API endpoint
 
