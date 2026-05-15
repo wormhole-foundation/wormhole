@@ -778,6 +778,126 @@ var adminCommandTest = []adminCommandTestEntry{
 					}
 				}`,
 	},
+	{
+		label:   "BridgeSetPauserAddresses odd-length pauser hex",
+		errText: "invalid pauser address encoding",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 18-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 22-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 31-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 33-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 64-byte pauser (Near)",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 255-byte pauser (max)",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 256-byte pauser (overflow)",
+		errText: "exceeds max 255",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
 
 	// build/bin/guardiand template wormchain-store-code --wasm-hash 0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16
 	{

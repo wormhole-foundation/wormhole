@@ -431,6 +431,9 @@ func (r BodyTokenBridgeUpgradeContract) Serialize() ([]byte, error) {
 }
 
 func (r BodyTokenBridgeSetPauserAddresses) Serialize() ([]byte, error) {
+	if r.Module != TokenBridgeModuleName {
+		return nil, fmt.Errorf("unknown module %q (expected %q)", r.Module, TokenBridgeModuleName)
+	}
 	if len(r.Pauser) > math.MaxUint8 {
 		return nil, fmt.Errorf("pauser too long: %d bytes (max %d)", len(r.Pauser), math.MaxUint8)
 	}

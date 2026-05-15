@@ -653,9 +653,8 @@ func runTokenBridgeSetPauserAddressesTemplate(cmd *cobra.Command, args []string)
 }
 
 // parsePauserAddressHex parses a pauser/unpauser address argument and returns
-// the lower-case hex encoding used on the wire (no 0x prefix). An empty input
-// returns an empty string, which the admin server interprets as the role being
-// unassigned.
+// the hex encoding used on the wire (no 0x prefix). An empty input returns an
+// empty string, which the admin server interprets as the role being unassigned.
 //
 // The on-chain contract enforces that non-empty addresses match the target
 // chain's native address size, so this helper preserves the caller-supplied

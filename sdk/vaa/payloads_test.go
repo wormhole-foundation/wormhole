@@ -176,11 +176,11 @@ func TestBodyTokenBridgeSetPauserAddressesSerialize(t *testing.T) {
 			errText: "unpauser too long",
 		},
 		{
-			name: "module too long",
+			name: "wrong module",
 			body: BodyTokenBridgeSetPauserAddresses{
-				Module: "123456789012345678901234567890123", TargetChainID: ChainIDEthereum,
+				Module: "NFTBridge", TargetChainID: ChainIDEthereum,
 			},
-			errText: "payload longer than 32 bytes",
+			errText: "unknown module",
 		},
 	}
 	for _, tc := range tests {
