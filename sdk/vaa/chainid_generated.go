@@ -16,8 +16,6 @@ func (c ChainID) String() string {
 		return "solana"
 	case ChainIDEthereum:
 		return "ethereum"
-	case ChainIDTerra:
-		return "terra"
 	case ChainIDBSC:
 		return "bsc"
 	case ChainIDPolygon:
@@ -26,8 +24,6 @@ func (c ChainID) String() string {
 		return "avalanche"
 	case ChainIDAlgorand:
 		return "algorand"
-	case ChainIDFantom:
-		return "fantom"
 	case ChainIDKlaytn:
 		return "klaytn"
 	case ChainIDCelo:
@@ -64,12 +60,6 @@ func (c ChainID) String() string {
 		return "sei"
 	case ChainIDRootstock:
 		return "rootstock"
-	case ChainIDScroll:
-		return "scroll"
-	case ChainIDMantle:
-		return "mantle"
-	case ChainIDXLayer:
-		return "xlayer"
 	case ChainIDLinea:
 		return "linea"
 	case ChainIDBerachain:
@@ -128,6 +118,12 @@ func (c ChainID) String() string {
 		return "xrpl"
 	case ChainIDZeroGravity:
 		return "zerogravity"
+	case ChainIDTempo:
+		return "tempo"
+	case ChainIDNexus:
+		return "nexus"
+	case ChainIDTron:
+		return "tron"
 	case ChainIDWormchain:
 		return "wormchain"
 	case ChainIDCosmoshub:
@@ -180,8 +176,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDSolana, nil
 	case "ethereum":
 		return ChainIDEthereum, nil
-	case "terra":
-		return ChainIDTerra, nil
 	case "bsc":
 		return ChainIDBSC, nil
 	case "polygon":
@@ -190,8 +184,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDAvalanche, nil
 	case "algorand":
 		return ChainIDAlgorand, nil
-	case "fantom":
-		return ChainIDFantom, nil
 	case "klaytn":
 		return ChainIDKlaytn, nil
 	case "celo":
@@ -228,12 +220,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDSei, nil
 	case "rootstock":
 		return ChainIDRootstock, nil
-	case "scroll":
-		return ChainIDScroll, nil
-	case "mantle":
-		return ChainIDMantle, nil
-	case "xlayer":
-		return ChainIDXLayer, nil
 	case "linea":
 		return ChainIDLinea, nil
 	case "berachain":
@@ -292,6 +278,12 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDXRPL, nil
 	case "zerogravity":
 		return ChainIDZeroGravity, nil
+	case "tempo":
+		return ChainIDTempo, nil
+	case "nexus":
+		return ChainIDNexus, nil
+	case "tron":
+		return ChainIDTron, nil
 	case "wormchain":
 		return ChainIDWormchain, nil
 	case "cosmoshub":
@@ -340,12 +332,10 @@ func GetAllNetworkIDs() []ChainID {
 	return []ChainID{
 		ChainIDSolana,
 		ChainIDEthereum,
-		ChainIDTerra,
 		ChainIDBSC,
 		ChainIDPolygon,
 		ChainIDAvalanche,
 		ChainIDAlgorand,
-		ChainIDFantom,
 		ChainIDKlaytn,
 		ChainIDCelo,
 		ChainIDNear,
@@ -364,9 +354,6 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDFileCoin,
 		ChainIDSei,
 		ChainIDRootstock,
-		ChainIDScroll,
-		ChainIDMantle,
-		ChainIDXLayer,
 		ChainIDLinea,
 		ChainIDBerachain,
 		ChainIDSeiEVM,
@@ -396,6 +383,9 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDDogecoin,
 		ChainIDXRPL,
 		ChainIDZeroGravity,
+		ChainIDTempo,
+		ChainIDNexus,
+		ChainIDTron,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,

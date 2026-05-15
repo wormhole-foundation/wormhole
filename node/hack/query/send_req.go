@@ -128,12 +128,12 @@ func main() {
 		logger.Info("Running Solana account test")
 
 		// Start of query creation...
-		account1, err := solana.PublicKeyFromBase58("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-		if err != nil {
+		account1, pkErr := solana.PublicKeyFromBase58("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
+		if pkErr != nil {
 			panic("solana account1 is invalid")
 		}
-		account2, err := solana.PublicKeyFromBase58("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE")
-		if err != nil {
+		account2, pkErr := solana.PublicKeyFromBase58("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE")
+		if pkErr != nil {
 			panic("solana account2 is invalid")
 		}
 		callRequest := &query.SolanaAccountQueryRequest{
@@ -143,9 +143,9 @@ func main() {
 			Accounts:        [][query.SolanaPublicKeyLength]byte{account1, account2},
 		}
 
-		nonce, err := random.Uint32()
-		if err != nil {
-			panic(err)
+		nonce, nonceErr := random.Uint32()
+		if nonceErr != nil {
+			panic(nonceErr)
 		}
 		queryRequest := &query.QueryRequest{
 			Nonce: nonce,
@@ -178,9 +178,9 @@ func main() {
 			},
 		}
 
-		nonce, err := random.Uint32()
-		if err != nil {
-			panic(err)
+		nonce, nonceErr := random.Uint32()
+		if nonceErr != nil {
+			panic(nonceErr)
 		}
 		queryRequest := &query.QueryRequest{
 			Nonce: nonce,
@@ -211,9 +211,9 @@ func main() {
 	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 
 	for _, method := range methods {
-		data, err := wethAbi.Pack(method)
-		if err != nil {
-			panic(err)
+		data, packErr := wethAbi.Pack(method)
+		if packErr != nil {
+			panic(packErr)
 		}
 
 		callData = append(callData, &query.EthCallData{
@@ -295,9 +295,9 @@ const (
 )
 
 func createQueryRequest(callRequest *query.EthCallQueryRequest) *query.QueryRequest {
-	nonce, err := random.Uint32()
-	if err != nil {
-		panic(err)
+	nonce, nonceErr := random.Uint32()
+	if nonceErr != nil {
+		panic(nonceErr)
 	}
 	queryRequest := &query.QueryRequest{
 		Nonce: nonce,
@@ -320,9 +320,9 @@ func createQueryRequestWithMultipleRequests(callRequests []*query.EthCallQueryRe
 		})
 	}
 
-	nonce, err := random.Uint32()
-	if err != nil {
-		panic(err)
+	nonce, nonceErr := random.Uint32()
+	if nonceErr != nil {
+		panic(nonceErr)
 	}
 	queryRequest := &query.QueryRequest{
 		Nonce:           nonce,

@@ -45,6 +45,12 @@ type GuardianSigner interface {
 // external services during construction. For example, the Amazon KMS signer validates that
 // the ARN is valid and retrieves the public key from the service.
 func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMode bool) (GuardianSigner, error) {
+	return NewGuardianSignerFromUriWithPurpose(ctx, signerUri, unsafeDevMode, "guardian")
+}
+
+// NewGuardianSignerFromUriWithPurpose creates a new GuardianSigner from the given URI with a custom purpose label.
+// The purpose label is used to distinguish metrics between different signers (e.g., "guardian", "manager").
+func NewGuardianSignerFromUriWithPurpose(ctx context.Context, signerUri string, unsafeDevMode bool, purpose string) (GuardianSigner, error) {
 	// Get the signer type and key configuration. The key configuration
 	// isn't interpreted as anything in particular here, as each signer
 	// implementation requires different configurations; i.e., the file
@@ -76,7 +82,7 @@ func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMo
 
 	// Wrap the guardian signer in a benchmark signer, which will record the
 	// time taken to sign and verify messages.
-	return BenchmarkWrappedSigner(guardianSigner), nil
+	return BenchmarkWrappedSignerWithPurpose(guardianSigner, purpose), nil
 }
 
 // Parse the signer URI and return the signer type and key configuration. The signer

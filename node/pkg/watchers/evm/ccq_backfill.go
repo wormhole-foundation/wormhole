@@ -201,7 +201,7 @@ func ccqBackFillDetermineMaxBatchSize(ctx context.Context, logger *zap.Logger, c
 			return 0, nil, fmt.Errorf("failed to determine batch size: %w", err)
 		}
 
-		time.Sleep(delay)
+		time.Sleep(delay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 
 	// Save the blocks we just retrieved to be used as our starting cache.

@@ -41,6 +41,10 @@ type (
 		// signedGovStatusRecvC is optional and can be set with `WithChainGovernorStatusListener`.
 		signedGovStatusRecvC chan *gossipv1.SignedChainGovernorStatus
 
+		// managerTxRecvC is optional and can be set with `WithManagerOptions`.
+		// Receives verified ManagerTransaction messages (signature already validated by p2p layer).
+		managerTxRecvC chan<- *gossipv1.ManagerTransaction
+
 		// disableHeartbeatVerify is optional and can be set with `WithDisableHeartbeatVerify` or `WithGuardianOptions`.
 		disableHeartbeatVerify bool
 
@@ -50,7 +54,9 @@ type (
 		gossipControlSendC              chan []byte
 		gossipAttestationSendC          chan []byte
 		gossipDelegatedAttestationSendC chan []byte
+		delegateSigBroadcastSendC       chan []byte
 		gossipVaaSendC                  chan []byte
+		managerTxSendC                  chan *gossipv1.ManagerTransaction
 		obsvReqSendC                    <-chan *gossipv1.ObservationRequest
 		acct                            *accountant.Accountant
 		gov                             *governor.ChainGovernor
@@ -194,6 +200,7 @@ func WithGuardianOptions(
 	gossipControlSendC chan []byte,
 	gossipAttestationSendC chan []byte,
 	gossipDelegatedAttestationSendC chan []byte,
+	delegateSigBroadcastSendC chan []byte,
 	gossipVaaSendC chan []byte,
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
 	acct *accountant.Accountant,
@@ -221,6 +228,7 @@ func WithGuardianOptions(
 		p.gossipControlSendC = gossipControlSendC
 		p.gossipAttestationSendC = gossipAttestationSendC
 		p.gossipDelegatedAttestationSendC = gossipDelegatedAttestationSendC
+		p.delegateSigBroadcastSendC = delegateSigBroadcastSendC
 		p.gossipVaaSendC = gossipVaaSendC
 		p.obsvReqSendC = obsvReqSendC
 		p.acct = acct
@@ -237,6 +245,18 @@ func WithGuardianOptions(
 		p.ccqProtectedPeers = ccqProtectedPeers
 		p.featureFlags = featureFlags
 		p.featureFlagFuncs = featureFlagFuncs
+		return nil
+	}
+}
+
+// WithManagerOptions is used to set options for the manager service p2p topic.
+func WithManagerOptions(
+	managerTxSendC chan *gossipv1.ManagerTransaction,
+	managerTxRecvC chan<- *gossipv1.ManagerTransaction,
+) RunOpt {
+	return func(p *RunParams) error {
+		p.managerTxSendC = managerTxSendC
+		p.managerTxRecvC = managerTxRecvC
 		return nil
 	}
 }

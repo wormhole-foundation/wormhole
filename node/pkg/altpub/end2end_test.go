@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 	"sync"
 	"testing"
@@ -26,9 +27,6 @@ import (
 const (
 	NumObservations = 100
 
-	PythPort         = 3333
-	WormholescanPort = 3334
-
 	// These are just meaningless values used to generate observation message IDs.
 	pythEmitterAddr   = "00000000000000000000000022427d90B7dA3fA4642F7025A854c7254E4e45BF"
 	solanaEmitterAddr = "3b26409f8aaded3f5ddca184695aa6a0fa829b0c85caf84856324896d214ca98"
@@ -46,14 +44,8 @@ func TestEndToEnd(t *testing.T) {
 	require.Equal(t, ethCommon.AddressLength, len(guardianAddr))
 
 	logger.Info("Starting two endpoint servers")
-	pythEP := newServer(logger, guardianAddr, PythPort)
-	go pythEP.run()
-
-	wormscanEP := newServer(logger, guardianAddr, WormholescanPort)
-	go wormscanEP.run()
-
-	// Give the endpoints some time to start.
-	time.Sleep(10 * time.Millisecond)
+	pythEP := newServer(t, logger, guardianAddr)
+	wormscanEP := newServer(t, logger, guardianAddr)
 
 	// Create an alternate publisher with two endpoints. Note that the labels start with "e2e_" so our metrics don't clash with other tests.
 	ap, err := NewAlternatePublisher(logger, guardianAddr, []string{"e2e_pyth;" + pythEP.url + ";0;pythnet", "e2e_wormholescan;" + wormscanEP.url + ";10ms"})
@@ -72,7 +64,7 @@ func TestEndToEnd(t *testing.T) {
 	}()
 
 	// Give the alternate publisher some time to start.
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	logger.Info("Publishing some observations across pythnet and solana")
 	pythSeqNum := 0
@@ -94,14 +86,17 @@ func TestEndToEnd(t *testing.T) {
 		}
 
 		// Put in some delay so batching can do something.
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 
-	logger.Info("Sleeping to give time for things to calm down")
-	time.Sleep(10 * time.Millisecond)
+	logger.Info("Waiting for all observations to be received before shutting down")
+	require.Eventually(t, func() bool {
+		return len(pythEP.getStatus().observations) == len(expectedPythObsv) &&
+			len(wormscanEP.getStatus().observations) == len(expectedWormscanObsv)
+	}, 5*time.Second, 5*time.Millisecond)
+
 	logger.Info("Canceling context")
 	cancel()
-	time.Sleep(10 * time.Millisecond)
 
 	// Make sure we didn't drop anything.
 	require.Equal(t, 0.0, getCounterValue(obsvDropped, "e2e_pyth"))
@@ -177,7 +172,6 @@ type (
 	Server struct {
 		logger       *zap.Logger
 		guardianAddr []byte
-		port         int
 		url          string
 		statsLock    sync.Mutex
 		stats        ServerStats
@@ -190,34 +184,25 @@ type (
 	}
 )
 
-// newServer creates a new localhost HTTP server listening on the specified port.
-func newServer(logger *zap.Logger, guardianAddr []byte, port int) *Server {
-	return &Server{
+// newServer creates a new localhost HTTP test server on a free port and registers cleanup with t.
+func newServer(t *testing.T, logger *zap.Logger, guardianAddr []byte) *Server {
+	t.Helper()
+	s := &Server{
 		logger:       logger.With(zap.String("component", "server")),
 		guardianAddr: guardianAddr,
-		port:         port,
-		url:          fmt.Sprintf("http://localhost:%d", port),
 		stats:        newServerStats(),
 	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/SignedObservationBatch", s.handleSignedObservationBatch)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+	s.url = ts.URL
+	return s
 }
 
 // newServerStats initializes the server stats object.
 func newServerStats() ServerStats {
 	return ServerStats{observations: make([]*gossipv1.Observation, 0, 1000)}
-}
-
-// run starts the server. It should be called in a go routine.
-func (s *Server) run() {
-	serverMux := http.NewServeMux()
-	serverMux.HandleFunc("/SignedObservationBatch", s.handleSignedObservationBatch)
-
-	s.logger.Info(fmt.Sprintf("server listening on port %d", s.port))
-	err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), serverMux) // #nosec G114 TODO: Think about this
-	if errors.Is(err, http.ErrServerClosed) {
-		s.logger.Info("server closed")
-	} else if err != nil {
-		s.logger.Fatal("error starting server", zap.Error(err))
-	}
 }
 
 // handleSignedObservationBatch is the handler for a signed observation.

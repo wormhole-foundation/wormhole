@@ -63,6 +63,8 @@ export async function execute_aptos(
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on aptos");
+        case "TransferFees":
+          throw new Error("TransferFees not supported on aptos");
         default:
           impossible(payload);
       }

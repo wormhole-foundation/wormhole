@@ -13,6 +13,7 @@ import {
   getEndpointRegistration,
 } from "@certusone/wormhole-sdk/lib/esm/solana/tokenBridge";
 import {
+  createTransferFeesInstruction,
   createUpgradeGuardianSetInstruction,
   createUpgradeContractInstruction as createWormholeUpgradeContractInstruction,
 } from "@certusone/wormhole-sdk/lib/esm/solana/wormhole";
@@ -105,6 +106,19 @@ export async function execute_solana(
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on solana");
+        case "TransferFees":
+          console.log("Transferring core bridge fees");
+          // The on-chain handler enforces vaa.to == recipient pubkey, so we
+          // pull the recipient straight from the parsed VAA payload.
+          ix = createTransferFeesInstruction(
+            bridgeId,
+            from.publicKey,
+            new web3s.PublicKey(
+              hexToUint8Array(v.payload.recipient.replace(/^0x/, ""))
+            ),
+            vaa
+          );
+          break;
         default:
           ix = impossible(v.payload);
       }

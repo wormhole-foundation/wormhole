@@ -163,6 +163,34 @@ func (v VerificationState) String() string {
 }
 
 type MessagePublication struct {
+	// TxID is the chain-native transaction identifier where the wormhole
+	// message was emitted. TxID is per-guardian metadata: it is NOT hashed
+	// into the VAA signing digest (see CreateVAA / CreateDigest), so guardians
+	// can disagree on TxID without producing different VAAs.
+	//
+	// TxID IS, however, part of the global-accountant contract's matching key
+	// within a pending transfer. PENDING_TRANSFERS is keyed by
+	// (emitter_chain, emitter_address, sequence), but within that key the
+	// contract stores a Vec<Data> whose entries are uniquely identified by
+	// (guardian_set_index, digest, tx_hash) — see
+	// cosmwasm/contracts/global-accountant/src/contract.rs. Signatures only
+	// merge across observations with matching tx_hash, so if guardians submit
+	// observations for the same VAA but with different TxIDs, their signatures
+	// land in separate Data entries and quorum is counted independently per
+	// entry. If no single entry reaches quorum on its own, the transfer
+	// stalls at the accountant — even when there are enough total signatures
+	// for the same VAA digest.
+	//
+	// Code paths that aggregate observations across guardians (e.g. delegate
+	// quorum on a canonical) should converge on a single TxID before
+	// submitting to the accountant; see the consensusTxID helper and
+	// NormalizeForDelegateConsensus in pkg/processor. That helper picks the
+	// bucket-majority TxID deterministically, which is sufficient for
+	// convergence when one TxID has a clear majority that's stable under
+	// observation arrival order — but with a near-even split, canonicals
+	// whose buckets reach quorum at different observation subsets can still
+	// pick different majorities; recovery for that case is the audit /
+	// missing_observations reobs flow rather than the delegate-quorum path.
 	TxID      []byte
 	Timestamp time.Time
 
@@ -211,6 +239,51 @@ func (msg *MessagePublication) MessageIDString() string {
 
 func (msg *MessagePublication) VerificationState() VerificationState {
 	return msg.verificationState
+}
+
+// NormalizeForDelegateConsensus resets per-guardian metadata on the consensus
+// MP that a canonical guardian forwards downstream after delegate quorum.
+//
+// The purpose is to keep the downstream pipeline (and any state the canonical
+// persists about the message) independent of *which* delegate's observation
+// happened to push the bucket over quorum. Without this, every per-guardian
+// field on the MP would last-writer-wins — different canonicals would
+// disagree on IsReobservation / Unreliable / verificationState based purely
+// on observation arrival order, and the same canonical's logs/database row
+// would depend on a delegate-set race. Resetting these fields to canonical-
+// safe defaults gives a single, reproducible consensus MP across canonicals.
+//
+// The fields hashed into the VAA signing digest (Timestamp, Nonce, Sequence,
+// ConsistencyLevel, EmitterChain, EmitterAddress, Payload) are the consensus
+// inputs and are preserved. TxID is preserved as-is here; it is the caller's
+// responsibility to pick a deterministic TxID before invoking this method,
+// because while TxID is not in the VAA signing digest, it IS part of the
+// global-accountant contract's per-entry match — different TxIDs across
+// canonicals split signatures at the accountant and can prevent quorum
+// there. See the TxID field godoc and the consensusTxID helper in
+// pkg/processor.
+//
+// The fields reset here are also per-guardian metadata, but unlike TxID they
+// have safe canonical defaults that don't depend on any single delegate:
+//
+//   - IsReobservation: forced true. Canonicals can't trigger a reobservation
+//     for a delegated chain (no watcher is running for it), so treat the
+//     consensus result as already a reobservation and avoid further cycles.
+//   - Unreliable: forced false. Unreliable=true is an SVM-only signal that
+//     the source chain can't re-observe the transaction, so the cleanup loop
+//     expires stuck observations after 5 minutes instead of issuing a
+//     re-observation request (see pkg/processor/cleanup.go). A delegate-derived
+//     MP doesn't carry that constraint at the canonical, so leave it reliable.
+//   - verificationState: forced NotVerified. The canonical did not run the
+//     transfer verifier on the underlying transaction and per-guardian
+//     verification results are not part of consensus. NotVerified is the
+//     honest signal here ("we did not attempt to verify"), as opposed to
+//     NotApplicable, which is reserved for "we determined verification was
+//     not required for this message" (e.g. non-token-transfer payloads).
+func (msg *MessagePublication) NormalizeForDelegateConsensus() {
+	msg.IsReobservation = true
+	msg.Unreliable = false
+	msg.verificationState = NotVerified
 }
 
 // SetVerificationState is the setter for verificationState. Returns an error if called in a way that likely indicates a programming mistake.

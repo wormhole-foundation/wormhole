@@ -50,6 +50,9 @@ export const submit = async (
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on sei");
+        case "TransferFees":
+          console.log("Transferring core bridge fees");
+          break;
         default:
           impossible(payload);
       }

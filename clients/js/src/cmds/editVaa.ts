@@ -243,7 +243,7 @@ const getGuardianSet = async (
   const provider = new ethers.providers.JsonRpcProvider(n.rpc);
   const contract = Implementation__factory.connect(contract_address, provider);
   const result = await contract.getGuardianSet(guardianSetIndex);
-  return result[0];
+  return result[0].map((x) => x.toLowerCase());
 };
 
 // getSigsFromWormscanData reads the guardian address / signature pairs from the wormscan data
@@ -254,7 +254,7 @@ const getSigsFromWormscanData = (
 ): Signature[] => {
   let sigs: Signature[] = [];
   for (let data in wormscanData) {
-    let guardianAddr = wormscanData[data].guardianAddr;
+    let guardianAddr = wormscanData[data].guardianAddr.toLowerCase();
     let gsi = -1;
     for (let idx = 0; idx < guardianSet.length; idx++) {
       if (guardianSet[idx] === guardianAddr) {

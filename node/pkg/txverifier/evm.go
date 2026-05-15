@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	geth "github.com/ethereum/go-ethereum/core/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
 	"go.uber.org/zap"
 )
 
@@ -433,7 +432,7 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 		zap.String("txHash", receipt.TxHash.String()),
 	)
 
-	if receipt.Status != 1 {
+	if receipt.Status != geth.ReceiptStatusSuccessful {
 		return nil, errors.Join(
 			ErrInvalidReceiptArgument,
 			errors.New("non-success transaction status"),
@@ -779,16 +778,16 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			tv.logger.Debug("skip: irrelevant LogMessagePublished event")
 			continue
 		}
-		msgID, err := tv.MsgID(message)
+		messageID, err := tv.MsgID(message)
 		if err != nil {
 			return nil, err
 		}
 
 		// Record that tokens were requested out of the bridge for this message.
-		if _, exists := receiptSummary.out[msgID]; !exists {
-			receiptSummary.out[msgID] = transferOut{key, message.TransferAmount()}
+		if _, exists := receiptSummary.out[messageID]; !exists {
+			receiptSummary.out[messageID] = transferOut{key, message.TransferAmount()}
 			// Ensure that each message ID is populated in the map.
-			receiptSummary.msgPubResult[msgID] = true
+			receiptSummary.msgPubResult[messageID] = true
 		} else {
 			return nil, errors.New("duplicate message ID in receipt's LogMessagePublished events")
 		}
@@ -835,7 +834,7 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 	// To avoid processing these messages individually in the future, we mark them as invalid here.
 	if len(insolventAssets) > 0 {
 		for _, msgPub := range *receipt.MessagePublications {
-			msgID, err := tv.MsgID(msgPub)
+			messageID, err := tv.MsgID(msgPub)
 
 			// Parsing error.
 			if err != nil {
@@ -848,8 +847,8 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			tv.logger.Debug("insolvent assets", zap.String("assets", strings.Join(insolventAssets, ",")))
 			tv.logger.Debug("tokenID", zap.String("tokenID", tokenID))
 			if slices.Contains(insolventAssets, tokenID) {
-				tv.logger.Info("marking message as invalid because it contains an insolvent asset", zap.String("msgID", msgID.String()), zap.String("tokenID", tokenID))
-				receiptSummary.msgPubResult[msgID] = false
+				tv.logger.Info("marking message as invalid because it contains an insolvent asset", zap.String("msgID", messageID.String()), zap.String("tokenID", tokenID))
+				receiptSummary.msgPubResult[messageID] = false
 			}
 		}
 	}

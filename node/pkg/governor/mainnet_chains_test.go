@@ -46,20 +46,29 @@ func TestChainDailyLimitRange(t *testing.T) {
 	}
 }
 
+// Ensure each chain registered in the Governor also has a Known Token Bridge Emitter
+// in the SDK
 func TestChainListChainPresent(t *testing.T) {
-	chainConfigEntries := ChainList()
+	// NOTE: Linea's token bridge was never cross-registered with other token bridges,
+	// so it should not be governed as WTTs via Linea aren't possible. However,
+	// it still has an entry in the SDK's known emitters so it is skipped for this test
+	governedChains := ChainList()
 
-	entries := make([]vaa.ChainID, 0, len(chainConfigEntries))
-	for _, e := range chainConfigEntries {
-		entries = append(entries, e.EmitterChainID)
+	entries := make([]vaa.ChainID, 0, len(governedChains))
+	for _, c := range governedChains {
+		if c.EmitterChainID != vaa.ChainIDLinea {
+			entries = append(entries, c.EmitterChainID)
+		}
 	}
 
-	emitters := make([]vaa.ChainID, 0, len(sdk.KnownTokenbridgeEmitters))
+	knownEmitters := make([]vaa.ChainID, 0, len(sdk.KnownTokenbridgeEmitters))
 	for e := range sdk.KnownTokenbridgeEmitters {
-		emitters = append(emitters, e)
+		if e != vaa.ChainIDLinea {
+			knownEmitters = append(knownEmitters, e)
+		}
 	}
 
-	assert.ElementsMatch(t, entries, emitters)
+	assert.ElementsMatch(t, entries, knownEmitters)
 }
 
 func TestChainListBigTransfers(t *testing.T) {
@@ -70,6 +79,18 @@ func TestChainListBigTransfers(t *testing.T) {
 		// If the daily limit is 0 then both the big TX and daily limit should be 0.
 		if e.DailyLimit == 0 {
 			assert.Equal(t, e.BigTransactionSize, e.DailyLimit)
+			continue
+		}
+
+		// If the chain has a daily limit of $10,000 or less we don't make the same contraints on big tx size
+		if e.DailyLimit <= 10_000 {
+			assert.LessOrEqual(t, e.BigTransactionSize, e.DailyLimit,
+				fmt.Sprintf(
+					"Chain %s has a daily limit of %d but a big transaction size of %d which exceeds the daily limit",
+					e.EmitterChainID,
+					e.DailyLimit,
+					e.BigTransactionSize,
+				))
 			continue
 		}
 

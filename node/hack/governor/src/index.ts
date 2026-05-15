@@ -59,7 +59,7 @@ const expectedUSDDepeggs = [
 // Chains that have been deprecated. Tokens on these chains will not be included in the token list.
 // Deprecated chain IDs are listed in the Go SDK:
 // https://github.com/wormhole-foundation/wormhole/blob/main/sdk/vaa/structs.go
-const deprecatedChains = [3,7,9,11,12,17,18,28,36,43];
+const deprecatedChains = [3,7,9,10,11,12,17,18,28,34,35,36,37,43];
 
 const axios = require("axios");
 const fs = require("fs");

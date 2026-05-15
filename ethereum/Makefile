@@ -36,7 +36,7 @@ forge_dependencies: lib/forge-std lib/openzeppelin-contracts
 
 lib/forge-std:
 	forge --version
-	forge install foundry-rs/forge-std@v1.5.5 --no-git
+	forge install foundry-rs/forge-std@v1.13.0 --no-git
 
 lib/openzeppelin-contracts:
 	forge --version

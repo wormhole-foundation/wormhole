@@ -48,6 +48,8 @@ export async function execute_algorand(
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on algorand");
+        case "TransferFees":
+          throw new Error("TransferFees not supported on algorand");
         default:
           impossible(payload);
       }

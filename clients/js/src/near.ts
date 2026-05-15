@@ -51,6 +51,8 @@ export const execute_near = async (
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on near");
+        case "TransferFees":
+          throw new Error("TransferFees not supported on near");
         default:
           impossible(payload);
       }

@@ -1138,4 +1138,81 @@ var adminCommandTest = []adminCommandTestEntry{
 					}
 				}`,
 	},
+
+	// build/bin/guardiand template governance-sui-call --chain-id sui --call-data deadbeef --governance-contract 0x0000000000000000000000000000000000000000000000000000000000000004
+	{
+		label:   "SuiCall success",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 4513077582118919631
+					nonce: 2809988562
+					sui_call: {
+						chain_id: 21
+						governance_contract: "0x0000000000000000000000000000000000000000000000000000000000000004"
+						encoded_call: "deadbeef"
+					}
+				}`,
+	},
+	{
+		label:   "SuiCall invalid governance contract (not hex)",
+		errText: "failed to decode governance contract address",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 4513077582118919631
+					nonce: 2809988562
+					sui_call: {
+						chain_id: 21
+						governance_contract: "Hello, World!"
+						encoded_call: "deadbeef"
+					}
+				}`,
+	},
+	{
+		label:   "SuiCall invalid governance contract length",
+		errText: "invalid governance contract address length (expected 32 bytes)",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 4513077582118919631
+					nonce: 2809988562
+					sui_call: {
+						chain_id: 21
+						governance_contract: "0x00000000000000000000000000000004"
+						encoded_call: "deadbeef"
+					}
+				}`,
+	},
+	{
+		label:   "SuiCall invalid call data",
+		errText: "failed to decode call data",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 4513077582118919631
+					nonce: 2809988562
+					sui_call: {
+						chain_id: 21
+						governance_contract: "0x0000000000000000000000000000000000000000000000000000000000000004"
+						encoded_call: "Hello, World!"
+					}
+				}`,
+	},
+	{
+		label:   "SuiCall chain id too large",
+		errText: "chain id exceeds max uint16",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 4513077582118919631
+					nonce: 2809988562
+					sui_call: {
+						chain_id: 65536
+						governance_contract: "0x0000000000000000000000000000000000000000000000000000000000000004"
+						encoded_call: "deadbeef"
+					}
+				}`,
+	},
 }

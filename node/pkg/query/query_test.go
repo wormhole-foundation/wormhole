@@ -491,7 +491,7 @@ func (md *mockData) startResponseListener(ctx context.Context) {
 // waitForResponse is used by the tests to wait for a response publication. It will eventually timeout if the query fails.
 func (md *mockData) waitForResponse() *QueryResponsePublication {
 	for count := 0; count < 50; count++ {
-		time.Sleep(pollIntervalForTest)
+		time.Sleep(pollIntervalForTest) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 		ret := md.getQueryResponsePublication()
 		if ret != nil {
 			return ret
@@ -797,7 +797,7 @@ func TestPublishRetrySucceeds(t *testing.T) {
 	// Sleep for a bit before we start listening for published results.
 	// If you look in the log, you should see one of these: "failed to publish query response to p2p, will retry publishing next interval"
 	// and at least one of these: "resend of query response to p2p failed again, will keep retrying".
-	time.Sleep(retryIntervalForTest * 3)
+	time.Sleep(retryIntervalForTest * 3) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	// Now start the publisher routine.
 	// If you look in the log, you should see one of these: "resend of query response to p2p succeeded".

@@ -232,9 +232,9 @@ func TestSumAllFromToday(t *testing.T) {
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
 	dbTransfer := &guardianDB.Transfer{ScaledValue: 125000, Timestamp: transferTime}
-	transfer, err := newTransferFromDbTransfer(dbTransfer)
+	transferFromDb, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
-	transfers = append(transfers, transfer)
+	transfers = append(transfers, transferFromDb)
 	sum, updatedTransfers, err := gov.trimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, uint64(125000), uint64(sum)) // #nosec G115 -- If this overflowed the test would fail anyway
@@ -450,8 +450,8 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 	require.NoError(t, err)
 
 	var transfers_from_emitter []transfer
-	transferTime, err := time.Parse("2006-Jan-02", "2024-Feb-19")
-	require.NoError(t, err)
+	transferTime, timeErr := time.Parse("2006-Jan-02", "2024-Feb-19")
+	require.NoError(t, timeErr)
 
 	emitterTransferValue := uint64(125000)
 
@@ -460,11 +460,11 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 
 	// Create a lot of transfers. Their total value should exceed `emitterLimit`
 	for i := 0; i < 25; i++ {
-		transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: emitterTransferValue, Timestamp: transferTime})
-		require.NoError(t, err)
+		transferFromDb, transferErr := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: emitterTransferValue, Timestamp: transferTime})
+		require.NoError(t, transferErr)
 		transfers_from_emitter = append(
 			transfers_from_emitter,
-			transfer,
+			transferFromDb,
 		)
 	}
 
@@ -501,11 +501,11 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 
 	emitterChainId := vaa.ChainIDSolana
 
-	transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: math.MaxInt64, Timestamp: transferTime})
+	transferFromDb, err := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: math.MaxInt64, Timestamp: transferTime})
 	require.NoError(t, err)
 	transfer2, err := newTransferFromDbTransfer(&guardianDB.Transfer{ScaledValue: 1, Timestamp: transferTime})
 	require.NoError(t, err)
-	transfers_from_emitter = append(transfers_from_emitter, transfer, transfer2)
+	transfers_from_emitter = append(transfers_from_emitter, transferFromDb, transfer2)
 
 	// Populate chainEntry and ChainGovernor
 	emitter := &chainEntry{
@@ -559,9 +559,9 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:59am (CST)")
 	require.NoError(t, err)
 	dbTransfer := &guardianDB.Transfer{ScaledValue: 125000, Timestamp: transferTime1}
-	transfer, err := newTransferFromDbTransfer(dbTransfer)
+	transferFromDb, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
-	transfers = append(transfers, transfer)
+	transfers = append(transfers, transferFromDb)
 
 	// But the second should not.
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
@@ -2703,6 +2703,45 @@ func TestDontReloadDuplicates(t *testing.T) {
 	assert.Equal(t, uint64(4436), valuePending)
 }
 
+// TestReloadClearsMsgsSeen verifies that Reload() clears the msgsSeen map so that
+// transfers reloaded from the database are not incorrectly rejected as duplicates.
+func TestReloadClearsMsgsSeen(t *testing.T) {
+	ctx := context.Background()
+	gov := newChainGovernorForTest(t, ctx)
+
+	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+
+	msg := common.MessagePublication{
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654543099), 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   gov.chains[vaa.ChainIDEthereum].emitterAddr,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDEthereum,
+			tokenAddrStr,
+			vaa.ChainIDPolygon,
+			toAddrStr,
+			1.25,
+		),
+	}
+
+	// Process a transfer so msgsSeen is populated.
+	canPost, err := gov.processMsgForTime(&msg, time.Now())
+	require.NoError(t, err)
+	assert.True(t, canPost)
+	assert.Equal(t, 1, len(gov.msgsSeen))
+
+	// Reload should clear msgsSeen.
+	result, err := gov.Reload()
+	require.NoError(t, err)
+	assert.Contains(t, result, "reset and reloaded")
+	assert.Equal(t, 0, len(gov.msgsSeen))
+}
+
 // With the addition of the flow-cancel feature, it's possible to in a way "exceed the daily limit" of outflow from a
 // Governor as long as there is corresponding inflow of a flow-canceling asset to allow for additional outflow.
 // When the node is restarted, it reloads all transfers and pending transfers. If the actual outflow is greater than
@@ -3918,8 +3957,8 @@ func Test_SubDollarTransfersAccumulate(t *testing.T) {
 					Payload:          payloadBytes,
 				}
 
-				canPost, err := gov.processMsgForTime(&msg, now)
-				require.NoError(t, err)
+				canPost, processErr := gov.processMsgForTime(&msg, now)
+				require.NoError(t, processErr)
 				assert.True(t, canPost, "transfer %d should be accepted", i)
 			}
 

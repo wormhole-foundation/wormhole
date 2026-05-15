@@ -70,7 +70,6 @@ var (
 		vaa.ChainIDPolygon: {Finalized: true, Safe: false, EvmChainID: 137, PublicRPC: "https://polygon-bor-rpc.publicnode.com", ContractAddr: "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"},
 
 		vaa.ChainIDAvalanche: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 43114, PublicRPC: "https://avalanche-c-chain-rpc.publicnode.com", ContractAddr: "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c"},
-		vaa.ChainIDFantom:    {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 250, PublicRPC: "https://fantom-rpc.publicnode.com", ContractAddr: "0x126783A6Cb203a3E35344528B26ca3a0489a1485"},
 		vaa.ChainIDKlaytn:    {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 8217, PublicRPC: "https://public-en.node.kaia.io", ContractAddr: "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"},
 		vaa.ChainIDCelo:      {Finalized: true, Safe: false, EvmChainID: 42220, PublicRPC: "https://celo-rpc.publicnode.com", ContractAddr: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E"},
 		vaa.ChainIDMoonbeam:  {Finalized: true, Safe: true, EvmChainID: 1284, PublicRPC: "https://moonbeam-rpc.publicnode.com", ContractAddr: "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"},
@@ -82,11 +81,6 @@ var (
 		// vaa.ChainIDFileCoin:   Not supported in the guardian.
 		// vaa.ChainIDRootstock:  Not supported in the guardian.
 
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-		vaa.ChainIDScroll: {Finalized: true, Safe: false, EvmChainID: 534352, PublicRPC: "https://scroll-rpc.publicnode.com", ContractAddr: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"},
-
-		vaa.ChainIDMantle: {Finalized: true, Safe: true, EvmChainID: 5000, PublicRPC: "https://mantle-rpc.publicnode.com", ContractAddr: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"},
-		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 196, PublicRPC: "https://xlayerrpc.okx.com", ContractAddr: "0x194B123c5E96B9b2E49763619985790Dc241CAC0"},
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea:     {Finalized: true, Safe: false, EvmChainID: 59144, PublicRPC: "https://rpc.linea.build", ContractAddr: "0x0C56aebD76E6D9e4a1Ec5e94F4162B4CBbf77b32"},
 		vaa.ChainIDBerachain: {Finalized: true, Safe: true, EvmChainID: 80094, PublicRPC: "https://berachain-rpc.publicnode.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
@@ -107,6 +101,7 @@ var (
 		vaa.ChainIDMoca:        {Finalized: true, Safe: true, EvmChainID: 2288, PublicRPC: "https://rpc.mocachain.dev/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		vaa.ChainIDMegaETH:     {Finalized: true, Safe: true, EvmChainID: 4326, PublicRPC: "https://mainnet.megaeth.com/rpc", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		vaa.ChainIDZeroGravity: {Finalized: true, Safe: true, EvmChainID: 16661, PublicRPC: "https://evmrpc.0g.ai", ContractAddr: "0xC699482c17d43b7D5349F2D3f58d61fEFA972B8c"},
+		vaa.ChainIDNexus:       {Finalized: true, Safe: true, EvmChainID: 3946, PublicRPC: "https://mainnet.rpc.nexus.xyz", ContractAddr: "0xC8aD24fC6063c41cB5C12a8e3851AafC3b3CF027"},
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
@@ -121,7 +116,6 @@ var (
 		vaa.ChainIDPolygon: {Finalized: true, Safe: false, EvmChainID: 80001, ContractAddr: "0x0CBE91CF822c73C2315FB05100C2F714765d5c20"}, // Polygon Mumbai is deprecated.
 
 		vaa.ChainIDAvalanche: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 43113, PublicRPC: "https://avalanche-fuji-c-chain-rpc.publicnode.com", ContractAddr: "0x7bbcE28e64B3F8b84d876Ab298393c38ad7aac4C"},
-		vaa.ChainIDFantom:    {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 4002, PublicRPC: "https://fantom-testnet-rpc.publicnode.com", ContractAddr: "0x1BB3B4119b7BA9dfad76B0545fb3F531383c3bB7"},
 		vaa.ChainIDKlaytn:    {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 1001, PublicRPC: "https://public-en-kairos.node.kaia.io", ContractAddr: "0x1830CC6eE66c84D2F177B94D544967c774E624cA"},
 		vaa.ChainIDCelo:      {Finalized: true, Safe: true, EvmChainID: 44787, PublicRPC: "https://alfajores-forno.celo-testnet.org", ContractAddr: "0x88505117CA88e7dd2eC6EA1E13f0948db2D50D56"},
 		vaa.ChainIDMoonbeam:  {Finalized: true, Safe: true, EvmChainID: 1287, PublicRPC: "https://rpc.api.moonbase.moonbeam.network", ContractAddr: "0xa5B7D85a8f27dd7907dc8FdC21FA5657D5E2F901"},
@@ -132,12 +126,6 @@ var (
 		vaa.ChainIDBase: {Finalized: true, Safe: true, EvmChainID: 84531, ContractAddr: "0x23908A62110e21C04F3A4e011d24F901F911744A"}, // Base Goerli is deprecated.
 		// vaa.ChainIDFileCoin:    Not supported in the guardian.
 		// vaa.ChainIDRootstock:   Not supported in the guardian.
-
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-		vaa.ChainIDScroll: {Finalized: true, Safe: false, EvmChainID: 534351, PublicRPC: "https://scroll-sepolia-rpc.publicnode.com", ContractAddr: "0x055F47F1250012C6B20c436570a76e52c17Af2D5"},
-
-		vaa.ChainIDMantle: {Finalized: true, Safe: true, EvmChainID: 5003, PublicRPC: "https://rpc.sepolia.mantle.xyz", ContractAddr: "0x376428e7f26D5867e69201b275553C45B09EE090"},
-		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 195, PublicRPC: "https://xlayertestrpc.okx.com", ContractAddr: "0xA31aa3FDb7aF7Db93d18DDA4e19F811342EDF780"},
 
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59141, PublicRPC: "https://rpc.sepolia.linea.build", ContractAddr: "0x79A1027a6A159502049F10906D333EC57E95F083"},
@@ -159,6 +147,8 @@ var (
 		vaa.ChainIDMoca:            {Finalized: true, Safe: true, EvmChainID: 222888, PublicRPC: "https://testnet-rpc.mocachain.org/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		vaa.ChainIDMegaETH:         {Finalized: true, Safe: true, EvmChainID: 6343, PublicRPC: "https://timothy.megaeth.com/rpc", ContractAddr: "0x81705b969cDcc6FbFde91a0C6777bE0EF3A75855"},
 		vaa.ChainIDZeroGravity:     {Finalized: true, Safe: true, EvmChainID: 16602, PublicRPC: "https://rpc.ankr.com/0g_galileo_testnet_evm", ContractAddr: "0x059560c0D626bdB982454b5EBd65DC8E7cF7973c"},
+		vaa.ChainIDTempo:           {Finalized: true, Safe: true, EvmChainID: 42431, PublicRPC: "https://rpc.moderato.tempo.xyz", ContractAddr: "0xa29E8c21924834E6249bCE1FD733f24eC492018c"},
+		vaa.ChainIDNexus:           {Finalized: true, Safe: true, EvmChainID: 3945, PublicRPC: "https://testnet.rpc.nexus.xyz", ContractAddr: "0x194B123c5E96B9b2E49763619985790Dc241CAC0"},
 		vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
 		vaa.ChainIDBaseSepolia:     {Finalized: true, Safe: true, EvmChainID: 84532, PublicRPC: "https://base-sepolia-rpc.publicnode.com", ContractAddr: "0x79A1027a6A159502049F10906D333EC57E95F083"},

@@ -23,4 +23,3 @@ function copyTypes(srcDir) {
 }
 
 copyTypes("src/ethers-contracts");
-copyTypes("src/ethers-relayer-contracts");

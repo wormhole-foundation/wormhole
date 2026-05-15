@@ -144,6 +144,9 @@ func (gov *ChainGovernor) Reload() (string, error) {
 		ce.transfers = nil
 		ce.pending = nil
 	}
+	// Clear the in memory map of seen messages so that we can reprocess them from the database. This is important because
+	// the in memory map is used to prevent duplicate processing of messages, and we want to reprocess all messages from the database.
+	gov.msgsSeen = make(map[string]bool)
 
 	if err := gov.loadFromDBAlreadyLocked(); err != nil {
 		gov.logger.Error("failed to load from the database", zap.Error(err))

@@ -74,6 +74,8 @@ type NodePrivilegedServiceClient interface {
 	DumpRPCs(ctx context.Context, in *DumpRPCsRequest, opts ...grpc.CallOption) (*DumpRPCsResponse, error)
 	// GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
 	GetAndObserveMissingVAAs(ctx context.Context, in *GetAndObserveMissingVAAsRequest, opts ...grpc.CallOption) (*GetAndObserveMissingVAAsResponse, error)
+	// BroadcastDelegateSignatures fetches delegate observations from wormholescan and broadcasts them.
+	BroadcastDelegateSignatures(ctx context.Context, in *BroadcastDelegateSignaturesRequest, opts ...grpc.CallOption) (*BroadcastDelegateSignaturesResponse, error)
 }
 
 type nodePrivilegedServiceClient struct {
@@ -291,6 +293,15 @@ func (c *nodePrivilegedServiceClient) GetAndObserveMissingVAAs(ctx context.Conte
 	return out, nil
 }
 
+func (c *nodePrivilegedServiceClient) BroadcastDelegateSignatures(ctx context.Context, in *BroadcastDelegateSignaturesRequest, opts ...grpc.CallOption) (*BroadcastDelegateSignaturesResponse, error) {
+	out := new(BroadcastDelegateSignaturesResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/BroadcastDelegateSignatures", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodePrivilegedServiceServer is the server API for NodePrivilegedService service.
 // All implementations must embed UnimplementedNodePrivilegedServiceServer
 // for forward compatibility
@@ -351,6 +362,8 @@ type NodePrivilegedServiceServer interface {
 	DumpRPCs(context.Context, *DumpRPCsRequest) (*DumpRPCsResponse, error)
 	// GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
 	GetAndObserveMissingVAAs(context.Context, *GetAndObserveMissingVAAsRequest) (*GetAndObserveMissingVAAsResponse, error)
+	// BroadcastDelegateSignatures fetches delegate observations from wormholescan and broadcasts them.
+	BroadcastDelegateSignatures(context.Context, *BroadcastDelegateSignaturesRequest) (*BroadcastDelegateSignaturesResponse, error)
 	mustEmbedUnimplementedNodePrivilegedServiceServer()
 }
 
@@ -426,6 +439,9 @@ func (UnimplementedNodePrivilegedServiceServer) DumpRPCs(context.Context, *DumpR
 }
 func (UnimplementedNodePrivilegedServiceServer) GetAndObserveMissingVAAs(context.Context, *GetAndObserveMissingVAAsRequest) (*GetAndObserveMissingVAAsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAndObserveMissingVAAs not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) BroadcastDelegateSignatures(context.Context, *BroadcastDelegateSignaturesRequest) (*BroadcastDelegateSignaturesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BroadcastDelegateSignatures not implemented")
 }
 func (UnimplementedNodePrivilegedServiceServer) mustEmbedUnimplementedNodePrivilegedServiceServer() {}
 
@@ -854,6 +870,24 @@ func _NodePrivilegedService_GetAndObserveMissingVAAs_Handler(srv interface{}, ct
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodePrivilegedService_BroadcastDelegateSignatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BroadcastDelegateSignaturesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).BroadcastDelegateSignatures(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/BroadcastDelegateSignatures",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).BroadcastDelegateSignatures(ctx, req.(*BroadcastDelegateSignaturesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NodePrivilegedService_ServiceDesc is the grpc.ServiceDesc for NodePrivilegedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -952,6 +986,10 @@ var NodePrivilegedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAndObserveMissingVAAs",
 			Handler:    _NodePrivilegedService_GetAndObserveMissingVAAs_Handler,
+		},
+		{
+			MethodName: "BroadcastDelegateSignatures",
+			Handler:    _NodePrivilegedService_BroadcastDelegateSignatures_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

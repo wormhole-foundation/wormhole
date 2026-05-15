@@ -25,6 +25,7 @@ pub use borsh::{
 
 // Expose all submodules for consumption.
 pub mod error;
+pub mod event_cpi;
 pub mod macros;
 pub mod processors;
 pub mod types;
@@ -37,6 +38,7 @@ pub use crate::{
         Result,
         SolitaireError,
     },
+    event_cpi::emit_event_cpi,
     macros::*,
     processors::{
         keyed::Keyed,
@@ -56,6 +58,13 @@ pub use crate::{
 
 /// Library name and version to print in entrypoint. Must be evaluated in this crate in order to do the right thing
 pub const PKG_NAME_VERSION: &str = concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"));
+
+// Anchor-compatible discriminator: SHA256("anchor:event")[..8]
+pub const EVENT_IX_TAG: u64 = 0x1d9acb512ea545e4;
+pub const EVENT_IX_TAG_LE: [u8; 8] = EVENT_IX_TAG.to_le_bytes();
+
+/// Seed for the Anchor event authority PDA.
+pub const EVENT_AUTHORITY_SEED: &[u8] = b"__event_authority";
 
 pub struct ExecutionContext<'a, 'b: 'a> {
     /// A reference to the program_id of the current program.

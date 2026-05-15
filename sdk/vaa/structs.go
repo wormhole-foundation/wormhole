@@ -216,8 +216,7 @@ const (
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum ChainID = 2
-	// WARNING: ChainIDTerra is only supported in devnet / Tilt.
-	ChainIDTerra ChainID = 3
+	// OBSOLETE: ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon
@@ -228,8 +227,7 @@ const (
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
 	// OBSOLETE: ChainIDAurora ChainID = 9
-	// ChainIDFantom is the ChainID of Fantom
-	ChainIDFantom ChainID = 10
+	// OBSOLETE: ChainIDFantom ChainID = 10
 	// OBSOLETE: ChainIDKarura ChainID = 11
 	// OBSOLETE: ChainIDAcala ChainID = 12
 	// ChainIDKlaytn is the ChainID of Klaytn
@@ -271,13 +269,10 @@ const (
 	ChainIDSei ChainID = 32
 	// ChainIDRootstock is the ChainID of Rootstock
 	ChainIDRootstock ChainID = 33
-	// ChainIDScroll is the ChainID of Scroll
-	ChainIDScroll ChainID = 34
-	// ChainIDMantle is the ChainID of Mantle
-	ChainIDMantle ChainID = 35
+	// OBSOLETE: ChainIDScroll ChainID = 34
+	// OBSOLETE: ChainIDMantle ChainID = 35
 	// OBSOLETE: ChainIDBlast ChainID = 36
-	// ChainIDXLayer is the ChainID of XLayer
-	ChainIDXLayer ChainID = 37
+	// OBSOLETE: ChainIDXLayer ChainID = 37
 	// ChainIDLinea is the ChainID of Linea
 	ChainIDLinea ChainID = 38
 	// ChainIDBerachain is the ChainID of Berachain
@@ -337,6 +332,12 @@ const (
 	ChainIDXRPL ChainID = 66
 	// ChainIDZeroGravity is the ChainID of ZeroGravity,
 	ChainIDZeroGravity ChainID = 67
+	// ChainIDTempo is the ChainID of Tempo
+	ChainIDTempo ChainID = 68
+	// ChainIDNexus is the ChainID of Nexus
+	ChainIDNexus ChainID = 69
+	// ChainIDTron is the ChainID of Tron
+	ChainIDTron ChainID = 70
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104

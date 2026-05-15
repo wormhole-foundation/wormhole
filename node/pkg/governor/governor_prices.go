@@ -166,7 +166,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 
 	for queryIdx, query := range gov.coinGeckoQueries {
 		<-throttle
-		query := query + "&" + params.Encode()
+		query = query + "&" + params.Encode()
 		thisResult, err := gov.queryCoinGeckoChunk(query)
 		if err != nil {
 			gov.logger.Error("CoinGecko query failed", zap.Error(err), zap.Int("queryIdx", queryIdx), zap.String("query", query))
@@ -178,7 +178,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 			result[key] = value
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 
 	now := time.Now()

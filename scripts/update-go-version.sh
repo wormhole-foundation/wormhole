@@ -8,7 +8,7 @@
 # correctness and safety. Always verify any major dependency updates.
 
 DOCKER=${DOCKER:-docker}
-DOCKER_IMAGE_DEBIAN_DISTRO=bullseye
+DOCKER_IMAGE_DEBIAN_DISTRO=bookworm
 REPO_ROOT_DIR=$(dirname "$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )")
 
 # Update the github actions to use the updated version of go
@@ -64,7 +64,7 @@ function update_our_dockerfiles() {
     local image=docker.io/golang
 
     # shellcheck disable=SC2207
-    local wormhole_dockerfiles=($(git grep -lEi 'FROM.*go(lang)' | grep -Ev '^(wormchain/D|third_party|algorand|terra|docs)'))
+    local wormhole_dockerfiles=($(git grep -lEi 'FROM.*go(lang)' | grep -Ev '^(wormchain/D|wormchain/ibc-relayer|third_party|algorand|terra|docs)'))
 
     # shellcheck disable=SC2155
     local digest=$(get_docker_image_digest "$version" "docker.io/golang")

@@ -86,7 +86,9 @@ func (dc *DelegatedGuardianChainConfig) deepCopy() DelegatedGuardianChainConfig 
 	}
 
 	ret := DelegatedGuardianChainConfig{
+		Keys:   nil,
 		quorum: dc.quorum,
+		keyMap: nil,
 	}
 
 	if dc.Keys != nil {
@@ -141,6 +143,7 @@ type DelegatedGuardianConfig struct {
 // NewDelegatedGuardianConfig returns a new DelegatedGuardianConfig.
 func NewDelegatedGuardianConfig() *DelegatedGuardianConfig {
 	return &DelegatedGuardianConfig{
+		mu:     sync.RWMutex{},
 		Chains: map[vaa.ChainID]*DelegatedGuardianChainConfig{},
 	}
 }

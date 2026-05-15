@@ -211,6 +211,30 @@ func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {
 	}
 }
 
+// TestVerifyDoesNotMutateOriginalMessage checks that verify() does not modify
+// the original MessagePublication passed to it.
+func TestVerifyDoesNotMutateOriginalMessage(t *testing.T) {
+	tbAddr, err := vaa.BytesToAddress([]byte{0x01})
+	require.NoError(t, err)
+
+	msg := &common.MessagePublication{
+		EmitterAddress: tbAddr,
+	}
+	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
+
+	successMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{true}
+	ctx := context.TODO()
+
+	result, err := verify(ctx, msg, eth_common.Hash{}, &types.Receipt{}, successMock)
+	require.NoError(t, err)
+
+	// The returned copy should have the updated verification state.
+	require.Equal(t, common.Valid.String(), result.VerificationState().String())
+
+	// The original message must remain unmodified.
+	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
+}
+
 func TestConsistencyLevelMatches(t *testing.T) {
 	// Success cases.
 	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, vaa.ConsistencyLevelPublishImmediately))

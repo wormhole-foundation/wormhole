@@ -21,54 +21,71 @@ import (
 // signing and signature verification through prometheus histograms.
 type BenchmarkSigner struct {
 	innerSigner GuardianSigner
+
+	// Per-instance metrics (labeled from the vectors)
+	signingLatency    prometheus.Observer
+	signingErrorCount prometheus.Counter
+	verifyLatency     prometheus.Observer
+	verifyErrorCount  prometheus.Counter
 }
 
+// Package-level metric vectors registered once
 var (
-	guardianSignerSigningLatency    prometheus.Histogram
-	guardianSignerSigningErrorCount prometheus.Counter
-	guardianSignerVerifyLatency     prometheus.Histogram
-	guardianSignerVerifyErrorCount  prometheus.Counter
+	guardianSignerSigningLatencyVec = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_guardian_signer_signing_latency_us",
+			Help:    "Latency histogram for Guardian signing requests",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
+		},
+		[]string{"signer_type", "purpose"},
+	)
+
+	guardianSignerSigningErrorCountVec = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_guardian_signer_signing_error_count",
+			Help: "Total number of errors that occurred during Guardian signing requests",
+		},
+		[]string{"signer_type", "purpose"},
+	)
+
+	guardianSignerVerifyLatencyVec = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "wormhole_guardian_signer_sig_verify_latency_us",
+			Help:    "Latency histogram for Guardian signature verification requests",
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
+		},
+		[]string{"signer_type", "purpose"},
+	)
+
+	guardianSignerVerifyErrorCountVec = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_guardian_signer_verify_error_count",
+			Help: "Total number of errors that occurred during Guardian signature verification requests",
+		},
+		[]string{"signer_type", "purpose"},
+	)
 )
 
+// BenchmarkWrappedSigner wraps a signer with benchmarking metrics.
+// The purpose parameter distinguishes different uses (e.g., "guardian", "manager").
 func BenchmarkWrappedSigner(innerSigner GuardianSigner) *BenchmarkSigner {
+	return BenchmarkWrappedSignerWithPurpose(innerSigner, "guardian")
+}
+
+// BenchmarkWrappedSignerWithPurpose wraps a signer with benchmarking metrics and a custom purpose label.
+func BenchmarkWrappedSignerWithPurpose(innerSigner GuardianSigner, purpose string) *BenchmarkSigner {
 	if innerSigner == nil {
 		return nil
 	}
 
 	signerType := innerSigner.TypeAsString()
 
-	guardianSignerSigningLatency = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:        "wormhole_guardian_signer_signing_latency_us",
-			Help:        "Latency histogram for Guardian signing requests",
-			Buckets:     []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-			ConstLabels: prometheus.Labels{"signer_type": signerType},
-		})
-
-	guardianSignerSigningErrorCount = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name:        "wormhole_guardian_signer_signing_error_count",
-			Help:        "Total number of errors that occurred during Guardian signing requests",
-			ConstLabels: prometheus.Labels{"signer_type": signerType},
-		})
-
-	guardianSignerVerifyLatency = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:        "wormhole_guardian_signer_sig_verify_latency_us",
-			Help:        "Latency histogram for Guardian signature verification requests",
-			Buckets:     []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-			ConstLabels: prometheus.Labels{"signer_type": signerType},
-		})
-
-	guardianSignerVerifyErrorCount = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name:        "wormhole_guardian_signer_verify_error_count",
-			Help:        "Total number of errors that occurred during Guardian signature verification requests",
-			ConstLabels: prometheus.Labels{"signer_type": signerType},
-		})
-
 	return &BenchmarkSigner{
-		innerSigner: innerSigner,
+		innerSigner:       innerSigner,
+		signingLatency:    guardianSignerSigningLatencyVec.WithLabelValues(signerType, purpose),
+		signingErrorCount: guardianSignerSigningErrorCountVec.WithLabelValues(signerType, purpose),
+		verifyLatency:     guardianSignerVerifyLatencyVec.WithLabelValues(signerType, purpose),
+		verifyErrorCount:  guardianSignerVerifyErrorCountVec.WithLabelValues(signerType, purpose),
 	}
 }
 
@@ -79,10 +96,10 @@ func (b *BenchmarkSigner) Sign(ctx context.Context, hash []byte) ([]byte, error)
 
 	// If an error occurred, increment the error counter
 	if err != nil {
-		guardianSignerSigningErrorCount.Inc()
+		b.signingErrorCount.Inc()
 	} else {
 		// Add Observation to histogram only if no errors occurred
-		guardianSignerSigningLatency.Observe(float64(duration.Microseconds()))
+		b.signingLatency.Observe(float64(duration.Microseconds()))
 	}
 
 	return sig, err
@@ -101,10 +118,10 @@ func (b *BenchmarkSigner) Verify(ctx context.Context, sig []byte, hash []byte) (
 
 	// If an error occurred, increment the error counter
 	if err != nil {
-		guardianSignerVerifyErrorCount.Inc()
+		b.verifyErrorCount.Inc()
 	} else {
 		// Add observation to histogram only if no errors occurred
-		guardianSignerVerifyLatency.Observe(float64(duration.Microseconds()))
+		b.verifyLatency.Observe(float64(duration.Microseconds()))
 	}
 
 	return valid, err

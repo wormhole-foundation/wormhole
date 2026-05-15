@@ -68,6 +68,9 @@ export async function execute_terra(
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on terra");
+        case "TransferFees":
+          console.log("Transferring core bridge fees");
+          break;
         default:
           impossible(payload);
       }

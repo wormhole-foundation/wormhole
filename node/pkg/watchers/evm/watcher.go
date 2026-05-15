@@ -284,8 +284,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	// Verify that we are connecting to the correct chain.
-	if err := w.verifyEvmChainID(ctx, logger, w.url); err != nil {
-		return fmt.Errorf("failed to verify evm chain id: %w", err)
+	if verifyErr := w.verifyEvmChainID(ctx, logger, w.url); verifyErr != nil {
+		return fmt.Errorf("failed to verify evm chain id: %w", verifyErr)
 	}
 
 	// Connect to the node using the appropriate type of connector.
@@ -368,8 +368,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	defer messageSub.Unsubscribe()
 
 	// Fetch initial guardian set
-	if err := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); err != nil {
-		return fmt.Errorf("failed to request guardian set: %v", err)
+	if fetchErr := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); fetchErr != nil {
+		return fmt.Errorf("failed to request guardian set: %v", fetchErr)
 	}
 
 	// Poll for guardian set.
@@ -381,8 +381,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case <-t.C:
-				if err := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); err != nil {
-					errC <- fmt.Errorf("failed to request guardian set: %v", err) //nolint:channelcheck // The watcher will exit anyway
+				if pollErr := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); pollErr != nil {
+					errC <- fmt.Errorf("failed to request guardian set: %v", pollErr) //nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 			}
@@ -391,8 +391,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 	// Fetch initial delegated guardian config if configured.
 	if w.dgContractAddr != nil && w.dgConfigC != nil {
-		if err := w.fetchAndUpdateDelegatedGuardianConfig(ctx); err != nil {
-			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(err))
+		if fetchErr := w.fetchAndUpdateDelegatedGuardianConfig(ctx); fetchErr != nil {
+			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(fetchErr))
 		}
 	}
 
@@ -407,8 +407,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				case <-ctx.Done():
 					return nil
 				case <-t.C:
-					if err := w.fetchAndUpdateDelegatedGuardianConfig(ctx); err != nil {
-						errC <- fmt.Errorf("failed to request delegated guardian config: %v", err) //nolint:channelcheck // The watcher will exit anyway
+					if pollErr := w.fetchAndUpdateDelegatedGuardianConfig(ctx); pollErr != nil {
+						errC <- fmt.Errorf("failed to request delegated guardian config: %v", pollErr) //nolint:channelcheck // The watcher will exit anyway
 						return nil
 					}
 				}
@@ -429,7 +429,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					)
 					continue
 				}
-				numObservations, err := w.handleReobservationRequest(
+				numObservations, handleErr := w.handleReobservationRequest(
 					ctx,
 					vaa.ChainID(r.ChainId),
 					r.TxHash,
@@ -437,11 +437,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
 					atomic.LoadUint64(&w.latestSafeBlockNumber),
 				)
-				if err != nil {
+				if handleErr != nil {
 					logger.Error("failed to process observation request",
 						zap.Uint32("chainID", r.ChainId),
 						zap.String("txID", hex.EncodeToString(r.TxHash)),
-						zap.Error(err),
+						zap.Error(handleErr),
 					)
 				}
 
@@ -458,8 +458,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		w.ccqStart(ctx, errC)
 	}
 
-	if err := w.cclEnable(ctx); err != nil {
-		return fmt.Errorf("failed to enable custom consistency level: %w", err)
+	if cclErr := w.cclEnable(ctx); cclErr != nil {
+		return fmt.Errorf("failed to enable custom consistency level: %w", cclErr)
 	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
@@ -467,21 +467,21 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return nil
-			case err := <-messageSub.Err():
+			case subErr := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing message publication subscription: %w", err) //nolint:channelcheck // The watcher will exit anyway
+				errC <- fmt.Errorf("error while processing message publication subscription: %w", subErr) //nolint:channelcheck // The watcher will exit anyway
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-messageC:
-				blockTime, err := w.getBlockTime(ctx, ev.Raw.BlockHash)
-				if err != nil {
+				blockTime, blockErr := w.getBlockTime(ctx, ev.Raw.BlockHash)
+				if blockErr != nil {
 					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-					if canRetryGetBlockTime(err) {
+					if canRetryGetBlockTime(blockErr) {
 						go w.waitForBlockTime(ctx, errC, ev)
 						continue
 					}
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err) //nolint:channelcheck // The watcher will exit anyway
+					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), blockErr) //nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 
@@ -568,6 +568,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 
 					// Don't process the observation if we haven't reached the desired block height yet.
+					// CCL 'additionalBlocks' is used after consistency level handling.
+					// For instance, we need to wait for FINAL consistency level and then five more blocks.
 					if pLock.height+pLock.additionalBlocks > blockNumberU {
 						continue
 					}
@@ -579,6 +581,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
 					cancel()
 
+					// SECURITY: Protection against reorgs that remove or change observations
 					// If the node returns an error after waiting expectedConfirmation blocks,
 					// it means the chain reorged and the transaction was orphaned. The
 					// TransactionReceipt call is using the same websocket connection than the
@@ -603,10 +606,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
+					// SECURITY: Check that the tx succeeded.
 					// This should never happen - if we got this far, it means that logs were emitted,
 					// which is only possible if the transaction succeeded. We check it anyway just
 					// in case the EVM implementation is buggy.
-					if tx.Status != 1 {
+					if tx.Status != gethTypes.ReceiptStatusSuccessful {
 						logger.Error("transaction receipt with non-success status",
 							zap.String("msgId", pLock.message.MessageIDString()),
 							zap.String("txHash", pLock.message.TxIDString()),
@@ -686,6 +690,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 					// Note that `tx` here is actually a receipt
 					txHash := eth_common.Hash(pLock.message.TxID)
+
+					// SECURITY: The TxHash existing within the particular block hash guarantees
+					// that the event exists without being modified. We don't
+					// check for the event mutating into something that's invalid (wrong event type, etc.)
+					// because of this.
 					pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
 					if pubErr != nil {
 						logger.Error("could not publish message",
@@ -916,15 +925,29 @@ func (w *Watcher) postMessage(
 	ev *ethabi.AbiLogMessagePublished,
 	blockTime uint64,
 ) {
+	// SECURITY: Defense-in-depth validation of the subscription event.
+	// The subscription filter should guarantee these, but we verify independently
+	// in case the RPC node or connector delivers unexpected events.
+	// This calls the same validation used by the reobservation path in by_transaction.go.
+	if !isValidCoreBridgeMessagePublicationLog(ev.Raw, w.contract) {
+		w.logger.Error("subscription delivered unexpected event",
+			zap.Stringer("contract", ev.Raw.Address),
+			zap.String("txHash", ev.Raw.TxHash.Hex()),
+		)
+		return
+	}
+
 	msg := &common.MessagePublication{
 		TxID:             ev.Raw.TxHash.Bytes(),
 		Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
-		EmitterChain:     w.chainID,
+		EmitterChain:     w.chainID, // SECURITY: Hardcoded chain id from watcher
 		EmitterAddress:   PadAddress(ev.Sender),
 		Payload:          ev.Payload,
 		ConsistencyLevel: ev.ConsistencyLevel,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 
 	ethMessagesObserved.WithLabelValues(w.networkName).Inc()
@@ -941,10 +964,35 @@ func (w *Watcher) postMessage(
 			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 		)
 
+		// SECURITY: Defense-in-depth check of transaction status.
+		// The EVM invariant is that failed transactions cannot emit logs, but we verify
+		// explicitly in case an EVM-compatible chain breaks this invariant.
+		msm := time.Now()
+		receiptCtx, receiptCancel := context.WithTimeout(parentCtx, 5*time.Second)
+		receipt, err := w.ethConn.TransactionReceipt(receiptCtx, ev.Raw.TxHash)
+		receiptCancel()
+		queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
+		if err != nil {
+			w.logger.Error("failed to get transaction receipt for instant message",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.String("txHash", msg.TxIDString()),
+				zap.Error(err),
+			)
+			return
+		}
+		if receipt.Status != gethTypes.ReceiptStatusSuccessful {
+			w.logger.Error("instant message transaction has non-success status",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.String("txHash", msg.TxIDString()),
+				zap.Uint64("status", receipt.Status),
+			)
+			return
+		}
+
 		verifyCtx, cancel := context.WithCancel(parentCtx)
 		defer cancel()
 
-		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, nil)
+		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, receipt)
 		if pubErr != nil {
 			w.logger.Error("could not publish message: transfer verification failed",
 				zap.String("msgId", msg.MessageIDString()),
@@ -1012,6 +1060,7 @@ func canRetryGetBlockTime(err error) bool {
 // Modifies the verificationState field of the message as a side-effect.
 // Even if an invalid Transfer is detected, the message will still be published. It is the responsibility of the calling code to handle
 // a status of Rejected.
+// SECURITY: MUST be the only location where the watcher's msgC channel is written to.
 // Note that the result of verification is not returned by this function, but can be accessed directly via the reference to message.
 func (w *Watcher) verifyAndPublish(
 	// Must be non-nil and have verificationState equal to NotVerified.

@@ -148,6 +148,50 @@ module wormhole::vaa {
         (emitter_chain, emitter_address, payload)
     }
 
+    #[test_only]
+    public fun serialize_body(vaa: &VAA): vector<u8> {
+        let buf = vector::empty();
+
+        bytes::push_u32_be(&mut buf, vaa.timestamp);
+        bytes::push_u32_be(&mut buf, vaa.nonce);
+        bytes::push_u16_be(&mut buf, vaa.emitter_chain);
+        vector::append(&mut buf, external_address::to_bytes(vaa.emitter_address));
+        bytes::push_u64_be(&mut buf, vaa.sequence);
+        bytes::push_u8(&mut buf, vaa.consistency_level);
+        vector::append(&mut buf, vaa.payload);
+
+        buf
+    }
+
+    #[test_only]
+    public fun new_test_only(
+        guardian_set_index: u32,
+        timestamp: u32,
+        nonce: u32,
+        emitter_chain: u16,
+        emitter_address: ExternalAddress,
+        sequence: u64,
+        consistency_level: u8,
+        payload: vector<u8>
+    ): VAA {
+        let vaa =
+            VAA {
+                guardian_set_index,
+                timestamp,
+                nonce,
+                emitter_chain,
+                emitter_address,
+                sequence,
+                consistency_level,
+                payload,
+                digest: bytes32::default()
+            };
+        let digest = double_keccak256(serialize_body(&vaa));
+        vaa.digest = digest;
+
+        vaa
+    }
+
     /// Parses and verifies the signatures of a VAA.
     ///
     /// NOTE: This is the only public function that returns a VAA, and it should
@@ -600,6 +644,26 @@ module wormhole::vaa_tests {
             vaa::take_payload(parsed) == b"All your base are belong to us",
             0
         );
+    }
+
+    #[test]
+    fun test_new() {
+        let (_, vaa1) = vaa::parse_test_only(VAA_1);
+        let vaa2 = vaa::new_test_only(
+            vaa::guardian_set_index(&vaa1),
+            vaa::timestamp(&vaa1),
+            vaa::nonce(&vaa1),
+            vaa::emitter_chain(&vaa1),
+            vaa::emitter_address(&vaa1),
+            vaa::sequence(&vaa1),
+            vaa::consistency_level(&vaa1),
+            vaa::payload(&vaa1)
+        );
+
+        assert!(&vaa1 == &vaa2, 0);
+
+        vaa::destroy(vaa1);
+        vaa::destroy(vaa2);
     }
 
     #[test]

@@ -46,14 +46,14 @@ func (acct *Accountant) watcher(ctx context.Context, isNTT bool) error {
 		return fmt.Errorf("failed to establish %s tendermint connection: %w", tag, err)
 	}
 
-	if err := tmConn.Start(); err != nil {
+	if startErr := tmConn.Start(); startErr != nil {
 		connectionErrors.Inc()
-		return fmt.Errorf("failed to start %s tendermint connection: %w", tag, err)
+		return fmt.Errorf("failed to start %s tendermint connection: %w", tag, startErr)
 	}
 	defer func() {
-		if err := tmConn.Stop(); err != nil {
+		if stopErr := tmConn.Stop(); stopErr != nil {
 			connectionErrors.Inc()
-			acct.logger.Error(fmt.Sprintf("acctwatch: failed to stop %s tendermint connection", tag), zap.Error(err))
+			acct.logger.Error(fmt.Sprintf("acctwatch: failed to stop %s tendermint connection", tag), zap.Error(stopErr))
 		}
 	}()
 
@@ -187,6 +187,8 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 		EmitterAddress:   xfer.EmitterAddress,
 		Payload:          xfer.Payload,
 		ConsistencyLevel: xfer.ConsistencyLevel,
+		IsReobservation:  false,
+		Unreliable:       false,
 	}
 
 	msgId := msg.MessageIDString()

@@ -35,7 +35,8 @@ func verify(
 	}
 
 	// Create a local copy of the MessagePublication.
-	localMsg := msg
+	localCopy := *msg
+	localMsg := &localCopy
 
 	var newState common.VerificationState
 

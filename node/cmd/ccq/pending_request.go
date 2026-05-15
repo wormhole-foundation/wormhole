@@ -104,16 +104,16 @@ func (p *PendingResponses) updateMetricsAlreadyLocked(reqRemoved *PendingRespons
 		}
 	}
 
-	for chainId, count := range counts {
-		currentNumConcurrentQueriesByChain.WithLabelValues(chainId.String()).Set(count)
-		currVal, err := getGaugeValue(maxConcurrentQueriesByChain.WithLabelValues(chainId.String()))
+	for chainID, count := range counts {
+		currentNumConcurrentQueriesByChain.WithLabelValues(chainID.String()).Set(count)
+		currVal, err := getGaugeValue(maxConcurrentQueriesByChain.WithLabelValues(chainID.String()))
 		if err != nil {
-			p.logger.Error("failed to read current value of max concurrent queries metric", zap.String("chainId", chainId.String()), zap.Error(err))
+			p.logger.Error("failed to read current value of max concurrent queries metric", zap.String("chainID", chainID.String()), zap.Error(err))
 			continue
 		}
 		if count > currVal {
-			p.logger.Info("updating max concurrent queries metric", zap.String("chain", chainId.String()), zap.Float64("oldMax", currVal), zap.Float64("newMax", count))
-			maxConcurrentQueriesByChain.WithLabelValues(chainId.String()).Set(count)
+			p.logger.Info("updating max concurrent queries metric", zap.String("chain", chainID.String()), zap.Float64("oldMax", currVal), zap.Float64("newMax", count))
+			maxConcurrentQueriesByChain.WithLabelValues(chainID.String()).Set(count)
 		}
 	}
 }

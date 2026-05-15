@@ -107,7 +107,7 @@ func TestRunWithScissorsCleanExit(t *testing.T) {
 	require.Equal(t, true, shouldHaveRun)
 
 	// Need to wait a bit to make sure the scissors code completes without hanging.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsCleanExit"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsCleanExit"))
@@ -153,7 +153,7 @@ func TestRunWithScissorsPanicDoesNotBlockWhenNoListener(t *testing.T) {
 	require.Equal(t, true, shouldHaveRun)
 
 	// Need to wait a bit to make sure the scissors code completes without hanging.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
 	assert.Equal(t, 1.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
@@ -199,7 +199,7 @@ func TestRunWithScissorsErrorDoesNotBlockWhenNoListener(t *testing.T) {
 	require.Equal(t, true, shouldHaveRun)
 
 	// Need to wait a bit to make sure the scissors code completes without hanging.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	assert.Equal(t, 1.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
@@ -219,7 +219,7 @@ func TestStartRunnable_CleanExit(t *testing.T) {
 	require.Equal(t, true, shouldHaveRun)
 
 	// Need to wait a bit to make sure the scissors code completes without hanging.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestStartRunnable_CleanExit"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestStartRunnable_CleanExit"))
@@ -331,7 +331,7 @@ func TestStartRunnable_DoesNotBlockWhenNoListener(t *testing.T) {
 	require.Equal(t, true, shouldHaveRun)
 
 	// Need to wait a bit to make sure the scissors code completes without hanging.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestStartRunnable_DoesNotBlockWhenNoListener"))
 	assert.Equal(t, 1.0, getCounterValue(ScissorsPanicsCaught, "TestStartRunnable_DoesNotBlockWhenNoListener"))

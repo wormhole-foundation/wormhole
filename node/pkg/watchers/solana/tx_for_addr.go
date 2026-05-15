@@ -154,7 +154,7 @@ func (s *SolanaWatcher) getTransactionSignatures() ([]*rpc.TransactionSignature,
 func (s *SolanaWatcher) processTransactionWithRetry(signature solana.Signature) {
 	for count := range maxRetries {
 		if count != 0 {
-			time.Sleep(retryDelay)
+			time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 		}
 
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)

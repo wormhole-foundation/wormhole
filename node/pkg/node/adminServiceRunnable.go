@@ -12,6 +12,7 @@ import (
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	"github.com/certusone/wormhole/node/pkg/manager"
 	"github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
@@ -32,6 +33,7 @@ func adminServiceRunnable(
 	injectC chan<- *common.MessagePublication,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
+	delegateSigBroadcastSendC chan<- []byte,
 	db *guardianDB.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
@@ -41,6 +43,7 @@ func adminServiceRunnable(
 	ethContract *string,
 	rpcMap map[string]string,
 	reobservers interfaces.Reobservers,
+	managerSvc *manager.ManagerService,
 ) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
@@ -89,6 +92,7 @@ func adminServiceRunnable(
 		db,
 		injectC,
 		obsvReqSendC,
+		delegateSigBroadcastSendC,
 		logger.Named("adminservice"),
 		signedInC,
 		gov,
@@ -100,7 +104,7 @@ func adminServiceRunnable(
 		reobservers,
 	)
 
-	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
+	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov, managerSvc)
 
 	grpcServer := common.NewInstrumentedGRPCServer(logger, common.GrpcLogDetailMinimal)
 	nodev1.RegisterNodePrivilegedServiceServer(grpcServer, nodeService)

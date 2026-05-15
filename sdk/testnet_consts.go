@@ -17,7 +17,6 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDAvalanche:       "00000000000000000000000061e44e506ca5659e6c0bba9b678586fa2d729756",
 	vaa.ChainIDAlgorand:        "6241ffdc032b693bfb8544858f0403dec86f2e1720af9f34f8d65fe574b6238c",
 	vaa.ChainIDAptos:           "0000000000000000000000000000000000000000000000000000000000000001",
-	vaa.ChainIDFantom:          "000000000000000000000000599cea2204b4faecd584ab1f2b6aca137a0afbe8",
 	vaa.ChainIDKlaytn:          "000000000000000000000000c7a13be098720840dea132d860fdfa030884b09a",
 	vaa.ChainIDCelo:            "00000000000000000000000005ca6037ec51f8b712ed2e6fa72219feae74e153",
 	vaa.ChainIDNear:            "c2c0b6ecbbe9ecf91b2b7999f0264018ba68126c2e83bf413f59f712f3a1df55",
@@ -28,10 +27,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDSui:             "40440411a170b4842ae7dee4f4a7b7a58bc0a98566e998850a7bb87bf5dc05b9",
 	vaa.ChainIDBase:            "000000000000000000000000A31aa3FDb7aF7Db93d18DDA4e19F811342EDF780",
 	vaa.ChainIDSei:             "9328673cb5de3fd99974cefbbd90fea033f4c59a572abfd7e1a4eebcc5d18157",
-	vaa.ChainIDScroll:          "00000000000000000000000022427d90B7dA3fA4642F7025A854c7254E4e45BF",
-	vaa.ChainIDMantle:          "00000000000000000000000075Bfa155a9D7A3714b0861c8a8aF0C4633c45b5D",
 	vaa.ChainIDMovement:        "0000000000000000000000000000000000000000000000000000000000000002",
-	vaa.ChainIDXLayer:          "000000000000000000000000dA91a06299BBF302091B053c6B9EF86Eff0f930D",
 	vaa.ChainIDLinea:           "000000000000000000000000C7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
 	vaa.ChainIDBerachain:       "000000000000000000000000a10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a",
 	vaa.ChainIDSeiEVM:          "00000000000000000000000023908A62110e21C04F3A4e011d24F901F911744A",
@@ -62,7 +58,6 @@ var knownTestnetNFTBridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDBSC:             "000000000000000000000000cd16e5613ef35599dc82b24cb45b5a93d779f1ee",
 	vaa.ChainIDPolygon:         "00000000000000000000000051a02d0dcb5e52f5b92bdaa38fa013c91c7309a9",
 	vaa.ChainIDAvalanche:       "000000000000000000000000d601baf2eee3c028344471684f6b27e789d9075d",
-	vaa.ChainIDFantom:          "00000000000000000000000063ed9318628d26bdcb15df58b53bb27231d1b227",
 	vaa.ChainIDKlaytn:          "00000000000000000000000094c994fc51c13101062958b567e743f1a04432de",
 	vaa.ChainIDCelo:            "000000000000000000000000acd8190f647a31e56a656748bc30f69259f245db",
 	vaa.ChainIDMoonbeam:        "00000000000000000000000098a0f4b96972b32fcb3bd03caeb66a44a6ab9edb",
@@ -109,4 +104,13 @@ var KnownTestnetWrappedNativeAddresses = map[vaa.ChainID]string{
 	vaa.ChainIDSepolia: "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
 	// WETH
 	vaa.ChainIDHolesky: "0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8",
+}
+
+// KnownTestnetManagerEmitters is a list of known manager emitters on various testnets.
+// Note that the format allows multiple emitters per chain.
+var KnownTestnetManagerEmitters = []struct {
+	ChainId vaa.ChainID
+	Addr    string
+}{
+	{ChainId: vaa.ChainIDSolana, Addr: "af528793be84ee2c922e2b27b7cae282a4d098f4fe528f35ded8c8c06d0b1090"},
 }

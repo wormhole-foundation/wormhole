@@ -386,7 +386,7 @@ func (s *supervisor) processGC() {
 
 		// Reschedule node runnable to run after backoff.
 		go func(n *node, bo time.Duration) {
-			time.Sleep(bo)
+			time.Sleep(bo)               //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 			s.pReq <- &processorRequest{ //nolint:channelcheck // Will only block this go routine
 				schedule: &processorRequestSchedule{dn: n.dn()},
 			}

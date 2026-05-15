@@ -229,6 +229,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			gossipControlSendC,
 			gossipAttestationSendC,
 			gossipDelegatedAttestationSendC,
+			nil, // delegateSigBroadcastSendC
 			gossipVaaSendC,
 			obsvReqSendC,
 			acct,

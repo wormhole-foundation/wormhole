@@ -37,9 +37,9 @@ func TestTokenListAddressSize(t *testing.T) {
 }
 
 func TestTokensHaveGovernedChains(t *testing.T) {
-	chainList := ChainList()
+	localChainList := ChainList()
 	chains := []vaa.ChainID{}
-	for _, chainConfigEntry := range chainList {
+	for _, chainConfigEntry := range localChainList {
 		chains = append(chains, chainConfigEntry.EmitterChainID)
 	}
 
@@ -70,8 +70,6 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 		vaa.ChainIDMezo: true,
 		// TODO: Remove this once we have governed tokens for XRPLEVM.
 		vaa.ChainIDXRPLEVM: true,
-		// TODO: Remove this once we have governed tokens for Linea.
-		vaa.ChainIDLinea: true,
 		// TODO: Remove this once we have governed tokens for Fogo.
 		vaa.ChainIDFogo: true,
 		// TODO: Remove this once we have governed tokens for MegaETH

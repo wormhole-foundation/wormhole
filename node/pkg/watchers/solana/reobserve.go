@@ -11,6 +11,7 @@ import (
 )
 
 // handleReobservationRequest performs a reobservation request and publishes any observed transactions.
+// SECURITY: Only the finalized watcher handles reobservations. Set in configuration of watcher for Solana chains.
 func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []byte, rpcClient *rpc.Client) (numObservations uint32, err error) {
 	if chainId != s.chainID {
 		return 0, fmt.Errorf("unexpected chain id: %v", chainId)

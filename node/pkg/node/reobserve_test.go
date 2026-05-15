@@ -258,7 +258,7 @@ func TestBlockingSend(t *testing.T) {
 	// processing the second request.  If we read from the channel too quickly then we might pop out the
 	// first request too early, unblocking the channel.  Unfortunately there's no easy way for us to detect
 	// when the handler is done without adding unnecessary complexity.
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	assert.True(t, ok)

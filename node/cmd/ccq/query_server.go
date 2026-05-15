@@ -25,7 +25,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const CCQ_SERVER_SIGNING_KEY = "CCQ SERVER SIGNING KEY"
+const CcqServerSigningKey = "CCQ SERVER SIGNING KEY"
 
 var (
 	envStr                 *string
@@ -51,7 +51,7 @@ var (
 	verifyPermissions      *bool
 )
 
-const DEV_NETWORK_ID = "/wormhole/dev"
+const DevNetworkID = "/wormhole/dev"
 
 func init() {
 	envStr = QueryServerCmd.Flags().String("env", "", "environment (devnet, testnet, mainnet)")
@@ -99,9 +99,9 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	}
 
 	if *verifyPermissions {
-		_, err := parseConfigFile(*permFile, env)
-		if err != nil {
-			fmt.Println(err)
+		_, parseErr := parseConfigFile(*permFile, env)
+		if parseErr != nil {
+			fmt.Println(parseErr)
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -125,7 +125,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		logger.Warn("overriding default p2p network ID", zap.String("p2pNetworkID", *p2pNetworkID))
 	}
 
-	if *p2pNetworkID == DEV_NETWORK_ID && env != common.UnsafeDevNet {
+	if *p2pNetworkID == DevNetworkID && env != common.UnsafeDevNet {
 		logger.Fatal("May not set --network to dev unless --env is also dev", zap.String("network", *p2pNetworkID), zap.String("env", *envStr))
 	}
 
@@ -151,9 +151,9 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			"version":   version.Version(),
 		}
 
-		tm, err := telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "ccq_server", true, labels)
-		if err != nil {
-			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+		tm, lokiErr := telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "ccq_server", true, labels)
+		if lokiErr != nil {
+			logger.Fatal("Failed to initialize telemetry", zap.Error(lokiErr))
 		}
 
 		defer tm.Close()
@@ -193,7 +193,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	var signerKey *ecdsa.PrivateKey
 	if *signerKeyPath != "" {
-		signerKey, err = common.LoadArmoredKey(*signerKeyPath, CCQ_SERVER_SIGNING_KEY, false)
+		signerKey, err = common.LoadArmoredKey(*signerKeyPath, CcqServerSigningKey, false)
 		if err != nil {
 			logger.Fatal("Failed to loader signer key", zap.Error(err))
 		}
@@ -213,11 +213,10 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2pSub.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
+		s := NewHTTPServer(*listenAddr, p2pSub.topicReq, permissions, signerKey, pendingResponses, logger, env, loggingMap)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
-		err := s.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Server closed unexpectedly", zap.Error(err))
+		if serveErr := s.ListenAndServe(); serveErr != nil && serveErr != http.ErrServerClosed {
+			logger.Fatal("Server closed unexpectedly", zap.Error(serveErr))
 		}
 	}()
 
@@ -227,9 +226,8 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		statServer = NewStatusServer(*statusAddr, logger, env)
 		go func() {
 			logger.Sugar().Infof("Status server listening on %s", *statusAddr)
-			err := statServer.httpServer.ListenAndServe()
-			if err != nil && err != http.ErrServerClosed {
-				logger.Fatal("Status server closed unexpectedly", zap.Error(err))
+			if serveErr := statServer.httpServer.ListenAndServe(); serveErr != nil && serveErr != http.ErrServerClosed {
+				logger.Fatal("Status server closed unexpectedly", zap.Error(serveErr))
 			}
 		}()
 	}
@@ -257,12 +255,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		if statServer != nil && *shutdownDelay1 != 0 {
 			logger.Info("Received sigterm. disabling health checks and pausing.")
 			statServer.disableHealth()
+			//nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep;
 			time.Sleep(time.Duration(*shutdownDelay1) * time.Second) // #nosec G115 -- Defaults to 25 seconds, overflowing is infeasible
+
 			numPending := 0
 			logger.Info("Waiting for any outstanding requests to complete before shutting down.")
 			// #nosec G115 -- Defaults to 65 seconds, overflowing is infeasible
 			for count := 0; count < int(*shutdownDelay2); count++ {
-				time.Sleep(time.Second)
+				time.Sleep(time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 				numPending = pendingResponses.NumPending()
 				if numPending == 0 {
 					break
@@ -285,7 +285,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	if permWatcherErr != nil {
 		// Cleanup p2p connection.
 		cancel()
-		logger.Fatal("Could not start permissions file watcher", zap.Error(err))
+		logger.Fatal("Could not start permissions file watcher", zap.Error(permWatcherErr))
 	}
 
 	// Star logging cleanup process.
@@ -306,10 +306,10 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Shutdown p2p. Without this the same host won't properly discover peers until some timeout
 	p2pSub.sub.Cancel()
-	if err := p2pSub.topic_req.Close(); err != nil {
+	if err := p2pSub.topicReq.Close(); err != nil {
 		logger.Error("Error closing the request topic", zap.Error(err))
 	}
-	if err := p2pSub.topic_resp.Close(); err != nil {
+	if err := p2pSub.topicResp.Close(); err != nil {
 		logger.Error("Error closing the response topic", zap.Error(err))
 	}
 	if err := p2pSub.host.Close(); err != nil {

@@ -207,6 +207,9 @@ type Processor struct {
 	// delegatedGuardiansEnabled gates the delegated guardians protocol. When false, the processor
 	// always uses canonical guardian behavior and ignores incoming delegate observations.
 	delegatedGuardiansEnabled bool
+
+	// managerC is the channel used to send signed VAAs to the manager service (nil if manager service is disabled)
+	managerC chan<- *vaa.VAA
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -305,6 +308,7 @@ func NewProcessor(
 	networkID string,
 	alternatePublisher *altpub.AlternatePublisher,
 	delegatedGuardiansEnabled bool,
+	managerC chan<- *vaa.VAA,
 ) *Processor {
 
 	return &Processor{
@@ -324,6 +328,7 @@ func NewProcessor(
 		alternatePublisher:              alternatePublisher,
 
 		logger:                    supervisor.Logger(ctx),
+		gs:                        nil,
 		state:                     &aggregationState{observationMap{}},
 		delegateState:             &delegateAggregationState{delegateObservationMap{}},
 		ourAddr:                   crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
@@ -333,11 +338,13 @@ func NewProcessor(
 		notary:                    notary,
 		pythnetVaas:               make(map[string]PythNetVaaEntry),
 		gatewayRelayer:            gatewayRelayer,
+		updateVAALock:             sync.Mutex{},
 		batchObsvPubC:             make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:               make(map[string]*updateVaaEntry),
 		networkID:                 networkID,
 		dgc:                       dgc,
 		delegatedGuardiansEnabled: delegatedGuardiansEnabled,
+		managerC:                  managerC,
 	}
 }
 
@@ -419,9 +426,8 @@ func (p *Processor) Run(ctx context.Context) error {
 				oldChains = oldDgc.ReadAll()
 			}
 
+			// This mutex is unlocked at the end of this select case
 			dgConfig.mu.Lock()
-			defer dgConfig.mu.Unlock()
-
 			chains := dgConfig.Chains
 
 			// Log details for removed chain configs
@@ -504,6 +510,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			if err := p.dgc.Set(chains); err != nil {
 				p.logger.Error("delegate guardian config update failed", zap.Error(err))
 			}
+			dgConfig.mu.Unlock()
 		case k := <-p.msgC:
 			if k == nil {
 				p.logger.Error("received nil MessagePublication from msgC channel")
@@ -697,6 +704,17 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) {
 	p.updateVAALock.Lock()
 	p.updatedVAAs[key] = &updateVaaEntry{v: v, dirty: true}
 	p.updateVAALock.Unlock()
+
+	// Send to manager service if enabled
+	if p.managerC != nil {
+		select {
+		case p.managerC <- v:
+		default:
+			p.logger.Warn("manager channel full, dropping VAA",
+				zap.String("message_id", v.MessageID()),
+			)
+		}
+	}
 }
 
 // haveSignedVAA returns true if we already have a VAA for the given VAAID

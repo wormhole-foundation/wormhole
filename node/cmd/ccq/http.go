@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const MAX_BODY_SIZE = 5 * 1024 * 1024
+const MaxBodySize = 5 * 1024 * 1024
 
 type queryRequest struct {
 	Bytes     string `json:"bytes"`
@@ -62,7 +62,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	// This could be a slight waste of resources, but should not be a DoS risk because we cap the max body size.
 
 	var q queryRequest
-	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, MAX_BODY_SIZE)).Decode(&q)
+	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxBodySize)).Decode(&q)
 	if err != nil {
 		s.logger.Error("failed to decode body", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -130,8 +130,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestId := hex.EncodeToString(signedQueryRequest.Signature)
-	s.logger.Info("received request from client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+	requestID := hex.EncodeToString(signedQueryRequest.Signature)
+	s.logger.Info("received request from client", zap.String("userId", permEntry.userName), zap.String("requestId", requestID))
 
 	m := gossipv1.GossipMessage{
 		Message: &gossipv1.GossipMessage_SignedQueryRequest{
@@ -141,7 +141,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	b, err := proto.Marshal(&m)
 	if err != nil {
-		s.logger.Error("failed to marshal gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
+		s.logger.Error("failed to marshal gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestID), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_gossip_msg").Inc()
 		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
@@ -151,7 +151,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	pendingResponse := NewPendingResponse(signedQueryRequest, permEntry.userName, queryReq)
 	added := s.pendingResponses.Add(pendingResponse)
 	if !added {
-		s.logger.Info("duplicate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+		s.logger.Info("duplicate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestID))
 		http.Error(w, "Duplicate request", http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("duplicate_request").Inc()
 		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
@@ -159,13 +159,13 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if permEntry.logResponses {
-		s.loggingMap.AddRequest(requestId)
+		s.loggingMap.AddRequest(requestID)
 	}
 
-	s.logger.Info("posting request to gossip", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+	s.logger.Info("posting request to gossip", zap.String("userId", permEntry.userName), zap.String("requestId", requestID))
 	err = s.topic.Publish(r.Context(), b)
 	if err != nil {
-		s.logger.Error("failed to publish gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
+		s.logger.Error("failed to publish gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestID), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_publish_gossip_msg").Inc()
 		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
@@ -180,7 +180,7 @@ outer:
 		maxMatchingResponses, outstandingResponses, quorum := pendingResponse.getStats()
 		s.logger.Info("publishing time out to client",
 			zap.String("userId", permEntry.userName),
-			zap.String("requestId", requestId),
+			zap.String("requestId", requestID),
 			zap.Int("maxMatchingResponses", maxMatchingResponses),
 			zap.Int("outstandingResponses", outstandingResponses),
 			zap.Int("quorum", quorum),
@@ -189,10 +189,10 @@ outer:
 		queryTimeoutsByUser.WithLabelValues(permEntry.userName).Inc()
 		failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 	case res := <-pendingResponse.ch:
-		s.logger.Info("publishing response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+		s.logger.Info("publishing response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestID))
 		resBytes, respMarshalErr := res.Response.Marshal()
 		if respMarshalErr != nil {
-			s.logger.Error("failed to marshal response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(respMarshalErr))
+			s.logger.Error("failed to marshal response", zap.String("userId", permEntry.userName), zap.String("requestId", requestID), zap.Error(respMarshalErr))
 			http.Error(w, respMarshalErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
 			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
@@ -222,7 +222,7 @@ outer:
 			Bytes:      hex.EncodeToString(resBytes),
 		})
 		if encodeErr != nil {
-			s.logger.Error("failed to encode response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(encodeErr))
+			s.logger.Error("failed to encode response", zap.String("userId", permEntry.userName), zap.String("requestId", requestID), zap.Error(encodeErr))
 			http.Error(w, encodeErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_encode_response").Inc()
 			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
@@ -230,7 +230,7 @@ outer:
 		}
 		successfulQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 	case errEntry := <-pendingResponse.errCh:
-		s.logger.Info("publishing error response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Int("status", errEntry.status), zap.Error(errEntry.err))
+		s.logger.Info("publishing error response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestID), zap.Int("status", errEntry.status), zap.Error(errEntry.err))
 		http.Error(w, errEntry.err.Error(), errEntry.status)
 		// Metrics have already been pegged.
 		break

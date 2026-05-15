@@ -141,7 +141,7 @@ func TestWatermark(t *testing.T) {
 	}
 
 	// Wait ~20s to let the nodes gossip.
-	time.Sleep(20 * time.Second)
+	time.Sleep(20 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	// It's expected to have the 3 first nodes protected on every node
 	for guardianIndex, guardian := range gs {
@@ -231,7 +231,7 @@ func TestManualProtectedPeers(t *testing.T) {
 	}
 
 	// Wait ~20s to let the nodes gossip.
-	time.Sleep(20 * time.Second)
+	time.Sleep(20 * time.Second) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	for guardianIndex, guardian := range gs {
 		// check that every legitimate node is protected on all other nodes.
@@ -282,6 +282,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G, protectedPeers []str
 			g.controlSendC,
 			g.attestationSendC,
 			g.delegatedAttestationSendC,
+			nil, // delegateSigBroadcastSendC
 			g.vaaSendC,
 			g.obsvReqSendC,
 			g.acct,

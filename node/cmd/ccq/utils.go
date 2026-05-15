@@ -25,11 +25,11 @@ import (
 	"github.com/gagliardetto/solana-go"
 )
 
-func FetchCurrentGuardianSet(ctx context.Context, rpcUrl, coreAddr string) (*common.GuardianSet, error) {
+func FetchCurrentGuardianSet(ctx context.Context, rpcURL, coreAddr string) (*common.GuardianSet, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	ethContract := eth_common.HexToAddress(coreAddr)
-	rawClient, err := ethRpc.DialContext(ctx, rpcUrl)
+	rawClient, err := ethRpc.DialContext(ctx, rpcURL)
 	if err != nil {
 		return nil, errors.New("failed to connect to ethereum")
 	}
@@ -132,7 +132,7 @@ func validateRequest(logger *zap.Logger, env common.Environment, perms *Permissi
 }
 
 // validateCallData performs verification on all of the call data objects in a query.
-func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, callData []*query.EthCallData) (int, error) {
+func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainID vaa.ChainID, callData []*query.EthCallData) (int, error) {
 	for _, cd := range callData {
 		contractAddress, err := vaa.BytesToAddress(cd.To)
 		if err != nil {
@@ -140,17 +140,17 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 			invalidQueryRequestReceived.WithLabelValues("invalid_contract_address").Inc()
 			return http.StatusBadRequest, fmt.Errorf("failed to parse contract address: %w", err)
 		}
-		if len(cd.Data) < ETH_CALL_SIG_LENGTH {
+		if len(cd.Data) < EthCallSigLength {
 			logger.Debug("eth call data must be at least four bytes", zap.String("userName", permsForUser.userName), zap.String("data", hex.EncodeToString(cd.Data)))
 			invalidQueryRequestReceived.WithLabelValues("bad_call_data").Inc()
 			return http.StatusBadRequest, errors.New("eth call data must be at least four bytes")
 		}
 		if !permsForUser.allowAnything {
-			call := hex.EncodeToString(cd.Data[0:ETH_CALL_SIG_LENGTH])
-			callKey := fmt.Sprintf("%s:%d:%s:%s", callTag, chainId, contractAddress, call)
+			call := hex.EncodeToString(cd.Data[0:EthCallSigLength])
+			callKey := fmt.Sprintf("%s:%d:%s:%s", callTag, chainID, contractAddress, call)
 			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 				// The call data doesn't exist including the contract address. See if it's covered by a wildcard.
-				wildCardCallKey := fmt.Sprintf("%s:%d:*:%s", callTag, chainId, call)
+				wildCardCallKey := fmt.Sprintf("%s:%d:*:%s", callTag, chainID, call)
 				if _, exists := permsForUser.allowedCalls[wildCardCallKey]; !exists {
 					logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 					invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
@@ -159,24 +159,24 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 			}
 		}
 
-		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+		totalRequestedCallsByChain.WithLabelValues(chainID.String()).Inc()
 	}
 
 	return http.StatusOK, nil
 }
 
 // validateSolanaAccountQuery performs verification on a Solana sol_account query.
-func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaAccountQueryRequest) (int, error) {
+func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainID vaa.ChainID, q *query.SolanaAccountQueryRequest) (int, error) {
 	if !permsForUser.allowAnything {
 		for _, acct := range q.Accounts {
-			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct).String())
+			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainID, solana.PublicKey(acct).String())
 			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
 				return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
 			}
 
-			totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+			totalRequestedCallsByChain.WithLabelValues(chainID.String()).Inc()
 		}
 	}
 
@@ -184,17 +184,17 @@ func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntr
 }
 
 // validateSolanaPdaQuery performs verification on a Solana sol_account query.
-func validateSolanaPdaQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaPdaQueryRequest) (int, error) {
+func validateSolanaPdaQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainID vaa.ChainID, q *query.SolanaPdaQueryRequest) (int, error) {
 	if !permsForUser.allowAnything {
 		for _, acct := range q.PDAs {
-			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct.ProgramAddress).String())
+			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainID, solana.PublicKey(acct.ProgramAddress).String())
 			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
 				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
 				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
 				return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
 			}
 
-			totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
+			totalRequestedCallsByChain.WithLabelValues(chainID.String()).Inc()
 		}
 	}
 

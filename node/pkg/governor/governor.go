@@ -204,11 +204,11 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 // instead of a `transfer` argument.
 // Validation of transfer data is performed by other methods: see addFlowCancelTransfer, newTransferFromDbTransfer.
 func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) error {
-	transfer, err := newTransferFromDbTransfer(dbTransfer)
+	transferFromDb, err := newTransferFromDbTransfer(dbTransfer)
 	if err != nil {
 		return err
 	}
-	err = ce.addFlowCancelTransfer(transfer.inverse())
+	err = ce.addFlowCancelTransfer(transferFromDb.inverse())
 	if err != nil {
 		return err
 	}
@@ -664,7 +664,7 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 	}
 
 	// Check that the transfer is valid before writing to the database.
-	transfer, err := newTransferFromDbTransfer(&dbTransfer)
+	transferFromDb, err := newTransferFromDbTransfer(&dbTransfer)
 	if err != nil {
 		return false, err
 	}
@@ -687,10 +687,10 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 	// - If the USDC version of Solana is flow cancelled, we also want to decrease the Governor usage for Sui.
 	// - We do this by adding an 'inverse' transfer to Sui's chainEntry that contains a negative `transfer.ScaledValue`.
 	// - This will cause the summed value of Sui to decrease.
-	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
+	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transferFromDb)
 
 	if gov.flowCancelEnabled {
-		_, err = gov.tryAddFlowCancelTransfer(&transfer)
+		_, err = gov.tryAddFlowCancelTransfer(&transferFromDb)
 		if err != nil {
 			// Don't interrupt the control flow when a flow cancel fails. Instead, fail open and allow
 			// the transfers to be processed normally. The only consequence is that the outbound limit
@@ -928,7 +928,7 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 							Hash:           pe.hash,
 						}
 
-						transfer, err := newTransferFromDbTransfer(&dbTransfer)
+						transferFromDb, err := newTransferFromDbTransfer(&dbTransfer)
 						if err != nil {
 							// Should never occur unless dbTransfer.Value overflows MaxInt64
 							gov.logger.Error("could not convert dbTransfer to transfer",
@@ -949,7 +949,7 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 							return nil, err
 						}
 
-						ce.transfers = append(ce.transfers, transfer)
+						ce.transfers = append(ce.transfers, transferFromDb)
 
 						gov.msgsSeen[pe.hash] = transferComplete
 						if gov.flowCancelEnabled {
@@ -958,7 +958,7 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 							// Note that the inverse, flow-cancelling transfers are not stored in the database; they only
 							// exist in memory. When the Guardian is restarted, the flow cancelling transfers
 							// will be reconstructed manually.
-							_, err := gov.tryAddFlowCancelTransfer(&transfer)
+							_, err := gov.tryAddFlowCancelTransfer(&transferFromDb)
 							if err != nil {
 								gov.logger.Error("Error when attempting to add a flow cancel transfer",
 									zap.Error(err),

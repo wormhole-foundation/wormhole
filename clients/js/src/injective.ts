@@ -69,6 +69,9 @@ export async function execute_injective(
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on injective");
+        case "TransferFees":
+          console.log("Transferring core bridge fees");
+          break;
         default:
           impossible(payload);
       }

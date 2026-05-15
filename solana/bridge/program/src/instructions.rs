@@ -36,6 +36,8 @@ use crate::{
         SequenceDerivationData,
     },
     types::ConsistencyLevel,
+    ClosePostedMessageData,
+    CloseSignatureSetAndPostedVAAData,
     InitializeData,
     PostMessageData,
     PostVAAData,
@@ -417,6 +419,65 @@ pub fn transfer_fees(
         data: (
             crate::instruction::Instruction::TransferFees,
             TransferFeesData {},
+        )
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+pub fn close_posted_message(program_id: Pubkey, message: Pubkey) -> Instruction {
+    let bridge = Bridge::<'_, { AccountState::Initialized }>::key(None, &program_id);
+    let fee_collector = FeeCollector::key(None, &program_id);
+    let (event_authority, _) =
+        Pubkey::find_program_address(&[solitaire::EVENT_AUTHORITY_SEED], &program_id);
+
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(bridge, false),
+            AccountMeta::new(message, false),
+            AccountMeta::new(fee_collector, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new_readonly(event_authority, false),
+            AccountMeta::new_readonly(program_id, false),
+        ],
+        data: (
+            crate::instruction::Instruction::ClosePostedMessage,
+            ClosePostedMessageData {},
+        )
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+pub fn close_signature_set_and_posted_vaa(
+    program_id: Pubkey,
+    signature_set: Pubkey,
+    posted_vaa: Pubkey,
+    guardian_set_index: u32,
+) -> Instruction {
+    let bridge = Bridge::<'_, { AccountState::Initialized }>::key(None, &program_id);
+    let guardian_set = GuardianSet::<'_, { AccountState::Initialized }>::key(
+        &GuardianSetDerivationData {
+            index: guardian_set_index,
+        },
+        &program_id,
+    );
+    let fee_collector = FeeCollector::key(None, &program_id);
+
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(bridge, false),
+            AccountMeta::new(signature_set, false),
+            AccountMeta::new(posted_vaa, false),
+            AccountMeta::new_readonly(guardian_set, false),
+            AccountMeta::new(fee_collector, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data: (
+            crate::instruction::Instruction::CloseSignatureSetAndPostedVAA,
+            CloseSignatureSetAndPostedVAAData {},
         )
             .try_to_vec()
             .unwrap(),

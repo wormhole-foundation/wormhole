@@ -184,7 +184,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			return
 		}
 
-		time.Sleep(CCQ_BLOCK_RETRY_DELAY)
+		time.Sleep(CCQ_BLOCK_RETRY_DELAY) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 	}
 
 	if info == nil {
@@ -334,7 +334,7 @@ func (w *SolanaWatcher) ccqSleepAndRetryAccountQuery(
 		)
 	}
 
-	time.Sleep(CCQ_FAST_RETRY_INTERVAL)
+	time.Sleep(CCQ_FAST_RETRY_INTERVAL) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
 
 	if log {
 		w.ccqLogger.Info("initiating fast retry", zap.String("requestId", requestId))

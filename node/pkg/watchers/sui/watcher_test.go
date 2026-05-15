@@ -79,11 +79,11 @@ func Test_JSONParseOneWHMSg(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, uint8(0), *fields.ConsistencyLevel)
-		assert.Equal(t, uint64(0), *fields.Nonce)
+		assert.Equal(t, uint32(0), *fields.Nonce)
 		assert.Equal(t, expectedPayload, fields.Payload)
 		assert.Equal(t, "0xdd1ca0bd0b9e449ff55259e5bcf7e0fc1b8b7ab49aabad218681ccce7b202bd6", *fields.Sender)
-		assert.Equal(t, "2768", *fields.Sequence)
-		assert.Equal(t, "1693091880", *fields.Timestamp)
+		assert.Equal(t, uint64(2768), *fields.Sequence)
+		assert.Equal(t, uint64(1693091880), *fields.Timestamp)
 	}
 }
 
@@ -106,11 +106,11 @@ func Test_JSONParseMultipleMsgs(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, uint8(0), *fields.ConsistencyLevel)
-		assert.Equal(t, uint64(0), *fields.Nonce)
+		assert.Equal(t, uint32(0), *fields.Nonce)
 		assert.Equal(t, expectedPayload, fields.Payload)
 		assert.Equal(t, "0xdd1ca0bd0b9e449ff55259e5bcf7e0fc1b8b7ab49aabad218681ccce7b202bd6", *fields.Sender)
-		assert.Equal(t, "2768", *fields.Sequence)
-		assert.Equal(t, "1693091880", *fields.Timestamp)
+		assert.Equal(t, uint64(2768), *fields.Sequence)
+		assert.Equal(t, uint64(1693091880), *fields.Timestamp)
 	}
 }
 
