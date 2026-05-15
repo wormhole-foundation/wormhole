@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@anchor-lang/core": "^0.32.1",
+    "@solana/web3.js": "^1.98.4",
+    "@wormhole-foundation/sdk-definitions": "^4.7.4",
+    "binary-layout": "^1.3.2",
+    "bitcoinjs-lib": "^7.0.0",
+    "bs58": "^6.0.0",
+    "ecpair": "^3.0.0",
+    "tiny-secp256k1": "^2.2.4",
+    "viem": "^2.44.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.5"
+  }
+}
