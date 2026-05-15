@@ -1,6 +1,7 @@
 package xrpl
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 	"github.com/Peersyst/xrpl-go/xrpl/transaction"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction/types"
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/watchers/xrpl/currencycodec"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -66,8 +68,6 @@ const (
 	ledgerIndexShift             = 32  // Bits to shift ledger index when packing sequence
 	decimalBase                  = 10  // Base for decimal string parsing
 	scientificMantissaParts      = 2   // SplitN count for mantissa "<int>.<frac>"
-	nonStandardCurrencyHexLen    = 40  // Non-standard currency hex length (20 bytes * 2)
-	normalizedCurrencyLen        = 20  // Internal canonical currency representation length
 	mptIssuanceIDLen             = 24  // MPT issuance ID byte length
 	nttEmitterDomainLen          = 3   // Length of "ntt" emitter domain prefix
 )
@@ -113,8 +113,8 @@ type MPTAssetScaleFetcher func(mptIssuanceID string) (uint8, error)
 // Parser handles parsing of XRPL NTT transactions.
 // It is stateless except for the MPT asset scale fetcher, which can be injected for testing.
 type Parser struct {
-	coreAccount        string          // Core Wormhole manager account — payments to this account are not NTT
-	managedAccounts    map[string]bool // Managed accounts (NTT accounts) — TicketCreate on these emits XTCF
+	coreAccount        string              // Core Wormhole manager account — payments to this account are not NTT
+	managedAccounts    map[string]struct{} // Managed accounts (NTT accounts) — TicketCreate on these emits XTCF
 	fetchMPTAssetScale MPTAssetScaleFetcher
 }
 
@@ -135,9 +135,9 @@ type GenericTx struct {
 // Payments to coreAccount are skipped by parseNttTransaction (they are not NTT transfers).
 // managedAccounts are the NTT accounts for which TicketCreate transactions generate XTCF messages.
 func NewParser(coreAccount string, managedAccounts []string, fetchMPTAssetScale MPTAssetScaleFetcher) *Parser {
-	managed := make(map[string]bool, len(managedAccounts))
+	managed := make(map[string]struct{}, len(managedAccounts))
 	for _, addr := range managedAccounts {
-		managed[addr] = true
+		managed[addr] = struct{}{}
 	}
 	return &Parser{
 		coreAccount:        coreAccount,
@@ -214,12 +214,12 @@ func (p *Parser) parseNttTransaction(
 	}
 
 	// Validate transaction result is tesSUCCESS
-	if err = p.validateTransactionResult(tx); err != nil {
+	if err = validateTransactionResult(tx); err != nil {
 		return nil, err
 	}
 
 	// Validate transaction type is Payment
-	if err = p.validateTransactionType(tx.Transaction); err != nil {
+	if err = validateTransactionType(tx.Transaction); err != nil {
 		return nil, err
 	}
 
@@ -247,7 +247,7 @@ func (p *Parser) parseNttTransaction(
 	//
 	// NOTE: if batch support is implemented and explicit `managedAccounts` are removed
 	// in favor of batching with a core message, this check will need to be removed.
-	if !p.managedAccounts[destination] {
+	if _, ok := p.managedAccounts[destination]; !ok {
 		return nil, nil
 	}
 
@@ -308,8 +308,23 @@ func (p *Parser) parseNttTransaction(
 	}, nil
 }
 
-// parseTransaction dispatches to parseTicketCreateTransaction, parseCoreTransaction, and parseNttTransaction.
-// TicketCreate is checked first because it has no Destination field and would fail in the other parsers.
+// parseTransaction dispatches to the per-message-type parsers in a specific order:
+//
+//  1. parseTicketCreateTransaction — successful TicketCreate on a managed account
+//     produces an XTCF. A failed TicketCreate intentionally falls through here
+//     (parseTicketCreateTransaction returns (nil, nil)) and is handled by
+//     parseXACKTransaction below.
+//  2. parseXACKTransaction — ticket-consuming transactions on a managed account
+//     (Release Payments, failed TicketCreate, Burn/AccountSet) produce an XACK.
+//  3. parseCoreTransaction — payments to the core account with a Wormhole core
+//     memo produce a generic Wormhole message.
+//  4. parseNttTransaction — payments to a managed account with an NTT memo
+//     produce an NTT transfer message.
+//
+// The order is load-bearing: TicketCreate must run before XACK (so successful
+// TicketCreates are claimed as XTCF rather than XACK), and the Core/NTT parsers
+// come last because they require a Destination field that TicketCreate
+// transactions do not have.
 // Returns (nil, nil) if none matched.
 func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, error) {
 	msg, err := p.parseTicketCreateTransaction(tx)
@@ -356,12 +371,12 @@ func (p *Parser) parseCoreTransaction(tx GenericTx) (*common.MessagePublication,
 	}
 
 	// Validate transaction result is tesSUCCESS
-	if err = p.validateTransactionResult(tx); err != nil {
+	if err = validateTransactionResult(tx); err != nil {
 		return nil, err
 	}
 
 	// Validate transaction type is Payment
-	if err = p.validateTransactionType(tx.Transaction); err != nil {
+	if err = validateTransactionType(tx.Transaction); err != nil {
 		return nil, err
 	}
 
@@ -490,19 +505,19 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 	if !ok {
 		return nil, nil
 	}
-	if !p.managedAccounts[account] {
+	if _, managed := p.managedAccounts[account]; !managed {
 		return nil, nil
 	}
 
 	// Validate transaction result is tesSUCCESS
 	// Only handle successful TicketCreate here (XTCF).
 	// Failed TicketCreate falls through to parseXACKTransaction.
-	if err := p.validateTransactionResult(tx); err != nil {
+	if err := validateTransactionResult(tx); err != nil {
 		return nil, nil //nolint:nilerr // Intentional: failed TicketCreate falls through to XACK handler
 	}
 
 	// Extract created ticket sequences from AffectedNodes metadata
-	var ticketSequences []uint64
+	ticketSequences := make([]uint64, 0, len(tx.MetaAffectedNodes))
 	for _, node := range tx.MetaAffectedNodes {
 		if node.CreatedNode == nil {
 			continue
@@ -515,22 +530,11 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 		if !ok {
 			continue
 		}
-		// JSON numbers deserialize as float64
-		switch v := seqRaw.(type) {
-		case float64:
-			ticketSequences = append(ticketSequences, uint64(v))
-		case json.Number:
-			n, err := v.Int64()
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse TicketSequence from json.Number: %w", err)
-			}
-			if n < 0 {
-				return nil, fmt.Errorf("negative TicketSequence: %d", n)
-			}
-			ticketSequences = append(ticketSequences, uint64(n)) // #nosec G115 -- validated non-negative above
-		default:
-			return nil, fmt.Errorf("unexpected TicketSequence type: %T", seqRaw)
+		seq, err := jsonNumberToUint64(seqRaw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid TicketSequence: %w", err)
 		}
+		ticketSequences = append(ticketSequences, seq)
 	}
 
 	if len(ticketSequences) == 0 {
@@ -539,9 +543,11 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 
 	// Find the minimum ticket sequence (ticket_start) and count
 	ticketStart := ticketSequences[0]
-	for _, seq := range ticketSequences[1:] {
-		if seq < ticketStart {
-			ticketStart = seq
+	if len(ticketSequences) > 1 {
+		for _, seq := range ticketSequences[1:] {
+			if seq < ticketStart {
+				ticketStart = seq
+			}
 		}
 	}
 	ticketCount := uint64(len(ticketSequences))
@@ -566,7 +572,7 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 	return &common.MessagePublication{
 		TxID:             txHash,
 		Timestamp:        tx.Timestamp,
-		Nonce:            0,
+		Nonce:            0, // XTCF payloads do not include a nonce
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDXRPL,
 		EmitterAddress:   emitterAddress,
@@ -611,7 +617,7 @@ func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication,
 	if !ok {
 		return nil, nil
 	}
-	if !p.managedAccounts[account] {
+	if _, managed := p.managedAccounts[account]; !managed {
 		return nil, nil
 	}
 
@@ -620,21 +626,9 @@ func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication,
 	if !ok {
 		return nil, nil
 	}
-	var ticketSequence uint64
-	switch v := ticketSeqRaw.(type) {
-	case float64:
-		ticketSequence = uint64(v)
-	case json.Number:
-		n, err := v.Int64()
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse TicketSequence from json.Number: %w", err)
-		}
-		if n < 0 {
-			return nil, fmt.Errorf("negative TicketSequence: %d", n)
-		}
-		ticketSequence = uint64(n) // #nosec G115 -- validated non-negative above
-	default:
-		return nil, fmt.Errorf("unexpected TicketSequence type: %T", ticketSeqRaw)
+	ticketSequence, err := jsonNumberToUint64(ticketSeqRaw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid TicketSequence: %w", err)
 	}
 
 	// Determine tx_type from TransactionType
@@ -689,7 +683,7 @@ func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication,
 	return &common.MessagePublication{
 		TxID:             txHash,
 		Timestamp:        tx.Timestamp,
-		Nonce:            0,
+		Nonce:            0, // XACK payloads do not include a nonce
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDXRPL,
 		EmitterAddress:   emitterAddress,
@@ -703,6 +697,30 @@ func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication,
 // =============================================================================
 // Transaction validation helpers
 // =============================================================================
+
+// jsonNumberToUint64 converts a JSON-decoded numeric value to a uint64.
+// XRPL JSON responses surface integers as either float64 (default json decoding)
+// or json.Number (when UseNumber is enabled). The conversion is strict: negative,
+// fractional, infinite, NaN, or out-of-range values return an error.
+func jsonNumberToUint64(raw any) (uint64, error) {
+	switch v := raw.(type) {
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return 0, fmt.Errorf("value is not finite: %v", v)
+		}
+		if v < 0 || v > float64(math.MaxUint64) {
+			return 0, fmt.Errorf("value %v out of uint64 range", v)
+		}
+		if v != math.Trunc(v) {
+			return 0, fmt.Errorf("value %v is not an integer", v)
+		}
+		return uint64(v), nil
+	case json.Number:
+		return strconv.ParseUint(string(v), 10, 64)
+	default:
+		return 0, fmt.Errorf("unexpected numeric type: %T", raw)
+	}
+}
 
 // extractTxHashAndSequence decodes the transaction hash and computes the sequence number
 // from the ledger index and transaction index: (ledgerIndex << 32) | txIndex.
@@ -725,7 +743,7 @@ func (p *Parser) extractTxHashAndSequence(tx GenericTx) ([]byte, uint64, error) 
 // validateTransactionResult checks that the transaction result is tesSUCCESS.
 // Returns nil if valid, or an error describing why the transaction should be skipped.
 // This function is strict - if the result cannot be determined, it returns an error.
-func (p *Parser) validateTransactionResult(tx GenericTx) error {
+func validateTransactionResult(tx GenericTx) error {
 	if tx.MetaTransactionResult != tesSUCCESS {
 		return fmt.Errorf("transaction result is %s, not %s", tx.MetaTransactionResult, tesSUCCESS)
 	}
@@ -735,7 +753,7 @@ func (p *Parser) validateTransactionResult(tx GenericTx) error {
 
 // validateTransactionType checks that the transaction type is "Payment".
 // Returns nil if valid, or an error if the transaction type doesn't match.
-func (p *Parser) validateTransactionType(tx transaction.FlatTransaction) error {
+func validateTransactionType(tx transaction.FlatTransaction) error {
 	txTypeRaw, ok := tx["TransactionType"]
 	if !ok {
 		return fmt.Errorf("transaction has no TransactionType field")
@@ -864,8 +882,7 @@ func (p *Parser) parseMemoData(tx transaction.FlatTransaction) (*memoData, error
 	}
 
 	// Verify NTT prefix
-	if data[0] != nttPrefix[0] || data[1] != nttPrefix[1] ||
-		data[2] != nttPrefix[2] || data[3] != nttPrefix[3] {
+	if !bytes.Equal(data[:4], nttPrefix[:]) {
 		return nil, nil
 	}
 
@@ -1142,47 +1159,13 @@ func isValidDecimal(s string) bool {
 // Token identification
 // =============================================================================
 
-// normalizeCurrency converts a currency code to its canonical 20-byte internal format.
-// Standard codes: [0x00][ASCII bytes][trailing zeros]
-// Non-standard codes: [raw 160-bit value] (40-character hex string)
-func (p *Parser) normalizeCurrency(currency string) ([20]byte, error) {
-	var result [20]byte
-
-	// XRP is disallowed as a currency code
-	if strings.ToUpper(currency) == "XRP" {
-		return result, fmt.Errorf("XRP is not a valid currency code for trust lines")
-	}
-
-	// Check if it's a hex string (40 characters = 20 bytes)
-	if len(currency) == nonStandardCurrencyHexLen {
-		// Non-standard currency code (hex encoded)
-		decoded, err := hex.DecodeString(currency)
-		if err != nil {
-			return result, fmt.Errorf("failed to decode hex currency: %w", err)
-		}
-		copy(result[:], decoded)
-		return result, nil
-	}
-
-	// Standard currency code (3-character ASCII)
-	if len(currency) < 1 || len(currency) > 3 {
-		return result, fmt.Errorf("invalid standard currency code length: %d", len(currency))
-	}
-
-	// Standard format: [0x00][ASCII bytes][trailing zeros]
-	result[0] = 0x00
-	copy(result[12:12+len(currency)], []byte(currency))
-
-	return result, nil
-}
-
 // calculateTrustLineSourceToken calculates the source token for a trust line.
 // source_token[0] = 1, last 31 bytes = keccak256(normalizedCurrency + accountID)[1:]
 func (p *Parser) calculateTrustLineSourceToken(currency, issuer string) ([32]byte, error) {
 	var sourceToken [32]byte
 
 	// Normalize currency
-	normalizedCurrency, err := p.normalizeCurrency(currency)
+	normalizedCurrency, err := currencycodec.Decode(currency)
 	if err != nil {
 		return sourceToken, err
 	}
@@ -1194,9 +1177,9 @@ func (p *Parser) calculateTrustLineSourceToken(currency, issuer string) ([32]byt
 	}
 
 	// Concatenate and hash
-	data := make([]byte, normalizedCurrencyLen+len(accountID))
-	copy(data[:normalizedCurrencyLen], normalizedCurrency[:])
-	copy(data[normalizedCurrencyLen:], accountID)
+	data := make([]byte, currencycodec.NormalizedLen+len(accountID))
+	copy(data[:currencycodec.NormalizedLen], normalizedCurrency[:])
+	copy(data[currencycodec.NormalizedLen:], accountID)
 
 	hash := ethcrypto.Keccak256(data)
 

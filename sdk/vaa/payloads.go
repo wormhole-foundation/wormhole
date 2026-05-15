@@ -1415,7 +1415,10 @@ type XRPLTicketRefillPayload struct {
 	Account [20]byte
 	// UseTicket is the ticket sequence to consume for the TicketCreate transaction
 	UseTicket uint64
-	// RequestCount is the number of tickets to create (1-250)
+	// RequestCount is the number of tickets to create. The wire format reserves
+	// the full uint64 range; at the time of writing XRPL's TicketCreate caps
+	// TicketCount at 250, but the payload spec does not encode that limit so it
+	// can absorb a future protocol change without a payload version bump.
 	RequestCount uint64
 }
 

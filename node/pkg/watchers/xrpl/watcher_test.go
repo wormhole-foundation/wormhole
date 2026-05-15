@@ -22,6 +22,7 @@ func TestProcessTransaction_SkipsUnvalidated(t *testing.T) {
 		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
 		msgChan:  msgChan,
 		parser:   NewParser("", nil, nil),
+		logger:   zap.NewNop(),
 	}
 
 	tx := &streamtypes.TransactionStream{
@@ -32,7 +33,7 @@ func TestProcessTransaction_SkipsUnvalidated(t *testing.T) {
 		Transaction:  createFlatTransactionWithMemos(testNTTMemoFormat, sampleNTTMemoData),
 	}
 
-	err := w.processTransaction(zap.NewNop(), tx)
+	err := w.processTransaction(tx)
 
 	require.NoError(t, err)
 	assert.Empty(t, msgChan, "No message should be sent for unvalidated transaction")
@@ -45,6 +46,7 @@ func TestProcessTransaction_SendsValidatedMessage(t *testing.T) {
 		contract: contract,
 		msgChan:  msgChan,
 		parser:   NewParser("", []string{contract}, nil),
+		logger:   zap.NewNop(),
 	}
 
 	tx := &streamtypes.TransactionStream{
@@ -60,7 +62,7 @@ func TestProcessTransaction_SendsValidatedMessage(t *testing.T) {
 		},
 	}
 
-	err := w.processTransaction(zap.NewNop(), tx)
+	err := w.processTransaction(tx)
 
 	require.NoError(t, err)
 	require.Len(t, msgChan, 1, "Message should be sent for validated transaction")

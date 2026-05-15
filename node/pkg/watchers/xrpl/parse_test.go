@@ -847,96 +847,6 @@ func TestBuildNTTPayload_Structure(t *testing.T) {
 }
 
 // =============================================================================
-// normalizeCurrency tests
-// =============================================================================
-
-func TestNormalizeCurrency_StandardCode(t *testing.T) {
-	p := NewParser("", nil, nil)
-
-	testCases := []struct {
-		name     string
-		currency string
-	}{
-		{"USD", "USD"},
-		{"EUR", "EUR"},
-		{"BTC", "BTC"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := p.normalizeCurrency(tc.currency)
-			require.NoError(t, err)
-
-			// First byte should be 0x00 for standard codes
-			assert.Equal(t, byte(0x00), result[0])
-
-			// Currency should be at bytes 12-14 (after leading zeros)
-			assert.Equal(t, []byte(tc.currency), result[12:12+len(tc.currency)])
-		})
-	}
-}
-
-func TestNormalizeCurrency_HexCode(t *testing.T) {
-	p := NewParser("", nil, nil)
-
-	// RLUSD hex representation (40 chars)
-	hexCurrency := "524C555344000000000000000000000000000000"
-
-	result, err := p.normalizeCurrency(hexCurrency)
-	require.NoError(t, err)
-
-	// Should be decoded directly
-	expected, _ := hex.DecodeString(hexCurrency)
-	assert.Equal(t, expected, result[:])
-}
-
-func TestNormalizeCurrency_XRPDisallowed(t *testing.T) {
-	p := NewParser("", nil, nil)
-
-	_, err := p.normalizeCurrency("XRP")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "XRP is not a valid currency code")
-
-	_, err = p.normalizeCurrency("xrp")
-	require.Error(t, err)
-}
-
-func TestNormalizeCurrency_SingleCharCode(t *testing.T) {
-	p := NewParser("", nil, nil)
-
-	result, err := p.normalizeCurrency("X")
-	require.NoError(t, err)
-	assert.Equal(t, byte(0x00), result[0])
-	assert.Equal(t, []byte("X"), result[12:13])
-}
-
-func TestNormalizeCurrency_InvalidHexLength(t *testing.T) {
-	p := NewParser("", nil, nil)
-
-	// 38 characters - invalid hex length (should be 40)
-	_, err := p.normalizeCurrency("524C5553440000000000000000000000000000")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid standard currency code length")
-}
-
-func TestNormalizeCurrency_InvalidHexChars(t *testing.T) {
-	p := NewParser("", nil, nil)
-
-	// 40 characters but invalid hex
-	_, err := p.normalizeCurrency("524C55534400000000000000000000000000ZZZZ")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to decode hex currency")
-}
-
-func TestNormalizeCurrency_EmptyString(t *testing.T) {
-	p := NewParser("", nil, nil)
-
-	_, err := p.normalizeCurrency("")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid standard currency code length")
-}
-
-// =============================================================================
 // Trust Line source token calculation tests
 // =============================================================================
 
@@ -1157,18 +1067,15 @@ func TestParseDecimalToUint64_Invalid(t *testing.T) {
 // =============================================================================
 
 func TestValidateTransactionType_Payment(t *testing.T) {
-	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"TransactionType": "Payment",
 	}
 
-	err := p.validateTransactionType(tx)
+	err := validateTransactionType(tx)
 	require.NoError(t, err)
 }
 
 func TestValidateTransactionType_NotPayment(t *testing.T) {
-	p := NewParser("", nil, nil)
-
 	nonPaymentTypes := []string{
 		"OfferCreate",
 		"TrustSet",
@@ -1182,7 +1089,7 @@ func TestValidateTransactionType_NotPayment(t *testing.T) {
 				"TransactionType": txType,
 			}
 
-			err := p.validateTransactionType(tx)
+			err := validateTransactionType(tx)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "not Payment")
 		})
@@ -1190,12 +1097,11 @@ func TestValidateTransactionType_NotPayment(t *testing.T) {
 }
 
 func TestValidateTransactionType_Missing(t *testing.T) {
-	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"Account": "rSomeAccount",
 	}
 
-	err := p.validateTransactionType(tx)
+	err := validateTransactionType(tx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no TransactionType field")
 }
@@ -1205,18 +1111,15 @@ func TestValidateTransactionType_Missing(t *testing.T) {
 // =============================================================================
 
 func TestValidateTransactionResult_Success(t *testing.T) {
-	p := NewParser("", nil, nil)
 	tx := GenericTx{
 		MetaTransactionResult: "tesSUCCESS",
 	}
 
-	err := p.validateTransactionResult(tx)
+	err := validateTransactionResult(tx)
 	require.NoError(t, err)
 }
 
 func TestValidateTransactionResult_Failed(t *testing.T) {
-	p := NewParser("", nil, nil)
-
 	failureCodes := []string{
 		"tecUNFUNDED_PAYMENT",
 		"tecNO_DST",
@@ -1231,7 +1134,7 @@ func TestValidateTransactionResult_Failed(t *testing.T) {
 				MetaTransactionResult: code,
 			}
 
-			err := p.validateTransactionResult(tx)
+			err := validateTransactionResult(tx)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), code)
 		})
@@ -1239,13 +1142,12 @@ func TestValidateTransactionResult_Failed(t *testing.T) {
 }
 
 func TestValidateTransactionResult_EmptyResult(t *testing.T) {
-	p := NewParser("", nil, nil)
 	tx := GenericTx{
 		MetaTransactionResult: "",
 	}
 
 	// Empty result should fail (not tesSUCCESS)
-	err := p.validateTransactionResult(tx)
+	err := validateTransactionResult(tx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not tesSUCCESS")
 }
@@ -1921,12 +1823,11 @@ func TestParseMPTCurrencyAmount_ZeroAmount(t *testing.T) {
 // =============================================================================
 
 func TestValidateTransactionType_NotString(t *testing.T) {
-	p := NewParser("", nil, nil)
 	tx := transaction.FlatTransaction{
 		"TransactionType": 12345, // Not a string
 	}
 
-	err := p.validateTransactionType(tx)
+	err := validateTransactionType(tx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TransactionType field is not a string")
 }
@@ -3283,7 +3184,7 @@ func TestParseTicketCreateTransaction_JsonNumberParseError(t *testing.T) {
 	msg, err := p.parseTicketCreateTransaction(tx)
 	require.Error(t, err)
 	assert.Nil(t, msg)
-	assert.Contains(t, err.Error(), "failed to parse TicketSequence")
+	assert.Contains(t, err.Error(), "invalid TicketSequence")
 }
 
 // TestParseTicketCreateTransaction_NegativeJsonNumberSequence tests negative TicketSequence
@@ -3313,7 +3214,7 @@ func TestParseTicketCreateTransaction_NegativeJsonNumberSequence(t *testing.T) {
 	msg, err := p.parseTicketCreateTransaction(tx)
 	require.Error(t, err)
 	assert.Nil(t, msg)
-	assert.Contains(t, err.Error(), "negative TicketSequence")
+	assert.Contains(t, err.Error(), "invalid TicketSequence")
 }
 
 // TestParseTicketCreateTransaction_UnexpectedSequenceType tests unexpected TicketSequence type
@@ -3343,7 +3244,7 @@ func TestParseTicketCreateTransaction_UnexpectedSequenceType(t *testing.T) {
 	msg, err := p.parseTicketCreateTransaction(tx)
 	require.Error(t, err)
 	assert.Nil(t, msg)
-	assert.Contains(t, err.Error(), "unexpected TicketSequence type")
+	assert.Contains(t, err.Error(), "invalid TicketSequence")
 }
 
 // TestParseTicketCreateTransaction_NoTicketEntries tests when AffectedNodes has no ticket entries
@@ -3728,7 +3629,7 @@ func TestParseXACKTransaction_UnexpectedTicketSequenceType(t *testing.T) {
 	msg, err := p.parseXACKTransaction(tx)
 	assert.Error(t, err)
 	assert.Nil(t, msg)
-	assert.Contains(t, err.Error(), "unexpected TicketSequence type")
+	assert.Contains(t, err.Error(), "invalid TicketSequence")
 }
 
 func TestParseXACKTransaction_NegativeJsonNumberSequence(t *testing.T) {
@@ -3745,7 +3646,7 @@ func TestParseXACKTransaction_NegativeJsonNumberSequence(t *testing.T) {
 	msg, err := p.parseXACKTransaction(tx)
 	assert.Error(t, err)
 	assert.Nil(t, msg)
-	assert.Contains(t, err.Error(), "negative TicketSequence")
+	assert.Contains(t, err.Error(), "invalid TicketSequence")
 }
 
 func TestParseXACKTransaction_InvalidJsonNumber(t *testing.T) {

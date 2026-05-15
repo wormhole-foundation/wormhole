@@ -37,6 +37,8 @@ const (
 	// subscriptionRetryDelay is how long to wait before reconnecting after a
 	// subscription error.
 	subscriptionRetryDelay = 5 * time.Second
+	// xrplTxHashLen is the expected length in bytes of an XRPL transaction hash
+	xrplTxHashLen = 32
 )
 
 // Prometheus metrics
@@ -82,6 +84,9 @@ type Watcher struct {
 	// txChan receives transactions from the WebSocket handler.
 	// Created once in Run() to avoid multiple handler registrations.
 	txChan chan *streamtypes.TransactionStream
+
+	// logger is initialized in Run from the supervisor context.
+	logger *zap.Logger
 }
 
 func NewWatcher(
@@ -105,6 +110,7 @@ func NewWatcher(
 
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
+	w.logger = logger
 
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDXRPL, &gossipv1.Heartbeat_Network{
 		ContractAddress: w.contract,
@@ -157,7 +163,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				err := w.subscribeAndProcess(ctx, logger)
+				err := w.subscribeAndProcess(ctx)
 				if err != nil {
 					logger.Error("Subscription error, reconnecting", zap.Error(err))
 					xrplConnectionErrors.WithLabelValues("subscription_error").Inc()
@@ -185,7 +191,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-ticker.C:
-				ledgerIndex, err := w.getValidatedLedgerIndex(logger)
+				ledgerIndex, err := w.getValidatedLedgerIndex()
 				if err != nil {
 					logger.Error("Failed to get validated ledger index", zap.Error(err))
 					xrplConnectionErrors.WithLabelValues("ledger_height_error").Inc()
@@ -225,6 +231,17 @@ func (w *Watcher) Run(ctx context.Context) error {
 				}
 
 				txHash := req.TxHash
+				if len(txHash) != xrplTxHashLen {
+					logger.Error("invalid TxID length for reobservation request",
+						zap.Int("got", len(txHash)),
+						zap.Int("want", xrplTxHashLen),
+						zap.String("txID", hex.EncodeToString(txHash)),
+					)
+					xrplConnectionErrors.WithLabelValues("invalid_tx_hash").Inc()
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDXRPL, 1)
+					continue
+				}
+
 				logger.Info("Received reobservation request",
 					zap.String("txHash", hex.EncodeToString(txHash)))
 
@@ -257,7 +274,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 // subscribeAndProcess subscribes to account transactions and processes them.
 // It uses the WebSocket client that was connected in Run().
-func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) error {
+func (w *Watcher) subscribeAndProcess(ctx context.Context) error {
 	// Create a child context for this subscription attempt.
 	// When this function returns (error or context cancelled), the child context
 	// is cancelled, causing the OnTransactions handler to stop writing to txChan.
@@ -280,7 +297,7 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 		return fmt.Errorf("failed to subscribe to accounts %v: %w", accounts, err)
 	}
 
-	logger.Info("Subscribed to accounts",
+	w.logger.Info("Subscribed to accounts",
 		zap.String("contract", w.contract),
 		zap.Strings("nttAccounts", w.nttAccounts),
 	)
@@ -293,7 +310,7 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 			return
 		case w.txChan <- tx:
 		default:
-			logger.Warn("Transaction channel full, dropping transaction",
+			w.logger.Warn("Transaction channel full, dropping transaction",
 				zap.String("hash", string(tx.Hash)))
 			xrplTxDropped.Inc()
 		}
@@ -305,8 +322,8 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 		case <-ctx.Done():
 			return ctx.Err()
 		case tx := <-w.txChan:
-			if err := w.processTransaction(logger, tx); err != nil {
-				logger.Error("Failed to process transaction",
+			if err := w.processTransaction(tx); err != nil {
+				w.logger.Error("Failed to process transaction",
 					zap.String("hash", string(tx.Hash)),
 					zap.Error(err))
 			}
@@ -315,10 +332,10 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 }
 
 // processTransaction handles an incoming transaction from the subscription.
-func (w *Watcher) processTransaction(logger *zap.Logger, tx *streamtypes.TransactionStream) error {
+func (w *Watcher) processTransaction(tx *streamtypes.TransactionStream) error {
 	// Only process validated transactions
 	if !tx.Validated {
-		logger.Debug("Skipping unvalidated transaction", zap.String("hash", string(tx.Hash)))
+		w.logger.Debug("Skipping unvalidated transaction", zap.String("hash", string(tx.Hash)))
 		return nil
 	}
 
@@ -337,11 +354,7 @@ func (w *Watcher) processTransaction(logger *zap.Logger, tx *streamtypes.Transac
 	w.msgChan <- msg
 	xrplMessagesConfirmed.Inc()
 
-	logger.Info("Message observed",
-		zap.String("txHash", hex.EncodeToString(msg.TxID)),
-		zap.Uint64("sequence", msg.Sequence),
-		zap.Uint32("nonce", msg.Nonce),
-	)
+	w.logger.Info("message observed", msg.ZapFields()...)
 
 	return nil
 }
@@ -385,7 +398,7 @@ func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublic
 }
 
 // getValidatedLedgerIndex returns the current validated ledger index.
-func (w *Watcher) getValidatedLedgerIndex(logger *zap.Logger) (int64, error) {
+func (w *Watcher) getValidatedLedgerIndex() (int64, error) {
 	// Request server info
 	infoReq := &server.InfoRequest{}
 	resp, err := w.client.Request(infoReq)
@@ -403,7 +416,7 @@ func (w *Watcher) getValidatedLedgerIndex(logger *zap.Logger) (int64, error) {
 	state := infoResp.Info.ServerState
 	// States are here: https://xrpl.org/docs/references/http-websocket-apis/api-conventions/rippled-server-states
 	if state != "full" && state != "proposing" && state != "validating" {
-		logger.Warn("XRPL node not fully synced", zap.String("state", state))
+		w.logger.Warn("XRPL node not fully synced", zap.String("state", state))
 	}
 
 	seq := infoResp.Info.ValidatedLedger.Seq

@@ -12,6 +12,7 @@ import (
 	binarycodec "github.com/Peersyst/xrpl-go/binary-codec"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction/types"
+	"github.com/certusone/wormhole/node/pkg/watchers/xrpl/currencycodec"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -66,7 +67,7 @@ func BuildPaymentTransaction(payload *vaa.XRPLReleasePayload, m uint8) (transact
 		}
 		value := formatDecimalAmountForIOU(payload.Amount, payload.TokenDecimals)
 		amount = types.IssuedCurrencyAmount{
-			Currency: encodeCurrency(payload.Token.Currency),
+			Currency: currencycodec.Encode(payload.Token.Currency),
 			Issuer:   types.Address(issuerAddr),
 			Value:    value,
 		}
@@ -343,33 +344,4 @@ func formatDecimalAmountForIOU(amount uint64, decimals uint8) string {
 		return intPart
 	}
 	return intPart + "." + fracPart
-}
-
-// encodeCurrency converts a 20-byte XRPL currency code to the string representation.
-// Standard 3-character currencies are stored as ASCII in bytes 12-14 with zeros elsewhere.
-// Non-standard (160-bit) currencies are returned as 40-character hex strings.
-func encodeCurrency(currency [20]byte) string {
-	// Check if this is a standard 3-character currency code
-	// Standard format: 12 zero bytes, 3 ASCII bytes, 5 zero bytes
-	isStandard := true
-	for i := 0; i < 12; i++ {
-		if currency[i] != 0 {
-			isStandard = false
-			break
-		}
-	}
-	if isStandard {
-		for i := 15; i < 20; i++ {
-			if currency[i] != 0 {
-				isStandard = false
-				break
-			}
-		}
-	}
-	if isStandard && currency[12] != 0 {
-		return string(currency[12:15])
-	}
-
-	// Non-standard: return as hex
-	return hex.EncodeToString(currency[:])
 }
