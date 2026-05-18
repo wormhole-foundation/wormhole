@@ -20,9 +20,9 @@ import (
 )
 
 const (
-	SuiGrpcTimeout           = 10 * time.Second // TODO: To be used from calling sites
-	SuiGrpcSteamNilThreshold = 100
-	SuiGrpcInvalidVersion    = math.MaxUint64
+	SuiGrpcTimeout            = 10 * time.Second // TODO: To be used from calling sites
+	SuiGrpcStreamNilThreshold = 100
+	SuiGrpcInvalidVersion     = math.MaxUint64
 )
 
 type GrpcLedgerServiceClientInterface interface {
@@ -249,7 +249,7 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 				// Whenever the stream produces nil, the nil responses counter is incremented. When the counter
 				// reaches a certain threshold, a debug log is produced.
 				streamNilRespCounter = streamNilRespCounter + 1
-				if streamNilRespCounter%SuiGrpcSteamNilThreshold == 0 {
+				if streamNilRespCounter%SuiGrpcStreamNilThreshold == 0 {
 					s.logger.Debug("Sui gRPC nil response update", zap.Uint64("streamNilRespCounter", uint64(streamNilRespCounter)))
 				}
 
@@ -312,16 +312,19 @@ func (s *SuiGrpcClient) Close() error {
 	return nil
 }
 
-// Create a new SuiClient, with the gRPC service as iplementation.
-func NewSuiGrpcClient(rpcURL string, logger *zap.Logger) (SuiClient, error) {
+// Create a new SuiClient, with the gRPC service as implementation. Additional gRPC dial options
+// (e.g. for custom transport credentials, interceptors, or per-RPC metadata via interceptors) may
+// be supplied; they are appended after the defaults so callers can override them.
+func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialOption) (SuiClient, error) {
 
-	// Setting the minimum TLS version is a linting requirement, but should ideally be adheared to in production.
+	// Setting the minimum TLS version is a linting requirement, but should ideally be adhered to in production.
 	creds := credentials.NewTLS(&tls.Config{
 		MinVersion: tls.VersionTLS12,
 	})
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 	}
+	opts = append(opts, extraOpts...)
 
 	conn, err := grpc.NewClient(rpcURL, opts...)
 
