@@ -321,9 +321,8 @@ func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialO
 	creds := credentials.NewTLS(&tls.Config{
 		MinVersion: tls.VersionTLS12,
 	})
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-	}
+	opts := make([]grpc.DialOption, 0, 1+len(extraOpts))
+	opts = append(opts, grpc.WithTransportCredentials(creds))
 	opts = append(opts, extraOpts...)
 
 	conn, err := grpc.NewClient(rpcURL, opts...)
