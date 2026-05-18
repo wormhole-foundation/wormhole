@@ -31,7 +31,11 @@ func suiGrpcClientLiveTestEnabled() (bool, bool) {
 	return runNormalTests, runSubscriptionTest
 }
 
-// Definition converted from the Sui module's definition.
+// Definition converted from the Sui module's definition. Field order and types must match the
+// on-chain Move struct exactly so BCS decoding succeeds. To derive these by hand, run
+// `sui move summary --bytecode <package-id>` against the published package and translate each
+// Move type to its BCS-equivalent Go type (e.g. Move `address`/`ID`/`UID` -> `[32]byte`, `u8/16/32/64`
+// -> `uint8/16/32/64`, `vector<u8>` -> `[]byte`).
 type WormholeState struct {
 	ID              [32]byte // UID is represented in Go as a 32-byte list
 	GovernanceChain uint16
@@ -46,8 +50,8 @@ func TestGrpcClientGetObject(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	defer client.Close() // Ensure the gRPC connection is closed when the test finishes
 	require.NoError(t, err)
+	defer client.Close() // Ensure the gRPC connection is closed when the test finishes
 
 	// Sample Object ID: https://suivision.xyz/object/0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9
 	objectId := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9"
@@ -69,7 +73,11 @@ func TestGrpcClientGetObject(t *testing.T) {
 
 }
 
-// Definition converted from the Sui module's definition.
+// Definition converted from the Sui module's definition. Field order and types must match the
+// on-chain Move struct exactly so BCS decoding succeeds. To derive these by hand, run
+// `sui move summary --bytecode <package-id>` against the published package and translate each
+// Move type to its BCS-equivalent Go type (e.g. Move `address`/`ID`/`UID` -> `[32]byte`, `u8/16/32/64`
+// -> `uint8/16/32/64`, `vector<u8>` -> `[]byte`).
 type WormholeMessage struct {
 	Sender           [32]byte
 	Sequence         uint64
@@ -88,8 +96,8 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	defer client.Close()
 	require.NoError(t, err)
+	defer client.Close()
 
 	// Sample transaction block: https://suivision.xyz/txblock/55q6tfVjenQwG8Uyn5EDQBuAjZHbPqdDaB9t8qAhYgBi
 	transactionDigest := "HUcA9av3dfKgGmzZ8eiw157824Y1nBSEfmUHbo4fs9dS"
@@ -131,8 +139,8 @@ func TestGrpcClientGetCheckpointSN(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	defer client.Close()
 	require.NoError(t, err)
+	defer client.Close()
 
 	sequenceNumber, err := client.GetLatestCheckpointSN(ctx)
 	require.NoError(t, err)
@@ -148,8 +156,8 @@ func TestGrpcClientSubscribeToEvents(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
-	defer client.Close()
 	require.NoError(t, err)
+	defer client.Close()
 
 	eventTypes := []string{
 		"0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::order_info::OrderPlaced",
