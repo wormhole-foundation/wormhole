@@ -73,8 +73,6 @@ require (
 
 require github.com/sercand/kuberesolver/v4 v4.0.0 // indirect
 
-// require github.com/sercand/kuberesolver/v6 v6.0.1 // indirect
-
 require (
 	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.11 // indirect

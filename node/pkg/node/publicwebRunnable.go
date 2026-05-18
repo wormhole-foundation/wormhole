@@ -70,8 +70,8 @@ func publicwebServiceRunnable(
 
 		// grpc.NewClient does not support blocking dials. The following code attempts to preserve the old behaviour.
 		conn.Connect()
-		ctx, cancel := context.WithTimeout(ctx, DialConnectTimeout)
-		defer cancel()
+		dialCtx, dialCancel := context.WithTimeout(ctx, DialConnectTimeout)
+		defer dialCancel()
 		for {
 			state := conn.GetState()
 
@@ -81,8 +81,8 @@ func publicwebServiceRunnable(
 			}
 
 			// Wait until the state changes.
-			if !conn.WaitForStateChange(ctx, state) {
-				panic("publicwebServiceRunnable failed to establish connection")
+			if !conn.WaitForStateChange(dialCtx, state) {
+				return fmt.Errorf("publicwebServiceRunnable: timed out waiting for upstream connection")
 			}
 		}
 

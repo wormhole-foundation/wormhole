@@ -130,6 +130,7 @@ func FuzzSuiGrpcClientGetObject(f *testing.F) {
 
 		// Request GetObject if version is even
 		if input_version%2 == 0 {
+			grpcClient.GetObject(context.Background(), input_objectId) //nolint:errcheck // The function returning an error is expected
 		} else {
 			// Request GetObjectAtVersion if version is odd
 			grpcClient.GetObjectAtVersion(context.Background(), input_objectId, input_version) //nolint:errcheck // The function returning an error is expected

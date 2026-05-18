@@ -41,9 +41,6 @@ type SuiSubscription struct {
 	err chan error
 	// Context cancellation function to stop the subscription
 	ctxCancel context.CancelFunc
-	// Flag to indicate whether an unsubscribe call was made, and to
-	// avoid deadlocking on a second call to Unsubscribe
-	unsubscribed bool
 }
 
 func (sub *SuiSubscription) Err() <-chan error {
@@ -51,10 +48,7 @@ func (sub *SuiSubscription) Err() <-chan error {
 }
 
 func (sub *SuiSubscription) Unsubscribe() {
-	if !sub.unsubscribed {
-		sub.unsubscribed = true
-		sub.ctxCancel()
-	}
+	sub.ctxCancel()
 }
 
 type SuiClient interface {
@@ -70,4 +64,7 @@ type SuiClient interface {
 	// Subscribe to events of type `eventType`
 	SubscribeToEvent(ctx context.Context, eventType string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
 	SubscribeToEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
+
+	// Close the client
+	Close() error
 }

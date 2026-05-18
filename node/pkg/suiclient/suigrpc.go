@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	SuiGrpcTimeout           = 10 * time.Second
+	SuiGrpcTimeout           = 10 * time.Second // TODO: To be used from calling sites
 	SuiGrpcSteamNilThreshold = 100
 	SuiGrpcInvalidVersion    = math.MaxUint64
 )
@@ -302,6 +302,14 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 	}()
 
 	return subscription, nil
+}
+
+// Close the gRPC connection. This should be called when the client is no longer needed, to avoid leaking resources.
+func (s *SuiGrpcClient) Close() error {
+	if s.conn != nil {
+		return s.conn.Close()
+	}
+	return nil
 }
 
 // Create a new SuiClient, with the gRPC service as iplementation.
