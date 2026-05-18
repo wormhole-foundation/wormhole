@@ -46,6 +46,7 @@ func TestGrpcClientGetObject(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
+	defer client.Close() // Ensure the gRPC connection is closed when the test finishes
 	require.NoError(t, err)
 
 	// Sample Object ID: https://suivision.xyz/object/0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9
@@ -54,7 +55,8 @@ func TestGrpcClientGetObject(t *testing.T) {
 
 	require.NoError(t, err)
 
-	state := DecodeBcs[WormholeState](obj.BcsBytes)
+	state, err := DecodeBcs[WormholeState](obj.BcsBytes)
+	require.NoError(t, err)
 	require.NotNil(t, state)
 
 	fmt.Printf("[+] Object %s:\n", obj.ID)
@@ -86,6 +88,7 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
+	defer client.Close()
 	require.NoError(t, err)
 
 	// Sample transaction block: https://suivision.xyz/txblock/55q6tfVjenQwG8Uyn5EDQBuAjZHbPqdDaB9t8qAhYgBi
@@ -104,8 +107,8 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 		fmt.Println("\t\tBcsBytes: ", hex.EncodeToString(ev.BcsBytes))
 
 		if ev.EventType == "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage" {
-			m := DecodeBcs[WormholeMessage](ev.BcsBytes)
-
+			m, err := DecodeBcs[WormholeMessage](ev.BcsBytes)
+			require.NoError(t, err)
 			require.NotNil(t, m)
 
 			fmt.Println("\t\tMessage Publication:")
@@ -128,6 +131,7 @@ func TestGrpcClientGetCheckpointSN(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
+	defer client.Close()
 	require.NoError(t, err)
 
 	sequenceNumber, err := client.GetLatestCheckpointSN(ctx)
@@ -144,6 +148,7 @@ func TestGrpcClientSubscribeToEvents(t *testing.T) {
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
+	defer client.Close()
 	require.NoError(t, err)
 
 	eventTypes := []string{
