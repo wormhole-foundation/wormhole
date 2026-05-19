@@ -53,6 +53,7 @@ type (
 
 	// Address is a Wormhole protocol address, it contains the native chain's address. If the address data type of a
 	// chain is < 32bytes the value is zero-padded on the left.
+	//nolint:recvcheck // Array type with marshaling interface - mixed receivers are idiomatic
 	Address [32]byte
 
 	// Signature of a single guardian
