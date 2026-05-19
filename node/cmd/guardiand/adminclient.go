@@ -331,8 +331,12 @@ var (
 	}
 )
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
+func getAdminClient(addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
+
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	conn, err := grpc.NewClient(fmt.Sprintf("unix:///%s", addr), opts...)
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
@@ -342,8 +346,12 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.
 	return conn, c, err
 }
 
-func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientConn, publicrpcv1.PublicRPCServiceClient, error) {
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
+func getPublicRPCServiceClient(addr string) (*grpc.ClientConn, publicrpcv1.PublicRPCServiceClient, error) {
+
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	conn, err := grpc.NewClient(fmt.Sprintf("unix:///%s", addr), opts...)
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
@@ -387,7 +395,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -425,7 +433,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -478,7 +486,7 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getPublicRPCServiceClient(ctx, *clientSocketPath)
+	conn, c, err := getPublicRPCServiceClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get public RPC service client: %v", err)
 	}
@@ -528,7 +536,7 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -570,7 +578,7 @@ func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -595,7 +603,7 @@ func runDumpRPCs(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -623,7 +631,7 @@ func runGetAndObserveMissingVAAs(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -939,7 +947,7 @@ func runBroadcastDelegateSignatures(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -964,7 +972,7 @@ func runChainGovernorStatus(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -983,7 +991,7 @@ func runChainGovernorReload(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1002,7 +1010,7 @@ func runChainGovernorDropPendingVAA(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1023,7 +1031,7 @@ func runChainGovernorReleasePendingVAA(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1044,7 +1052,7 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1096,7 +1104,7 @@ func runPurgePythNetVaas(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1130,7 +1138,7 @@ func runSignExistingVaa(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1173,7 +1181,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1270,7 +1278,7 @@ func runKeccak256Hash(cmd *cobra.Command, args []string) {
 
 func runNotaryBlackholeDelayedMessage(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1289,7 +1297,7 @@ func runNotaryBlackholeDelayedMessage(cmd *cobra.Command, args []string) {
 
 func runNotaryReleaseDelayedMessage(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1308,7 +1316,7 @@ func runNotaryReleaseDelayedMessage(cmd *cobra.Command, args []string) {
 
 func runNotaryRemoveBlackholedMessage(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1327,7 +1335,7 @@ func runNotaryRemoveBlackholedMessage(cmd *cobra.Command, args []string) {
 
 func runNotaryResetReleaseTimer(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1352,7 +1360,7 @@ func runNotaryResetReleaseTimer(cmd *cobra.Command, args []string) {
 
 func runNotaryInjectDelayedMessage(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1376,7 +1384,7 @@ func runNotaryInjectDelayedMessage(cmd *cobra.Command, args []string) {
 
 func runNotaryInjectBlackholedMessage(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1393,7 +1401,7 @@ func runNotaryInjectBlackholedMessage(cmd *cobra.Command, args []string) {
 
 func runNotaryGetDelayedMessage(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1412,7 +1420,7 @@ func runNotaryGetDelayedMessage(cmd *cobra.Command, args []string) {
 
 func runNotaryGetBlackholedMessage(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1431,7 +1439,7 @@ func runNotaryGetBlackholedMessage(cmd *cobra.Command, args []string) {
 
 func runNotaryListDelayedMessages(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
@@ -1451,7 +1459,7 @@ func runNotaryListDelayedMessages(cmd *cobra.Command, args []string) {
 
 func runNotaryListBlackholedMessages(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	conn, c, err := getAdminClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get admin client: %v", err)
 	}

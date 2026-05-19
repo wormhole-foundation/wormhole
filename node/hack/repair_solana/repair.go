@@ -33,8 +33,8 @@ const (
 	postMessageInstructionID = 0x01
 )
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
+func getAdminClient(addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
+	conn, err := grpc.NewClient(fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
@@ -50,7 +50,7 @@ func main() {
 	ctx := context.Background()
 	sr := rpc.New(*solanaRPC)
 
-	conn, admin, err := getAdminClient(ctx, *adminRPC)
+	conn, admin, err := getAdminClient(*adminRPC)
 	if err != nil {
 		conn.Close()
 		log.Fatalf("failed to get admin client: %v", err)

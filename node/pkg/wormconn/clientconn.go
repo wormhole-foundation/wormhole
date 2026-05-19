@@ -1,7 +1,6 @@
 package wormconn
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"sync"
@@ -34,9 +33,8 @@ type ClientConn struct {
 }
 
 // NewConn creates a new connection to the wormhole-chain instance at `target`.
-func NewConn(ctx context.Context, target string, privateKey cryptotypes.PrivKey, chainId string) (*ClientConn, error) {
-	c, err := grpc.DialContext(
-		ctx,
+func NewConn(target string, privateKey cryptotypes.PrivKey, chainId string) (*ClientConn, error) {
+	c, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
