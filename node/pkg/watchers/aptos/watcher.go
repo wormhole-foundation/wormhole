@@ -29,6 +29,7 @@ type (
 	Watcher struct {
 		chainID   vaa.ChainID
 		networkID string
+		env       common.Environment
 
 		aptosRPC     string
 		aptosAccount string
@@ -37,6 +38,8 @@ type (
 		msgC          chan<- *common.MessagePublication
 		obsvReqC      <-chan *gossipv1.ObservationRequest
 		readinessSync readiness.Component
+
+		logger *zap.Logger
 	}
 )
 
@@ -58,6 +61,7 @@ var (
 func NewWatcher(
 	chainID vaa.ChainID,
 	networkID watchers.NetworkID,
+	env common.Environment,
 	aptosRPC string,
 	aptosAccount string,
 	aptosHandle string,
@@ -67,6 +71,7 @@ func NewWatcher(
 	return &Watcher{
 		chainID:       chainID,
 		networkID:     string(networkID),
+		env:           env,
 		aptosRPC:      aptosRPC,
 		aptosAccount:  aptosAccount,
 		aptosHandle:   aptosHandle,
@@ -82,6 +87,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
+	e.logger = logger
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", e.networkID),
@@ -89,6 +95,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 		zap.String("account", e.aptosAccount),
 		zap.String("handle", e.aptosHandle),
 	)
+
+	// Verify that we are connecting to the correct chain.
+	if err := e.verifyAptosChainID(ctx, logger, e.aptosRPC); err != nil {
+		return fmt.Errorf("failed to verify aptos chain id: %w", err)
+	}
 
 	// Get the node version for troubleshooting
 	e.logVersion(logger)
@@ -127,59 +138,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 				panic("invalid chain ID")
 			}
 
-			// Aptos's TxID is a uint64. Historically, all TxIDs used a fixed 32-byte hash type.
-			// This parsing is leftover from that time period. It should be possible to refactor
-			// this code such that the TxID received from p2p is exactly 8 bytes, which would
-			// obviate the need for the below bounds check and parsing.
-			//
-			// SECURITY: This acts as a bounds check for the BigEndian.Unint64 call below.
-			const AptosTxIDExpectedLen = 32
-			if len(r.TxHash) < AptosTxIDExpectedLen {
-				logger.Error("invalid TxID: too short")
+			if _, err := e.handleReobservationRequest(logger, vaa.ChainID(r.ChainId), r.TxHash, e.aptosRPC); err != nil {
+				logger.Error("failed to process observation request", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
-			}
-
-			// uint64 will read the *first* 8 bytes, but the sequence is stored in the *last* 8.
-			nativeSeq := binary.BigEndian.Uint64(r.TxHash[24:])
-
-			logger.Info("Received obsv request", zap.Uint64("tx_hash", nativeSeq))
-
-			s := fmt.Sprintf(`%s?start=%d&limit=1`, eventsEndpoint, nativeSeq)
-
-			body, err := e.retrievePayload(s)
-			if err != nil {
-				logger.Error("retrievePayload", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				continue
-			}
-
-			if !gjson.Valid(string(body)) {
-				logger.Error("InvalidJson: " + string(body))
-				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-				break
-
-			}
-
-			outcomes := gjson.ParseBytes(body)
-
-			for _, chunk := range outcomes.Array() {
-				newSeq := chunk.Get("sequence_number")
-				if !newSeq.Exists() {
-					break
-				}
-
-				if newSeq.Uint() != nativeSeq {
-					logger.Error("newSeq != nativeSeq")
-					break
-
-				}
-
-				data := chunk.Get("data")
-				if !data.Exists() {
-					break
-				}
-				e.observeData(logger, data, nativeSeq, true)
 			}
 
 		case <-timer.C:
@@ -299,11 +261,11 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 	return body, err
 }
 
-func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64, isReobservation bool) {
+func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64, isReobservation bool) bool {
 	em := data.Get("sender")
 	if !em.Exists() {
 		logger.Error("sender field missing")
-		return
+		return false
 	}
 
 	emitter := make([]byte, 8)
@@ -321,53 +283,53 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 	v := data.Get("payload")
 	if !v.Exists() {
 		logger.Error("payload field missing")
-		return
+		return false
 	}
 
 	s := v.String()
 	if !strings.HasPrefix(s, "0x") {
 		logger.Error("payload missing 0x prefix", zap.String("payload", s))
-		return
+		return false
 	}
 
 	pl, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
 	if err != nil {
 		logger.Error("payload decode", zap.Error(err))
-		return
+		return false
 	}
 
 	ts := data.Get("timestamp")
 	if !ts.Exists() {
 		logger.Error("timestamp field missing")
-		return
+		return false
 	}
 
 	nonce := data.Get("nonce")
 	if !nonce.Exists() {
 		logger.Error("nonce field missing")
-		return
+		return false
 	}
 
 	sequence := data.Get("sequence")
 	if !sequence.Exists() {
 		logger.Error("sequence field missing")
-		return
+		return false
 	}
 
 	consistencyLevel := data.Get("consistency_level")
 	if !consistencyLevel.Exists() {
 		logger.Error("consistencyLevel field missing")
-		return
+		return false
 	}
 
 	if nonce.Uint() > math.MaxUint32 {
 		logger.Error("nonce is larger than expected MaxUint32")
-		return
+		return false
 	}
 
 	if consistencyLevel.Uint() > math.MaxUint8 {
 		logger.Error("consistency level is larger than expected MaxUint8")
-		return
+		return false
 	}
 
 	observation := &common.MessagePublication{
@@ -400,6 +362,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 	)
 
 	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	return true
 }
 
 // logVersion retrieves the Aptos node version and logs it
