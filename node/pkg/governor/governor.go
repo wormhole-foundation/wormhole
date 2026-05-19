@@ -1,7 +1,7 @@
 package governor
 
 // The purpose of the Chain Governor is to limit the notional TVL that can leave a chain in a single day.
-// It works by tracking transfers (types one and three) for a configured set of tokens from a configured set of emitters (chains).
+// It works by tracking Wrapped Token Transfers (payload types one and three) for a configured set of tokens from a configured set of emitters (chains).
 //
 // To compute the notional value of a transfer, the governor uses the amount from the transfer multiplied by the maximum of
 // a hard coded price and the latest price pulled from CoinkGecko (every five minutes). Once a transfer is published,
@@ -123,42 +123,11 @@ type (
 		transfers []transfer
 		pending   []*pendingEntry
 	}
-
-	// Represents a pair of Governed chains. Ordering is arbitrary.
-	corridor struct {
-		first  vaa.ChainID
-		second vaa.ChainID
-	}
 )
 
 func (e *TokenConfigEntry) String() string {
 	// ignore decimals and price
 	return fmt.Sprintf("%d:%s:%s:%s", e.Chain, e.Addr, e.Symbol, e.CoinGeckoId)
-}
-
-// valid checks whether a corridor is valid. A corridor is invalid if both chain IDs are equal.
-func (p *corridor) valid() bool {
-	return p.first != p.second && p.first != vaa.ChainIDUnset && p.second != vaa.ChainIDUnset
-}
-
-// equals checks whether two corrdidors are equal. This method exists to demonstrate that the ordering of the
-// corridor's elements doesn't matter. It also makes it easier to check whether two chains are 'connected' by a corridor
-// without needing to sort or manipulate the elements.
-func (p *corridor) equals(p2 *corridor) bool {
-	if !p.valid() || !p2.valid() {
-		// We want to make invalid corridors unusable, so make them fail the equality check.
-		// This is a protective measure in case a developer tries to do some logic on invalid corridors
-		// and forgets to check valid() first.
-		return false
-	}
-	if p.first == p2.first && p.second == p2.second {
-		return true
-	}
-	// Ordering doesn't matter
-	if p.first == p2.second && p2.first == p.second {
-		return true
-	}
-	return false
 }
 
 // newTransferFromDbTransfer converts a db.Transfer into a transfer. It
@@ -491,23 +460,43 @@ func (gov *ChainGovernor) initConfig() error {
 // or if an error occurred.
 func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 
-	// Fail early for checks that do not require referencing the governor's state.
-	if !vaa.IsTransfer(msg.Payload) {
-		// The Governor should not block transfers that are not wrapped token transfers.
-		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
-		return true
-	}
-
 	publish, err := gov.processMsgForTime(msg, time.Now())
 	if err != nil {
 		gov.logger.Error("failed to process VAA: %v", zap.Error(err))
+		// Suppress the error here as returning it would cause a processor restart.
 		return false
 	}
 
 	return publish
 }
 
+// CheckMessagePreconditions checks whether a message satisfies the preconditions for being governed.
+// This method performs only stateless checks and must not access the governor's state.
+// This helps to avoid unnecessary locking of the governor's mutex.
+//
+// Returns true if the message is non-nil and satisfies the preconditions, false otherwise.
+func CheckMessagePreconditions(msg *common.MessagePublication) bool {
+
+	if msg == nil {
+		return false
+	}
+
+	// PythNet messages are never Wrapped Token Transfers, hence are not governed.
+	if msg.EmitterChain == vaa.ChainIDPythNet {
+		return false
+	}
+
+	// Only Wrapped Token Transfers are governed.
+	if !vaa.IsTransfer(msg.Payload) {
+		return false
+	}
+
+	return true
+}
+
 // processMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
+// When this function returns true, it means that the caller is OK to publish the message.
+//
 // Returns true if:
 // - the message is not governed
 // - the transfer is complete and has already been observed
@@ -521,13 +510,21 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 		return false, fmt.Errorf("msg is nil")
 	}
 
+	// Check preconditions first to avoid locking the governor's mutex.
+	satisfied := CheckMessagePreconditions(msg)
+	if !satisfied {
+		// The Governor should not block messages that are not wrapped token transfers.
+		return true, nil
+	}
+
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	msgIsGoverned, emitterChainEntry, token, payload, err := gov.parseMsgAlreadyLocked(msg)
 
 	if err != nil {
-		return false, err
+		// Pessimistic: block the message if we can't parse it.
+		return true, err
 	}
 
 	if !msgIsGoverned {
@@ -725,8 +722,8 @@ func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGo
 
 	// Fail early for checks that do not require referencing the governor's state.
 	// This avoids locking the governor's mutex.
-	if !vaa.IsTransfer(msg.Payload) {
-		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
+	satisfied := CheckMessagePreconditions(msg)
+	if !satisfied {
 		return false, nil
 	}
 
@@ -751,12 +748,10 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	// If we don't care about this chain, the VAA can be published.
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
-		if msg.EmitterChain != vaa.ChainIDPythNet {
-			gov.logger.Info(
-				"ignoring vaa because the emitter chain is not configured",
-				zap.String("msgID", msg.MessageIDString()),
-			)
-		}
+		gov.logger.Info(
+			"ignoring vaa because the emitter chain is not governed",
+			zap.String("msgID", msg.MessageIDString()),
+		)
 		return false, nil, nil, nil, nil
 	}
 
@@ -769,22 +764,22 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 		return false, nil, nil, nil, nil
 	}
 
-	// Decode the payload. This is a prerequisite for the rest of the checks.
-	payload, decodeErr := vaa.DecodeTransferPayloadHdr(msg.Payload)
+	// Decode the payload header
+	vaaHeader, decodeErr := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if decodeErr != nil {
 		gov.logger.Error("failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(decodeErr))
 		return false, nil, nil, nil, decodeErr
 	}
 
 	// If we don't care about this token, the VAA can be published.
-	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
+	tk := tokenKey{chain: vaaHeader.OriginChain, addr: vaaHeader.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
 		gov.logger.Info("ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
 		return false, nil, nil, nil, nil
 	}
 
-	return true, ce, token, payload, nil
+	return true, ce, token, vaaHeader, nil
 }
 
 // CheckPending is a wrapper method for CheckPendingForTime that uses time.Now as the release time.
