@@ -527,7 +527,7 @@ CLI flags for the guardian:
 
 <!-- cspell:enable -->
 
-This feature shows up in the guardian heartbeats as `dsg`.
+This feature shows up in the guardian heartbeats as `dgset`.
 
 ## Enabling the global accountant
 
