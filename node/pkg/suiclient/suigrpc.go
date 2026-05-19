@@ -235,7 +235,7 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 		defer cancel()
 
 		for {
-			// stream.Recv() is interrupeted automatically when the context is cancelled.
+			// stream.Recv() is interrupted automatically when the context is cancelled.
 			resp, err := stream.Recv()
 
 			if err != nil {

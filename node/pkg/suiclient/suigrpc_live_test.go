@@ -179,6 +179,11 @@ func TestGrpcClientSubscribeToEvents(t *testing.T) {
 				fmt.Println("context done. breaking.")
 				return
 			}
+		case <-subscription.Done():
+			{
+				fmt.Println("subscription done. breaking.")
+				return
+			}
 		case subErr := <-subscription.Err():
 			{
 				fmt.Printf("subscription reported an error: %v\n", subErr)

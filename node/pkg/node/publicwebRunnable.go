@@ -82,6 +82,7 @@ func publicwebServiceRunnable(
 
 			// Wait until the state changes.
 			if !conn.WaitForStateChange(dialCtx, state) {
+				conn.Close()
 				return fmt.Errorf("publicwebServiceRunnable: timed out waiting for upstream connection")
 			}
 		}
@@ -89,6 +90,7 @@ func publicwebServiceRunnable(
 		gwmux := runtime.NewServeMux()
 		err := publicrpcv1.RegisterPublicRPCServiceHandler(ctx, gwmux, conn)
 		if err != nil {
+			conn.Close()
 			panic(err)
 		}
 
