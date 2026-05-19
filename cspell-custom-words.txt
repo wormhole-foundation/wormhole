@@ -55,6 +55,7 @@ Cyfrin
 datagram
 denoms
 devnet
+dgset
 doclink
 doclinks
 Dogecoin
@@ -66,6 +67,7 @@ ETHRPC
 evmos
 evmtypes
 fogo
+fogoshim
 Fogo
 forgeable
 FQTs
@@ -123,6 +125,7 @@ Litecoin
 localnet
 localterra
 lockfiles
+logonly
 marshal
 megaETH
 MegaETH
@@ -200,6 +203,7 @@ SnaxChain
 solana
 Solana
 Solana's
+solshim
 spydk
 Starport
 statesync

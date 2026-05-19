@@ -481,7 +481,74 @@ Please remember to allowlist the new NTT Accountant key for use with Wormchain! 
 
 <!-- cspell:enable -->
 
+This feature shows up in the guardian heartbeats as `ccq`.
+
 To test query functionality, follow the instructions in [node/hack/query/ccqlistener/ccqlistener.go](../node/hack/query/ccqlistener/ccqlistener.go).
+
+## Enabling the Solana shim
+
+CLI flags for the guardian:
+
+<!-- cspell:disable -->
+
+```shell
+--solanaShimContract=[solana shim address]
+```
+
+<!-- cspell:enable -->
+
+This feature shows up in the guardian heartbeats as `solshim`
+
+## Enabling the Fogo shim
+
+CLI flags for the guardian:
+
+<!-- cspell:disable -->
+
+```shell
+--fogoShimContract=[fogo shim address]
+```
+
+<!-- cspell:enable -->
+
+This feature shows up in the guardian heartbeats as `fogoshim`
+
+## Enabling the delegated guardian set
+
+Get the delegated guardians contract address from the [wormhole contract addresses reference](https://wormhole.com/docs/products/reference/contract-addresses/#delegated-guardians)
+
+CLI flags for the guardian:
+
+<!-- cspell:disable -->
+
+```shell
+--ethDelegatedGuardiansContract=[delegated guardians address]
+```
+
+<!-- cspell:enable -->
+
+This feature shows up in the guardian heartbeats as `dgset`.
+
+## Enabling the global accountant
+
+This enables the global accountant for WTT and NTT transfers:
+
+<!-- cspell:disable -->
+
+```shell
+--wormchainURL
+--accountantWS
+--accountantCheckEnabled
+--accountantNttContract
+--accountantNttKeyPath
+--accountantNttKeyPassPhrase
+# Without this, it is in log only mode exclusively
+--accountantCheckEnabled
+```
+
+<!-- cspell:enable -->
+
+This feature shows up in the guardian heartbeats as `acct:ntt-acct` in enforcing mode when NTT is enabled. It shows up as `acct-logonly:ntt-acct` without `accountantCheckEnabled`. It will just show up as `acct` if NTT is not enabled.
 
 ## Running a public API endpoint
 
