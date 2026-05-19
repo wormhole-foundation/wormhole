@@ -1,21 +1,6 @@
 [package]
-name = "CoreMessages"
+name = "core_messages"
 version = "1.0.0"
 
-[dependencies.Sui]
-git = "https://github.com/MystenLabs/sui.git"
-subdir = "crates/sui-framework/packages/sui-framework"
-rev = "041c5f2bae2fe52079e44b70514333532d69f4e6"
-
-[dependencies.Wormhole]
-local = "../../wormhole"
-
-[addresses]
-core_messages = "_"
-
-[dev-dependencies.Wormhole]
-local = "../../wormhole"
-
-[dev-addresses]
-wormhole = "0x100"
-core_messages = "0x169"
+[dependencies]
+wormhole = { local = "../../wormhole" }

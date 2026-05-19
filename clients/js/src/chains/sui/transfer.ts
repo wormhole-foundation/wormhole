@@ -29,18 +29,18 @@ export async function transferSui(
   if (!token_bridge) {
     throw new Error("Token bridge object ID is undefined");
   }
-  const provider = getProvider(network, rpc);
-  const signer = getSigner(provider, network);
-  const owner = await signer.getAddress();
+  const client = getProvider(network, rpc);
+  const signer = getSigner(client, network);
+  const owner = signer.keypair.getPublicKey().toSuiAddress();
   const coinType = tokenAddress === "native" ? "0x2::sui::SUI" : tokenAddress;
   const coins = (
-    await provider.getCoins({
+    await client.getCoins({
       owner,
       coinType,
     })
   ).data;
   const tx = await transferFromSui(
-    provider,
+    client as any,
     core,
     token_bridge,
     coins,
@@ -49,7 +49,7 @@ export async function transferSui(
     chainToChainId(dstChain),
     tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
   );
-  setMaxGasBudgetDevnet(network, tx);
-  const result = await executeTransactionBlock(signer, tx);
+  setMaxGasBudgetDevnet(network, tx as any);
+  const result = await executeTransactionBlock(signer, tx as any);
   console.log(JSON.stringify(result));
 }

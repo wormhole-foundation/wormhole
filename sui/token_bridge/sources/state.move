@@ -226,12 +226,12 @@ module token_bridge::state {
     public(friend) fun assert_latest_only_specified<Version>(
         self: &State
     ): LatestOnly {
-        use std::type_name::{get};
+        use std::type_name::{with_defining_ids};
 
         // Explicitly check the type names.
         let current_type =
             package_utils::type_of_version(version_control::current_version());
-        assert!(current_type == get<Version>(), E_VERSION_MISMATCH);
+        assert!(current_type == with_defining_ids<Version>(), E_VERSION_MISMATCH);
 
         assert_latest_only(self)
     }

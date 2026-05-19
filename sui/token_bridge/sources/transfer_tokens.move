@@ -870,7 +870,7 @@ module token_bridge::transfer_token_tests {
                 scenario,
                 sender
             );
-        sui::test_utils::destroy(treasury_cap);
+        std::unit_test::destroy(treasury_cap);
 
         // NOTE: This test purposely doesn't `attest` COIN_WRAPPED_7.
         let transfer_amount = 42069;

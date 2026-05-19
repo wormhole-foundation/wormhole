@@ -31,7 +31,7 @@ module token_bridge::string_utils {
     /// Note that while the Sui spec limits symbols to only use ascii
     /// characters, the token bridge spec does allow utf8 symbols.
     public fun to_ascii(s: &String): ascii::String {
-        let buf = *string::bytes(s);
+        let buf = *string::as_bytes(s);
         // keep dropping the last character while it's 0
         while (
             !vector::is_empty(&buf) &&

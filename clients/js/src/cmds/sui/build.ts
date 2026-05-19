@@ -1,10 +1,9 @@
 import path from "path";
 import yargs from "yargs";
-import { buildCoin, getProvider } from "../../chains/sui";
-import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
+import { buildCoin } from "../../chains/sui";
+import { NETWORK_OPTIONS } from "../../consts";
 import { checkBinary, getNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
-import { contracts } from "@wormhole-foundation/sdk";
 
 const README_URL =
   "https://github.com/wormhole-foundation/wormhole/blob/main/sui/README.md";
@@ -13,9 +12,9 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "build-coin",
     `Build wrapped coin and dump bytecode.
-    
+
     Example:
-      worm sui build-coin -d 8 -v V__0_1_1 -n testnet -r "https://fullnode.testnet.sui.io:443"`,
+      worm sui build-coin -d 8 -v V__0_1_1 -n testnet`,
     (yargs) =>
       yargs
         .option("decimals", {
@@ -37,20 +36,7 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           describe: "Path to coin module",
           demandOption: false,
           type: "string",
-        })
-        .option("wormhole-state", {
-          alias: "w",
-          describe: "Wormhole state object ID",
-          demandOption: false,
-          type: "string",
-        })
-        .option("token-bridge-state", {
-          alias: "t",
-          describe: "Token bridge state object ID",
-          demandOption: false,
-          type: "string",
-        })
-        .option("rpc", RPC_OPTIONS),
+        }),
     async (argv) => {
       checkBinary("sui", README_URL);
 
@@ -60,36 +46,10 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       const packagePath =
         argv["package-path"] ??
         path.resolve(__dirname, "../../../../../sui/examples");
-      const coreBridgeStateObjectId =
-        argv["wormhole-state"] ?? contracts.coreBridge(network, "Sui");
-      const tokenBridgeStateObjectId =
-        argv["token-bridge-state"] ?? contracts.tokenBridge(network, "Sui");
 
-      if (!coreBridgeStateObjectId) {
-        throw new Error(
-          `Couldn't find core bridge state object ID for network ${network}`
-        );
-      }
-
-      if (!tokenBridgeStateObjectId) {
-        throw new Error(
-          `Couldn't find token bridge state object ID for network ${network}`
-        );
-      }
-
-      const provider = getProvider(
-        network,
-        argv.rpc ?? NETWORKS[network].Sui.rpc
-      );
-      const build = await buildCoin(
-        provider,
-        network,
-        packagePath,
-        coreBridgeStateObjectId,
-        tokenBridgeStateObjectId,
-        version,
-        decimals
-      );
+      // Note: In Sui v1.63+, dependencies are resolved automatically via
+      // Pub.localnet.toml (for ephemeral) or Published.toml (for persistent).
+      const build = await buildCoin(network, packagePath, version, decimals);
       console.log(build);
       console.log(
         "Bytecode hex:",
