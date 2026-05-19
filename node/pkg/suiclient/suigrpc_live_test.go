@@ -187,7 +187,8 @@ func TestGrpcClientSubscribeToEvents(t *testing.T) {
 			{
 				fmt.Println("calling unsubscribe")
 				subscription.Unsubscribe()
-				time.Sleep(2 * time.Second) //nolint:forbidigo // Using time.Sleep here as an arbitrary delay to ensure the subscription closes internally
+				// Wait for the subscription's background goroutine to fully exit before returning.
+				<-subscription.Done()
 				return
 			}
 		case ev := <-suiEventChan:

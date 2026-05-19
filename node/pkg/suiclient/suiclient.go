@@ -39,12 +39,20 @@ type SuiTransaction struct {
 type SuiSubscription struct {
 	// Channel for communicating errors during streaming.
 	err chan error
+	// Closed when the subscription's background goroutine has exited.
+	done chan struct{}
 	// Context cancellation function to stop the subscription
 	ctxCancel context.CancelFunc
 }
 
 func (sub *SuiSubscription) Err() <-chan error {
 	return sub.err
+}
+
+// Done returns a channel that is closed when the subscription's background
+// goroutine has fully exited (either after Unsubscribe() or a stream error).
+func (sub *SuiSubscription) Done() <-chan struct{} {
+	return sub.done
 }
 
 func (sub *SuiSubscription) Unsubscribe() {

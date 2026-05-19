@@ -1,9 +1,5 @@
 package suiclient
 
-// TODO: better error handling
-// TODO: debug logging
-// TODO: ensure channels are done safely
-
 import (
 	"context"
 	"crypto/tls"
@@ -13,6 +9,8 @@ import (
 	"time"
 
 	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -20,10 +18,18 @@ import (
 )
 
 const (
-	SuiGrpcTimeout            = 10 * time.Second // TODO: To be used from calling sites
-	SuiGrpcStreamNilThreshold = 100
-	SuiGrpcInvalidVersion     = math.MaxUint64
+	suiGrpcTimeout        = 10 * time.Second // TODO: Export in future to be used from calling sites
+	SuiGrpcInvalidVersion = math.MaxUint64   // Used to signal that the most current version of an object should be retrieved, instead of a specific version.
 )
+
+// suiGrpcNilResponses counts nil/empty checkpoint responses received from the Sui
+// subscription stream. A persistently rising rate indicates the upstream node is
+// returning malformed checkpoints and should be alerted on.
+var suiGrpcNilResponses = promauto.NewCounter(
+	prometheus.CounterOpts{
+		Name: "wormhole_sui_grpc_nil_responses_total",
+		Help: "Total number of nil checkpoint responses received from the Sui gRPC subscription stream",
+	})
 
 type GrpcLedgerServiceClientInterface interface {
 	GetObject(ctx context.Context, req *pb.GetObjectRequest) (*pb.GetObjectResponse, error)
@@ -82,7 +88,7 @@ func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string,
 
 	// gRPC call error check
 	if err != nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject failed: %v", err)
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject failed: %w", err)
 	}
 
 	// nil-checks for top-level properties
@@ -123,7 +129,7 @@ func (s *SuiGrpcClient) GetLatestCheckpointSN(ctx context.Context) (uint64, erro
 
 	// gRPC call error check
 	if err != nil {
-		return 0, fmt.Errorf("sui gRPC GetCheckpoint failed: %v", err)
+		return 0, fmt.Errorf("sui gRPC GetCheckpoint failed: %w", err)
 	}
 
 	// nil-check
@@ -153,7 +159,7 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string) (SuiT
 
 	// gRPC call error check
 	if err != nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed: %v", err)
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed: %w", err)
 	}
 
 	// nil-check for top-level properties
@@ -210,21 +216,23 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 
 	if err != nil {
 		cancel()
-		return SuiSubscription{}, fmt.Errorf("sui gRPC CheckpointStream creation failed: %v", err)
+		return SuiSubscription{}, fmt.Errorf("sui gRPC CheckpointStream creation failed: %w", err)
 	}
 
 	// Set up subscription
 	errorChannel := make(chan error, 1)
+	doneChannel := make(chan struct{})
 
 	subscription := SuiSubscription{
 		err:       errorChannel,
+		done:      doneChannel,
 		ctxCancel: cancel,
 	}
 
 	go func() {
+		defer close(doneChannel)
+		defer close(errorChannel)
 		defer cancel()
-
-		streamNilRespCounter := uint64(0)
 
 		for {
 			// stream.Recv() is interrupeted automatically when the context is cancelled.
@@ -245,14 +253,9 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 
 			// Check that the response and Checkpoint are non-nil before further processing.
 			if resp == nil || resp.Checkpoint == nil {
-
-				// Whenever the stream produces nil, the nil responses counter is incremented. When the counter
-				// reaches a certain threshold, a debug log is produced.
-				streamNilRespCounter = streamNilRespCounter + 1
-				if streamNilRespCounter%SuiGrpcStreamNilThreshold == 0 {
-					s.logger.Debug("Sui gRPC nil response update", zap.Uint64("streamNilRespCounter", uint64(streamNilRespCounter)))
-				}
-
+				// Increment the prometheus counter so a persistent stream of nil responses can be
+				// observed and alerted on by operators.
+				suiGrpcNilResponses.Inc()
 				continue
 			}
 
@@ -283,7 +286,7 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 
 					// The grpcEvent was malformed, so ignore it.
 					if suiEvent == nil {
-						s.logger.Debug("Sui gRPC event was malformed")
+						s.logger.Warn("Sui gRPC event was malformed")
 						continue
 					}
 
@@ -328,7 +331,7 @@ func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialO
 	conn, err := grpc.NewClient(rpcURL, opts...)
 
 	if err != nil {
-		return nil, fmt.Errorf("sui gRPC client creation failed: %v", err)
+		return nil, fmt.Errorf("sui gRPC client creation failed: %w", err)
 	}
 
 	grpcLedgerServiceClient := &GrpcLedgerServiceClient{
