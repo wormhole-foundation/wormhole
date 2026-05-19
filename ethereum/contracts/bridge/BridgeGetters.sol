@@ -74,4 +74,16 @@ contract BridgeGetters is BridgeState {
     function finality() public view returns (uint8) {
         return _state.provider.finality;
     }
+
+    function pauser() public view returns (address) {
+        return _state.pauser;
+    }
+
+    function unpauser() public view returns (address) {
+        return _state.unpauser;
+    }
+
+    function paused() public view returns (bool) {
+        return _state.paused;
+    }
 }

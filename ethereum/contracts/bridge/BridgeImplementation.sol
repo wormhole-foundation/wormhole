@@ -10,6 +10,8 @@ import "./Bridge.sol";
 
 
 contract BridgeImplementation is Bridge {
+    error AlreadyInitialized();
+
     // Beacon getter for the token contracts
     function implementation() public view returns (address) {
         return tokenImplementation();
@@ -26,10 +28,7 @@ contract BridgeImplementation is Bridge {
     modifier initializer() {
         address impl = ERC1967Upgrade._getImplementation();
 
-        require(
-            !isInitialized(impl),
-            "already initialized"
-        );
+        if (isInitialized(impl)) revert AlreadyInitialized();
 
         setInitialized(impl);
 

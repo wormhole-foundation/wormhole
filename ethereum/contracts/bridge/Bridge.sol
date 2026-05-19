@@ -32,10 +32,86 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint64 indexed sequence
     );
 
+    /// @notice Emitted when the bridge is paused.
+    event Paused(address indexed by);
+
+    /// @notice Emitted when the bridge is unpaused.
+    event Unpaused(address indexed by);
+
+    /// @dev Custom errors are used in place of revert strings to keep `BridgeImplementation` under
+    ///      the 24,576-byte EIP-170 limit.
+
+    /// @notice Reverts when a `notPaused`-guarded entry point is called while the bridge is paused.
+    error BridgePaused();
+    /// @notice Reverts when `pause()` is called by anyone other than the configured pauser.
+    error NotPauser();
+    /// @notice Reverts when `unpause()` is called by anyone other than the configured unpauser.
+    error NotUnpauser();
+    /// @notice Reverts when `msg.value` does not cover the wormhole message fee.
+    error WormholeFeeTooLarge();
+    /// @notice Reverts when an arbiter / relayer fee exceeds the transfer amount.
+    error FeeExceedsAmount();
+    /// @notice Reverts when a transfer VAA is not from a registered token-bridge emitter.
+    error InvalidEmitter();
+    /// @notice Reverts when no wrapped asset is registered for a given (chain, token) pair.
+    error WrappedAssetNotFound();
+    /// @notice Reverts when `createWrapped` is called for a token native to this chain.
+    error OnlyForeignTokens();
+    /// @notice Reverts when `createWrapped` is called for a (chain, token) that already has a wrapper.
+    error WrappedAssetAlreadyExists();
+    /// @notice Reverts when truncating a 32-byte value to an EVM address loses non-zero high bytes.
+    error InvalidEVMAddress();
+    /// @notice Reverts when a payload-3 transfer is redeemed by anyone other than the recipient.
+    error InvalidSender();
+    /// @notice Reverts when a transfer VAA has already been redeemed.
+    error TransferAlreadyCompleted();
+    /// @notice Reverts when redeeming a transfer whose target chain is not this chain.
+    error InvalidTargetChain();
+    /// @notice Reverts when an unwrap-ETH path is taken with a token other than WETH.
+    error OnlyWETH();
+    /// @notice Reverts when an outbound transfer would exceed the per-token outstanding bridged cap.
+    error OutstandingExceedsMax();
+    /// @notice Reverts when an AssetMeta payload is malformed.
+    error InvalidAssetMeta();
+    /// @notice Reverts when a Transfer payload is malformed.
+    error InvalidTransferPayload();
+    /// @notice Reverts when an unknown payload id is encountered.
+    error InvalidPayloadId();
+
+    /// @dev Reverts if the bridge is paused. See whitepapers/0018_pauser.md.
+    /// @dev Implemented as a shared internal function (rather than inlining the check in the
+    ///      modifier body) so the bytecode is emitted once and JUMPed to from every callsite,
+    ///      keeping `BridgeImplementation` under the 24,576-byte EIP-170 limit.
+    function _requireNotPaused() internal view {
+        if (paused()) revert BridgePaused();
+    }
+
+    modifier notPaused() {
+        _requireNotPaused();
+        _;
+    }
+
+    /// @notice Pause the bridge. Only callable by the configured pauser. Configured via the
+    ///         SetPauserAddressesEvm (action 4) governance VAA.
+    function pause() external {
+        if (msg.sender != pauser()) revert NotPauser();
+        setPaused(true);
+        emit Paused(msg.sender);
+    }
+
+    /// @notice Unpause the bridge. Only callable by the configured unpauser. Configured via the
+    ///         SetPauserAddressesEvm (action 4) governance VAA. Note that `unpause` is intentionally
+    ///         exempt from the `notPaused` modifier.
+    function unpause() external {
+        if (msg.sender != unpauser()) revert NotUnpauser();
+        setPaused(false);
+        emit Unpaused(msg.sender);
+    }
+
     /*
      *  @dev Produce a AssetMeta message for a given token
      */
-    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence) {
+    function attestToken(address tokenAddress, uint32 nonce) public payable notPaused returns (uint64 sequence) {
         // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
         (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
         (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
@@ -78,7 +154,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint256 arbiterFee,
         uint32 nonce
-    ) public payable returns (uint64 sequence) {
+    ) public payable notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(arbiterFee);
         sequence = logTransfer(
@@ -110,7 +186,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint32 nonce,
         bytes memory payload
-    ) public payable returns (uint64 sequence) {
+    ) public payable notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(0);
         sequence = logTransferWithPayload(
@@ -128,11 +204,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     function _wrapAndTransferETH(uint256 arbiterFee) internal returns (BridgeStructs.TransferResult memory transferResult) {
         uint wormholeFee = wormhole().messageFee();
 
-        require(wormholeFee < msg.value, "value is smaller than wormhole fee");
+        if (wormholeFee >= msg.value) revert WormholeFeeTooLarge();
 
         uint amount = msg.value - wormholeFee;
 
-        require(arbiterFee <= amount, "fee is bigger than amount minus wormhole fee");
+        if (arbiterFee > amount) revert FeeExceedsAmount();
 
         uint normalizedAmount = normalizeAmount(amount, 18);
         uint normalizedArbiterFee = normalizeAmount(arbiterFee, 18);
@@ -170,7 +246,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint256 arbiterFee,
         uint32 nonce
-    ) public payable nonReentrant returns (uint64 sequence) {
+    ) public payable nonReentrant notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
@@ -207,7 +283,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 recipient,
         uint32 nonce,
         bytes memory payload
-    ) public payable nonReentrant returns (uint64 sequence) {
+    ) public payable nonReentrant notPaused returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
@@ -309,7 +385,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint256 callValue,
         uint32 nonce
     ) internal returns (uint64 sequence) {
-        require(fee <= amount, "fee exceeds amount");
+        if (fee > amount) revert FeeExceedsAmount();
 
         BridgeStructs.Transfer memory transfer = BridgeStructs.Transfer({
             payloadID: 1,
@@ -362,11 +438,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         );
     }
 
-    function updateWrapped(bytes memory encodedVm) external returns (address token) {
+    function updateWrapped(bytes memory encodedVm) external notPaused returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
-        require(verifyBridgeVM(vm), "invalid emitter");
+        if (!verifyBridgeVM(vm)) revert InvalidEmitter();
 
         BridgeStructs.AssetMeta memory meta = parseAssetMeta(vm.payload);
         return _updateWrapped(meta, vm.sequence);
@@ -374,7 +450,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
     function _updateWrapped(BridgeStructs.AssetMeta memory meta, uint64 sequence) internal returns (address token) {
         address wrapped = wrappedAsset(meta.tokenChain, meta.tokenAddress);
-        require(wrapped != address(0), "wrapped asset does not exists");
+        if (wrapped == address(0)) revert WrappedAssetNotFound();
 
         // Update metadata
         TokenImplementation(wrapped).updateDetails(bytes32ToString(meta.name), bytes32ToString(meta.symbol), sequence);
@@ -382,11 +458,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         return wrapped;
     }
 
-    function createWrapped(bytes memory encodedVm) external returns (address token) {
+    function createWrapped(bytes memory encodedVm) external notPaused returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
-        require(verifyBridgeVM(vm), "invalid emitter");
+        if (!verifyBridgeVM(vm)) revert InvalidEmitter();
 
         BridgeStructs.AssetMeta memory meta = parseAssetMeta(vm.payload);
         return _createWrapped(meta, vm.sequence);
@@ -394,8 +470,8 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
     // Creates a wrapped asset using AssetMeta
     function _createWrapped(BridgeStructs.AssetMeta memory meta, uint64 sequence) internal returns (address token) {
-        require(meta.tokenChain != chainId(), "can only wrap tokens from foreign chains");
-        require(wrappedAsset(meta.tokenChain, meta.tokenAddress) == address(0), "wrapped asset already exists");
+        if (meta.tokenChain == chainId()) revert OnlyForeignTokens();
+        if (wrappedAsset(meta.tokenChain, meta.tokenAddress) != address(0)) revert WrappedAssetAlreadyExists();
 
         // initialize the TokenImplementation
         bytes memory initialisationArgs = abi.encodeWithSelector(
@@ -440,7 +516,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @return The byte array representing a BridgeStructs.TransferWithPayload.
      */
-    function completeTransferWithPayload(bytes memory encodedVm) public returns (bytes memory) {
+    function completeTransferWithPayload(bytes memory encodedVm) public notPaused returns (bytes memory) {
         return _completeTransfer(encodedVm, false);
     }
 
@@ -454,7 +530,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @return The byte array representing a BridgeStructs.TransferWithPayload.
      */
-    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm) public returns (bytes memory) {
+    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm) public notPaused returns (bytes memory) {
         return _completeTransfer(encodedVm, true);
     }
 
@@ -465,7 +541,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @param encodedVm A byte array containing a VAA signed by the guardians.
      */
-    function completeTransfer(bytes memory encodedVm) public {
+    function completeTransfer(bytes memory encodedVm) public notPaused {
         _completeTransfer(encodedVm, false);
     }
 
@@ -476,7 +552,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *
      * @param encodedVm A byte array containing a VAA signed by the guardians.
      */
-    function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
+    function completeTransferAndUnwrapETH(bytes memory encodedVm) public notPaused {
         _completeTransfer(encodedVm, true);
     }
 
@@ -487,7 +563,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      * @param bytes32 bytes The 32 byte array to be converted.
      */
     function _truncateAddress(bytes32 b) internal pure returns (address) {
-        require(bytes12(b) == 0, "invalid EVM address");
+        if (bytes12(b) != 0) revert InvalidEVMAddress();
         return address(uint160(uint256(b)));
     }
 
@@ -496,23 +572,23 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
-        require(verifyBridgeVM(vm), "invalid emitter");
+        if (!verifyBridgeVM(vm)) revert InvalidEmitter();
 
         BridgeStructs.Transfer memory transfer = _parseTransferCommon(vm.payload);
 
         // payload 3 must be redeemed by the designated proxy contract
         address transferRecipient = _truncateAddress(transfer.to);
         if (transfer.payloadID == 3) {
-            require(msg.sender == transferRecipient, "invalid sender");
+            if (msg.sender != transferRecipient) revert InvalidSender();
         }
 
-        require(!isTransferCompleted(vm.hash), "transfer already completed");
+        if (isTransferCompleted(vm.hash)) revert TransferAlreadyCompleted();
         setTransferCompleted(vm.hash);
 
         // emit `TransferRedeemed` event
         emit TransferRedeemed(vm.emitterChainId, vm.emitterAddress, vm.sequence);
 
-        require(transfer.toChain == chainId(), "invalid target chain");
+        if (transfer.toChain != chainId()) revert InvalidTargetChain();
 
         IERC20 transferToken;
         if (transfer.tokenChain == chainId()) {
@@ -522,12 +598,12 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             bridgedIn(address(transferToken), transfer.amount);
         } else {
             address wrapped = wrappedAsset(transfer.tokenChain, transfer.tokenAddress);
-            require(wrapped != address(0), "no wrapper for this token created yet");
+            if (wrapped == address(0)) revert WrappedAssetNotFound();
 
             transferToken = IERC20(wrapped);
         }
 
-        require(unwrapWETH == false || address(transferToken) == address(WETH()), "invalid token, can only unwrap WETH");
+        if (unwrapWETH && address(transferToken) != address(WETH())) revert OnlyWETH();
 
         // query decimals
         (,bytes memory queriedDecimals) = address(transferToken).staticcall(abi.encodeWithSignature("decimals()"));
@@ -539,7 +615,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         // transfer fee to arbiter
         if (nativeFee > 0 && transferRecipient != msg.sender) {
-            require(nativeFee <= nativeAmount, "fee higher than transferred amount");
+            if (nativeFee > nativeAmount) revert FeeExceedsAmount();
 
             if (unwrapWETH) {
                 WETH().withdraw(nativeFee);
@@ -579,7 +655,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
     function bridgeOut(address token, uint normalizedAmount) internal {
         uint outstanding = outstandingBridged(token);
-        require(outstanding + normalizedAmount <= type(uint64).max, "transfer exceeds max outstanding bridged token amount");
+        if (outstanding + normalizedAmount > type(uint64).max) revert OutstandingExceedsMax();
         setOutstandingBridged(token, outstanding + normalizedAmount);
     }
 
@@ -588,7 +664,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     }
 
     function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
-        require(!isFork(), "invalid fork");
+        if (isFork()) revert InvalidFork();
         return bridgeContracts(vm.emitterChainId) == vm.emitterAddress;
     }
 
@@ -641,7 +717,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         meta.payloadID = encoded.toUint8(index);
         index += 1;
 
-        require(meta.payloadID == 2, "invalid AssetMeta");
+        if (meta.payloadID != 2) revert InvalidAssetMeta();
 
         meta.tokenAddress = encoded.toBytes32(index);
         index += 32;
@@ -658,7 +734,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         meta.name = encoded.toBytes32(index);
         index += 32;
 
-        require(encoded.length == index, "invalid AssetMeta");
+        if (encoded.length != index) revert InvalidAssetMeta();
     }
 
     /*
@@ -673,7 +749,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         transfer.payloadID = encoded.toUint8(index);
         index += 1;
 
-        require(transfer.payloadID == 1, "invalid Transfer");
+        if (transfer.payloadID != 1) revert InvalidTransferPayload();
 
         transfer.amount = encoded.toUint256(index);
         index += 32;
@@ -693,7 +769,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         transfer.fee = encoded.toUint256(index);
         index += 32;
 
-        require(encoded.length == index, "invalid Transfer");
+        if (encoded.length != index) revert InvalidTransferPayload();
     }
 
     /*
@@ -708,7 +784,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         transfer.payloadID = encoded.toUint8(index);
         index += 1;
 
-        require(transfer.payloadID == 3, "invalid Transfer");
+        if (transfer.payloadID != 3) revert InvalidTransferPayload();
 
         transfer.amount = encoded.toUint256(index);
         index += 32;
@@ -755,7 +831,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             // Type 3 payloads don't have fees.
             transfer.fee = 0;
         } else {
-            revert("Invalid payload id");
+            revert InvalidPayloadId();
         }
     }
 
