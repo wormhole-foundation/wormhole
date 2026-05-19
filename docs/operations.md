@@ -506,12 +506,12 @@ CLI flags for the guardian:
 <!-- cspell:disable -->
 
 ```shell
---solanaShimContract=[solana shim address]
+--fogoShimContract=[solana shim address]
 ```
 
 <!-- cspell:enable -->
 
-This feature shows up in the guardian heartbeats as `solshim`
+This feature shows up in the guardian heartbeats as `fogoshim`
 
 ## Enabling the delegated guardian set
 
