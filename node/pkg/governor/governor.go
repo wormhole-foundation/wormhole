@@ -60,6 +60,7 @@ type (
 		// Chain is the Wormhole chain ID of the token's source chain (where the token was minted).
 		Chain uint16
 		// Addr is the token's address on the source chain in Wormhole normalized format.
+		// See [vaa.Address]
 		Addr        string
 		Symbol      string
 		CoinGeckoId string

@@ -22,10 +22,11 @@ import (
 )
 
 type NearWormholePublishEvent struct {
-	Standard    string `json:"standard"`
-	Event       string `json:"event"`
-	Data        string `json:"data"`
-	Nonce       uint32 `json:"nonce"`
+	Standard string `json:"standard"`
+	Event    string `json:"event"`
+	Data     string `json:"data"`
+	Nonce    uint32 `json:"nonce"`
+	// Emitter is sha256(account_name)
 	Emitter     string `json:"emitter"`
 	Seq         uint64 `json:"seq"`
 	BlockHeight uint64 `json:"block"`
@@ -177,14 +178,14 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		return errors.New("wormhole publish event.block does not equal receipt_outcome[x].block_height")
 	}
 
-	// SECURITY: extract emitter address and ensure that it has the correct format
-	emitter, err := hex.DecodeString(pubEvent.Emitter)
+	// SECURITY: extract emitterDigest and ensure that it has the correct format
+	emitterDigest, err := hex.DecodeString(pubEvent.Emitter)
 	if err != nil {
 		return err
 	}
 
-	// emitter is sha256(account_name), so it should be 32 bytes long.
-	if len(emitter) != 32 {
+	// [NearWormholePublishEvent.Emitter] is sha256(account_name), so it should be 32 bytes long.
+	if len(emitterDigest) != 32 {
 		logger.Error(
 			"Wormhole publish event malformed",
 			zap.String("error_type", "malformed_wormhole_event"),
@@ -196,8 +197,8 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	}
 
 	// Assemble the Message Publication Event
-	var a vaa.Address
-	copy(a[:], emitter)
+	var emitterDigestAddr vaa.Address
+	copy(emitterDigestAddr[:], emitterDigest)
 
 	txHashBytes, err := base58.Decode(job.txHash)
 	if err != nil {
@@ -241,7 +242,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		Nonce:            pubEvent.Nonce,
 		Sequence:         pubEvent.Seq,
 		EmitterChain:     vaa.ChainIDNear,
-		EmitterAddress:   a,
+		EmitterAddress:   emitterDigestAddr,
 		Payload:          pl,
 		ConsistencyLevel: 0,
 		IsReobservation:  job.isReobservation,
