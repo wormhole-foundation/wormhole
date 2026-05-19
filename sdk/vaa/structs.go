@@ -59,7 +59,7 @@ type (
 	// For chains with addresses that support lengths greater than 32 bytes, this type MAY be used
 	// to represent an on-chain address by hashing it using an algorithm like sha256.
 	//
-	// For chains with variable length addresses, users MUST use this type in a consistently such that addresses
+	// For chains with variable length addresses, users MUST use this type consistently such that addresses
 	// can be uniquely identified. For example, if a chain supports addresses between length 2 and 64, this type
 	// should always encode addresses for that chain as sha256 digests. This helps to avoid a situation where
 	// addresses with length < 32 have zero-padded EVM-like addresses, but larger addresses on the same chain
