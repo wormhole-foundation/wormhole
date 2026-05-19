@@ -506,7 +506,7 @@ CLI flags for the guardian:
 <!-- cspell:disable -->
 
 ```shell
---fogoShimContract=[solana shim address]
+--fogoShimContract=[fogo shim address]
 ```
 
 <!-- cspell:enable -->
