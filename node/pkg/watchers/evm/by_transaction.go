@@ -52,6 +52,7 @@ func MessageEventsForTransaction(
 	tx eth_common.Hash) (*types.Receipt, uint64, []*common.MessagePublication, error) {
 
 	// Get transactions logs from transaction
+	// API only returns transactions that have been included in a block. Nothing in the mempool
 	receipt, err := ethConn.TransactionReceipt(ctx, tx)
 	if err != nil {
 		return nil, 0, nil, fmt.Errorf("failed to get transaction receipt: %w", err)
