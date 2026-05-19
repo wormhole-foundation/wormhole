@@ -119,6 +119,85 @@ func TestBodyTokenBridgeUpgradeContractSerialize(t *testing.T) {
 	assert.Equal(t, expected, hex.EncodeToString(serializedBodyTokenBridgeUpgradeContract))
 }
 
+func TestBodyTokenBridgeSetPauserAddressesSerialize(t *testing.T) {
+	// "TokenBridge" left-padded to 32 bytes.
+	const tokenBridgeModule = "000000000000000000000000000000000000000000546f6b656e427269646765"
+	evmPauser := bytes.Repeat([]byte{0xaa}, 20)
+	evmUnpauser := bytes.Repeat([]byte{0xbb}, 20)
+	svmPauser := bytes.Repeat([]byte{0xcc}, 32)
+
+	tests := []struct {
+		name     string
+		body     BodyTokenBridgeSetPauserAddresses
+		expected string
+		errText  string
+	}{
+		{
+			name: "evm both set",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: evmPauser, Unpauser: evmUnpauser,
+			},
+			// module || action(04) || chain(0002) || pauserLen(14) || pauser || unpauserLen(14) || unpauser
+			expected: tokenBridgeModule + "04" + "0002" + "14" + hex.EncodeToString(evmPauser) + "14" + hex.EncodeToString(evmUnpauser),
+		},
+		{
+			name: "pauser unassigned, unpauser set",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: nil, Unpauser: evmUnpauser,
+			},
+			expected: tokenBridgeModule + "04" + "0002" + "00" + "14" + hex.EncodeToString(evmUnpauser),
+		},
+		{
+			name: "both unassigned",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: nil, Unpauser: nil,
+			},
+			expected: tokenBridgeModule + "04" + "0002" + "00" + "00",
+		},
+		{
+			name: "solana pauser (32-byte)",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDSolana, Pauser: svmPauser, Unpauser: nil,
+			},
+			expected: tokenBridgeModule + "04" + "0001" + "20" + hex.EncodeToString(svmPauser) + "00",
+		},
+		{
+			name: "pauser too long",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: bytes.Repeat([]byte{0x01}, 256),
+			},
+			errText: "pauser too long",
+		},
+		{
+			name: "unpauser too long",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Unpauser: bytes.Repeat([]byte{0x01}, 256),
+			},
+			errText: "unpauser too long",
+		},
+		{
+			name: "wrong module",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "NFTBridge", TargetChainID: ChainIDEthereum,
+			},
+			errText: "unknown module",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			buf, err := tc.body.Serialize()
+			if tc.errText != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errText)
+				assert.Nil(t, buf)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, hex.EncodeToString(buf))
+		})
+	}
+}
+
 func TestBodyWormchainStoreCodeSerialize(t *testing.T) {
 	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65010c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
 	bodyWormchainStoreCode := BodyWormchainStoreCode{WasmHash: dummyBytes}

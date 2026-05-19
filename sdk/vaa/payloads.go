@@ -66,6 +66,9 @@ var GeneralPurposeGovernanceModule = [32]byte{
 }
 var GeneralPurposeGovernanceModuleStr = string(GeneralPurposeGovernanceModule[:])
 
+// TokenBridgeModuleName is the unpadded module identifier for the token bridge.
+const TokenBridgeModuleName = "TokenBridge"
+
 // DelegatedGuardiansModule is the identifier of the DelegatedGuardians module (which is used for governance messages).
 var DelegatedGuardiansModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44, 0x65,
@@ -110,9 +113,10 @@ var (
 	ActionModifyBalance GovernanceAction = 1
 
 	// Wormhole tokenbridge governance actions
-	ActionRegisterChain             GovernanceAction = 1
-	ActionUpgradeTokenBridge        GovernanceAction = 2
-	ActionTokenBridgeRecoverChainId GovernanceAction = 3
+	ActionRegisterChain                 GovernanceAction = 1
+	ActionUpgradeTokenBridge            GovernanceAction = 2
+	ActionTokenBridgeRecoverChainId     GovernanceAction = 3
+	ActionTokenBridgeSetPauserAddresses GovernanceAction = 4
 
 	// Circle Integration governance actions
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
@@ -165,6 +169,20 @@ type (
 		Module        string
 		TargetChainID ChainID
 		NewContract   Address
+	}
+
+	// BodyTokenBridgeSetPauserAddresses is a governance message to set the pauser
+	// and unpauser addresses on a token bridge (whitepaper 0003).
+	//
+	// Each address is length-prefixed (uint8). A zero-length address leaves the
+	// role unassigned. Non-empty addresses must match the target chain's native
+	// address size (e.g. 20 bytes on EVM, 32 bytes on Solana); the receiving
+	// contract is authoritative for that check.
+	BodyTokenBridgeSetPauserAddresses struct {
+		Module        string
+		TargetChainID ChainID
+		Pauser        []byte
+		Unpauser      []byte
 	}
 
 	// BodyRecoverChainId is a governance message to recover a chain id.
@@ -410,6 +428,24 @@ func (r BodyTokenBridgeRegisterChain) Serialize() ([]byte, error) {
 
 func (r BodyTokenBridgeUpgradeContract) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(r.Module, ActionUpgradeTokenBridge, r.TargetChainID, r.NewContract[:])
+}
+
+func (r BodyTokenBridgeSetPauserAddresses) Serialize() ([]byte, error) {
+	if r.Module != TokenBridgeModuleName {
+		return nil, fmt.Errorf("unknown module %q (expected %q)", r.Module, TokenBridgeModuleName)
+	}
+	if len(r.Pauser) > math.MaxUint8 {
+		return nil, fmt.Errorf("pauser too long: %d bytes (max %d)", len(r.Pauser), math.MaxUint8)
+	}
+	if len(r.Unpauser) > math.MaxUint8 {
+		return nil, fmt.Errorf("unpauser too long: %d bytes (max %d)", len(r.Unpauser), math.MaxUint8)
+	}
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Pauser))) // #nosec G115 -- checked above
+	payload.Write(r.Pauser)
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Unpauser))) // #nosec G115 -- checked above
+	payload.Write(r.Unpauser)
+	return serializeBridgeGovernanceVaa(r.Module, ActionTokenBridgeSetPauserAddresses, r.TargetChainID, payload.Bytes())
 }
 
 func (r BodyRecoverChainId) Serialize() ([]byte, error) {
