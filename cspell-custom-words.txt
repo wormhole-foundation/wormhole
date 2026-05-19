@@ -55,6 +55,7 @@ Cyfrin
 datagram
 denoms
 devnet
+dgset
 doclink
 doclinks
 Dogecoin
