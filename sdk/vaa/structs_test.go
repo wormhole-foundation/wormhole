@@ -1064,3 +1064,12 @@ func TestStringToKnownChainID(t *testing.T) {
 		})
 	}
 }
+
+func TestChainNameToChainID(t *testing.T) {
+	actual, err := ChainNameToChainID("solana")
+	require.NoError(t, err)
+	require.Equal(t, ChainIDSolana, actual)
+
+	_, err = ChainNameToChainID("1")
+	require.Error(t, err)
+}

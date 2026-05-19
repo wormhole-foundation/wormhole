@@ -100,7 +100,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// This occurs when we observed a message after the cluster has already reached
 			// consensus on it, causing us to never achieve quorum.
 			if ourVaa, ok := s.ourObservation.(*VAA); ok {
-				if p.haveSignedVAA(*db.VaaIDFromVAA(&ourVaa.VAA)) {
+				if p.haveSignedVAA(ourVaa.VAA.ID()) {
 					// If we have a stored quorum VAA, we can safely expire the state.
 					//
 					// This is a rare case, and we can safely expire the state, since we
@@ -338,7 +338,7 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 	}
 
 	msgId := s.ourObservation.MessageID()
-	vaaID, err := db.VaaIDFromString(msgId)
+	vaaID, err := vaa.VAAIDFromString(msgId)
 	if err != nil {
 		return false, fmt.Errorf(`failed to generate VAA ID from message id "%s": %w`, s.ourObservation.MessageID(), err)
 	}
@@ -346,7 +346,7 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 	// If the VAA is waiting to be written to the DB, use that version. Otherwise use the DB.
 	v := p.getVaaFromUpdateMap(msgId)
 	if v == nil {
-		vb, err := p.db.GetSignedVAABytes(*vaaID)
+		vb, err := p.db.GetSignedVAABytes(vaaID)
 		if err != nil {
 			if errors.Is(err, db.ErrVAANotFound) {
 				if p.logger.Level().Enabled(zapcore.DebugLevel) {

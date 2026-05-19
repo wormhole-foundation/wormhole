@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"math"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
@@ -74,33 +72,17 @@ func (s *PublicrpcServer) GetSignedVAA(_ context.Context, req *publicrpcv1.GetSi
 		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
 	}
 
-	if req.MessageId.GetEmitterChain() > math.MaxUint16 {
-		return nil, status.Error(codes.InvalidArgument, "emitter chain id must be no greater than 16 bits")
+	id, err := vaa.NewVAAID(req.MessageId.GetEmitterChain(), req.MessageId.EmitterAddress, req.MessageId.Sequence)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	chainID := vaa.ChainID(req.MessageId.GetEmitterChain()) // #nosec G115 -- This conversion is checked above
-
 	// This interface is not supported for PythNet messages because those VAAs are not stored in the database.
-	if chainID == vaa.ChainIDPythNet {
+	if id.EmitterChain == vaa.ChainIDPythNet {
 		return nil, status.Error(codes.InvalidArgument, "not supported for PythNet")
 	}
 
-	address, err := hex.DecodeString(req.MessageId.EmitterAddress)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode address: %v", err))
-	}
-	if len(address) != 32 {
-		return nil, status.Error(codes.InvalidArgument, "address must be 32 bytes")
-	}
-
-	addr := vaa.Address{}
-	copy(addr[:], address)
-
-	b, err := s.db.GetSignedVAABytes(guardianDB.VAAID{
-		EmitterChain:   chainID,
-		EmitterAddress: addr,
-		Sequence:       req.MessageId.Sequence,
-	})
+	b, err := s.db.GetSignedVAABytes(id)
 
 	if err != nil {
 		if errors.Is(err, guardianDB.ErrVAANotFound) {
@@ -203,27 +185,12 @@ func (s *PublicrpcServer) GetSignedManagerTransaction(_ context.Context, req *pu
 		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
 	}
 
-	if req.MessageId.GetEmitterChain() > math.MaxUint16 {
-		return nil, status.Error(codes.InvalidArgument, "emitter chain id must be no greater than 16 bits")
-	}
-
-	chainID := vaa.ChainID(req.MessageId.GetEmitterChain()) // #nosec G115
-
-	address, err := hex.DecodeString(req.MessageId.EmitterAddress)
+	id, err := vaa.NewVAAID(req.MessageId.GetEmitterChain(), req.MessageId.EmitterAddress, req.MessageId.Sequence)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode address: %v", err))
-	}
-	if len(address) != 32 {
-		return nil, status.Error(codes.InvalidArgument, "address must be 32 bytes")
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	addr := vaa.Address{}
-	copy(addr[:], address)
-
-	// Build VAA ID
-	vaaID := fmt.Sprintf("%d/%s/%d", chainID, hex.EncodeToString(addr[:]), req.MessageId.Sequence)
-
-	aggTx := s.manager.GetPendingTransactionByID(vaaID)
+	aggTx := s.manager.GetPendingTransactionByID(id.String())
 	if aggTx == nil {
 		return nil, status.Error(codes.NotFound, "no manager transaction found for this VAA")
 	}
