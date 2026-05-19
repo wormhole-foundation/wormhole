@@ -130,6 +130,44 @@ func (r *ManagerSetReader) GetManagerSet(
 	return set, nil
 }
 
+// GetCurrentManagerSet retrieves the current manager set for a chain by first looking up
+// the current index from the contract, then fetching that index.
+// This is needed for payload types like XREL that don't embed a manager set index.
+func (r *ManagerSetReader) GetCurrentManagerSet(
+	ctx context.Context,
+	chainID vaa.ChainID,
+	signer guardiansigner.GuardianSigner,
+) (*ManagerSetConfig, error) {
+	// Create a fresh connection for this call
+	client, err := ethclient.DialContext(ctx, r.rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to RPC %s: %w", r.rpcURL, err)
+	}
+	defer client.Close()
+
+	caller, err := delegatedmanagersetabi.NewDelegatedManagerSetCaller(
+		ethCommon.HexToAddress(r.contractAddr),
+		client,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create DelegatedManagerSet caller: %w", err)
+	}
+
+	// #nosec G115 -- ChainID is uint16
+	index, err := caller.GetCurrentManagerSetIndex(nil, uint16(chainID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call getCurrentManagerSetIndex(%d): %w", chainID, err)
+	}
+
+	r.logger.Debug("fetched current manager set index",
+		zap.Stringer("chain", chainID),
+		zap.Uint32("index", index),
+	)
+
+	// Reuse the existing GetManagerSet method (which handles caching)
+	return r.GetManagerSet(ctx, chainID, index, signer)
+}
+
 // parseManagerSetBytes parses the raw bytes from the contract into a ManagerSetConfig.
 // Format: Type (1 byte) | M (1 byte) | N (1 byte) | PublicKeys (N * 33 bytes)
 func (r *ManagerSetReader) parseManagerSetBytes(
