@@ -143,7 +143,7 @@ func TestStoreSignedVAABatch(t *testing.T) {
 
 	// Verify all the VAAs are in the database.
 	for _, v := range vaaBatch {
-		storedBytes, getErr := db.GetSignedVAABytes(*VaaIDFromVAA(v))
+		storedBytes, getErr := db.GetSignedVAABytes(v.ID())
 		require.NoError(t, getErr)
 
 		origBytes, marshalErr := v.Marshal()
@@ -252,15 +252,9 @@ func BenchmarkVaaLookup(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		randId := math_rand.Intn(250000) //nolint
 		randId = 250000 - (i / 18)
-<<<<<<< HEAD
-		vaaId, idErr := VaaIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
+		vaaId, idErr := vaa.VAAIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
 		assert.NoError(b, idErr)
-		vaaIds <- vaaId
-=======
-		vaaId, err := vaa.VAAIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
-		assert.NoError(b, err)
 		vaaIds <- &vaaId
->>>>>>> 1e28030db (sdk: Add VAA ID validation and use it everywhere)
 	}
 
 	b.ResetTimer()

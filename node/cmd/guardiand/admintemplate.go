@@ -1226,7 +1226,7 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 }
 
 func runCoreBridgeTransferFeesTemplate(cmd *cobra.Command, args []string) {
-	chainID, err := parseChainID(*coreBridgeTransferFeesChainId)
+	chainID, err := vaa.StringToKnownChainID(*coreBridgeTransferFeesChainId)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1575,7 +1575,6 @@ func leftPadAddress(a []byte) (string, error) {
 	return hex.EncodeToString(common.LeftPadBytes(a, 32)), nil
 }
 
-// parseChainID parses a human-readable chain name or a chain ID.
 func isValidUint256(s string) (bool, error) {
 	i := new(big.Int)
 	i.SetString(s, 10) // Parse in base 10
