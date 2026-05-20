@@ -10,12 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	stdmath "math"
 	"math/big"
 	"reflect"
 	"testing"
 	"time"
-
-	stdmath "math"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -990,34 +989,40 @@ func TestTimeFromUnix(t *testing.T) {
 	type testCase[N number] struct {
 		name    string
 		input   N
+		want    time.Time
 		wantErr bool
 		errMsg  string
 	}
 	// Use int64 to represent all error conditions (overflow, negative).
 	tests := []testCase[int64]{
 		{
+			name:  "normal on-chain timestamp",
+			input: int64(1715790225),
+			want:  time.Date(2024, time.May, 15, 16, 23, 45, 0, time.UTC),
+		},
+		{
 			name:    "valid",
 			input:   int64(1),
 			wantErr: false,
 		},
 		{
-			name:    "zero",
-			input:   int64(0),
-			wantErr: false,
+			name:  "zero timestamp",
+			input: int64(0),
+			want:  time.Unix(0, 0).UTC(),
 		},
 		{
-			name:    "max uint32",
-			input:   int64(stdmath.MaxUint32),
-			wantErr: false,
+			name:  "uint32 max timestamp",
+			input: int64(stdmath.MaxUint32),
+			want:  time.Unix(int64(stdmath.MaxUint32), 0).UTC(),
 		},
 		{
-			name:    "overflow",
+			name:    "just over uint32 max timestamp",
 			input:   int64(stdmath.MaxUint32) + 1,
 			wantErr: true,
 			errMsg:  "timestamp must be less than or equal to",
 		},
 		{
-			name:    "negative",
+			name:    "negative timestamp",
 			input:   int64(-1),
 			wantErr: true,
 			errMsg:  "timestamp cannot be negative",
@@ -1037,6 +1042,9 @@ func TestTimeFromUnix(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.input, got.Unix())
+			if !tt.want.IsZero() {
+				require.Equal(t, tt.want, got.UTC())
+			}
 		})
 	}
 }
