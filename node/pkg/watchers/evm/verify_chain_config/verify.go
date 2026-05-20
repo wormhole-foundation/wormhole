@@ -144,7 +144,7 @@ func verifyFinality(ctx context.Context, url string, finalized, safe bool) error
 
 	c, err := rpc.DialContext(timeout, url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to endpoint: %w", err)
+		return fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	type Marshaller struct {
@@ -175,7 +175,7 @@ func verifyContractAddr(ctx context.Context, url string, contractAddr string) er
 
 	rawClient, err := ethRpc.DialContext(timeout, url)
 	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
+		return fmt.Errorf("failed to connect: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	client := ethClient.NewClient(rawClient)
@@ -199,7 +199,7 @@ func verifyCCLContractAddr(ctx context.Context, url string, contractAddr string)
 
 	rawClient, err := ethRpc.DialContext(timeout, url)
 	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
+		return fmt.Errorf("failed to connect: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	client := ethClient.NewClient(rawClient)

@@ -39,5 +39,6 @@ func (wc *WatcherConfig) Create(
 	if err != nil {
 		return nil, nil, err
 	}
+	watchers.RegisterRPCURL(wc.ChainID, wc.Rpc)
 	return w.Run, nil, nil
 }

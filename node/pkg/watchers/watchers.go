@@ -1,6 +1,8 @@
 package watchers
 
 import (
+	"sync"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
@@ -35,3 +37,37 @@ var (
 			Help: "Total number of reobservations completed by chain and observation type",
 		}, []string{"chain", "type"})
 )
+
+var (
+	rpcURLsMu sync.RWMutex
+	rpcURLs   = map[vaa.ChainID][]string{}
+)
+
+// RegisterRPCURL records the RPC URL used by a watcher for a chain.
+func RegisterRPCURL(chainID vaa.ChainID, rpcURL string) {
+	if rpcURL == "" {
+		return
+	}
+
+	rpcURLsMu.Lock()
+	defer rpcURLsMu.Unlock()
+	for _, existingURL := range rpcURLs[chainID] {
+		if existingURL == rpcURL {
+			return
+		}
+	}
+	rpcURLs[chainID] = append(rpcURLs[chainID], rpcURL)
+}
+
+// RPCURLs returns the RPC URLs registered for a chain.
+func RPCURLs(chainID vaa.ChainID) []string {
+	rpcURLsMu.RLock()
+	defer rpcURLsMu.RUnlock()
+	chainRPCURLs := rpcURLs[chainID]
+	if len(chainRPCURLs) == 0 {
+		return nil
+	}
+	ret := make([]string, len(chainRPCURLs))
+	copy(ret, chainRPCURLs)
+	return ret
+}

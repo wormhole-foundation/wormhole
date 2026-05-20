@@ -41,6 +41,7 @@ func (wc *WatcherConfig) Create(
 	setC chan<- *common.GuardianSet,
 	env common.Environment,
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
+	watchers.RegisterRPCURL(wc.ChainID, wc.Rpc)
 
 	// only actually use the guardian set channel if wc.GuardianSetUpdateChain == true
 	var setWriteC chan<- *common.GuardianSet = nil

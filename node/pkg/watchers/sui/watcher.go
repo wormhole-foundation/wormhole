@@ -288,7 +288,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "sui"),
-		zap.String("suiRPC", e.suiRPC),
+		zap.String("rpcURL", common.SafeURLForLogging(e.suiRPC)),
 		zap.String("suiMoveEventType", e.suiMoveEventType),
 		zap.Bool("unsafeDevMode", e.unsafeDevMode),
 	)

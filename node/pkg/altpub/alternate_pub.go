@@ -236,7 +236,7 @@ func NewAlternatePublisher(logger *zap.Logger, guardianAddr []byte, configs []st
 		}
 
 		if _, exists := labels[ep.label]; exists {
-			return nil, fmt.Errorf("duplicate label in --additionalPublishEndpoint '%s'", config)
+			return nil, fmt.Errorf("duplicate label in --additionalPublishEndpoint '%s'", sanitizeAdditionalPublishEndpointConfig(config))
 		}
 
 		labels[ep.label] = struct{}{}
@@ -264,23 +264,24 @@ func NewAlternatePublisher(logger *zap.Logger, guardianAddr []byte, configs []st
 
 // parseEndpoint parses an `--additionalPublishEndpoint` parameter into an Endpoint object. It returns an error if the string is invalid.
 func parseEndpoint(config string) (*Endpoint, error) {
+	safeConfig := sanitizeAdditionalPublishEndpointConfig(config)
 	fields := strings.Split(config, ";")
 	if len(fields) < 2 {
-		return nil, fmt.Errorf("not enough fields in --additionalPublishEndpoint '%s': should be at least 2, there are %d", config, len(fields))
+		return nil, fmt.Errorf("not enough fields in --additionalPublishEndpoint '%s': should be at least 2, there are %d", safeConfig, len(fields))
 	}
 
 	if len(fields) > 4 {
-		return nil, fmt.Errorf("too many fields in --additionalPublishEndpoint '%s': may not be more than 4, there are %d", config, len(fields))
+		return nil, fmt.Errorf("too many fields in --additionalPublishEndpoint '%s': may not be more than 4, there are %d", safeConfig, len(fields))
 	}
 
 	label := fields[0]
 	if len(label) == 0 {
-		return nil, fmt.Errorf("invalid label in --additionalPublishEndpoint '%s': may not be zero length", config)
+		return nil, fmt.Errorf("invalid label in --additionalPublishEndpoint '%s': may not be zero length", safeConfig)
 	}
 
 	baseUrl := fields[1]
 	if valid := common.ValidateURL(baseUrl, []string{"http", "https"}); !valid {
-		return nil, fmt.Errorf("invalid url in --additionalPublishEndpoint '%s': must be `http` or `https`", config)
+		return nil, fmt.Errorf("invalid url in --additionalPublishEndpoint '%s': must be `http` or `https`", safeConfig)
 	}
 
 	delay := time.Duration(0)
@@ -288,7 +289,7 @@ func parseEndpoint(config string) (*Endpoint, error) {
 		var err error
 		delay, err = time.ParseDuration(fields[2])
 		if err != nil {
-			return nil, fmt.Errorf("invalid delay duration in --additionalPublishEndpoint '%s', delay %s: %w", config, fields[2], err)
+			return nil, fmt.Errorf("invalid delay duration in --additionalPublishEndpoint '%s', delay %s: %w", safeConfig, fields[2], err)
 		}
 	}
 
@@ -304,7 +305,7 @@ func parseEndpoint(config string) (*Endpoint, error) {
 		for _, str := range chainIds {
 			chainId, err := vaa.StringToKnownChainID(str)
 			if err != nil {
-				return nil, fmt.Errorf("invalid chain ID --additionalPublishEndpoint '%s' ('%s'): %w", config, str, err)
+				return nil, fmt.Errorf("invalid chain ID --additionalPublishEndpoint '%s' ('%s'): %w", safeConfig, str, err)
 			}
 
 			enabledChainsMap[chainId] = struct{}{}
@@ -332,6 +333,16 @@ func parseEndpoint(config string) (*Endpoint, error) {
 	return ep, nil
 }
 
+func sanitizeAdditionalPublishEndpointConfig(config string) string {
+	fields := strings.Split(config, ";")
+	if len(fields) < 2 || fields[1] == "" {
+		return config
+	}
+
+	fields[1] = common.SafeURLForLogging(fields[1])
+	return strings.Join(fields, ";")
+}
+
 // GetFeatures returns the status string to be published in P2P heartbeats. For now, it just returns a static string
 // listing the enabled endpoints, but in the future, it might return the actual status of each endpoint or something.
 // NOTE: `node.getStaticFeatureFlags` assumes that this does not change after initialization.
@@ -353,7 +364,7 @@ func (ap *AlternatePublisher) Run(ctx context.Context) error {
 	ap.startHttpWorkers(ctx, client, errC)
 
 	for _, ep := range ap.endpoints {
-		ap.logger.Info("Enabling endpoint", zap.String("endpoint", ep.label), zap.String("url", ep.baseUrl), zap.Stringer("delay", ep.delay), zap.Stringer("enabledChains", ep.enabledChains))
+		ap.logger.Info("Enabling endpoint", zap.String("endpoint", ep.label), zap.String("url", common.SafeURLForLogging(ep.baseUrl)), zap.Stringer("delay", ep.delay), zap.Stringer("enabledChains", ep.enabledChains))
 		if ep.delay != 0 {
 			worker := &BatchWorker{ap, ep}
 			common.RunWithScissors(ctx, errC, fmt.Sprintf("alt_pub_batcher_%s", ep.label), worker.batchWorker)
@@ -464,7 +475,7 @@ func (ap *AlternatePublisher) httpPost(ctx context.Context, client *http.Client,
 	r, err := http.NewRequestWithContext(ctx, "POST", req.url, bytes.NewBuffer(bytes.Clone(req.data)))
 	if err != nil {
 		requestFailed.WithLabelValues(req.ep.label, "create_failed").Inc()
-		return fmt.Errorf("create failed: %w", err)
+		return fmt.Errorf("create failed: %s", common.SafeErrorForLogging(err, req.url))
 	}
 	r.Header.Add("Content-Type", "application/octet-stream")
 
@@ -477,7 +488,7 @@ func (ap *AlternatePublisher) httpPost(ctx context.Context, client *http.Client,
 		} else {
 			requestFailed.WithLabelValues(req.ep.label, "post_failed").Inc()
 		}
-		return fmt.Errorf("post failed: %w", err)
+		return fmt.Errorf("post failed: %s", common.SafeErrorForLogging(err, req.url))
 	}
 	stop := time.Now()
 	resp.Body.Close()
