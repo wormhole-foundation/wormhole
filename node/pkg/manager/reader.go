@@ -173,16 +173,19 @@ func (r *ManagerSetReader) parseManagerSetBytes(
 		return nil, fmt.Errorf("failed to deserialize manager set: %w", err)
 	}
 
-	// Convert [33]byte arrays to []byte slices
+	// Convert [33]byte arrays to []byte slices and build a pubkey -> index map for O(1) lookups
 	pubKeys := make([][]byte, set.N)
-	for i, pk := range set.PublicKeys {
-		pubKeys[i] = pk[:]
+	pubKeyIndex := make(map[string]uint8, set.N)
+	for i := range set.N {
+		pubKeys[i] = set.PublicKeys[i][:]
+		pubKeyIndex[string(set.PublicKeys[i][:])] = i
 	}
 
 	return &ManagerSetConfig{
-		Index:      index,
-		M:          set.M,
-		N:          set.N,
-		PublicKeys: pubKeys,
+		Index:       index,
+		M:           set.M,
+		N:           set.N,
+		PublicKeys:  pubKeys,
+		pubKeyIndex: pubKeyIndex,
 	}, nil
 }

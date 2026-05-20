@@ -64,45 +64,16 @@ type ManagerSetConfig struct {
 	N uint8
 	// PublicKeys are the compressed secp256k1 public keys of the manager signers
 	PublicKeys [][]byte
-}
-
-// SignerMatch represents a local signer that is part of a manager set.
-type SignerMatch struct {
-	// ManagerSetIndex is this signer's index within the manager set (0-based)
-	ManagerSetIndex uint8
-	// LocalSignerIndex is the index into the local signers slice for this chain
-	LocalSignerIndex int
+	// pubKeyIndex maps each compressed public key (as a string) to its position
+	// within PublicKeys for O(1) lookups by FindSignerByPubKey.
+	pubKeyIndex map[string]uint8
 }
 
 // FindSignerByPubKey checks if a compressed public key is in this manager set.
-// Returns the manager set index and true if found, or 0 and false otherwise.
+// Returns the signer index and true if found, or 0 and false otherwise.
 func (c *ManagerSetConfig) FindSignerByPubKey(compressedPubKey []byte) (uint8, bool) {
-	for i, pk := range c.PublicKeys {
-		if bytes.Equal(compressedPubKey, pk) {
-			return uint8(i), true // #nosec G115 -- i < N which is uint8
-		}
-	}
-	return 0, false
-}
-
-// FindSigners checks which of the given signers' public keys are in this manager set.
-// Returns a SignerMatch for each local signer found in the set.
-func (c *ManagerSetConfig) FindSigners(ctx context.Context, signers []guardiansigner.GuardianSigner) []SignerMatch {
-	var matches []SignerMatch
-	for localIdx, signer := range signers {
-		signerPubKey := signer.PublicKey(ctx)
-		signerCompressed := compressPublicKey(&signerPubKey)
-		for i, pk := range c.PublicKeys {
-			if bytes.Equal(signerCompressed, pk) {
-				matches = append(matches, SignerMatch{
-					ManagerSetIndex:  uint8(i), // #nosec G115 -- i < N which is uint8
-					LocalSignerIndex: localIdx,
-				})
-				break
-			}
-		}
-	}
-	return matches
+	i, ok := c.pubKeyIndex[string(compressedPubKey)]
+	return i, ok
 }
 
 // ManagerService manages manager-related processing of VAAs.
@@ -114,6 +85,11 @@ type ManagerService struct {
 	emitters []emitterEntry
 	signers  map[vaa.ChainID][]guardiansigner.GuardianSigner
 	// signerPubKeys stores the compressed secp256k1 public keys for each chain's signers.
+	// Invariant: for every chain, len(signerPubKeys[chain]) == len(signers[chain]) and the
+	// slices are index-aligned (signerPubKeys[chain][i] is the pubkey for signers[chain][i]).
+	// Both maps are populated together in NewManagerService and never mutated afterwards, so
+	// indexing chainPubKeys[i] alongside chainSigners[i] is safe. Any future code that mutates
+	// either map must preserve this pairing.
 	signerPubKeys map[vaa.ChainID][][]byte
 	// managerTxSendC is the channel for sending manager transactions to be signed and broadcast via gossip.
 	managerTxSendC chan<- *gossipv1.ManagerTransaction
@@ -486,6 +462,17 @@ func (c *ManagerService) storeSignature(sig *ManagerSignature) {
 			Total:            managerSet.N,
 			Signatures:       make(map[uint8][][]byte),
 		}
+	} else if aggTx.ManagerSetIndex != sig.ManagerSetIndex {
+		// Signatures must all be from the same manager set; otherwise SignerIndex
+		// values from different sets would collide in aggTx.Signatures. This can
+		// occur when managers read the current manager set on either side of a
+		// rotation (e.g. for XRPL, where the payload does not embed an index).
+		c.logger.Warn("dropping signature with mismatched manager set index",
+			zap.String("vaa_id", sig.VAAID),
+			zap.Uint32("aggregated_index", aggTx.ManagerSetIndex),
+			zap.Uint32("signature_index", sig.ManagerSetIndex),
+		)
+		return
 	}
 
 	// Check if we already have this signature

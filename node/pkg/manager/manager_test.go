@@ -97,10 +97,11 @@ func TestSignDogecoinTransaction_EmptyInputs(t *testing.T) {
 	}
 	reader.cache[vaa.ChainIDDogecoin] = map[uint32]*ManagerSetConfig{
 		0: {
-			Index:      0,
-			M:          2,
-			N:          3,
-			PublicKeys: [][]byte{dummyPubKey, dummyPubKey, dummyPubKey},
+			Index:       0,
+			M:           2,
+			N:           3,
+			PublicKeys:  [][]byte{dummyPubKey, dummyPubKey, dummyPubKey},
+			pubKeyIndex: map[string]uint8{string(dummyPubKey): 0},
 		},
 	}
 

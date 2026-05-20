@@ -1968,11 +1968,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		// Ensure the manager signer is not the same as the guardian signer in non-devnet environments
 		if env != common.UnsafeDevNet && uri == *guardianSignerUri {
-			logger.Fatal("dogecoinManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+			logger.Fatal("dogecoinManagerSignerUris must be different from guardianSignerUri in non-devnet environments")
 		}
 		dogecoinSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, uri, env == common.UnsafeDevNet, "manager-dogecoin")
 		if err != nil {
-			logger.Fatal("failed to create dogecoin manager signer", zap.String("uri", uri), zap.Error(err))
+			logger.Fatal("failed to create dogecoin manager signer", zap.Error(err))
 		}
 		managerSigners[vaa.ChainIDDogecoin] = append(managerSigners[vaa.ChainIDDogecoin], dogecoinSigner)
 
@@ -1990,11 +1990,11 @@ func runNode(cmd *cobra.Command, args []string) {
 			continue
 		}
 		if env != common.UnsafeDevNet && uri == *guardianSignerUri {
-			logger.Fatal("xrplManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+			logger.Fatal("xrplManagerSignerUris must be different from guardianSignerUri in non-devnet environments")
 		}
 		xrplSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, uri, env == common.UnsafeDevNet, "manager-xrpl")
 		if err != nil {
-			logger.Fatal("failed to create XRPL manager signer", zap.String("uri", uri), zap.Error(err))
+			logger.Fatal("failed to create XRPL manager signer", zap.Error(err))
 		}
 		managerSigners[vaa.ChainIDXRPL] = append(managerSigners[vaa.ChainIDXRPL], xrplSigner)
 
