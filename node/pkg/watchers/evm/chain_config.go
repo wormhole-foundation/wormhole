@@ -55,6 +55,10 @@ type (
 	EnvMap map[vaa.ChainID]EnvEntry
 )
 
+const (
+	EVMCallTimeout = 15 * time.Second
+)
+
 var (
 	ErrInvalidEnv = errors.New("invalid environment")
 	ErrNotFound   = errors.New("not found")
@@ -224,14 +228,14 @@ func GetChainConfigMap(env common.Environment) (EnvMap, error) {
 	return EnvMap{}, ErrInvalidEnv
 }
 
-// QueryEvmChainID queries the specified RPC for the EVM chain ID.
+// QueryEvmChainID queries the specified RPC for the EVM chain ID via the `eth_chainId` RPC endpoint.
 func QueryEvmChainID(ctx context.Context, url string) (uint64, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	c, err := rpc.DialContext(timeout, url)
 	if err != nil {
-		return 0, fmt.Errorf("failed to connect to endpoint: %w", err)
+		return 0, fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, url))
 	}
 	// The context only bounds the dial; the client must be closed explicitly.
 	defer c.Close()
@@ -257,12 +261,12 @@ func (w *Watcher) verifyEvmChainID(ctx context.Context, logger *zap.Logger, url 
 		return nil
 	}
 
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, EVMCallTimeout)
 	defer cancel()
 
 	c, err := rpc.DialContext(timeout, url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to endpoint: %w", err)
+		return fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, url))
 	}
 	defer c.Close()
 
@@ -285,7 +289,7 @@ func (w *Watcher) verifyEvmChainID(ctx context.Context, logger *zap.Logger, url 
 	logger.Info("queried evm chain id", zap.Uint64("expected", expectedEvmChainID), zap.Uint64("actual", evmChainID))
 
 	if evmChainID != uint64(expectedEvmChainID) {
-		return fmt.Errorf("evm chain ID miss match, expected %d, received %d", expectedEvmChainID, evmChainID)
+		return fmt.Errorf("evm chain ID mismatch, expected %d, received %d", expectedEvmChainID, evmChainID)
 	}
 
 	return nil

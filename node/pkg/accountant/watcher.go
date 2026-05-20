@@ -39,16 +39,16 @@ func (acct *Accountant) watcher(ctx context.Context, isNTT bool) error {
 	}
 	errC := make(chan error)
 
-	acct.logger.Info(fmt.Sprintf("acctwatch: creating %s watcher", tag), zap.String("url", acct.wsUrl), zap.String("contract", contract))
+	acct.logger.Info(fmt.Sprintf("acctwatch: creating %s watcher", tag), zap.String("url", common.SafeURLForLogging(acct.wsUrl)), zap.String("contract", contract))
 	tmConn, err := tmHttp.New(acct.wsUrl, "/websocket")
 	if err != nil {
 		connectionErrors.Inc()
-		return fmt.Errorf("failed to establish %s tendermint connection: %w", tag, err)
+		return fmt.Errorf("failed to establish %s tendermint connection: %s", tag, common.SafeErrorForLogging(err, acct.wsUrl))
 	}
 
 	if startErr := tmConn.Start(); startErr != nil {
 		connectionErrors.Inc()
-		return fmt.Errorf("failed to start %s tendermint connection: %w", tag, startErr)
+		return fmt.Errorf("failed to start %s tendermint connection: %s", tag, common.SafeErrorForLogging(startErr, acct.wsUrl))
 	}
 	defer func() {
 		if stopErr := tmConn.Stop(); stopErr != nil {

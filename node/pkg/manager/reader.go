@@ -40,7 +40,7 @@ func NewManagerSetReader(
 
 	logger.Info("initialized manager set reader",
 		zap.String("contract", contractAddr),
-		zap.String("rpc", rpcURL),
+		zap.String("rpc", common.SafeURLForLogging(rpcURL)),
 		zap.String("env", string(env)),
 	)
 
@@ -79,7 +79,7 @@ func (r *ManagerSetReader) GetManagerSet(
 	// Create a fresh connection for this call
 	client, err := ethclient.DialContext(ctx, r.rpcURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RPC %s: %w", r.rpcURL, err)
+		return nil, fmt.Errorf("failed to connect to RPC %s: %s", common.SafeURLForLogging(r.rpcURL), common.SafeErrorForLogging(err, r.rpcURL))
 	}
 	defer client.Close()
 
@@ -135,7 +135,7 @@ func (r *ManagerSetReader) GetCurrentManagerSet(
 	// Create a fresh connection for this call
 	client, err := ethclient.DialContext(ctx, r.rpcURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RPC %s: %w", r.rpcURL, err)
+		return nil, fmt.Errorf("failed to connect to RPC %s: %s", common.SafeURLForLogging(r.rpcURL), common.SafeErrorForLogging(err, r.rpcURL))
 	}
 	defer client.Close()
 

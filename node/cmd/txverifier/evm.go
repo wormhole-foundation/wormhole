@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	nodecommon "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	txverifier "github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -117,7 +118,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 	logger.Info("Starting EVM transfer verifier")
 
-	logger.Debug("EVM rpc connection", zap.String("url", *evmRpc))
+	logger.Debug("EVM rpc connection", zap.String("url", nodecommon.SafeURLForLogging(*evmRpc)))
 	logger.Debug("EVM core contract", zap.String("address", *evmCoreContract))
 	logger.Debug("EVM token bridge contract", zap.String("address", *evmTokenBridgeContract))
 	logger.Debug("EVM wrapped native asset contract", zap.String("address", *wrappedNativeContract))

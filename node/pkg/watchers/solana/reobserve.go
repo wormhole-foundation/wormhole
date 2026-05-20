@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -64,7 +65,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 // when the passed in context gets deleted. This is also why we don't close the rpcClient in this function. It will get deleted / closed
 // when the go routine exits.
 func (s *SolanaWatcher) Reobserve(_ context.Context, chainID vaa.ChainID, txID []byte, customEndpoint string) (uint32, error) {
-	s.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("url", customEndpoint))
+	s.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("customEndpointURL", common.SafeURLForLogging(customEndpoint)))
 	rpcClient := rpc.New(customEndpoint)
 	//nolint:contextcheck // See comment above for the reason why we don't use the passed in context.
 	return s.handleReobservationRequest(chainID, txID, rpcClient)
