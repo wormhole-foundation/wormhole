@@ -2,10 +2,13 @@ package suiclient
 
 import (
 	"context"
+	"errors"
+	"io"
 	"testing"
 
 	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 )
 
 // A mock LedgerService client for testing. Each of the requests (GetObject, GetCheckpoint, GetTransaction) can
@@ -309,5 +312,203 @@ func FuzzExecutedTransactionToSuiTransaction(f *testing.F) {
 
 		grpcExecutedTransactionToSuiTransaction(grpcTransaction)
 
+	})
+}
+
+// MockSubscribeCheckpointsStream is a mock server-streaming client for the Sui
+// SubscribeCheckpoints RPC. Recv() returns each queued response in order, and once
+// the queue is exhausted it returns recvErr. recvErr must be non-nil so that the
+// subscription's background goroutine terminates deterministically during fuzzing.
+type MockSubscribeCheckpointsStream struct {
+	responses []*pb.SubscribeCheckpointsResponse
+	idx       int
+	recvErr   error
+}
+
+func (m *MockSubscribeCheckpointsStream) Recv() (*pb.SubscribeCheckpointsResponse, error) {
+	if m.idx < len(m.responses) {
+		resp := m.responses[m.idx]
+		m.idx++
+		return resp, nil
+	}
+	return nil, m.recvErr
+}
+
+// The remaining methods satisfy the grpc.ClientStream portion of the
+// SubscriptionService_SubscribeCheckpointsClient interface. None of them are
+// exercised by the subscription logic under test, so they are trivial stubs.
+func (m *MockSubscribeCheckpointsStream) Header() (metadata.MD, error) { return nil, nil }
+func (m *MockSubscribeCheckpointsStream) Trailer() metadata.MD         { return nil }
+func (m *MockSubscribeCheckpointsStream) CloseSend() error             { return nil }
+func (m *MockSubscribeCheckpointsStream) Context() context.Context     { return context.Background() }
+func (m *MockSubscribeCheckpointsStream) SendMsg(_ any) error          { return nil }
+func (m *MockSubscribeCheckpointsStream) RecvMsg(_ any) error          { return nil }
+
+// MockSubscriptionServiceClient is a mock SubscriptionService client. SubscribeCheckpoints
+// returns the configured stream and error, which allows both the stream-creation failure
+// path and the streaming path of SubscribeToEvents to be exercised.
+type MockSubscriptionServiceClient struct {
+	nextStream pb.SubscriptionService_SubscribeCheckpointsClient
+	nextError  error
+}
+
+func (m *MockSubscriptionServiceClient) SubscribeCheckpoints(ctx context.Context, req *pb.SubscribeCheckpointsRequest) (pb.SubscriptionService_SubscribeCheckpointsClient, error) {
+	return m.nextStream, m.nextError
+}
+
+func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
+	// Default values for event properties.
+	txDigest := "0xDigest"
+	defaultPackageId := "PackageId"
+	defaultModule := "Module"
+	defaultSender := "Sender"
+	defaultEventType := "EventType"
+	defaultContentsName := "Contents.Name"
+	defaultContentsValue := []byte{0x13, 0x37}
+
+	// Seed inputs covering: stream-creation failure, a nil checkpoint response, a nil
+	// checkpoint, a fully-populated matching event, the single-event Subscribe variant,
+	// and early unsubscription with multiple transactions.
+	f.Add(true, false, false, false, false, false, uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0))
+	f.Add(false, false, false, true, false, false, uint8(1), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0))
+	f.Add(false, false, false, false, true, false, uint8(1), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0))
+	f.Add(false, false, false, false, false, true, uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1))
+	f.Add(false, true, false, false, false, true, uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1))
+	f.Add(false, false, true, false, false, true, uint8(3), uint8(2), uint8(2), uint8(2), uint8(2), uint8(2), uint8(2), uint8(2))
+
+	// The structure of the events mirrors FuzzExecutedTransactionToSuiTransaction: the
+	// maximum of the `num*` inputs determines how many events each transaction holds, and
+	// for each property only `numProperty` of those events have that property set.
+	f.Fuzz(func(t *testing.T,
+		streamCreationFails bool, // SubscribeCheckpoints returns an error
+		useSingleSubscribe bool, // call SubscribeToEvent instead of SubscribeToEvents
+		unsubscribeEarly bool, // cancel the subscription context before draining
+		respNil bool, // the streamed SubscribeCheckpointsResponse is nil
+		checkpointNil bool, // the response's Checkpoint is nil
+		matchEventType bool, // the subscribed event type matches the events' type
+		numTransactions uint8,
+		numPackageIds uint8,
+		numModules uint8,
+		numSenders uint8,
+		numEventTypes uint8,
+		numContents uint8,
+		numContentsName uint8,
+		numContentsBcs uint8,
+	) {
+		// Bound the work so a single fuzz input cannot create an unbounded number of events.
+		const maxTransactions = 8
+		const maxEventsPerTx = 16
+		txCount := int(min(numTransactions, maxTransactions))
+		entries := int(min(max(numPackageIds, numModules, numSenders, numEventTypes, numContents, numContentsName, numContentsBcs), maxEventsPerTx))
+
+		// Build the checkpoint response that the mock stream will emit once.
+		var resp *pb.SubscribeCheckpointsResponse
+		if !respNil {
+			resp = &pb.SubscribeCheckpointsResponse{}
+			if !checkpointNil {
+				checkpoint := &pb.Checkpoint{}
+				for range txCount {
+					grpcTx := &pb.ExecutedTransaction{
+						Digest: &txDigest,
+						Events: &pb.TransactionEvents{},
+					}
+					for idx := range entries {
+						grpcEvent := &pb.Event{}
+
+						if idx < int(numPackageIds) {
+							grpcEvent.PackageId = &defaultPackageId
+						}
+						if idx < int(numModules) {
+							grpcEvent.Module = &defaultModule
+						}
+						if idx < int(numSenders) {
+							grpcEvent.Sender = &defaultSender
+						}
+						if idx < int(numEventTypes) {
+							grpcEvent.EventType = &defaultEventType
+						}
+						if idx < int(numContents) {
+							grpcEvent.Contents = &pb.Bcs{}
+
+							if idx < int(numContentsName) {
+								grpcEvent.Contents.Name = &defaultContentsName
+							}
+							if idx < int(numContentsBcs) {
+								grpcEvent.Contents.Value = defaultContentsValue
+							}
+						}
+
+						grpcTx.Events.Events = append(grpcTx.Events.Events, grpcEvent)
+					}
+					checkpoint.Transactions = append(checkpoint.Transactions, grpcTx)
+				}
+				resp.Checkpoint = checkpoint
+			}
+		}
+
+		// Configure the mock subscription service.
+		subscriptionService := &MockSubscriptionServiceClient{}
+		if streamCreationFails {
+			subscriptionService.nextError = errors.New("stream creation failed")
+		} else {
+			subscriptionService.nextStream = &MockSubscribeCheckpointsStream{
+				responses: []*pb.SubscribeCheckpointsResponse{resp},
+				// io.EOF terminates the subscription goroutine after the single response.
+				recvErr: io.EOF,
+			}
+		}
+
+		grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, nil, subscriptionService)
+
+		// Buffer the channel generously so the subscription goroutine never blocks while
+		// writing events. At most maxTransactions*maxEventsPerTx events can be produced.
+		eventChan := make(chan SuiEvent, maxTransactions*maxEventsPerTx+1)
+
+		eventTypes := []string{"non-matching-event-type"}
+		if matchEventType {
+			eventTypes = []string{defaultEventType}
+		}
+
+		var subscription SuiSubscription
+		var err error
+		if useSingleSubscribe {
+			subscription, err = grpcClient.SubscribeToEvent(context.Background(), eventTypes[0], eventChan)
+		} else {
+			subscription, err = grpcClient.SubscribeToEvents(context.Background(), eventTypes, eventChan)
+		}
+
+		// When stream creation fails there is no background goroutine to wait on.
+		if err != nil {
+			return
+		}
+
+		if unsubscribeEarly {
+			subscription.Unsubscribe()
+		}
+
+		// Wait for the subscription's background goroutine to fully exit. The error channel
+		// is buffered, so the goroutine never blocks even though it is not drained here.
+		<-subscription.Done()
+
+		// Unsubscribe again to confirm it is safe to call after the goroutine has exited.
+		subscription.Unsubscribe()
+	})
+}
+
+func FuzzNewSuiGrpcClient(f *testing.F) {
+	// grpc.NewClient is lazy: it validates the target and constructs the client without
+	// dialing, so this exercises NewSuiGrpcClient and Close() with no network access.
+	f.Add("fullnode.mainnet.sui.io:443")
+	f.Add("localhost:443")
+	f.Add("")
+	f.Add(":::::")
+	f.Add("dns:///example.com:443")
+
+	f.Fuzz(func(t *testing.T, rpcURL string) {
+		client, err := NewSuiGrpcClient(rpcURL, zap.NewNop())
+		if err != nil {
+			return
+		}
+		client.Close() //nolint:errcheck // The Close error is not relevant for the fuzz harness
 	})
 }
