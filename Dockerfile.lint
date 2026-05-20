@@ -20,12 +20,11 @@ RUN ln -s /usr/local/lib/node_modules/cspell/bin.mjs /usr/local/bin/cspell
 # can download modules at runtime regardless of user.
 RUN useradd -u 1000 -U -m -d /home/lint lint && mkdir -p /tmp/go /tmp/go-build && chmod -R 1777 /tmp/go /tmp/go-build
 
-# install goimports (pinned to match CI)
-RUN go install golang.org/x/tools/cmd/goimports@v0.42.0
+# install goimports (pinned to match CI; commit is v0.42.0)
+RUN go install golang.org/x/tools/cmd/goimports@009367f5c17a8d4c45a961a3a509277190a9a6f0
 
 # install golangci-lint (pinned to match CI)
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-	sh -s -- -b $(go env GOPATH)/bin v2.8.0
+RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@c0d3ddc9cf3faa61a4e378e879ece580256d76e5
 
 # Re-apply perms after go install wrote into /tmp/go as root.
 RUN chmod -R 1777 /tmp/go /tmp/go-build
