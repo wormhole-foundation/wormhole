@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	stdmath "math"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -980,6 +982,61 @@ func TestChainIDFromNumber(t *testing.T) {
 				require.Error(t, err)
 				require.Equal(t, ChainIDUnset, got)
 			}
+		})
+	}
+}
+
+func TestTimeFromUnix(t *testing.T) {
+	type testCase[N number] struct {
+		name    string
+		input   N
+		wantErr bool
+		errMsg  string
+	}
+	// Use int64 to represent all error conditions (overflow, negative).
+	tests := []testCase[int64]{
+		{
+			name:    "valid",
+			input:   int64(1),
+			wantErr: false,
+		},
+		{
+			name:    "zero",
+			input:   int64(0),
+			wantErr: false,
+		},
+		{
+			name:    "max uint32",
+			input:   int64(stdmath.MaxUint32),
+			wantErr: false,
+		},
+		{
+			name:    "overflow",
+			input:   int64(stdmath.MaxUint32) + 1,
+			wantErr: true,
+			errMsg:  "timestamp must be less than or equal to",
+		},
+		{
+			name:    "negative",
+			input:   int64(-1),
+			wantErr: true,
+			errMsg:  "timestamp cannot be negative",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := TimeFromUnix(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errMsg != "" {
+					require.ErrorContains(t, err, tt.errMsg)
+				}
+				require.True(t, got.IsZero())
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.input, got.Unix())
 		})
 	}
 }
