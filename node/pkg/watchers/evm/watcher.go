@@ -427,12 +427,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
-				chainId, err := vaa.KnownChainIDFromNumber[uint32](r.ChainId)
-				if err != nil {
+				chainId, chainErr := vaa.KnownChainIDFromNumber[uint32](r.ChainId)
+				if chainErr != nil {
 					logger.Error("invalid chain id for observation request",
 						zap.Uint32("chainID", r.ChainId),
 						zap.String("txID", hex.EncodeToString(r.TxHash)),
-						zap.Error(err),
+						zap.Error(chainErr),
 					)
 					continue
 				}
