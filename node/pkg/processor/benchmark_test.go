@@ -118,12 +118,12 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 }
 
 type ProcessorData struct {
-	gossipAttestationSendC chan []byte
-	gossipVaaSendC         chan []byte
-	emitterChain           vaa.ChainID
-	emitterAddress         vaa.Address
 	guardianSigners        []guardiansigner.GuardianSigner
 	guardianAddrs          [][]byte
+	gossipAttestationSendC chan []byte
+	gossipVaaSendC         chan []byte
+	emitterAddress         vaa.Address
+	emitterChain           vaa.ChainID
 }
 
 func (pd *ProcessorData) messageID(seqNum uint64) string {

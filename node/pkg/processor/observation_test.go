@@ -68,10 +68,10 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 	badPrivateKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 
 	tests := []struct {
-		label      string
 		keyOrder   []*ecdsa.PrivateKey
 		indexOrder []uint8
 		addrs      []ethcommon.Address
+		label      string
 		errString  string
 	}{
 		{label: "GuardianSetNoKeys", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{}, addrs: []ethcommon.Address{},

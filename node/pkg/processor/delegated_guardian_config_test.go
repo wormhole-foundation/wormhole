@@ -196,9 +196,9 @@ func TestSet(t *testing.T) {
 
 func TestReadChainConfig(t *testing.T) {
 	type test struct {
-		chain     vaa.ChainID
 		keys      []common.Address
 		threshold int
+		chain     vaa.ChainID
 		exists    bool
 	}
 

@@ -40,14 +40,14 @@ type DelegatedGuardianChainConfig struct {
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
 	Keys []common.Address
 
-	// quorum value for this set of keys
-	// NOTE: This must be a positive integer in practice and should be guaranteed via the EVM ABI bindings in the EVM watcher
-	quorum int
-
 	// A map from address to index. Testing showed that, on average, a map is almost three times faster than a sequential search of the key slice.
 	// Testing also showed that the map was twice as fast as using a sorted slice and `slices.BinarySearchFunc`. That being said, on a 4GHz CPU,
 	// the sequential search takes an average of 800 nanos and the map look up takes about 260 nanos. Is this worth doing?
 	keyMap map[common.Address]int
+
+	// quorum value for this set of keys
+	// NOTE: This must be a positive integer in practice and should be guaranteed via the EVM ABI bindings in the EVM watcher
+	quorum int
 }
 
 // Quorum returns the current quorum value.
@@ -135,9 +135,9 @@ func (dc *DelegatedGuardianChainConfig) KeyIndex(addr common.Address) (int, bool
 }
 
 type DelegatedGuardianConfig struct {
-	mu sync.RWMutex
 	// TODO: Make it private to limit mutability by callers
 	Chains map[vaa.ChainID]*DelegatedGuardianChainConfig
+	mu     sync.RWMutex
 }
 
 // NewDelegatedGuardianConfig returns a new DelegatedGuardianConfig.
