@@ -212,9 +212,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	w.logger.Info("Starting watcher",
 		zap.String("watcher_name", "ibc"),
-		zap.String("wsUrl", w.wsUrl),
-		zap.String("lcdUrl", w.lcdUrl),
-		zap.String("blockHeightUrl", w.blockHeightUrl),
+		zap.String("wsURL", common.SafeURLForLogging(w.wsUrl)),
+		zap.String("lcdURL", common.SafeURLForLogging(w.lcdUrl)),
+		zap.String("blockHeightURL", common.SafeURLForLogging(w.blockHeightUrl)),
 		zap.String("contractAddress", w.contractAddress),
 	)
 
@@ -227,9 +227,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 	blockHeightUrl = blockHeightUrl + "/abci_info"
 
 	w.logger.Info("creating watcher",
-		zap.String("wsUrl", w.wsUrl),
-		zap.String("lcdUrl", w.lcdUrl),
-		zap.String("blockHeightUrl", blockHeightUrl),
+		zap.String("wsURL", common.SafeURLForLogging(w.wsUrl)),
+		zap.String("lcdURL", common.SafeURLForLogging(w.lcdUrl)),
+		zap.String("blockHeightURL", common.SafeURLForLogging(blockHeightUrl)),
 		zap.String("contract", w.contractAddress),
 		zap.String("features", GetFeatures()),
 	)

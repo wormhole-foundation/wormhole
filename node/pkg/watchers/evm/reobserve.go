@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -143,7 +144,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 
 // Reobserve is the interface for reobserving using a custom URL. It opens a connection to that URL and does the reobservation on it.
 func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byte, customEndpoint string) (uint32, error) {
-	w.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("url", customEndpoint))
+	w.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("customEndpointURL", common.SafeURLForLogging(customEndpoint)))
 
 	// Verify that this endpoint is for the correct chain.
 	if err := w.verifyEvmChainID(ctx, w.logger, customEndpoint); err != nil {

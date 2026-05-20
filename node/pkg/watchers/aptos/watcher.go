@@ -85,7 +85,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", e.networkID),
-		zap.String("rpc", e.aptosRPC),
+		zap.String("rpcURL", common.SafeURLForLogging(e.aptosRPC)),
 		zap.String("account", e.aptosAccount),
 		zap.String("handle", e.aptosHandle),
 	)
@@ -99,9 +99,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 	var aptosHealth = fmt.Sprintf(`%s/v1`, e.aptosRPC)
 
 	logger.Info("watcher connecting to RPC node ",
-		zap.String("url", e.aptosRPC),
-		zap.String("eventsQuery", eventsEndpoint),
-		zap.String("healthQuery", aptosHealth),
+		zap.String("rpcURL", common.SafeURLForLogging(e.aptosRPC)),
+		zap.String("eventsURL", common.SafeURLForLogging(eventsEndpoint)),
+		zap.String("healthURL", common.SafeURLForLogging(aptosHealth)),
 	)
 
 	// the events have sequence numbers associated with them in the aptos API

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -210,6 +212,9 @@ type Processor struct {
 
 	// managerC is the channel used to send signed VAAs to the manager service (nil if manager service is disabled)
 	managerC chan<- *vaa.VAA
+
+	// publicRpcLogged tracks which chains have already had a public RPC warning logged.
+	publicRpcLogged map[vaa.ChainID]struct{}
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -284,6 +289,101 @@ var (
 // batchObsvPubChanSize specifies the size of the channel used to publish observation batches. Allow five seconds worth.
 const batchObsvPubChanSize = p2p.MaxObservationBatchSize * 5
 
+// publicRPCDenyList contains domains for known public RPC endpoints.
+// Guardians using these for watcher URLs are at risk of serving incorrect data,
+// which can lead to consensus issues when the guardian is part of the delegated guardian set.
+var publicRPCDenyList = map[string]struct{}{
+	"infura.io":       {},
+	"alchemy.com":     {},
+	"quiknode.pro":    {},
+	"ankr.com":        {},
+	"blastapi.io":     {},
+	"publicnode.com":  {},
+	"llamarpc.com":    {},
+	"1rpc.io":         {},
+	"nodereal.io":     {},
+	"bnbchain.org":    {},
+	"pocket.network":  {},
+	"monad.xyz":       {},
+	"monadinfra.com":  {},
+	"hyperliquid.xyz": {},
+	"t.conduit.xyz":   {},
+}
+
+func publicRPCDomain(host string) (string, bool) {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	for domain := host; domain != ""; {
+		if _, exists := publicRPCDenyList[domain]; exists {
+			return domain, true
+		}
+
+		_, parentDomain, foundParentDomain := strings.Cut(domain, ".")
+		if !foundParentDomain {
+			return "", false
+		}
+		domain = parentDomain
+	}
+
+	return "", false
+}
+
+// checkPublicRpcEndpoints checks all chains in the DGS for public RPC URLs.
+// It logs an error once per chain per run if a public RPC endpoint is detected.
+// This is a safety measure: delegating guardians that use public RPC endpoints
+// risk producing incorrect VAAs, which can cause consensus failures.
+func (p *Processor) checkPublicRpcEndpoints() {
+	if !p.delegatedGuardiansEnabled {
+		return
+	}
+	if p.dgc == nil {
+		p.logger.Warn("public RPC endpoint check skipped: delegated guardian config is nil")
+		return
+	}
+
+	allChains := p.dgc.ReadAll()
+	if len(allChains) == 0 {
+		p.logger.Warn("public RPC endpoint check skipped: delegated guardian config has no chains")
+		return
+	}
+
+	for chainID, cfg := range allChains {
+		// Only check chains where this guardian is a delegated guardian
+		if _, ok := cfg.KeyIndex(p.ourAddr); !ok {
+			continue
+		}
+
+		// Skip if we've already logged for this chain.
+		if _, logged := p.publicRpcLogged[chainID]; logged {
+			continue
+		}
+
+		rpcURLs := watchers.RPCURLs(chainID)
+		if len(rpcURLs) == 0 {
+			continue
+		}
+
+		for _, rpcURL := range rpcURLs {
+			hostname := common.SafeURLForLogging(rpcURL)
+			if hostname == "<invalid-url>" {
+				continue
+			}
+
+			if domain, ok := publicRPCDomain(hostname); ok {
+				p.logger.Error("public RPC endpoint detected for delegated guardian chain",
+					zap.Stringer("chainID", chainID),
+					zap.String("rpcHost", hostname),
+					zap.String("matchedDomain", domain),
+				)
+				p.publicRpcLogged[chainID] = struct{}{}
+			}
+
+			if _, logged := p.publicRpcLogged[chainID]; logged {
+				break
+			}
+		}
+	}
+}
+
 func NewProcessor(
 	ctx context.Context,
 	db *guardianDB.Database,
@@ -345,6 +445,7 @@ func NewProcessor(
 		dgc:                       dgc,
 		delegatedGuardiansEnabled: delegatedGuardiansEnabled,
 		managerC:                  managerC,
+		publicRpcLogged:           make(map[vaa.ChainID]struct{}),
 	}
 }
 
@@ -509,6 +610,8 @@ func (p *Processor) Run(ctx context.Context) error {
 
 			if err := p.dgc.Set(chains); err != nil {
 				p.logger.Error("delegate guardian config update failed", zap.Error(err))
+			} else {
+				p.checkPublicRpcEndpoints()
 			}
 			dgConfig.mu.Unlock()
 		case k := <-p.msgC:

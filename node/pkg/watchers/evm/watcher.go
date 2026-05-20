@@ -265,7 +265,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "evm"),
-		zap.String("url", w.url),
+		zap.String("rpcURL", common.SafeURLForLogging(w.url)),
 		zap.String("contract", w.contract.String()),
 		zap.String("networkName", w.networkName),
 		zap.String("chainID", w.chainID.String()),
@@ -298,7 +298,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf(`failed to create connection to url "%s": %w`, w.url, err)
+			return fmt.Errorf(`failed to create connection to url "%s": %w`, common.SafeURLForLogging(w.url), err)
 		}
 
 		// Log the connector details for troubleshooting purposes.
@@ -342,7 +342,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			}
 			logger.Info("initialized Transfer Verifier",
 				zap.String("watcher_name", "evm"),
-				zap.String("url", w.url),
+				zap.String("rpcURL", common.SafeURLForLogging(w.url)),
 				zap.String("contract", w.contract.String()),
 			)
 		}
