@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -1126,17 +1126,16 @@ func (c *ManagerService) GetFeatureString() string {
 	}
 
 	// Collect chain IDs and sort them for consistent output
-	chainIDs := make([]int, 0, len(c.signerPubKeys))
+	chainIDs := make([]vaa.ChainID, 0, len(c.signerPubKeys))
 	for chainID := range c.signerPubKeys {
-		chainIDs = append(chainIDs, int(chainID))
+		chainIDs = append(chainIDs, chainID)
 	}
-	sort.Ints(chainIDs)
+	slices.Sort(chainIDs)
 
 	// Build the feature string with chain ID and public key
 	var parts []string
 	for _, id := range chainIDs {
-		pubKeys := c.signerPubKeys[vaa.ChainID(id)] // #nosec G115 -- id was converted from ChainID (uint16) above
-		for _, pubKey := range pubKeys {
+		for _, pubKey := range c.signerPubKeys[id] {
 			parts = append(parts, fmt.Sprintf("%d/%s", id, hex.EncodeToString(pubKey)))
 		}
 	}
