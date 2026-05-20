@@ -535,7 +535,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				readiness.SetReady(w.readinessSync)
 
 				if err := w.processNewBlock(ctx, ev, &stats); err != nil {
-					errC <- err //nolint:channelcheck // The watcher will exit anyway
+					errC <- err
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 					return nil //nolint:nilerr // error propagated via errC
 				}
@@ -916,7 +916,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 		// Transaction is now ready
 		msm := time.Now()
 		timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-		tx, err := w.ethConn.TransactionReceipt(timeout, eth_common.BytesToHash(pLock.message.TxID))
+		txreceipt, err := w.ethConn.TransactionReceipt(timeout, eth_common.BytesToHash(pLock.message.TxID))
 		queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
 		cancel()
 
@@ -975,8 +975,8 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 			continue
 		}
 
-		// tx is nil and err is nil. A check to prevent panics later
-		if tx == nil {
+		// txreceipt is nil and err is nil. A check to prevent panics later
+		if txreceipt == nil {
 			logger.Error("connector returned nil receipt with no error",
 				zap.String("msgId", pLock.message.MessageIDString()),
 				zap.String("txHash", pLock.message.TxIDString()),
@@ -992,11 +992,11 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 		// SECURITY: Defense in depth against a buggy or malicious connector returning
 		// a receipt for a different transaction than the one we queried.
 		expectedTxHash := eth_common.BytesToHash(pLock.message.TxID)
-		if tx.TxHash != expectedTxHash {
-			logger.Error("transaction receipt hash does not match queried tx",
+		if txreceipt.TxHash != expectedTxHash {
+			logger.Error("transaction receipt hash does not match queried txreceipt",
 				zap.String("msgId", pLock.message.MessageIDString()),
 				zap.String("expectedTxHash", expectedTxHash.Hex()),
-				zap.Stringer("receiptTxHash", tx.TxHash),
+				zap.Stringer("receiptTxHash", txreceipt.TxHash),
 				zap.Stringer("blockHash", key.BlockHash),
 				zap.Stringer("current_blockNum", ev.Number),
 				zap.Stringer("finality", ev.Finality),
@@ -1009,7 +1009,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 		// This should never happen - if we got this far, it means that logs were emitted,
 		// which is only possible if the transaction succeeded. We check it anyway just
 		// in case the EVM implementation is buggy.
-		if tx.Status != gethTypes.ReceiptStatusSuccessful {
+		if txreceipt.Status != gethTypes.ReceiptStatusSuccessful {
 			logger.Error("transaction receipt with non-success status",
 				zap.String("msgId", pLock.message.MessageIDString()),
 				zap.String("txHash", pLock.message.TxIDString()),
@@ -1028,7 +1028,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 		// It's possible for a transaction to be orphaned and then included in a different block
 		// but with the same tx hash. Drop the observation (it will be re-observed and needs to
 		// wait for the full confirmation time again).
-		if tx.BlockHash != key.BlockHash {
+		if txreceipt.BlockHash != key.BlockHash {
 			logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
 				zap.String("msgId", pLock.message.MessageIDString()),
 				zap.String("txHash", pLock.message.TxIDString()),
@@ -1056,9 +1056,8 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 		)
 		delete(w.pending, key)
 
-		// Note that `tx` here is actually a receipt
 		txHash := eth_common.Hash(pLock.message.TxID)
-		pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
+		pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, txreceipt)
 		if pubErr != nil {
 			logger.Error("could not publish message",
 				zap.String("msgId", pLock.message.MessageIDString()),
