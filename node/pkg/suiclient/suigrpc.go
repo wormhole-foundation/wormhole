@@ -168,8 +168,8 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string) (SuiT
 	}
 
 	// nil-check for inner properties
-	if resp.Transaction.Digest == nil || resp.Transaction.Events == nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil Digest/Events")
+	if resp.Transaction.Digest == nil {
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil Digest")
 	}
 
 	suiTransaction := grpcExecutedTransactionToSuiTransaction(resp.Transaction)
@@ -399,8 +399,16 @@ func grpcExecutedTransactionToSuiTransaction(grpcTransaction *pb.ExecutedTransac
 	var suiEvents []SuiEvent
 
 	// nil-check the required transaction properties
-	if grpcTransaction == nil || grpcTransaction.Events == nil || grpcTransaction.Digest == nil {
+	if grpcTransaction == nil || grpcTransaction.Digest == nil {
 		return nil
+	}
+
+	// If there are no events, return the transaction with an empty event list.
+	if grpcTransaction.Events == nil {
+		return &SuiTransaction{
+			Digest: *grpcTransaction.Digest,
+			Events: suiEvents,
+		}
 	}
 
 	for _, event := range grpcTransaction.Events.Events {
