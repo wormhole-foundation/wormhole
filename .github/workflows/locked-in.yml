@@ -11,10 +11,13 @@ permissions:
 jobs:
   locked-in:
     runs-on: ubuntu-latest
+    env:
+      LOCKED_IN_COMMIT: 74d8fd31d519ea9f4f95b01191dc6171df90f045 # v0.2.0
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - uses: asymmetric-research/locked-in@74d8fd31d519ea9f4f95b01191dc6171df90f045 # v0.2.0
-        with:
-          commit: 74d8fd31d519ea9f4f95b01191dc6171df90f045
+      - name: Install locked-in from pinned source
+        run: cargo install --locked --git https://github.com/asymmetric-research/locked-in --rev "$LOCKED_IN_COMMIT" locked-in
+      - name: Run locked-in
+        run: locked-in
