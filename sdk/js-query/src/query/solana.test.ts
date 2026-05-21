@@ -75,7 +75,8 @@ async function getSolanaSlot(comm: string): Promise<bigint> {
 
 async function putQueryWithQuorumRetry(
   signature: string,
-  serialized: Uint8Array
+  serialized: Uint8Array,
+  apiKey = "my_secret_key"
 ): Promise<AxiosResponse<any, any>> {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -85,7 +86,7 @@ async function putQueryWithQuorumRetry(
           signature,
           bytes: Buffer.from(serialized).toString("hex"),
         },
-        { headers: { "X-API-Key": "my_secret_key" } }
+        { headers: { "X-API-Key": apiKey } }
       );
     } catch (err: any) {
       if (
@@ -593,13 +594,10 @@ describe("solana", () => {
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
     const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key_3" } }
+    const response = await putQueryWithQuorumRetry(
+      signature,
+      serialized,
+      "my_secret_key_3"
     );
     expect(response.status).toBe(200);
 
