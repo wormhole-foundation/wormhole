@@ -153,6 +153,7 @@ moonscan
 moretags
 multichecker
 Neodyme
+nearcore
 nhooyr
 nolint
 nonblocking
@@ -242,8 +243,10 @@ supermajority
 superminority
 tendermint
 Tendermint
+Tiltfile
 terrad
 testdata
+testlib
 tokenbridge
 tokenfactory
 traceback
