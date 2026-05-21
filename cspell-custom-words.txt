@@ -143,6 +143,7 @@ Monad
 moonscan
 moretags
 Neodyme
+nearcore
 nhooyr
 obsv
 Obsv
@@ -221,7 +222,9 @@ supermajority
 superminority
 tendermint
 Tendermint
+Tiltfile
 terrad
+testlib
 tokenbridge
 tokenfactory
 traceback
