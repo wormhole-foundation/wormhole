@@ -108,6 +108,7 @@ interface ITokenBridge {
     error WrongGovernanceContract();
     error GovernanceActionConsumed();
     error InitializeFailed(bytes reason);
+    error InvalidAddressLength();
 
     // Setter / initializer (declared in BridgeSetters / BridgeImplementation).
     error InvalidImplementationAddress();

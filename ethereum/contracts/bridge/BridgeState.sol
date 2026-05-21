@@ -51,12 +51,13 @@ contract BridgeStorage {
         uint256 evmChainId;
 
         // Address authorized to call pause(). Configured via the SetPauserAddresses governance action.
-        // Typically the WormholePauser contract.
-        // See whitepapers/0018_pauser.md.
+        // May be address(0) (unassigned), in which case pause() reverts before comparing msg.sender.
+        // See the "Pausing" section of whitepapers/0003_token_bridge.md.
         address pauser;
 
         // Address authorized to call unpause(). Configured via the SetPauserAddresses governance action.
-        // Typically the guardian governance contract for a higher-trust unpause path.
+        // May be address(0) (unassigned), in which case unpause() reverts before comparing msg.sender;
+        // recovery then requires governance to first assign a non-zero unpauser.
         address unpauser;
 
         // Whether the Token Bridge is currently paused. When true, all entry points except governance

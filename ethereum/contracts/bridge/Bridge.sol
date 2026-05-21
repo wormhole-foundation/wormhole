@@ -43,9 +43,13 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
     /// @notice Reverts when a `notPaused`-guarded entry point is called while the bridge is paused.
     error BridgePaused();
-    /// @notice Reverts when `pause()` is called by anyone other than the configured pauser.
+    /// @notice Reverts when `pause()` is called while the pauser role is unassigned, or by anyone
+    ///         other than the configured pauser. The "unassigned" branch is checked first so that
+    ///         an all-zero `pauser` is never treated as an authorized caller.
     error NotPauser();
-    /// @notice Reverts when `unpause()` is called by anyone other than the configured unpauser.
+    /// @notice Reverts when `unpause()` is called while the unpauser role is unassigned, or by
+    ///         anyone other than the configured unpauser. The "unassigned" branch is checked first
+    ///         so that an all-zero `unpauser` is never treated as an authorized caller.
     error NotUnpauser();
     /// @notice Reverts when `msg.value` does not cover the wormhole message fee.
     error WormholeFeeTooLarge();
@@ -78,7 +82,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     /// @notice Reverts when an unknown payload id is encountered.
     error InvalidPayloadId();
 
-    /// @dev Reverts if the bridge is paused. See whitepapers/0018_pauser.md.
+    /// @dev Reverts if the bridge is paused. See the "Pausing" section of whitepapers/0003_token_bridge.md.
     /// @dev Implemented as a shared internal function (rather than inlining the check in the
     ///      modifier body) so the bytecode is emitted once and JUMPed to from every callsite,
     ///      keeping `BridgeImplementation` under the 24,576-byte EIP-170 limit.
@@ -91,19 +95,27 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         _;
     }
 
-    /// @notice Pause the bridge. Only callable by the configured pauser. Configured via the
-    ///         SetPauserAddressesEvm (action 4) governance VAA.
+    /// @notice Pause the bridge. Only callable by the configured pauser. The pauser is configured
+    ///         via the `SetPauserAddresses` (action 4) governance VAA and may be left unassigned;
+    ///         when unassigned this entry point reverts before comparing `msg.sender`, so an
+    ///         all-zero `pauser` is never authorized.
     function pause() external {
-        if (msg.sender != pauser()) revert NotPauser();
+        address p = pauser();
+        if (p == address(0)) revert NotPauser();
+        if (msg.sender != p) revert NotPauser();
         setPaused(true);
         emit Paused(msg.sender);
     }
 
-    /// @notice Unpause the bridge. Only callable by the configured unpauser. Configured via the
-    ///         SetPauserAddressesEvm (action 4) governance VAA. Note that `unpause` is intentionally
-    ///         exempt from the `notPaused` modifier.
+    /// @notice Unpause the bridge. Only callable by the configured unpauser. The unpauser is
+    ///         configured via the `SetPauserAddresses` (action 4) governance VAA and may be left
+    ///         unassigned; when unassigned this entry point reverts before comparing `msg.sender`,
+    ///         so an all-zero `unpauser` is never authorized. Note that `unpause` is intentionally
+    ///         exempt from the `notPaused` modifier so it remains callable while paused.
     function unpause() external {
-        if (msg.sender != unpauser()) revert NotUnpauser();
+        address u = unpauser();
+        if (u == address(0)) revert NotUnpauser();
+        if (msg.sender != u) revert NotUnpauser();
         setPaused(false);
         emit Unpaused(msg.sender);
     }

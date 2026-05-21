@@ -39,6 +39,9 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     error WrongGovernanceContract();
     error GovernanceActionConsumed();
     error InitializeFailed(bytes reason);
+    /// @notice Reverts when a `SetPauserAddresses` payload encodes a pauser/unpauser length that is
+    ///         neither 0 (unassigned) nor 20 (the EVM native address size).
+    error InvalidAddressLength();
 
     // Execute a RegisterChain governance message
     function registerChain(bytes memory encodedVM) public {
@@ -74,23 +77,50 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     /// @param unpauser The address authorized to call unpause().
     event PauserAddressesSet(address indexed pauser, address indexed unpauser);
 
-    /// @notice Set the pauser and unpauser addresses via a SetPauserAddressesEvm (action 4) governance VAA.
-    /// @dev Payload layout: module(32) | action(1)=4 | chainId(2) | pauser(20) | unpauser(20). Parsed
-    ///      inline (no separate `parseSetPauserAddresses` / struct) to keep `BridgeImplementation` under
-    ///      the 24,576-byte EIP-170 limit. See whitepapers/0018_pauser.md.
+    /// @notice Set the pauser and unpauser addresses via a `SetPauserAddresses` (action 4) governance VAA.
+    /// @dev Payload layout:
+    ///        module(32) | action(1)=4 | chainId(2)
+    ///      | pauserLen(1) | pauser[pauserLen]
+    ///      | unpauserLen(1) | unpauser[unpauserLen]
+    ///
+    ///      Each length must be either 20 (the EVM native address size) or 0 (role left
+    ///      unassigned); any other length is rejected. An all-zero 20-byte address is treated as
+    ///      equivalent to a zero-length address (also unassigned). Parsed inline (no separate
+    ///      `parseSetPauserAddresses` / struct) to keep `BridgeImplementation` under the
+    ///      24,576-byte EIP-170 limit. See the "Pausing" section of whitepapers/0003_token_bridge.md.
     function submitSetPauserAddresses(bytes memory encodedVM) public {
         IWormhole.VM memory vm = verifyGovernanceVM(encodedVM);
 
         setGovernanceActionConsumed(vm.hash);
 
         bytes memory payload = vm.payload;
-        if (payload.length != 75) revert WrongLength();
         if (payload.toBytes32(0) != module) revert WrongModule();
         if (payload.toUint8(32) != 4) revert WrongAction();
         if (payload.toUint16(33) != chainId()) revert WrongChainId();
 
-        address newPauser = payload.toAddress(35);
-        address newUnpauser = payload.toAddress(55);
+        uint index = 35;
+
+        uint8 pauserLen = payload.toUint8(index);
+        index += 1;
+        address newPauser;
+        if (pauserLen == 20) {
+            newPauser = payload.toAddress(index);
+            index += 20;
+        } else if (pauserLen != 0) {
+            revert InvalidAddressLength();
+        }
+
+        uint8 unpauserLen = payload.toUint8(index);
+        index += 1;
+        address newUnpauser;
+        if (unpauserLen == 20) {
+            newUnpauser = payload.toAddress(index);
+            index += 20;
+        } else if (unpauserLen != 0) {
+            revert InvalidAddressLength();
+        }
+
+        if (payload.length != index) revert WrongLength();
 
         setPauser(newPauser);
         setUnpauser(newUnpauser);

@@ -29,8 +29,8 @@ contract TestBridgePauser is Test {
     // "TokenBridge" left-padded
     bytes32 constant tokenBridgeModule =
         0x000000000000000000000000000000000000000000546f6b656e427269646765;
-    uint8 constant ACTION_SET_PAUSER_ADDRESSES_EVM = 4;
-    uint8 constant ACTION_SET_PAUSER_ADDRESSES_SOLANA = 5;
+    uint8 constant ACTION_SET_PAUSER_ADDRESSES = 4;
+    uint8 constant EVM_ADDR_LEN = 20;
 
     address constant PAUSER = address(0xCAFE);
     address constant UNPAUSER = address(0xBEEF);
@@ -86,6 +86,9 @@ contract TestBridgePauser is Test {
         return abi.encodePacked(header, body);
     }
 
+    /// @dev Encode a SetPauserAddresses payload using the length-prefixed wire format described in
+    ///      whitepapers/0003_token_bridge.md. Each address is preceded by its length (20 on EVM, or
+    ///      0 to leave the role unassigned).
     function _setPauserAddressesPayload(uint16 chain_, address pauser_, address unpauser_)
         internal
         pure
@@ -93,10 +96,36 @@ contract TestBridgePauser is Test {
     {
         return abi.encodePacked(
             tokenBridgeModule,
-            ACTION_SET_PAUSER_ADDRESSES_EVM,
+            ACTION_SET_PAUSER_ADDRESSES,
             chain_,
+            EVM_ADDR_LEN,
             pauser_,
+            EVM_ADDR_LEN,
             unpauser_
+        );
+    }
+
+    /// @dev Encode a SetPauserAddresses payload where each role may independently be marked as
+    ///      unassigned (length 0, zero-byte body).
+    function _setPauserAddressesPayloadOptional(
+        uint16 chain_,
+        bool hasPauser,
+        address pauser_,
+        bool hasUnpauser,
+        address unpauser_
+    ) internal pure returns (bytes memory) {
+        bytes memory pauserField = hasPauser
+            ? abi.encodePacked(EVM_ADDR_LEN, pauser_)
+            : abi.encodePacked(uint8(0));
+        bytes memory unpauserField = hasUnpauser
+            ? abi.encodePacked(EVM_ADDR_LEN, unpauser_)
+            : abi.encodePacked(uint8(0));
+        return abi.encodePacked(
+            tokenBridgeModule,
+            ACTION_SET_PAUSER_ADDRESSES,
+            chain_,
+            pauserField,
+            unpauserField
         );
     }
 
@@ -121,13 +150,16 @@ contract TestBridgePauser is Test {
         bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
     }
 
-    function testSubmitSetPauserAddresses_Revert_SolanaActionRejected() public {
-        // Build a payload with action 5 (SetPauserAddressesSolana) — must be rejected on EVM.
+    function testSubmitSetPauserAddresses_Revert_UnknownAction() public {
+        // Action 5 is not defined for `SetPauserAddresses`; the single action 4 is length-prefixed
+        // and covers every runtime. Any other action must be rejected.
         bytes memory payload = abi.encodePacked(
             tokenBridgeModule,
-            ACTION_SET_PAUSER_ADDRESSES_SOLANA,
+            uint8(5),
             testChainId,
+            EVM_ADDR_LEN,
             PAUSER,
+            EVM_ADDR_LEN,
             UNPAUSER
         );
         vm.expectRevert(ITokenBridge.WrongAction.selector);
@@ -137,13 +169,114 @@ contract TestBridgePauser is Test {
     function testSubmitSetPauserAddresses_Revert_WrongModule() public {
         bytes memory payload = abi.encodePacked(
             bytes32(uint256(0xdeadbeef)),
-            ACTION_SET_PAUSER_ADDRESSES_EVM,
+            ACTION_SET_PAUSER_ADDRESSES,
             testChainId,
+            EVM_ADDR_LEN,
             PAUSER,
+            EVM_ADDR_LEN,
             UNPAUSER
         );
         vm.expectRevert(ITokenBridge.WrongModule.selector);
         bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+    }
+
+    function testSubmitSetPauserAddresses_Revert_InvalidPauserLength() public {
+        // 32 is the Solana native size but must be rejected on EVM (native size = 20).
+        bytes memory payload = abi.encodePacked(
+            tokenBridgeModule,
+            ACTION_SET_PAUSER_ADDRESSES,
+            testChainId,
+            uint8(32),
+            bytes32(uint256(uint160(PAUSER))),
+            EVM_ADDR_LEN,
+            UNPAUSER
+        );
+        vm.expectRevert(ITokenBridge.InvalidAddressLength.selector);
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+    }
+
+    function testSubmitSetPauserAddresses_Revert_InvalidUnpauserLength() public {
+        bytes memory payload = abi.encodePacked(
+            tokenBridgeModule,
+            ACTION_SET_PAUSER_ADDRESSES,
+            testChainId,
+            EVM_ADDR_LEN,
+            PAUSER,
+            uint8(21),
+            UNPAUSER,
+            uint8(0xff)
+        );
+        vm.expectRevert(ITokenBridge.InvalidAddressLength.selector);
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+    }
+
+    function testSubmitSetPauserAddresses_BothUnassigned_ZeroLength() public {
+        // Length 0 on both roles is the canonical "unassigned" encoding.
+        bytes memory payload = _setPauserAddressesPayloadOptional(
+            testChainId, false, address(0), false, address(0)
+        );
+        vm.expectEmit(true, true, true, true);
+        emit PauserAddressesSet(address(0), address(0));
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+        assertEq(bridge.pauser(), address(0));
+        assertEq(bridge.unpauser(), address(0));
+    }
+
+    function testSubmitSetPauserAddresses_PauserUnassigned_OnlyUnpauserSet() public {
+        bytes memory payload = _setPauserAddressesPayloadOptional(
+            testChainId, false, address(0), true, UNPAUSER
+        );
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+        assertEq(bridge.pauser(), address(0));
+        assertEq(bridge.unpauser(), UNPAUSER);
+    }
+
+    function testSubmitSetPauserAddresses_AllZero20ByteAddress_IsUnassigned() public {
+        // An all-zero 20-byte address must be treated as equivalent to a zero-length field —
+        // i.e., the role ends up unassigned and the entry point reverts before comparing msg.sender.
+        bytes memory payload = _setPauserAddressesPayload(testChainId, address(0), address(0));
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+        assertEq(bridge.pauser(), address(0));
+        assertEq(bridge.unpauser(), address(0));
+
+        vm.expectRevert(ITokenBridge.NotPauser.selector);
+        vm.prank(address(0));
+        bridge.pause();
+
+        vm.expectRevert(ITokenBridge.NotUnpauser.selector);
+        vm.prank(address(0));
+        bridge.unpause();
+    }
+
+    function testPause_Revert_PauserUnassigned() public {
+        // No prior governance message → pauser defaults to address(0) → pause() must revert before
+        // comparing msg.sender.
+        vm.expectRevert(ITokenBridge.NotPauser.selector);
+        vm.prank(PAUSER);
+        bridge.pause();
+    }
+
+    function testUnpause_Revert_UnpauserUnassigned() public {
+        // Configure only pauser, then pause; unpause must remain stuck because unpauser is unassigned.
+        bytes memory payload = _setPauserAddressesPayloadOptional(
+            testChainId, true, PAUSER, false, address(0)
+        );
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+
+        vm.prank(PAUSER);
+        bridge.pause();
+        assertTrue(bridge.paused());
+
+        vm.expectRevert(ITokenBridge.NotUnpauser.selector);
+        vm.prank(UNPAUSER);
+        bridge.unpause();
+
+        // Recovery path: governance assigns an unpauser, then unpause succeeds.
+        bytes memory recovery = _setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER);
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(recovery, 1));
+        vm.prank(UNPAUSER);
+        bridge.unpause();
+        assertFalse(bridge.paused());
     }
 
     function testSubmitSetPauserAddresses_Revert_AlreadyConsumed() public {
