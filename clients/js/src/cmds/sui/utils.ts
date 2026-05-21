@@ -1,4 +1,4 @@
-import { PaginatedObjectsResponse } from "@mysten/sui.js";
+import { PaginatedObjectsResponse } from "@mysten/sui/client";
 import yargs from "yargs";
 import { getPackageId, getProvider } from "../../chains/sui";
 import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
@@ -24,13 +24,13 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
         const owner = argv.owner;
 
-        const provider = getProvider(network, rpc);
+        const client = getProvider(network, rpc);
         const objects: PaginatedObjectsResponse["data"] = [];
 
         let cursor: PaginatedObjectsResponse["nextCursor"] | undefined =
           undefined;
         while (true) {
-          const res: PaginatedObjectsResponse = await provider.getOwnedObjects({
+          const res: PaginatedObjectsResponse = await client.getOwnedObjects({
             owner,
             cursor,
           });

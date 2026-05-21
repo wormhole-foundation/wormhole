@@ -158,7 +158,7 @@ export const getWrappedAssetAddress = async (
     case "Sui": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetSui(
-        provider,
+        provider as any,
         tokenBridgeAddress,
         toChainId(originChain),
         originAddressUint8Array

@@ -1,6 +1,6 @@
 -include ../../Makefile.help
 
-VERSION = $(shell grep -Po "version = \"\K[^\"]*" Move.toml | sed "s/\./_/g")
+VERSION = $(shell sed -n 's/^version = "\([^"]*\)".*/\1/p' Move.toml | tr '.' '_')
 
 .PHONY: clean
 clean:
@@ -9,10 +9,10 @@ clean:
 .PHONY: check
 ## Build contract
 check:
-	sui move build -d
+	sui move build
 
 .PHONY: test
 ## Run tests
 test: check
 	grep "public(friend) fun current_version(): V__${VERSION} {" sources/version_control.move
-	sui move test -d -t 1
+	sui move test -t 1

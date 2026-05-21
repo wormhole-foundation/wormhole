@@ -258,7 +258,7 @@ module token_bridge::wrapped_asset {
             decimals: _,
             upgrade_cap
         } = asset;
-        sui::test_utils::destroy(treasury_cap);
+        std::unit_test::destroy(treasury_cap);
 
         let ForeignInfo {
             token_chain: _,
@@ -364,7 +364,7 @@ module token_bridge::wrapped_asset_tests {
         let new_symbol = std::ascii::into_bytes(coin::get_symbol(&coin_meta));
 
         std::vector::append(&mut new_symbol, b"??? and profit");
-        assert!(new_symbol != *string::bytes(&expected_symbol), 0);
+        assert!(new_symbol != *string::as_bytes(&expected_symbol), 0);
 
         let new_name = coin::get_name(&coin_meta);
         string::append(&mut new_name, string::utf8(b"??? and profit"));
@@ -504,7 +504,7 @@ module token_bridge::wrapped_asset_tests {
         let new_symbol = std::ascii::into_bytes(coin::get_symbol(&coin_meta));
 
         std::vector::append(&mut new_symbol, b"??? and profit");
-        assert!(new_symbol != *string::bytes(&expected_symbol), 0);
+        assert!(new_symbol != *string::as_bytes(&expected_symbol), 0);
 
         let new_name = coin::get_name(&coin_meta);
         string::append(&mut new_name, string::utf8(b"??? and profit"));

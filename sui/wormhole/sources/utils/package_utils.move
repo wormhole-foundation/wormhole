@@ -73,8 +73,8 @@ module wormhole::package_utils {
             sui::address::from_bytes(
                 sui::hex::decode(
                     std::ascii::into_bytes(
-                        std::type_name::get_address(
-                            &std::type_name::get<T>()
+                        std::type_name::address_string(
+                            &std::type_name::with_defining_ids<T>()
                         )
                     )
                 )
@@ -108,7 +108,7 @@ module wormhole::package_utils {
 
     // Retrieve the `TypeName` of a given version.
     public fun type_of_version<Version: drop>(_version: Version): TypeName {
-        type_name::get<Version>()
+        type_name::with_defining_ids<Version>()
     }
 
     /// Initialize package info and set the initial version. This should be done
@@ -234,13 +234,13 @@ module wormhole::package_utils {
         );
         let _: Old = field::remove(id, CurrentVersion {});
 
-        let new_type = type_name::get<New>();
+        let new_type = type_name::with_defining_ids<New>();
         // Make sure the new type does not equal the old type, which means there
         // is no protection against either build.
-        assert!(new_type != type_name::get<Old>(), E_SAME_VERSION);
+        assert!(new_type != type_name::with_defining_ids<Old>(), E_SAME_VERSION);
 
         // Also make sure `New` originates from this module.
-        let module_name = into_bytes(type_name::get_module(&new_type));
+        let module_name = into_bytes(type_name::module_string(&new_type));
         assert!(module_name == b"version_control", E_TYPE_NOT_ALLOWED);
 
         // Finally add the new version.

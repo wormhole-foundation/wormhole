@@ -3,7 +3,7 @@
 <!-- cspell:disable -->
 
 ```bash
-cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f sui/Dockerfile.base -t ghcr.io/wormhole-foundation/sui:1.19.1-mainnet .
+cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f sui/Dockerfile.base -t ghcr.io/wormhole-foundation/sui:1.63.2-testnet .
 ```
 
 <!-- cspell:enable -->
@@ -11,5 +11,5 @@ cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f sui/Dockerfil
 # push to ghcr
 
 ```bash
-docker push ghcr.io/wormhole-foundation/sui:1.19.1-mainnet
+docker push ghcr.io/wormhole-foundation/sui:1.63.2-testnet
 ```
