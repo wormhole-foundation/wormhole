@@ -50,8 +50,6 @@ use token_bridge::{
         PayloadTransferWithPayload,
     },
     types::{
-        // Aliased locally to keep the test code free of name conflicts with the `pauser` /
-        // `unpauser` local variables and Keypairs the tests create.
         paused as read_paused,
         pauser as read_pauser,
         unpauser as read_unpauser,
@@ -653,8 +651,14 @@ async fn submit_set_pauser_addresses(context: &mut Context, pauser: Pubkey, unpa
     //                                       | unpauser_len(1)=32 | unpauser(32)
     // Total: 32 + 1 + 2 + 1 + 32 + 1 + 32 = 101 bytes.
     assert_eq!(message[32], SET_PAUSER_ADDRESSES_ACTION);
-    assert_eq!(message[35], 32, "expected pauser_len = 32 (SVM native size)");
-    assert_eq!(message[68], 32, "expected unpauser_len = 32 (SVM native size)");
+    assert_eq!(
+        message[35], 32,
+        "expected pauser_len = 32 (SVM native size)"
+    );
+    assert_eq!(
+        message[68], 32,
+        "expected unpauser_len = 32 (SVM native size)"
+    );
     assert_eq!(message.len(), 101);
 
     submit_raw_set_pauser_addresses(context, message)
@@ -1021,8 +1025,7 @@ async fn set_pauser_addresses_rejects_invalid_pauser_length() {
     // pauser_len = 20 (the EVM native size) must be rejected on Solana.
     let pauser_body = [0xAAu8; 20];
     let unpauser_body = [0xBBu8; 32];
-    let bad =
-        build_set_pauser_addresses_payload(20, &pauser_body, 32, &unpauser_body);
+    let bad = build_set_pauser_addresses_payload(20, &pauser_body, 32, &unpauser_body);
 
     submit_raw_set_pauser_addresses(&mut context, bad)
         .await
@@ -1039,8 +1042,7 @@ async fn set_pauser_addresses_rejects_invalid_unpauser_length() {
 
     let pauser_body = [0xAAu8; 32];
     let unpauser_body = [0xBBu8; 33]; // off-by-one over the native size
-    let bad =
-        build_set_pauser_addresses_payload(32, &pauser_body, 33, &unpauser_body);
+    let bad = build_set_pauser_addresses_payload(32, &pauser_body, 33, &unpauser_body);
 
     submit_raw_set_pauser_addresses(&mut context, bad)
         .await

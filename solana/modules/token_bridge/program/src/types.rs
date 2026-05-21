@@ -159,11 +159,7 @@ pub(crate) fn write_paused(config_data: &mut [u8], paused: bool) {
     config_data[PAUSED_OFFSET] = u8::from(paused);
 }
 
-pub(crate) fn write_pauser_addresses(
-    config_data: &mut [u8],
-    pauser: &Pubkey,
-    unpauser: &Pubkey,
-) {
+pub(crate) fn write_pauser_addresses(config_data: &mut [u8], pauser: &Pubkey, unpauser: &Pubkey) {
     config_data[PAUSER_OFFSET..(PAUSER_OFFSET + PUBKEY_BYTES)].copy_from_slice(&pauser.to_bytes());
     config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)]
         .copy_from_slice(&unpauser.to_bytes());

@@ -20,13 +20,11 @@ use solitaire::*;
 
 /// Event discriminator: `SHA256("event:Paused")[0..8]`. Emitted via Anchor-style self-CPI
 /// when `pause` succeeds. Payload: 32-byte pauser pubkey.
-pub const PAUSED_EVENT_DISCRIMINATOR: [u8; 8] =
-    [0xac, 0xf8, 0x05, 0xfd, 0x31, 0xff, 0xff, 0xe8];
+pub const PAUSED_EVENT_DISCRIMINATOR: [u8; 8] = [0xac, 0xf8, 0x05, 0xfd, 0x31, 0xff, 0xff, 0xe8];
 
 /// Event discriminator: `SHA256("event:Unpaused")[0..8]`. Emitted via Anchor-style self-CPI
 /// when `unpause` succeeds. Payload: 32-byte unpauser pubkey.
-pub const UNPAUSED_EVENT_DISCRIMINATOR: [u8; 8] =
-    [0x9c, 0x96, 0x2f, 0xae, 0x78, 0xd8, 0x5d, 0x75];
+pub const UNPAUSED_EVENT_DISCRIMINATOR: [u8; 8] = [0x9c, 0x96, 0x2f, 0xae, 0x78, 0xd8, 0x5d, 0x75];
 
 #[derive(FromAccounts)]
 pub struct Pause<'b> {
