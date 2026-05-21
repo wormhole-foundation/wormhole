@@ -11,6 +11,11 @@ contract BridgeStorage {
         uint16 governanceChainId;
         // Required number of block confirmations to assume finality
         uint8 finality;
+        // Whether the Token Bridge is currently paused. When true, all entry points except
+        // governance and unpause revert. Packed into this slot (after `finality`) so that the
+        // `notPaused` check piggybacks on the SLOAD that already loads `chainId` on every entry
+        // point. See the "Pausing" section of whitepapers/0003_token_bridge.md.
+        bool paused;
         bytes32 governanceContract;
         address WETH;
     }
@@ -49,20 +54,6 @@ contract BridgeStorage {
 
         // EIP-155 Chain ID
         uint256 evmChainId;
-
-        // Address authorized to call pause(). Configured via the SetPauserAddresses governance action.
-        // May be address(0) (unassigned), in which case pause() reverts before comparing msg.sender.
-        // See the "Pausing" section of whitepapers/0003_token_bridge.md.
-        address pauser;
-
-        // Address authorized to call unpause(). Configured via the SetPauserAddresses governance action.
-        // May be address(0) (unassigned), in which case unpause() reverts before comparing msg.sender;
-        // recovery then requires governance to first assign a non-zero unpauser.
-        address unpauser;
-
-        // Whether the Token Bridge is currently paused. When true, all entry points except governance
-        // and unpause revert.
-        bool paused;
     }
 }
 

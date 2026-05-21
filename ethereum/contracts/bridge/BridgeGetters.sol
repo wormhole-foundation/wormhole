@@ -9,6 +9,7 @@ import "../interfaces/IWormhole.sol";
 import "./interfaces/IWETH.sol";
 
 import "./BridgeState.sol";
+import "./BridgePauserStorage.sol";
 
 contract BridgeGetters is BridgeState {
     function governanceActionIsConsumed(bytes32 hash) public view returns (bool) {
@@ -76,14 +77,14 @@ contract BridgeGetters is BridgeState {
     }
 
     function pauser() public view returns (address) {
-        return _state.pauser;
+        return BridgePauserStorage.data().pauser;
     }
 
     function unpauser() public view returns (address) {
-        return _state.unpauser;
+        return BridgePauserStorage.data().unpauser;
     }
 
     function paused() public view returns (bool) {
-        return _state.paused;
+        return _state.provider.paused;
     }
 }

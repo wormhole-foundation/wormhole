@@ -4,6 +4,7 @@
 pragma solidity ^0.8.0;
 
 import "./BridgeState.sol";
+import "./BridgePauserStorage.sol";
 
 contract BridgeSetters is BridgeState {
     error InvalidImplementationAddress();
@@ -69,14 +70,14 @@ contract BridgeSetters is BridgeState {
     }
 
     function setPauser(address pauser) internal {
-        _state.pauser = pauser;
+        BridgePauserStorage.data().pauser = pauser;
     }
 
     function setUnpauser(address unpauser) internal {
-        _state.unpauser = unpauser;
+        BridgePauserStorage.data().unpauser = unpauser;
     }
 
     function setPaused(bool paused) internal {
-        _state.paused = paused;
+        _state.provider.paused = paused;
     }
 }

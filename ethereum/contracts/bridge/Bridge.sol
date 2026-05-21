@@ -52,7 +52,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     ///         so that an all-zero `unpauser` is never treated as an authorized caller.
     error NotUnpauser();
     /// @notice Reverts when `msg.value` does not cover the wormhole message fee.
-    error WormholeFeeTooLarge();
+    error InsufficientFee();
     /// @notice Reverts when an arbiter / relayer fee exceeds the transfer amount.
     error FeeExceedsAmount();
     /// @notice Reverts when a transfer VAA is not from a registered token-bridge emitter.
@@ -99,6 +99,10 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     ///         via the `SetPauserAddresses` (action 4) governance VAA and may be left unassigned;
     ///         when unassigned this entry point reverts before comparing `msg.sender`, so an
     ///         all-zero `pauser` is never authorized.
+    /// @dev Intentionally does not check `isFork()`. On a forked chain the pre-fork pauser can
+    ///      still pause the bridge without first waiting for a `submitRecoverChainId` governance
+    ///      VAA — letting whoever holds the pauser key shut the bridge down on the fork
+    ///      immediately, before chain-id recovery completes.
     function pause() external {
         address p = pauser();
         if (p == address(0)) revert NotPauser();
@@ -112,6 +116,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     ///         unassigned; when unassigned this entry point reverts before comparing `msg.sender`,
     ///         so an all-zero `unpauser` is never authorized. Note that `unpause` is intentionally
     ///         exempt from the `notPaused` modifier so it remains callable while paused.
+    /// @dev Intentionally does not check `isFork()`; see the matching note on `pause()`.
     function unpause() external {
         address u = unpauser();
         if (u == address(0)) revert NotUnpauser();
@@ -216,7 +221,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     function _wrapAndTransferETH(uint256 arbiterFee) internal returns (BridgeStructs.TransferResult memory transferResult) {
         uint wormholeFee = wormhole().messageFee();
 
-        if (wormholeFee >= msg.value) revert WormholeFeeTooLarge();
+        if (wormholeFee >= msg.value) revert InsufficientFee();
 
         uint amount = msg.value - wormholeFee;
 

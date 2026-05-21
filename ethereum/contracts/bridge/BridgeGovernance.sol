@@ -148,8 +148,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         setChainId(rci.newChainId);
     }
 
-    /// @dev Reverts directly on any failure path. Returns the parsed VM on success. Callers no longer
-    ///      need to unpack a `(vm, valid, reason)` tuple — saves bytecode at every call site.
+    /// @dev Verify a governance VM. Reverts on any failure path; returns the parsed VM on success.
     function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
         // Forwards the dynamic Wormhole core reason; cheaper than encoding a parameterized error.
@@ -228,7 +227,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         if (encoded.length != index) revert WrongLength();
     }
 
-/// @dev Parse a recoverChainId (action 3) with minimal validation
+    /// @dev Parse a recoverChainId (action 3) with minimal validation
     function parseRecoverChainId(bytes memory encodedRecoverChainId) public pure returns (BridgeStructs.RecoverChainId memory rci) {
         uint index = 0;
 

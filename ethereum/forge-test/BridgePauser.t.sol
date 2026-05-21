@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "../contracts/bridge/BridgeSetup.sol";
 import "../contracts/bridge/BridgeImplementation.sol";
+import "../contracts/bridge/BridgePauserStorage.sol";
 import "../contracts/bridge/TokenBridge.sol";
 import "../contracts/bridge/interfaces/ITokenBridge.sol";
 import "../contracts/bridge/token/TokenImplementation.sol";
@@ -77,8 +78,19 @@ contract TestBridgePauser is Test {
     // ============================ Helpers ============================
 
     function _signAndEncodeVM(bytes memory data, uint64 sequence) internal pure returns (bytes memory) {
+        return _signAndEncodeVMFrom(data, sequence, uint16(1), bytes32(uint256(0x4)));
+    }
+
+    /// @dev Variant that lets a test override the emitter chain id and emitter address — used to
+    ///      exercise the `WrongGovernanceChain` and `WrongGovernanceContract` revert paths.
+    function _signAndEncodeVMFrom(
+        bytes memory data,
+        uint64 sequence,
+        uint16 emitterChainId,
+        bytes32 emitterAddress
+    ) internal pure returns (bytes memory) {
         bytes memory body = abi.encodePacked(
-            uint32(0), uint32(0), uint16(1), bytes32(uint256(0x4)), sequence, uint8(0), data
+            uint32(0), uint32(0), emitterChainId, emitterAddress, sequence, uint8(0), data
         );
         bytes32 bodyHash = keccak256(abi.encodePacked(keccak256(body)));
         (uint8 v, bytes32 r, bytes32 s) = Vm(address(uint160(uint256(keccak256("hevm cheat code"))))).sign(testGuardian, bodyHash);
@@ -445,16 +457,296 @@ contract TestBridgePauser is Test {
         vm.prank(PAUSER);
         bridge.pause();
 
-        // submitSetPauserAddresses is governance and must remain callable when paused.
-        bytes memory payload = _setPauserAddressesPayload(testChainId, address(0xFEED), UNPAUSER);
+        // submitSetPauserAddresses is governance and must remain callable when paused. Both
+        // fields update atomically — assert each independently.
+        address newPauser = address(0xFEED);
+        address newUnpauser = address(0xCEED);
+        bytes memory payload = _setPauserAddressesPayload(testChainId, newPauser, newUnpauser);
         bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 7));
-        assertEq(bridge.pauser(), address(0xFEED));
+        assertEq(bridge.pauser(), newPauser);
+        assertEq(bridge.unpauser(), newUnpauser);
+        assertTrue(bridge.paused());
     }
 
     function testSubmitSetPauserAddresses_Revert_WrongLength() public {
         bytes memory payload = abi.encodePacked(_setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER), hex"ff");
         vm.expectRevert(ITokenBridge.WrongLength.selector);
         bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+    }
+
+    function testSubmitSetPauserAddresses_Revert_WrongGovernanceChain() public {
+        bytes memory payload = _setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER);
+        bytes memory vaa = _signAndEncodeVMFrom(payload, 0, uint16(99), bytes32(uint256(0x4)));
+        vm.expectRevert(ITokenBridge.WrongGovernanceChain.selector);
+        bridge.submitSetPauserAddresses(vaa);
+    }
+
+    function testSubmitSetPauserAddresses_Revert_WrongGovernanceContract() public {
+        bytes memory payload = _setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER);
+        bytes memory vaa = _signAndEncodeVMFrom(payload, 0, uint16(1), bytes32(uint256(0xDEADBEEF)));
+        vm.expectRevert(ITokenBridge.WrongGovernanceContract.selector);
+        bridge.submitSetPauserAddresses(vaa);
+    }
+
+    // ============================ Other governance handlers while paused ============================
+    //
+    // The whitepaper specifies that every governance handler must remain callable while the bridge
+    // is paused (only user-facing entry points are gated by `notPaused`). For each handler we
+    // either drive a successful execution or assert it reverts on a handler-specific check rather
+    // than `BridgePaused` — proving the `notPaused` modifier is not applied.
+
+    function testNotPaused_RegisterChain_WorksWhenPaused() public {
+        _configurePauser();
+        vm.prank(PAUSER);
+        bridge.pause();
+
+        uint16 foreignChain = 42;
+        bytes32 foreignEmitter = bytes32(uint256(0xDEAD));
+        bytes memory payload = abi.encodePacked(
+            tokenBridgeModule,
+            uint8(1),         // action: RegisterChain
+            uint16(0),        // chainId 0 = any
+            foreignChain,
+            foreignEmitter
+        );
+        bridge.registerChain(_signAndEncodeVM(payload, 100));
+        assertEq(bridge.bridgeContracts(foreignChain), foreignEmitter);
+    }
+
+    function testNotPaused_Upgrade_NotBlockedByPause() public {
+        _configurePauser();
+        vm.prank(PAUSER);
+        bridge.pause();
+
+        // Send an UpgradeContract VAA targeted at the wrong chain so the handler reverts at the
+        // chainId check rather than executing an upgrade. The point is to demonstrate the revert
+        // is `WrongChainId`, NOT `BridgePaused` — i.e. the handler runs past the (absent)
+        // notPaused gate.
+        bytes memory payload = abi.encodePacked(
+            tokenBridgeModule,
+            uint8(2),                                // action: Upgrade
+            uint16(testChainId + 1),                 // wrong chain
+            bytes32(uint256(uint160(address(0xBEEF))))
+        );
+        vm.expectRevert(ITokenBridge.WrongChainId.selector);
+        bridge.upgrade(_signAndEncodeVM(payload, 101));
+    }
+
+    function testNotPaused_SubmitRecoverChainId_WorksWhenPaused() public {
+        _configurePauser();
+        vm.prank(PAUSER);
+        bridge.pause();
+
+        // Simulate a fork: bump block.chainid so `isFork()` returns true, then send a matching
+        // RecoverChainId VAA. The handler must run to completion despite the bridge being paused.
+        uint256 forkChainId = testEvmChainId + 1;
+        vm.chainId(forkChainId);
+
+        uint16 newWormholeChainId = 999;
+        bytes memory payload = abi.encodePacked(
+            tokenBridgeModule,
+            uint8(3),                  // action: RecoverChainId
+            uint256(forkChainId),      // evmChainId — must match block.chainid
+            newWormholeChainId
+        );
+        bridge.submitRecoverChainId(_signAndEncodeVM(payload, 102));
+        assertEq(bridge.chainId(), newWormholeChainId);
+        assertEq(bridge.evmChainId(), forkChainId);
+    }
+
+    // ============================ Idempotency ============================
+
+    function testPause_Idempotent() public {
+        _configurePauser();
+        vm.prank(PAUSER);
+        bridge.pause();
+        assertTrue(bridge.paused());
+
+        // A second pause() must not toggle the state and must not revert. State stays `true`.
+        vm.prank(PAUSER);
+        bridge.pause();
+        assertTrue(bridge.paused());
+    }
+
+    function testUnpause_Idempotent() public {
+        _configurePauser();
+        // Bridge starts unpaused. Calling unpause() should keep it unpaused, not toggle to paused.
+        vm.prank(UNPAUSER);
+        bridge.unpause();
+        assertFalse(bridge.paused());
+
+        // Pause, unpause, then unpause again — the second unpause must not re-pause the bridge.
+        vm.prank(PAUSER);
+        bridge.pause();
+        vm.prank(UNPAUSER);
+        bridge.unpause();
+        assertFalse(bridge.paused());
+
+        vm.prank(UNPAUSER);
+        bridge.unpause();
+        assertFalse(bridge.paused());
+    }
+
+    // ============================ Rotation while paused ============================
+
+    function testSubmitSetPauserAddresses_CanRotateWhilePaused() public {
+        _configurePauser();
+        vm.prank(PAUSER);
+        bridge.pause();
+        assertTrue(bridge.paused());
+
+        // Rotate to a fresh pauser / unpauser pair while paused; the new addresses must take
+        // effect immediately and the bridge must stay paused (rotation does not unpause).
+        address newPauser = address(0xAAAA);
+        address newUnpauser = address(0xBBBB);
+        bytes memory payload = _setPauserAddressesPayload(testChainId, newPauser, newUnpauser);
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 200));
+
+        assertEq(bridge.pauser(), newPauser);
+        assertEq(bridge.unpauser(), newUnpauser);
+        assertTrue(bridge.paused());
+
+        // Old pauser/unpauser can no longer act on the bridge.
+        vm.expectRevert(ITokenBridge.NotUnpauser.selector);
+        vm.prank(UNPAUSER);
+        bridge.unpause();
+
+        // New unpauser unpauses successfully.
+        vm.prank(newUnpauser);
+        bridge.unpause();
+        assertFalse(bridge.paused());
+
+        // And the new pauser can re-pause.
+        vm.prank(newPauser);
+        bridge.pause();
+        assertTrue(bridge.paused());
+    }
+
+    // ============================ Storage layout ============================
+    //
+    // These tests pin the ERC-7201 namespaced storage decision: `pauser` and `unpauser` live in a
+    // namespaced slot disjoint from `BridgeStorage.State`, so adding/removing pauser support never
+    // shifts slot 13 (the `_status` slot inherited from OpenZeppelin's `ReentrancyGuard`).
+
+    /// @dev Matches `BridgePauserStorage.LAYOUT_SLOT`.
+    bytes32 constant PAUSER_NAMESPACE_SLOT =
+        0x685f7dd8ace9c4fb94a4997fcd733e0d769273ee87b95731641e14d0cc4a6700;
+
+    function testStorageLayout_NamespacedSlotMatchesERC7201() public {
+        // Recompute the slot per ERC-7201 and assert it matches the constant baked into
+        // `BridgePauserStorage`. Guards against silent drift: any rename of the namespace string,
+        // or any miscopied constant, fails here rather than corrupting storage on a live deploy.
+        bytes32 expected =
+            keccak256(abi.encode(uint256(keccak256("wormhole.tokenbridge.pauser.storage")) - 1))
+            & ~bytes32(uint256(0xff));
+        assertEq(BridgePauserStorage.LAYOUT_SLOT, expected);
+        assertEq(BridgePauserStorage.LAYOUT_SLOT, PAUSER_NAMESPACE_SLOT);
+    }
+
+    function testStorageLayout_FreshDeploy_RolesAreZero() public {
+        assertEq(bridge.pauser(), address(0));
+        assertEq(bridge.unpauser(), address(0));
+        assertFalse(bridge.paused());
+    }
+
+    function testStorageLayout_PauserLivesAtNamespacedSlot() public {
+        bytes memory payload = _setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER);
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+
+        // `pauser` is at the namespaced slot, `unpauser` packs into the next slot.
+        bytes32 pauserSlotValue = vm.load(address(bridge), PAUSER_NAMESPACE_SLOT);
+        bytes32 unpauserSlotValue =
+            vm.load(address(bridge), bytes32(uint256(PAUSER_NAMESPACE_SLOT) + 1));
+        assertEq(address(uint160(uint256(pauserSlotValue))), PAUSER);
+        assertEq(address(uint160(uint256(unpauserSlotValue))), UNPAUSER);
+    }
+
+    function testStorageLayout_StateSlotsUnchangedByPauser() public {
+        // Slot 13 is the ReentrancyGuard `_status` slot. A previous version of this PR placed
+        // `pauser` directly in `BridgeStorage.State`, which would have pushed `_status` to slot 15
+        // and made the freshly-upgraded proxy read `pauser` from the old `_status` slot. The
+        // ERC-7201 split prevents that: slot 13 must NOT hold the pauser address.
+        bytes memory payload = _setPauserAddressesPayload(testChainId, PAUSER, UNPAUSER);
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+
+        bytes32 slot13 = vm.load(address(bridge), bytes32(uint256(13)));
+        assertTrue(slot13 != bytes32(uint256(uint160(PAUSER))));
+        // `_status` on a fresh proxy is `0` until the first `nonReentrant` call lazily initializes
+        // it; either way it stays a small reentrancy sentinel, never an address.
+        assertLt(uint256(slot13), uint256(3));
+    }
+
+    function testStorageLayout_PausedPacksIntoProviderSlot() public {
+        // `paused` is packed into the first slot of `BridgeStorage.Provider` after
+        // `chainId(2) | governanceChainId(2) | finality(1)`. That slot starts at offset 2 within
+        // `_state` (after `wormhole` and `tokenImplementation`), i.e. slot 2 of the contract.
+        bytes32 providerSlotBefore = vm.load(address(bridge), bytes32(uint256(2)));
+        // `paused` byte sits at offset 5 within the slot (after chainId + governanceChainId +
+        // finality). Note that storage is right-aligned: byte offset N in the slot corresponds to
+        // byte index (31 - N) from the left in the bytes32 representation.
+        uint256 pausedByteIndex = 31 - 5;
+        assertEq(uint8(providerSlotBefore[pausedByteIndex]), 0);
+
+        _configurePauser();
+        vm.prank(PAUSER);
+        bridge.pause();
+
+        bytes32 providerSlotAfter = vm.load(address(bridge), bytes32(uint256(2)));
+        assertEq(uint8(providerSlotAfter[pausedByteIndex]), 1);
+        // The lower bytes (chainId, governanceChainId, finality) must be untouched by the pause.
+        assertEq(
+            providerSlotBefore & bytes32(uint256(0x000000000000000000000000000000000000000000000000000000ffffffffff)),
+            providerSlotAfter & bytes32(uint256(0x000000000000000000000000000000000000000000000000000000ffffffffff))
+        );
+    }
+
+    // ============================ Real wire vector ============================
+    //
+    // Pin compatibility with the off-chain encoder in `sdk/vaa/payloads.go`. The hex vector below
+    // is copied from the `TestBodyTokenBridgeSetPauserAddressesSerialize` "evm both set" case
+    // (PR #4810): module(32) || action(04) || chain(0002) || pauserLen(14) || pauser(20 × 0xaa)
+    // || unpauserLen(14) || unpauser(20 × 0xbb). If the guardian encoder format ever diverges
+    // from what this contract parses, this test fails.
+
+    function testSubmitSetPauserAddresses_RealVector_EvmBothSet() public {
+        bytes memory payload =
+            hex"000000000000000000000000000000000000000000546f6b656e427269646765"
+            hex"04"
+            hex"0002"
+            hex"14" hex"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            hex"14" hex"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+        assertEq(bridge.pauser(), address(0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa));
+        assertEq(bridge.unpauser(), address(0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB));
+    }
+
+    function testSubmitSetPauserAddresses_RealVector_PauserUnassigned() public {
+        // "pauser unassigned, unpauser set" vector from PR #4810.
+        bytes memory payload =
+            hex"000000000000000000000000000000000000000000546f6b656e427269646765"
+            hex"04"
+            hex"0002"
+            hex"00"
+            hex"14" hex"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+        assertEq(bridge.pauser(), address(0));
+        assertEq(bridge.unpauser(), address(0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB));
+    }
+
+    function testSubmitSetPauserAddresses_RealVector_BothUnassigned() public {
+        // "both unassigned" vector from PR #4810.
+        bytes memory payload =
+            hex"000000000000000000000000000000000000000000546f6b656e427269646765"
+            hex"04"
+            hex"0002"
+            hex"00"
+            hex"00";
+
+        bridge.submitSetPauserAddresses(_signAndEncodeVM(payload, 0));
+        assertEq(bridge.pauser(), address(0));
+        assertEq(bridge.unpauser(), address(0));
     }
 
     // ============================ Internal ============================

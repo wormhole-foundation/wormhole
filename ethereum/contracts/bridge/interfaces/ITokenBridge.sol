@@ -78,7 +78,7 @@ interface ITokenBridge {
     error NotUnpauser();
 
     // Transfer/wrap-related (declared in Bridge contract).
-    error WormholeFeeTooLarge();
+    error InsufficientFee();
     error FeeExceedsAmount();
     error InvalidEmitter();
     error WrappedAssetNotFound();
