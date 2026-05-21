@@ -311,9 +311,9 @@ var (
 	featureFlags  []string
 	notaryEnabled *bool
 
-	managerServiceEnabled    *bool
-	dogecoinManagerSignerUri *string
-	xrplManagerSignerUri     *string
+	managerServiceEnabled     *bool
+	dogecoinManagerSignerUris []string
+	xrplManagerSignerUris     []string
 )
 
 func init() {
@@ -560,8 +560,8 @@ func init() {
 	notaryEnabled = NodeCmd.Flags().Bool("notaryEnabled", false, "Run the notary")
 
 	managerServiceEnabled = NodeCmd.Flags().Bool("managerServiceEnabled", false, "Run the manager service")
-	dogecoinManagerSignerUri = NodeCmd.Flags().String("dogecoinManagerSignerUri", "", "Dogecoin manager signer URI")
-	xrplManagerSignerUri = NodeCmd.Flags().String("xrplManagerSignerUri", "", "XRPL manager signer URI")
+	NodeCmd.Flags().StringSliceVarP(&dogecoinManagerSignerUris, "dogecoinManagerSignerUris", "", []string{}, "Dogecoin manager signer URI(s)")
+	NodeCmd.Flags().StringSliceVarP(&xrplManagerSignerUris, "xrplManagerSignerUris", "", []string{}, "XRPL manager signer URI(s)")
 }
 
 var (
@@ -1961,17 +1961,20 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Initialize manager signers map
-	managerSigners := make(map[vaa.ChainID]guardiansigner.GuardianSigner)
-	if *dogecoinManagerSignerUri != "" {
-		// Ensure the manager signer is not the same as the guardian signer in non-devnet environments
-		if env != common.UnsafeDevNet && *dogecoinManagerSignerUri == *guardianSignerUri {
-			logger.Fatal("dogecoinManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+	managerSigners := make(map[vaa.ChainID][]guardiansigner.GuardianSigner)
+	for _, uri := range dogecoinManagerSignerUris {
+		if uri == "" {
+			continue
 		}
-		dogecoinSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, *dogecoinManagerSignerUri, env == common.UnsafeDevNet, "manager-dogecoin")
+		// Ensure the manager signer is not the same as the guardian signer in non-devnet environments
+		if env != common.UnsafeDevNet && uri == *guardianSignerUri {
+			logger.Fatal("dogecoinManagerSignerUris must be different from guardianSignerUri in non-devnet environments")
+		}
+		dogecoinSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, uri, env == common.UnsafeDevNet, "manager-dogecoin")
 		if err != nil {
 			logger.Fatal("failed to create dogecoin manager signer", zap.Error(err))
 		}
-		managerSigners[vaa.ChainIDDogecoin] = dogecoinSigner
+		managerSigners[vaa.ChainIDDogecoin] = append(managerSigners[vaa.ChainIDDogecoin], dogecoinSigner)
 
 		// Log the 33-byte compressed public key for use in P2SH multisig
 		pubKey := dogecoinSigner.PublicKey(rootCtx)
@@ -1982,15 +1985,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		compressedPubKey := btcecPubKey.SerializeCompressed()
 		logger.Info("initialized dogecoin manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", compressedPubKey)))
 	}
-	if *xrplManagerSignerUri != "" {
-		if env != common.UnsafeDevNet && *xrplManagerSignerUri == *guardianSignerUri {
-			logger.Fatal("xrplManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+	for _, uri := range xrplManagerSignerUris {
+		if uri == "" {
+			continue
 		}
-		xrplSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, *xrplManagerSignerUri, env == common.UnsafeDevNet, "manager-xrpl")
+		if env != common.UnsafeDevNet && uri == *guardianSignerUri {
+			logger.Fatal("xrplManagerSignerUris must be different from guardianSignerUri in non-devnet environments")
+		}
+		xrplSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, uri, env == common.UnsafeDevNet, "manager-xrpl")
 		if err != nil {
 			logger.Fatal("failed to create XRPL manager signer", zap.Error(err))
 		}
-		managerSigners[vaa.ChainIDXRPL] = xrplSigner
+		managerSigners[vaa.ChainIDXRPL] = append(managerSigners[vaa.ChainIDXRPL], xrplSigner)
 
 		// Log the XRPL r-address
 		xrplPubKey := xrplSigner.PublicKey(rootCtx)
