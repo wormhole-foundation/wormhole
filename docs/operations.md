@@ -113,7 +113,7 @@ All guardians **must run validators for wormchain**, the codename of [Wormhole G
 
 #### Pre-requisites
 
-- Ensure you have [Go](https://golang.org/dl/) >= 1.25.10 installed.
+- Ensure you have [Go](https://golang.org/dl/) >= 1.26.3 installed.
 
 #### Building wormchaind binary
 
@@ -304,7 +304,7 @@ The following Cosmos based nodes were added prior to Gateway and guardians need 
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
 guardiand binary from source. A Git repo is much harder to tamper with than release binaries.
 
-To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.25.10
+To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.26.3
 
 First, check out the version of the Wormhole repo that you want to deploy:
 
