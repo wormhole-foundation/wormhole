@@ -33,6 +33,7 @@ standards-compliant token between chains, creating unique wrapped representation
 * Use a universal token representation that is compatible with most VM data types.
 * Allow domain-specific payload to be transferred along the token, enabling
   tight integration with smart contracts on the target chain.
+* Allow emergency pausing of token bridge operations.
 
 ## Non-Goals
 
@@ -54,13 +55,15 @@ respective Transfer message that is posted to Wormhole, or burns a wrapped token
 
 For inbound transfers they can consume, verify and process Wormhole messages containing a token bridge payload.
 
-There will be five different payloads:
+There will be seven different payloads:
 
 * `Transfer` - Will trigger the release of locked tokens or minting of wrapped tokens.
 * `TransferWithPayload` - Will trigger the release of locked tokens or minting of wrapped tokens, with additional domain-specific payload.
 * `AssetMeta` - Attests asset metadata (required before the first transfer).
 * `RegisterChain` - Register the token bridge contract (emitter address) for a foreign chain.
 * `UpgradeContract` - Upgrade the contract.
+* `RecoverChainId` - Recover the contract's `chainId` and `evmChainId` after a chain fork (EVM-only).
+* `SetPauserAddresses` - Set the addresses authorized to pause and unpause the token bridge.
 
 Since anyone can use Wormhole to publish messages that match the payload format of the token bridge, an authorization
 payload needs to be implemented. This is done using an `(emitter_chain, emitter_address)` tuple. Every endpoint of the
@@ -101,6 +104,14 @@ The metadata of a token can be attested by calling `attestToken` on its respecti
 wormhole network using the details. A token is identified by the tuple `(chain_id, chain_address)` and metadata should
 be mapped to this identifier. A wrapped asset may only ever be created once for a given identifier and not updated.
 
+### Pausing
+
+The token bridge supports an emergency pause for use during an active exploit. While paused, every entry point reverts except for governance handlers, `pause` (no-op), and `unpause`. Two roles control the pause state: a `pauser` may call `pause` to set `paused` to `true`, and an `unpauser` may call `unpause` to set it back to `false`. Both roles are configured per chain via a `SetPauserAddresses` governance message.
+
+The `pauser` and `unpauser` are kept as separate roles to allow for asymmetric authority between the two assigned addresses - for example, a 2/3 multisig empowered to pause while Wormhole governance is retained for unpause. These SHOULD be effectively different roles, but this is intentionally not enforced on-chain or in the Guardian VAA generation process.
+
+Either role may be left unset. A zero-length value or an all-zero address (of the target chain's native address size) is treated as the role being unassigned. When a role is unassigned, the corresponding entry point MUST revert before comparing the caller against the configured role. Implementations MUST NOT treat an all-zero address as an authorized caller. This allows governance to disable `pause` or `unpause` without removing the entry point - for example, leaving `pauser` unassigned on chains where pause authority is not yet desired, or zeroing a key suspected of compromise without first provisioning its replacement. If `unpauser` is unassigned while the bridge is paused, recovery requires Wormhole governance to first assign a non-zero `unpauser` via `SetPauserAddresses`.
+
 ### Handling of token amounts and decimals
 
 Due to constraints on some supported chains, all token amounts passed through the token bridge are truncated to a maximum of 8 decimals.
@@ -140,6 +151,14 @@ a `TransferWithPayload`. Amount in the tokens native decimals. `payload` is an a
 `registerChain(Message registerChain)` - Execute a `RegisterChain` governance message
 
 `upgrade(Message upgrade)` - Execute a `UpgradeContract` governance message
+
+`submitRecoverChainId(Message recoverChainId)` - Execute a `RecoverChainId` governance message. Only callable on a forked chain (EVM-only).
+
+`pause()` - Set `paused` to `true`. Callable only by the `pauser`; reverts when `pauser` is unassigned.
+
+`unpause()` - Set `paused` to `false`. Callable only by the `unpauser`; reverts when `unpauser` is unassigned.
+
+`setPauserAddresses(Message setPauserAddresses)` - Execute a `SetPauserAddresses` governance message
 
 ---
 **Payloads**:
@@ -234,6 +253,55 @@ ChainId uint16
 NewContract [32]uint8
 ```
 
+RecoverChainId:
+
+```
+// Header
+// Module Identifier  ("TokenBridge" left-padded)
+Module [32]byte
+// Governance Action ID (3 for RecoverChainId)
+Action uint8 = 3
+
+// Packet
+// EVM chain ID of the forked chain. The contract MUST verify this
+// matches its current `block.chainid` before applying the update.
+EvmChainId uint256
+// New Wormhole chain ID to set on the contract
+NewChainId uint16
+```
+
+This action is only valid on a forked EVM chain. Unlike other governance messages, the payload is not targeted by Wormhole `ChainId` (since that is the value being recovered); instead, the contract requires `EvmChainId` to equal `block.chainid` so that the message can only be executed on the intended fork. On execution, the contract updates both its stored `evmChainId` and `chainId`.
+
+SetPauserAddresses:
+
+```
+// Header
+// Module Identifier  ("TokenBridge" left-padded)
+Module [32]byte
+// Governance Action ID (4 for SetPauserAddresses)
+Action uint8 = 4
+// Target Chain (Where the governance action should be applied)
+ChainId uint16
+
+// Packet
+// Length of the pauser address. Must equal the target chain's native
+// address size (e.g. 20 on EVM, 32 on Solana), or 0 to leave the role
+// unassigned. The receiver rejects any other length. An all-zero
+// address of the native size is equivalent to a zero length and is
+// also treated as unassigned.
+PauserLen uint8
+// Address authorized to pause the bridge
+Pauser [PauserLen]uint8
+// Length of the unpauser address. Must equal the target chain's
+// native address size, or 0 to leave the role unassigned. An all-zero
+// address of the native size is also treated as unassigned.
+UnpauserLen uint8
+// Address authorized to unpause the bridge
+Unpauser [UnpauserLen]uint8
+```
+
+Implementations MUST perform length-based validation for `SetPauserAddresses` on the target runtime, ensuring each address is an expected length (e.g. 20 bytes for EVM, 32 bytes for SVM) and that there are no remaining bytes after parsing the two addresses.
+
 ## Caveats
 
 ### Transfer completion
@@ -252,6 +320,29 @@ target chain. However, the transfer will become executable once the wrapped asse
 The name and symbol fields of the Transfer payload are not guaranteed to be valid UTF8 strings.
 Implementations might truncate longer strings at the 32 byte mark, which may result in invalid UTF8 bytes at the end.
 Thus, any client wishing to present these as strings must validate them first, potentially dropping the garbage at the end.
+
+### Backwards compatibility of the pause check
+
+Adding the `paused` check is interface backwards compatible on EVM and Solana. On Solana, the bridge already passes the `config` account on all relevant instructions, so no client-side changes are required to begin enforcing the new check.
+
+However, deploying pause support updates existing contract state. For example, the SVM implementation resizes account data and there is no built-in rollback path to the exact pre-upgrade state. This should not break existing deployments, but integrators, SDKs, and off-chain indexers that assume the previous storage layout or account size may need to account for the new pause fields.
+
+## Alternatives Considered
+
+### Granular pause
+
+Rather than a single boolean `paused` state, the bridge could expose finer-grained pauses (e.g. inbound vs. outbound) so that, for example, redemptions can continue while new deposits are blocked. We are not taking this approach now in favor of a simple boolean; granular pause can be added later without breaking the pause/unpause governance defined here.
+
+### Temporary pause
+
+Instead of a boolean, the `paused` state could be set to a timestamp after which the contract is no longer considered paused. This would introduce a slight additional implementation complexity as well as a risk that the contract could become pre-maturely unpaused.
+
+### Per-runtime `SetPauserAddresses` actions
+
+`SetPauserAddresses` could use a separate governance action per runtime (e.g. action 4 for 20-byte EVM addresses, action 5 for 32-byte Solana pubkeys) instead of a single length-prefixed encoding. This was rejected for two reasons:
+
+1. The fixed 32-byte left-padded encoding used by `RegisterChain.EmitterAddress` does not generalize to runtimes whose native addresses exceed 32 bytes (e.g. NEAR account IDs, Stacks contract principals, Cosmos bech32 strings). Length-prefix supports any address size up to 255 bytes without requiring a new action ID per runtime.
+2. The safety property of "the receiver only accepts addresses well-formed for its runtime" is preserved either way - with per-runtime actions, the receiver checks the action ID; with length-prefix, the receiver checks the length against its native address size. In both cases the off-chain encoder must know the target chain's address format, so the wire format is the only thing that differs.
 
 <!-- Local Variables: -->
 <!-- fill-column: 120 -->

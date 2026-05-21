@@ -230,14 +230,15 @@ uatom
 uluna
 unbond
 Uncompromised
+undelegated
 undercollateralization
 unforgeable
 unichain
 Unichain
-undelegated
 unmarshal
 unmarshals
 unnormalize
+unpauser
 untampered
 upserted
 utest
