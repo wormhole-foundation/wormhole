@@ -762,18 +762,19 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 		return nil
 	}
 
-	return p.handleCanonicalDelegateObservation(ctx, cfg, &d)
+	return p.handleCanonicalDelegateObservation(ctx, cfg, &d, mp, hash)
 }
 
-// handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
-// This function assumes cfg corresponds to m.EmitterChain
+// handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian.
+// This function assumes cfg corresponds to m.EmitterChain, and mp/hash were
+// derived from m by delegateObservationToMessagePublication and CreateDigest.
 //
 // SECURITY: This function must only be called if the current Guardian is a canonical Guardian for this chain.
 //
 // WARNING: This returns error if the Accountant fails to process the message and propagates it
 // to the `processor` which in turn interprets this as a signal to RESTART THE PROCESSOR.
 // Therefore, errors returned by this function effectively act as panics.
-func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegatedGuardianChainConfig, m *gossipv1.DelegateObservation) error {
+func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegatedGuardianChainConfig, m *gossipv1.DelegateObservation, mp *node_common.MessagePublication, hash string) error {
 	if cfg == nil {
 		p.logger.Warn("nil delegated guardian chain config")
 		return nil
@@ -788,26 +789,8 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	}
 
 	addr := common.BytesToAddress(m.GuardianAddr)
-	mp, err := delegateObservationToMessagePublication(m)
-	if err != nil {
-		p.logger.Warn("failed to convert delegate observation to message publication",
-			zap.Uint32("emitter_chain", m.EmitterChain),
-			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
-			zap.Uint64("sequence", m.Sequence),
-			zap.String("guardian_addr", addr.Hex()),
-			zap.Error(err),
-		)
-		delegateObservationsFailedTotal.WithLabelValues("invalid_delegate_observation").Inc()
-		return nil
-	}
 
 	delegateObservationsReceivedByGuardianAddressTotal.WithLabelValues(addr.Hex()).Inc()
-
-	// Key the delegate-state bucket by the VAA signing digest, matching the
-	// canonical observation path (pkg/processor/message.go). This excludes
-	// fields not encoded in the VAA (notably IsReobservation), so signatures
-	// from a partially-reobserved delegate set merge into one bucket.
-	hash := mp.CreateDigest()
 
 	// Get / create our state entry.
 	s := p.delegateState.observations[hash]
@@ -975,25 +958,44 @@ func (s *delegateState) consensusTxID() []byte {
 		txID  []byte
 		count int
 	}
-	counts := map[string]*entry{}
+
+	const maxDelegatedGuardianSetSize = 19
+
+	// Delegated guardian sets are bounded by the normal guardian set size. A
+	// fixed local buffer avoids map/string allocations on this hot path.
+	var fixedCounts [maxDelegatedGuardianSetSize]entry
+	counts := fixedCounts[:0]
+
+	maxIdx := -1
 	for _, obs := range s.observations {
-		key := string(obs.TxHash)
-		if e, exists := counts[key]; exists {
-			e.count++
-		} else {
-			counts[key] = &entry{txID: obs.TxHash, count: 1}
+		// Find the existing TxID bucket, if any. Linear search is cheaper than a
+		// map for the small delegated sets this path handles.
+		idx := -1
+		for i := range counts {
+			if bytes.Equal(counts[i].txID, obs.TxHash) {
+				idx = i
+				break
+			}
+		}
+		if idx == -1 {
+			// No TxID bucket exists, so this is the first time we've seen this TxID.
+			// Create a new bucket.
+			counts = append(counts, entry{txID: obs.TxHash})
+			idx = len(counts) - 1
+		}
+		counts[idx].count++
+
+		// Track the max-count TxID as counts change. Equal counts are broken by
+		// lexicographic TxID order so the result is deterministic despite Go map
+		// iteration order over s.observations.
+		if maxIdx == -1 ||
+			counts[idx].count > counts[maxIdx].count ||
+			(counts[idx].count == counts[maxIdx].count && bytes.Compare(counts[idx].txID, counts[maxIdx].txID) < 0) {
+			maxIdx = idx
 		}
 	}
-	var best *entry
-	for _, e := range counts {
-		if best == nil ||
-			e.count > best.count ||
-			(e.count == best.count && bytes.Compare(e.txID, best.txID) < 0) {
-			best = e
-		}
-	}
-	if best == nil {
+	if maxIdx == -1 {
 		return nil
 	}
-	return best.txID
+	return counts[maxIdx].txID
 }

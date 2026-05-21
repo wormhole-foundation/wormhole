@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"runtime/pprof"
 	"testing"
@@ -20,7 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
+
+var benchmarkConsensusTxIDSink []byte
 
 /*
 No gwrelayer:
@@ -115,6 +119,161 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 		}
 	}
 	require.Equal(b, NumObservations, len(pd.gossipVaaSendC))
+}
+
+func BenchmarkCheckForDelegateQuorum(b *testing.B) {
+	// Thirteen delegates is a realistic upper bound for delegated guardian sets;
+	// the protocol-level hard bound is the 19-member normal guardian set.
+	const numDelegates = 13
+
+	signers := make([]ethCommon.Address, 0, numDelegates)
+	for i := 1; i <= numDelegates; i++ {
+		signers = append(signers, ethCommon.BigToAddress(big.NewInt(int64(i))))
+	}
+
+	cfg, err := NewDelegatedGuardianChainConfig(signers, vaa.CalculateQuorum(len(signers)))
+	require.NoError(b, err)
+
+	txHash := ethCommon.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes()
+	bucket := &delegateState{
+		firstObserved: time.Now(),
+		observations:  make(map[ethCommon.Address]*gossipv1.DelegateObservation, cfg.Quorum()),
+		cfg:           cfg,
+	}
+	for _, signer := range signers[:cfg.Quorum()] {
+		bucket.observations[signer] = makeDelegateObs(b, signer, txHash, false)
+	}
+
+	emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
+	require.NoError(b, err)
+	mp := &common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        time.Unix(1746026862, 0),
+		Nonce:            0,
+		Sequence:         95838,
+		ConsistencyLevel: 1,
+		EmitterChain:     vaa.ChainIDMoonbeam,
+		EmitterAddress:   emitter,
+		Payload:          []byte("payload"),
+	}
+
+	// Keep the processor deliberately minimal. checkForDelegateQuorum dispatches
+	// to the downstream consensus path after quorum, but a nil guardian set makes
+	// handleMessage return before signing or VAA aggregation. That keeps this
+	// benchmark focused on delegate quorum accounting, TxID selection,
+	// normalization, and dispatch overhead.
+	p := &Processor{logger: zap.NewNop()}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		bucket.submitted = false
+		if err := p.checkForDelegateQuorum(ctx, mp, bucket, cfg); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkConsensusTxID(b *testing.B) {
+	// Match the realistic delegated-set size used by BenchmarkCheckForDelegateQuorum.
+	const numDelegates = 13
+
+	signers := make([]ethCommon.Address, 0, numDelegates)
+	for i := 1; i <= numDelegates; i++ {
+		signers = append(signers, ethCommon.BigToAddress(big.NewInt(int64(i))))
+	}
+
+	b.Run("unanimous", func(b *testing.B) {
+		txHash := ethCommon.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes()
+		bucket := &delegateState{observations: make(map[ethCommon.Address]*gossipv1.DelegateObservation, len(signers))}
+		for _, signer := range signers {
+			bucket.observations[signer] = makeDelegateObs(b, signer, txHash, false)
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for range b.N {
+			benchmarkConsensusTxIDSink = bucket.consensusTxID()
+		}
+	})
+
+	b.Run("unique", func(b *testing.B) {
+		bucket := &delegateState{observations: make(map[ethCommon.Address]*gossipv1.DelegateObservation, len(signers))}
+		for i, signer := range signers {
+			txHash := ethCommon.BigToHash(big.NewInt(int64(i + 1))).Bytes()
+			bucket.observations[signer] = makeDelegateObs(b, signer, txHash, false)
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for range b.N {
+			benchmarkConsensusTxIDSink = bucket.consensusTxID()
+		}
+	})
+
+	b.Run("majority", func(b *testing.B) {
+		txMaj := ethCommon.HexToHash("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb").Bytes()
+		txMin := ethCommon.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").Bytes()
+		bucket := &delegateState{observations: make(map[ethCommon.Address]*gossipv1.DelegateObservation, len(signers))}
+		for i, signer := range signers {
+			txHash := txMin
+			if i < 7 {
+				txHash = txMaj
+			}
+			bucket.observations[signer] = makeDelegateObs(b, signer, txHash, false)
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for range b.N {
+			benchmarkConsensusTxIDSink = bucket.consensusTxID()
+		}
+	})
+}
+
+func BenchmarkHandleSignedDelegateObservation(b *testing.B) {
+	// Thirteen delegates is a realistic upper bound for delegated guardian sets;
+	// this benchmark sends one valid observation, keeping the bucket below quorum
+	// so it measures signed-delegate validation, conversion, digesting, and bucket
+	// update without downstream consensus publication.
+	const numDelegates = 13
+
+	signers := make([]ethCommon.Address, 0, numDelegates)
+	for i := 1; i <= numDelegates; i++ {
+		signers = append(signers, ethCommon.BigToAddress(big.NewInt(int64(i))))
+	}
+	cfg, err := NewDelegatedGuardianChainConfig(signers, vaa.CalculateQuorum(len(signers)))
+	require.NoError(b, err)
+
+	dgc := NewDelegatedGuardianConfig()
+	require.NoError(b, dgc.Set(map[vaa.ChainID]*DelegatedGuardianChainConfig{
+		vaa.ChainIDMoonbeam: cfg,
+	}))
+
+	txHash := ethCommon.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes()
+	obs := makeDelegateObs(b, signers[0], txHash, false)
+	obsBytes, err := proto.Marshal(obs)
+	require.NoError(b, err)
+	signedObs := &gossipv1.SignedDelegateObservation{
+		DelegateObservation: obsBytes,
+		GuardianAddr:        signers[0].Bytes(),
+	}
+
+	p := &Processor{
+		logger:        zap.NewNop(),
+		dgc:           dgc,
+		delegateState: &delegateAggregationState{delegateObservationMap{}},
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if err := p.handleSignedDelegateObservation(ctx, signedObs); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 type ProcessorData struct {
