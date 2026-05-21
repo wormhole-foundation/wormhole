@@ -37,6 +37,11 @@ use token_bridge::{
         WrappedDerivationData,
         WrappedMint,
     },
+    api::{
+        PAUSED_EVENT_DISCRIMINATOR,
+        PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR,
+        UNPAUSED_EVENT_DISCRIMINATOR,
+    },
     messages::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
@@ -45,9 +50,11 @@ use token_bridge::{
         PayloadTransferWithPayload,
     },
     types::{
-        read_paused,
-        read_pauser,
-        read_unpauser,
+        // Aliased locally to keep the test code free of name conflicts with the `pauser` /
+        // `unpauser` local variables and Keypairs the tests create.
+        paused as read_paused,
+        pauser as read_pauser,
+        unpauser as read_unpauser,
         Config,
         CONFIG_BORSH_LEN,
         CONFIG_FULL_LEN,
@@ -627,7 +634,7 @@ async fn transfer_native_with_payload_in() {
     .unwrap();
 }
 
-// ============== Pauser tests (whitepapers/0003_token_bridge.md, "Pausing" section) ==============
+// ============== Pauser tests (whitepapers/0003_token_bridge.md Pausing) ==============
 //
 // These tests exercise the lazy migration of the `Config` PDA from the legacy 32-byte layout to
 // the 97-byte layout, the configured pauser/unpauser flow, and the `notPaused` gate on a
@@ -641,7 +648,7 @@ const SET_PAUSER_ADDRESSES_ACTION: u8 = 4;
 async fn submit_set_pauser_addresses(context: &mut Context, pauser: Pubkey, unpauser: Pubkey) {
     let payload = PayloadSetPauserAddresses { pauser, unpauser };
     let message = payload.try_to_vec().unwrap();
-    // Sanity-check the encoded wire format matches whitepaper 0003 §"Pausing":
+    // Sanity-check the encoded wire format matches whitepapers/0003_token_bridge.md Pausing:
     //   module(32) | action(1)=4 | chain(2) | pauser_len(1)=32 | pauser(32)
     //                                       | unpauser_len(1)=32 | unpauser(32)
     // Total: 32 + 1 + 2 + 1 + 32 + 1 + 32 = 101 bytes.
@@ -996,7 +1003,7 @@ async fn legacy_unmigrated_compat() {
 
 // ============== SetPauserAddresses wire-format validation (whitepaper 0003) ==============
 //
-// Whitepaper 0003 §"Pausing" defines a length-prefixed encoding shared across runtimes:
+// whitepapers/0003_token_bridge.md Pausing defines a length-prefixed encoding shared across runtimes:
 //
 //     module(32) | action(1)=4 | chain(2)
 //   | pauser_len(1)   | pauser[pauser_len]
@@ -1135,4 +1142,344 @@ async fn set_pauser_addresses_rejects_legacy_action_id() {
     submit_raw_set_pauser_addresses(&mut context, payload)
         .await
         .expect_err("legacy action 5 must be rejected (current spec is action 4)");
+}
+
+// ==================== Paused gate coverage across user entry points ====================
+//
+// Per the "Pausing" section of whitepaper 0003, every user-facing entry point on the token
+// bridge must revert with `Paused` while the bridge is paused. The `require_not_paused`
+// helper in `types.rs` is wired into all of:
+//   - api::attest::attest_token
+//   - api::create_wrapped::create_wrapped
+//   - api::transfer::transfer_native / transfer_wrapped
+//   - api::transfer_payload::transfer_native_with_payload / transfer_wrapped_with_payload
+//   - api::complete_transfer::complete_native / complete_wrapped
+//   - api::complete_transfer_payload::complete_native_with_payload / complete_wrapped_with_payload
+//
+// Rather than spin up ten near-identical tests (each needs its own VAA + account setup), the
+// table-driven test below pauses the bridge once and exercises a representative subset of
+// these entry points sequentially. The subset is chosen so each distinct family of arguments
+// (outbound native, outbound wrapped, AssetMeta-driven create_wrapped, inbound transfer) is
+// represented at least once. The `*_with_payload` variants share the same gate call site as
+// their non-payload counterparts; the `pause_blocks_transfer_and_unpause_restores` test
+// already exercises the gate-followed-by-state-restore round trip end-to-end on transfer_native.
+
+#[tokio::test]
+async fn paused_blocks_all_user_entry_points() {
+    let mut context = set_up().await.unwrap();
+    register_chain(&mut context).await;
+
+    // Configure pauser/unpauser and pause the bridge.
+    let pauser = Keypair::new();
+    let unpauser = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &pauser.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &unpauser.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    submit_set_pauser_addresses(&mut context, pauser.pubkey(), unpauser.pubkey()).await;
+    common::pause(
+        &mut context.client,
+        context.token_bridge,
+        &pauser,
+        &context.payer,
+    )
+    .await
+    .unwrap();
+
+    // (1) attest — emits AssetMeta for a native mint. Outbound, simplest path.
+    {
+        let message = Keypair::new();
+        common::attest(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            &context.payer,
+            &message,
+            context.mint.pubkey(),
+            0,
+        )
+        .await
+        .expect_err("attest must fail while paused");
+    }
+
+    // (2) transfer_native — outbound burn of native SPL token.
+    {
+        let message = Keypair::new();
+        common::transfer_native(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            &context.payer,
+            &message,
+            &context.token_account,
+            &context.token_authority,
+            context.mint.pubkey(),
+            100,
+        )
+        .await
+        .expect_err("transfer_native must fail while paused");
+    }
+
+    // (3) create_wrapped — inbound AssetMeta-driven wrapper creation.
+    {
+        let nonce = rand::thread_rng().gen();
+        let payload = PayloadAssetMeta {
+            token_address: [2u8; 32],
+            token_chain: 2,
+            decimals: 7,
+            symbol: "".to_string(),
+            name: "".to_string(),
+        };
+        let message = payload.try_to_vec().unwrap();
+        let (vaa, body, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 42);
+        let signature_set = common::verify_signatures(
+            &mut context.client,
+            &context.bridge,
+            &context.payer,
+            body,
+            &context.guardian_keys,
+            0,
+        )
+        .await
+        .unwrap();
+        common::post_vaa(
+            &mut context.client,
+            context.bridge,
+            &context.payer,
+            signature_set,
+            vaa.clone(),
+        )
+        .await
+        .unwrap();
+        let msg_derivation_data = &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        };
+        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+            msg_derivation_data,
+            &context.bridge,
+        );
+
+        common::create_wrapped(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            message_key,
+            vaa,
+            payload,
+            &context.payer,
+        )
+        .await
+        .expect_err("create_wrapped must fail while paused");
+    }
+
+    // (4) complete_native — inbound release of native custody. Construct a Transfer VAA that
+    //     targets the existing token account; the request must fail at the paused gate before
+    //     touching the custody account.
+    {
+        let nonce = rand::thread_rng().gen();
+        let payload = PayloadTransfer {
+            amount: U256::from(1u128),
+            token_address: context.mint.pubkey().to_bytes(),
+            token_chain: 1,
+            to: context.token_account.pubkey().to_bytes(),
+            to_chain: 1,
+            fee: U256::from(0u128),
+        };
+        let message = payload.try_to_vec().unwrap();
+        let (vaa, body, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 43);
+        let signature_set = common::verify_signatures(
+            &mut context.client,
+            &context.bridge,
+            &context.payer,
+            body,
+            &context.guardian_keys,
+            0,
+        )
+        .await
+        .unwrap();
+        common::post_vaa(
+            &mut context.client,
+            context.bridge,
+            &context.payer,
+            signature_set,
+            vaa.clone(),
+        )
+        .await
+        .unwrap();
+        let msg_derivation_data = &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        };
+        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+            msg_derivation_data,
+            &context.bridge,
+        );
+
+        common::complete_native(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            message_key,
+            vaa,
+            payload,
+            &context.payer,
+        )
+        .await
+        .expect_err("complete_native must fail while paused");
+    }
+
+    // Now unpause and verify at least one entry point is functional again — this proves the
+    // gate is the sole reason the calls above were failing (not some unrelated misconfiguration).
+    common::unpause(
+        &mut context.client,
+        context.token_bridge,
+        &unpauser,
+        &context.payer,
+    )
+    .await
+    .unwrap();
+    {
+        let message = Keypair::new();
+        common::attest(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            &context.payer,
+            &message,
+            context.mint.pubkey(),
+            0,
+        )
+        .await
+        .expect("attest must succeed after unpause");
+    }
+}
+
+#[tokio::test]
+async fn rotate_pauser_addresses_while_paused() {
+    // Confirms that `submit_set_pauser_addresses` (a governance handler) is callable while the
+    // bridge is paused, that the new keys take effect atomically, and that the `paused` flag is
+    // preserved across the rotation (a rotation does not implicitly unpause).
+    let mut context = set_up().await.unwrap();
+
+    let pauser_one = Keypair::new();
+    let unpauser_one = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &pauser_one.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    submit_set_pauser_addresses(&mut context, pauser_one.pubkey(), unpauser_one.pubkey()).await;
+    common::pause(
+        &mut context.client,
+        context.token_bridge,
+        &pauser_one,
+        &context.payer,
+    )
+    .await
+    .unwrap();
+    let paused_data = fetch_config_data(&mut context).await;
+    assert!(read_paused(&paused_data));
+
+    // Rotate to a new pauser / unpauser pair while paused.
+    let pauser_two = Keypair::new();
+    let unpauser_two = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &unpauser_two.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    submit_set_pauser_addresses(&mut context, pauser_two.pubkey(), unpauser_two.pubkey()).await;
+
+    let post = fetch_config_data(&mut context).await;
+    assert_eq!(read_pauser(&post), pauser_two.pubkey());
+    assert_eq!(read_unpauser(&post), unpauser_two.pubkey());
+    assert!(
+        read_paused(&post),
+        "paused flag must be preserved across rotation",
+    );
+
+    // Old unpauser_one can no longer unpause.
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &unpauser_one.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    common::unpause(
+        &mut context.client,
+        context.token_bridge,
+        &unpauser_one,
+        &context.payer,
+    )
+    .await
+    .expect_err("old unpauser must be rejected after rotation");
+
+    // New unpauser_two can.
+    common::unpause(
+        &mut context.client,
+        context.token_bridge,
+        &unpauser_two,
+        &context.payer,
+    )
+    .await
+    .unwrap();
+    assert!(!read_paused(&fetch_config_data(&mut context).await));
+}
+
+// ==================== Event discriminator derivation pins ====================
+//
+// Each Anchor-style event discriminator is `SHA256("event:<EventName>")[..8]`. The constants in
+// `api/pause.rs` and `api/governance.rs` are pre-computed; these tests re-derive them at test
+// time and assert equality, so a future change to either the event name string or the constant
+// fails CI rather than silently mis-emitting events that off-chain indexers can't decode.
+// Mirrors the `test_message_account_closed_discriminator_matches_sha256` check in the core
+// bridge integration tests.
+
+#[test]
+fn test_paused_event_discriminator_matches_sha256() {
+    let hash = solana_program::hash::hash(b"event:Paused");
+    let expected = &hash.to_bytes()[..8];
+    assert_eq!(
+        PAUSED_EVENT_DISCRIMINATOR, expected,
+        "PAUSED_EVENT_DISCRIMINATOR must equal SHA256(\"event:Paused\")[..8]",
+    );
+}
+
+#[test]
+fn test_unpaused_event_discriminator_matches_sha256() {
+    let hash = solana_program::hash::hash(b"event:Unpaused");
+    let expected = &hash.to_bytes()[..8];
+    assert_eq!(
+        UNPAUSED_EVENT_DISCRIMINATOR, expected,
+        "UNPAUSED_EVENT_DISCRIMINATOR must equal SHA256(\"event:Unpaused\")[..8]",
+    );
+}
+
+#[test]
+fn test_pauser_addresses_set_event_discriminator_matches_sha256() {
+    let hash = solana_program::hash::hash(b"event:PauserAddressesSet");
+    let expected = &hash.to_bytes()[..8];
+    assert_eq!(
+        PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR, expected,
+        "PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR must equal SHA256(\"event:PauserAddressesSet\")[..8]",
+    );
 }

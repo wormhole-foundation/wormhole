@@ -107,6 +107,9 @@ pub enum TokenBridgeError {
     InvalidPauser,
     /// Configured pauser / unpauser is the zero pubkey, so that side of the pair is disabled.
     PauserNotConfigured,
+    /// `self_program` account passed by the caller does not match this program's `program_id`.
+    /// Only used to defensively guard the self-CPI that emits Anchor-style events.
+    InvalidProgramOwner,
 }
 
 impl From<TokenBridgeError> for SolitaireError {
@@ -116,6 +119,7 @@ impl From<TokenBridgeError> for SolitaireError {
 }
 
 solitaire! {
+    @event_cpi,
     Initialize => initialize,
     AttestToken => attest_token,
     CompleteNative => complete_native,

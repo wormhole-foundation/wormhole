@@ -12,7 +12,10 @@ use solana_program::{
         IsInitialized,
         Pack,
     },
-    pubkey::Pubkey,
+    pubkey::{
+        Pubkey,
+        PUBKEY_BYTES,
+    },
 };
 use solitaire::{
     pack_type,
@@ -77,50 +80,93 @@ impl Owned for Config {
 ///
 /// Lazy migration: legacy 32-byte accounts are treated as "unpaused, no pauser configured".
 /// The first `SetPauserAddresses` governance VAA realloc's the account to
-/// `CONFIG_BORSH_LEN + PAUSER_TAIL_LEN` bytes and writes the tail.
+/// `CONFIG_BORSH_LEN + PAUSER_TAIL_LEN` bytes and writes the tail. After migration, both
+/// `pauser` and `unpauser` may still be set to `Pubkey::default()` via governance — this is
+/// the canonical "role unassigned" encoding, and `api::pause` reverts before comparing the
+/// caller in that case (see whitepapers/0003_token_bridge.md Pausing).
 ///
 /// Tail layout (97-byte total Config account):
-///   bytes 32 .. 33 : `paused` (u8, 0 = false, anything else = true)
+///   bytes 32 .. 33 : `paused` (u8, exactly 0 or 1 — see `write_paused` / `paused()`)
 ///   bytes 33 .. 65 : `pauser`   (Pubkey)
 ///   bytes 65 .. 97 : `unpauser` (Pubkey)
 ///
 /// See the "Pausing" section of whitepapers/0003_token_bridge.md.
+
+// Account-size sentinels: a Config account is either CONFIG_BORSH_LEN (legacy / un-migrated)
+// or CONFIG_FULL_LEN (post-migration). Any other length on a successfully-deserialized account
+// would indicate corruption.
 pub const CONFIG_BORSH_LEN: usize = 32;
-pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
-pub const PAUSER_OFFSET: usize = PAUSED_OFFSET + 1;
-pub const UNPAUSER_OFFSET: usize = PAUSER_OFFSET + 32;
-pub const PAUSER_TAIL_LEN: usize = 1 + 32 + 32;
+pub const PAUSER_TAIL_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES;
 pub const CONFIG_FULL_LEN: usize = CONFIG_BORSH_LEN + PAUSER_TAIL_LEN;
 
-/// Read the `paused` flag, returning `false` for legacy (un-extended) accounts.
-pub fn read_paused(config_data: &[u8]) -> bool {
-    config_data.len() > PAUSED_OFFSET && config_data[PAUSED_OFFSET] != 0
+// Byte offsets inside the tail (relative to the start of the Config account).
+pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
+pub const PAUSER_OFFSET: usize = PAUSED_OFFSET + 1;
+pub const UNPAUSER_OFFSET: usize = PAUSER_OFFSET + PUBKEY_BYTES;
+
+// Pin offset/length relationships at compile time so a future tweak to the constants can't
+// silently corrupt the tail layout. (Written with `if ... { panic!() }` rather than `assert!`
+// because clippy's `assertions_on_constants` lint flags compile-time-constant `assert!` calls.)
+const _: () = {
+    if PAUSED_OFFSET >= CONFIG_FULL_LEN {
+        panic!("PAUSED_OFFSET must fall inside the tail");
+    }
+    if PAUSER_OFFSET + PUBKEY_BYTES > CONFIG_FULL_LEN {
+        panic!("pauser slot must fit inside CONFIG_FULL_LEN");
+    }
+    if UNPAUSER_OFFSET + PUBKEY_BYTES != CONFIG_FULL_LEN {
+        panic!("unpauser slot must end exactly at CONFIG_FULL_LEN");
+    }
+};
+
+/// Read the `paused` flag. Returns `false` for legacy (un-migrated) accounts; otherwise the
+/// stored byte is interpreted strictly — `0` is unpaused, `1` is paused, any other value is
+/// considered corrupted and treated as paused (fail-closed). Writers (`write_paused`) only ever
+/// store `0` or `1`, so a non-canonical byte should not occur in practice.
+#[must_use]
+pub fn paused(config_data: &[u8]) -> bool {
+    if config_data.len() < CONFIG_FULL_LEN {
+        return false;
+    }
+    match config_data[PAUSED_OFFSET] {
+        0 => false,
+        1 => true,
+        // Fail-closed on corruption: any non-canonical byte is treated as paused.
+        _ => true,
+    }
 }
 
-/// Read the configured pauser. Returns the all-zero pubkey for legacy accounts (which pause.rs
-/// rejects via `PauserNotConfigured`), so callers don't need to special-case un-extended state.
-pub fn read_pauser(config_data: &[u8]) -> Pubkey {
-    if config_data.len() < UNPAUSER_OFFSET {
+/// Read the configured pauser. Returns `Pubkey::default()` for legacy (un-migrated) accounts
+/// AND for accounts where governance explicitly set the role to the zero pubkey.
+#[must_use]
+pub fn pauser(config_data: &[u8]) -> Pubkey {
+    if config_data.len() < CONFIG_FULL_LEN {
         return Pubkey::default();
     }
-    Pubkey::new(&config_data[PAUSER_OFFSET..PAUSER_OFFSET + 32])
+    Pubkey::new(&config_data[PAUSER_OFFSET..(PAUSER_OFFSET + PUBKEY_BYTES)])
 }
 
-/// Read the configured unpauser. Same legacy-account semantics as `read_pauser`.
-pub fn read_unpauser(config_data: &[u8]) -> Pubkey {
-    if config_data.len() < UNPAUSER_OFFSET + 32 {
+/// Read the configured unpauser. Same legacy / unassigned semantics as [`pauser`].
+#[must_use]
+pub fn unpauser(config_data: &[u8]) -> Pubkey {
+    if config_data.len() < CONFIG_FULL_LEN {
         return Pubkey::default();
     }
-    Pubkey::new(&config_data[UNPAUSER_OFFSET..UNPAUSER_OFFSET + 32])
+    Pubkey::new(&config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)])
 }
 
-pub fn write_paused(config_data: &mut [u8], paused: bool) {
-    config_data[PAUSED_OFFSET] = if paused { 1 } else { 0 };
+pub(crate) fn write_paused(config_data: &mut [u8], paused: bool) {
+    config_data[PAUSED_OFFSET] = u8::from(paused);
 }
 
-pub fn write_pauser_addresses(config_data: &mut [u8], pauser: &Pubkey, unpauser: &Pubkey) {
-    config_data[PAUSER_OFFSET..PAUSER_OFFSET + 32].copy_from_slice(&pauser.to_bytes());
-    config_data[UNPAUSER_OFFSET..UNPAUSER_OFFSET + 32].copy_from_slice(&unpauser.to_bytes());
+pub(crate) fn write_pauser_addresses(
+    config_data: &mut [u8],
+    pauser: &Pubkey,
+    unpauser: &Pubkey,
+) {
+    config_data[PAUSER_OFFSET..(PAUSER_OFFSET + PUBKEY_BYTES)].copy_from_slice(&pauser.to_bytes());
+    config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)]
+        .copy_from_slice(&unpauser.to_bytes());
 }
 
 /// Returns `Err(Paused)` if the bridge is currently paused. Legacy (un-extended) Config
@@ -129,7 +175,7 @@ pub fn require_not_paused(
     config_info: &solana_program::account_info::AccountInfo,
 ) -> solitaire::Result<()> {
     let data = config_info.data.borrow();
-    if read_paused(&data) {
+    if paused(&data) {
         return Err(crate::TokenBridgeError::Paused.into());
     }
     Ok(())

@@ -15,6 +15,7 @@ use crate::{
     },
     TokenBridgeError::{
         InvalidGovernanceKey,
+        InvalidProgramOwner,
         InvalidVAA,
     },
     INVALID_VAAS,
@@ -171,6 +172,12 @@ pub fn register_chain(
     Ok(())
 }
 
+/// Event discriminator: `SHA256("event:PauserAddressesSet")[0..8]`. Emitted via Anchor-style
+/// self-CPI when `set_pauser_addresses` succeeds. Payload: 32-byte pauser pubkey followed by the
+/// 32-byte unpauser pubkey, in that order.
+pub const PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR: [u8; 8] =
+    [0xb9, 0xcf, 0x4f, 0x8f, 0x6c, 0x76, 0xdf, 0x6d];
+
 #[derive(FromAccounts)]
 pub struct SetPauserAddresses<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
@@ -179,11 +186,17 @@ pub struct SetPauserAddresses<'b> {
     /// time this governance VAA is processed; subsequent VAAs only update the tail.
     pub config: Mut<ConfigAccount<'b, { AccountState::Initialized }>>,
 
-    /// Governance VAA carrying a `PayloadSetPauserAddresses` (action 5).
+    /// Governance VAA carrying a `PayloadSetPauserAddresses` (action 4 per whitepaper 0003).
     pub vaa: PayloadMessage<'b, PayloadSetPauserAddresses>,
 
     /// VAA replay-protection claim, consistent with the rest of the token bridge governance.
     pub claim: Mut<Claim<'b>>,
+
+    /// Event authority PDA for Anchor CPI event signing.
+    pub event_authority: Info<'b>,
+
+    /// This program (for self-CPI).
+    pub self_program: Info<'b>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -205,6 +218,14 @@ pub fn set_pauser_addresses(
     // VAA is processed. Subsequent VAAs reuse the already-extended layout. The `paused` flag
     // is preserved across updates — rotating the pauser/unpauser keys does not implicitly
     // unpause the bridge.
+    //
+    // Borsh back-compat: the first 32 bytes of the account (the original `Config` struct) are
+    // never moved or rewritten, and the `Config::BorshDeserialize` impl in `types.rs` is
+    // hand-rolled to tolerate the trailing tail (instead of the derived impl that would reject
+    // any unread bytes). Off-chain clients that deserialize Config via Borsh against the raw
+    // account data continue to round-trip both before and after this migration. SDKs that read
+    // pauser state must use the `paused()` / `pauser()` / `unpauser()` helpers in `types.rs`,
+    // or similar, which check the account length and treat un-migrated accounts as unassigned.
     let config_info = accs.config.info();
     if config_info.data_len() < CONFIG_FULL_LEN {
         // Top up the lamport balance so the account remains rent-exempt at the new size, then
@@ -226,8 +247,22 @@ pub fn set_pauser_addresses(
         config_info.realloc(CONFIG_FULL_LEN, true)?;
     }
 
-    let mut data = config_info.data.borrow_mut();
-    write_pauser_addresses(&mut data, &accs.vaa.pauser, &accs.vaa.unpauser);
+    {
+        let mut data = config_info.data.borrow_mut();
+        write_pauser_addresses(&mut data, &accs.vaa.pauser, &accs.vaa.unpauser);
+        // `data` borrow dropped here so the self-CPI below can re-borrow the account.
+    }
 
-    Ok(())
+    if accs.self_program.key != ctx.program_id {
+        return Err(InvalidProgramOwner.into());
+    }
+    let mut payload = [0u8; 64];
+    payload[..32].copy_from_slice(&accs.vaa.pauser.to_bytes());
+    payload[32..].copy_from_slice(&accs.vaa.unpauser.to_bytes());
+    emit_event_cpi(
+        ctx,
+        &accs.event_authority,
+        &PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR,
+        &payload,
+    )
 }
