@@ -627,18 +627,41 @@ async fn transfer_native_with_payload_in() {
     .unwrap();
 }
 
-// ============================ Pauser tests (whitepapers/0018_pauser.md) ============================
+// ============== Pauser tests (whitepapers/0003_token_bridge.md, "Pausing" section) ==============
 //
 // These tests exercise the lazy migration of the `Config` PDA from the legacy 32-byte layout to
 // the 97-byte layout, the configured pauser/unpauser flow, and the `notPaused` gate on a
 // representative non-governance entry point. The legacy compatibility test then confirms an
 // un-migrated bridge still behaves identically to pre-upgrade.
 
-const SET_PAUSER_ADDRESSES_ACTION: u8 = 5;
+const SET_PAUSER_ADDRESSES_ACTION: u8 = 4;
 
 /// Build a `SetPauserAddresses` governance VAA, post it through the core bridge, and submit it
 /// to the token bridge. Returns the serialized payload so callers can assert what got applied.
 async fn submit_set_pauser_addresses(context: &mut Context, pauser: Pubkey, unpauser: Pubkey) {
+    let payload = PayloadSetPauserAddresses { pauser, unpauser };
+    let message = payload.try_to_vec().unwrap();
+    // Sanity-check the encoded wire format matches whitepaper 0003 §"Pausing":
+    //   module(32) | action(1)=4 | chain(2) | pauser_len(1)=32 | pauser(32)
+    //                                       | unpauser_len(1)=32 | unpauser(32)
+    // Total: 32 + 1 + 2 + 1 + 32 + 1 + 32 = 101 bytes.
+    assert_eq!(message[32], SET_PAUSER_ADDRESSES_ACTION);
+    assert_eq!(message[35], 32, "expected pauser_len = 32 (SVM native size)");
+    assert_eq!(message[68], 32, "expected unpauser_len = 32 (SVM native size)");
+    assert_eq!(message.len(), 101);
+
+    submit_raw_set_pauser_addresses(context, message)
+        .await
+        .expect("canonical SetPauserAddresses should succeed");
+}
+
+/// Build, post, and submit a `SetPauserAddresses` governance VAA carrying a caller-supplied raw
+/// payload. Returns the result of the on-chain submission so length-validation tests can assert
+/// on the rejection path without having to round-trip through `PayloadSetPauserAddresses`.
+async fn submit_raw_set_pauser_addresses(
+    context: &mut Context,
+    message: Vec<u8>,
+) -> std::result::Result<(), solana_program_test::BanksClientError> {
     let Context {
         ref payer,
         ref mut client,
@@ -652,12 +675,6 @@ async fn submit_set_pauser_addresses(context: &mut Context, pauser: Pubkey, unpa
     let nonce = rand::thread_rng().gen();
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = seq.next(emitter.pubkey().to_bytes());
-
-    let payload = PayloadSetPauserAddresses { pauser, unpauser };
-    let message = payload.try_to_vec().unwrap();
-    // Sanity-check the encoded action byte matches the wire format from whitepaper 0018:
-    // module(32) + action(1) + chain(2) + body. The action byte is at offset 32.
-    assert_eq!(message[32], SET_PAUSER_ADDRESSES_ACTION);
 
     let (vaa, body, _) =
         common::generate_vaa(emitter.pubkey().to_bytes(), 1, message, nonce, sequence);
@@ -674,9 +691,34 @@ async fn submit_set_pauser_addresses(context: &mut Context, pauser: Pubkey, unpa
     let message_key =
         PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(msg_derivation_data, bridge);
 
-    common::set_pauser_addresses(client, *token_bridge, *bridge, message_key, vaa, payer)
-        .await
-        .unwrap();
+    common::set_pauser_addresses(client, *token_bridge, *bridge, message_key, vaa, payer).await
+}
+
+/// Build a `SetPauserAddresses` governance payload with caller-controlled length-prefix bytes.
+/// `pauser_len` / `unpauser_len` are written verbatim, even if they don't match `pauser.len()` /
+/// `unpauser.len()`, so a test can construct malformed payloads (invalid length, all-zero, etc).
+fn build_set_pauser_addresses_payload(
+    pauser_len: u8,
+    pauser: &[u8],
+    unpauser_len: u8,
+    unpauser: &[u8],
+) -> Vec<u8> {
+    // "TokenBridge" left-padded to 32 bytes.
+    let module: [u8; 32] = {
+        let mut m = [0u8; 32];
+        let name = b"TokenBridge";
+        m[32 - name.len()..].copy_from_slice(name);
+        m
+    };
+    let mut payload = Vec::with_capacity(35 + 1 + pauser.len() + 1 + unpauser.len());
+    payload.extend_from_slice(&module);
+    payload.push(SET_PAUSER_ADDRESSES_ACTION); // action
+    payload.extend_from_slice(&1u16.to_be_bytes()); // OUR_CHAIN_ID = Solana
+    payload.push(pauser_len);
+    payload.extend_from_slice(pauser);
+    payload.push(unpauser_len);
+    payload.extend_from_slice(unpauser);
+    payload
 }
 
 /// Returns the raw `Config` account bytes — used to assert layout, paused flag, and tail
@@ -950,4 +992,147 @@ async fn legacy_unmigrated_compat() {
         CONFIG_BORSH_LEN,
         "transfers must not migrate the Config"
     );
+}
+
+// ============== SetPauserAddresses wire-format validation (whitepaper 0003) ==============
+//
+// Whitepaper 0003 §"Pausing" defines a length-prefixed encoding shared across runtimes:
+//
+//     module(32) | action(1)=4 | chain(2)
+//   | pauser_len(1)   | pauser[pauser_len]
+//   | unpauser_len(1) | unpauser[unpauser_len]
+//
+// On Solana each length must be 32 (native size) or 0 (role left unassigned). The receive
+// side must reject any other length and any trailing bytes after the second address. A
+// length-32 field of all zeros is equivalent to a zero-length field — both decode to
+// `Pubkey::default()` and the resulting role is treated as unassigned.
+
+#[tokio::test]
+async fn set_pauser_addresses_rejects_invalid_pauser_length() {
+    let mut context = set_up().await.unwrap();
+
+    // pauser_len = 20 (the EVM native size) must be rejected on Solana.
+    let pauser_body = [0xAAu8; 20];
+    let unpauser_body = [0xBBu8; 32];
+    let bad =
+        build_set_pauser_addresses_payload(20, &pauser_body, 32, &unpauser_body);
+
+    submit_raw_set_pauser_addresses(&mut context, bad)
+        .await
+        .expect_err("pauser_len = 20 must be rejected on SVM");
+
+    // Config must remain at the legacy size — no migration on a failed VAA.
+    let post = fetch_config_data(&mut context).await;
+    assert_eq!(post.len(), CONFIG_BORSH_LEN);
+}
+
+#[tokio::test]
+async fn set_pauser_addresses_rejects_invalid_unpauser_length() {
+    let mut context = set_up().await.unwrap();
+
+    let pauser_body = [0xAAu8; 32];
+    let unpauser_body = [0xBBu8; 33]; // off-by-one over the native size
+    let bad =
+        build_set_pauser_addresses_payload(32, &pauser_body, 33, &unpauser_body);
+
+    submit_raw_set_pauser_addresses(&mut context, bad)
+        .await
+        .expect_err("unpauser_len = 33 must be rejected on SVM");
+}
+
+#[tokio::test]
+async fn set_pauser_addresses_rejects_trailing_bytes() {
+    let mut context = set_up().await.unwrap();
+
+    let pauser_body = [0xAAu8; 32];
+    let unpauser_body = [0xBBu8; 32];
+    let mut bad = build_set_pauser_addresses_payload(32, &pauser_body, 32, &unpauser_body);
+    bad.extend_from_slice(&[0xCCu8; 5]); // trailing garbage
+
+    submit_raw_set_pauser_addresses(&mut context, bad)
+        .await
+        .expect_err("trailing bytes after unpauser must be rejected");
+}
+
+#[tokio::test]
+async fn set_pauser_addresses_zero_length_means_unassigned() {
+    let mut context = set_up().await.unwrap();
+
+    // pauser_len = 0, unpauser_len = 32 — exercises the "zero-length = unassigned" branch.
+    let unpauser_body = [0xBBu8; 32];
+    let payload = build_set_pauser_addresses_payload(0, &[], 32, &unpauser_body);
+    submit_raw_set_pauser_addresses(&mut context, payload)
+        .await
+        .expect("zero-length pauser is a valid encoding");
+
+    let post = fetch_config_data(&mut context).await;
+    assert_eq!(post.len(), CONFIG_FULL_LEN);
+    assert_eq!(
+        read_pauser(&post),
+        Pubkey::default(),
+        "zero-length pauser must decode as Pubkey::default()"
+    );
+    assert_eq!(read_unpauser(&post), Pubkey::new(&unpauser_body[..]));
+
+    // With pauser unassigned, the pause entry point must reject every caller — including a
+    // signer whose key is the all-zero pubkey would be, if we could construct it. We exercise
+    // the path with a non-zero stranger: the on-chain handler reverts with PauserNotConfigured
+    // BEFORE comparing the caller against the (zero) configured pauser.
+    let stranger = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &stranger.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    common::pause(
+        &mut context.client,
+        context.token_bridge,
+        &stranger,
+        &context.payer,
+    )
+    .await
+    .expect_err("pause must reject when pauser is unassigned");
+}
+
+#[tokio::test]
+async fn set_pauser_addresses_all_zero_32_byte_is_unassigned() {
+    let mut context = set_up().await.unwrap();
+
+    // pauser_len = 32 with all-zero bytes is the "all-zero native-size address" encoding. Per
+    // the whitepaper it MUST be treated as equivalent to length 0 — i.e. unassigned.
+    let zero_pauser = [0u8; 32];
+    let unpauser_body = [0xBBu8; 32];
+    let payload = build_set_pauser_addresses_payload(32, &zero_pauser, 32, &unpauser_body);
+    submit_raw_set_pauser_addresses(&mut context, payload)
+        .await
+        .expect("length-32 all-zero pauser is a valid encoding");
+
+    let post = fetch_config_data(&mut context).await;
+    assert_eq!(read_pauser(&post), Pubkey::default());
+    assert_eq!(read_unpauser(&post), Pubkey::new(&unpauser_body[..]));
+
+    // Recovery: a follow-up VAA can assign a non-zero pauser without first having to "clear"
+    // the previous one.
+    let real_pauser = Pubkey::new_unique();
+    submit_set_pauser_addresses(&mut context, real_pauser, Pubkey::new(&unpauser_body[..])).await;
+    let post = fetch_config_data(&mut context).await;
+    assert_eq!(read_pauser(&post), real_pauser);
+}
+
+#[tokio::test]
+async fn set_pauser_addresses_rejects_legacy_action_id() {
+    let mut context = set_up().await.unwrap();
+
+    // The pre-merge SVM design used action 5. The whitepaper now mandates a single action 4
+    // shared across runtimes (the per-runtime split was explicitly rejected in the
+    // "Alternatives Considered" section). A VAA carrying the old action 5 must be rejected.
+    let mut payload = build_set_pauser_addresses_payload(32, &[0u8; 32], 32, &[0u8; 32]);
+    payload[32] = 5; // overwrite action byte
+
+    submit_raw_set_pauser_addresses(&mut context, payload)
+        .await
+        .expect_err("legacy action 5 must be rejected (current spec is action 4)");
 }

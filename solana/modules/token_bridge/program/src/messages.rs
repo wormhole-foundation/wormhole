@@ -18,7 +18,10 @@ use byteorder::{
 use primitive_types::U256;
 use solana_program::{
     program_error::ProgramError::InvalidAccountData,
-    pubkey::Pubkey,
+    pubkey::{
+        Pubkey,
+        PUBKEY_BYTES,
+    },
 };
 use solitaire::SolitaireError;
 use std::{
@@ -369,8 +372,16 @@ impl SerializeGovernancePayload for GovernancePayloadUpgrade {
 impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 }
 
-/// Body of action 5 (`SetPauserAddressesSolana`) governance message — see
-/// whitepapers/0018_pauser.md. Action 4 (EVM variant) MUST be rejected on Solana.
+/// Body of the `SetPauserAddresses` (action 4) governance message — see the "Pausing" section of
+/// whitepapers/0003_token_bridge.md.
+///
+/// Wire format after the governance header:
+///   `pauser_len(u8) | pauser[pauser_len] | unpauser_len(u8) | unpauser[unpauser_len]`
+///
+/// On Solana each length must be either 32 (the native address size) or 0 (the role is left
+/// unassigned). Any other length is rejected. An all-zero 32-byte address is treated as equivalent
+/// to a zero-length encoding — both decode to `Pubkey::default()`, which `api::pause` rejects via
+/// the `PauserNotConfigured` check before comparing the caller.
 #[derive(PartialEq, Debug)]
 pub struct PayloadSetPauserAddresses {
     pub pauser: Pubkey,
@@ -380,7 +391,13 @@ pub struct PayloadSetPauserAddresses {
 impl SerializePayload for PayloadSetPauserAddresses {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
         self.write_governance_header(v)?;
+        // Canonical SVM encoding: always emit the full 32-byte length, even for the unassigned
+        // role (in which case the body is 32 bytes of zeros). The wire format also accepts a
+        // zero-length encoding on the receive side; either form decodes to `Pubkey::default()`.
+        // `PUBKEY_BYTES` is 32 and `as u8` is safe for that range.
+        v.write_u8(PUBKEY_BYTES as u8)?;
         v.write_all(&self.pauser.to_bytes())?;
+        v.write_u8(PUBKEY_BYTES as u8)?;
         v.write_all(&self.unpauser.to_bytes())?;
         Ok(())
     }
@@ -394,28 +411,41 @@ where
         let mut c = Cursor::new(buf);
         Self::check_governance_header(&mut c)?;
 
-        let mut pauser = [0u8; 32];
-        c.read_exact(&mut pauser)?;
-        let mut unpauser = [0u8; 32];
-        c.read_exact(&mut unpauser)?;
+        let pauser = read_length_prefixed_pubkey(&mut c)?;
+        let unpauser = read_length_prefixed_pubkey(&mut c)?;
 
         if c.position() != c.into_inner().len() as u64 {
             return Err(InvalidAccountData.into());
         }
 
-        Ok(PayloadSetPauserAddresses {
-            pauser: Pubkey::new(&pauser[..]),
-            unpauser: Pubkey::new(&unpauser[..]),
-        })
+        Ok(PayloadSetPauserAddresses { pauser, unpauser })
     }
 }
 
 impl SerializeGovernancePayload for PayloadSetPauserAddresses {
     const MODULE: &'static str = "TokenBridge";
-    const ACTION: u8 = 5;
+    const ACTION: u8 = 4;
 }
 
 impl DeserializeGovernancePayload for PayloadSetPauserAddresses {
+}
+
+/// Decode a single length-prefixed address from a `SetPauserAddresses` payload. Accepts either
+/// length 0 (role unassigned) or length 32 (Solana native address size); any other length is
+/// rejected. Both `len == 0` and `len == 32` with all-zero bytes decode to `Pubkey::default()`.
+fn read_length_prefixed_pubkey(
+    c: &mut Cursor<&mut &[u8]>,
+) -> std::result::Result<Pubkey, SolitaireError> {
+    let len = c.read_u8()?;
+    if len == 0 {
+        return Ok(Pubkey::default());
+    }
+    if usize::from(len) != PUBKEY_BYTES {
+        return Err(InvalidAccountData.into());
+    }
+    let mut bytes = [0u8; PUBKEY_BYTES];
+    c.read_exact(&mut bytes)?;
+    Ok(Pubkey::new(&bytes[..]))
 }
 
 #[cfg(test)]

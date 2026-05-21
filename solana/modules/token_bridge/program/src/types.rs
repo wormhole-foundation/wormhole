@@ -84,7 +84,7 @@ impl Owned for Config {
 ///   bytes 33 .. 65 : `pauser`   (Pubkey)
 ///   bytes 65 .. 97 : `unpauser` (Pubkey)
 ///
-/// See whitepapers/0018_pauser.md.
+/// See the "Pausing" section of whitepapers/0003_token_bridge.md.
 pub const CONFIG_BORSH_LEN: usize = 32;
 pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
 pub const PAUSER_OFFSET: usize = PAUSED_OFFSET + 1;
