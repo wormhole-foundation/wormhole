@@ -543,6 +543,10 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 						MsgC:     chainMsgC[chainID],
 						ObsvReqC: chainObsvReqC[chainID],
 					})
+
+					watchers.RegisterRPCURL(chainID, ibcWatcherConfig.Websocket)
+					watchers.RegisterRPCURL(chainID, ibcWatcherConfig.Lcd)
+					watchers.RegisterRPCURL(chainID, ibcWatcherConfig.BlockHeightURL)
 				}
 
 				if len(chainConfig) > 0 {
