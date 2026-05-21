@@ -585,6 +585,104 @@ func TestCoreBridgeTransferFeesToVaa_Errors(t *testing.T) {
 	}
 }
 
+func TestTokenBridgeSetPauserAddresses(t *testing.T) {
+	evmPauser := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	evmUnpauser := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	svmAddr := "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+
+	t.Run("EVM both addresses set", func(t *testing.T) {
+		req := &nodev1.BridgeSetPauserAddresses{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDEthereum),
+			Pauser:        evmPauser,
+			Unpauser:      evmUnpauser,
+		}
+		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
+		require.NoError(t, err)
+		// module(32) || action(04) || chain(0002) || pauserLen(14) || pauser || unpauserLen(14) || unpauser
+		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
+			"04" + "0002" + "14" + evmPauser + "14" + evmUnpauser
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Solana single address", func(t *testing.T) {
+		req := &nodev1.BridgeSetPauserAddresses{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDSolana),
+			Pauser:        svmAddr,
+		}
+		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
+		require.NoError(t, err)
+		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
+			"04" + "0001" + "20" + svmAddr + "00"
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Both unassigned", func(t *testing.T) {
+		req := &nodev1.BridgeSetPauserAddresses{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDEthereum),
+		}
+		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
+		require.NoError(t, err)
+		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
+			"04" + "0002" + "00" + "00"
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Error cases", func(t *testing.T) {
+		base := func() *nodev1.BridgeSetPauserAddresses {
+			return &nodev1.BridgeSetPauserAddresses{
+				Module:        "TokenBridge",
+				TargetChainId: uint32(vaa.ChainIDEthereum),
+				Pauser:        evmPauser,
+			}
+		}
+		cases := []struct {
+			name    string
+			mutate  func(r *nodev1.BridgeSetPauserAddresses)
+			errText string
+		}{
+			{"UnknownModule", func(r *nodev1.BridgeSetPauserAddresses) { r.Module = "TokemBridge" }, "unknown module"},
+			{"EmptyModule", func(r *nodev1.BridgeSetPauserAddresses) { r.Module = "" }, "unknown module"},
+			{"NFTBridgeRejected", func(r *nodev1.BridgeSetPauserAddresses) { r.Module = "NFTBridge" }, "unknown module"},
+			{"UnknownChain", func(r *nodev1.BridgeSetPauserAddresses) { r.TargetChainId = 0xffff }, "convert target_chain_id"},
+			{"ChainOutOfRange", func(r *nodev1.BridgeSetPauserAddresses) { r.TargetChainId = 0x10000 }, "convert target_chain_id"},
+			{"BadPauserHex", func(r *nodev1.BridgeSetPauserAddresses) { r.Pauser = "zz" }, "invalid pauser address encoding"},
+			{"BadUnpauserHex", func(r *nodev1.BridgeSetPauserAddresses) { r.Unpauser = "zz" }, "invalid unpauser address encoding"},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				req := base()
+				tc.mutate(req)
+				_, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 0, 0)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errText)
+			})
+		}
+	})
+}
+
+func TestGovMsgToVaa_DispatchesBridgeSetPauserAddresses(t *testing.T) {
+	msg := &nodev1.GovernanceMessage{
+		Sequence: 33,
+		Nonce:    44,
+		Payload: &nodev1.GovernanceMessage_BridgeSetPauserAddresses{
+			BridgeSetPauserAddresses: &nodev1.BridgeSetPauserAddresses{
+				Module:        "TokenBridge",
+				TargetChainId: uint32(vaa.ChainIDEthereum),
+				Pauser:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				Unpauser:      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			},
+		},
+	}
+	v, err := GovMsgToVaa(msg, 4, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	assert.Equal(t, uint64(33), v.Sequence)
+	assert.Equal(t, uint32(44), v.Nonce)
+}
+
 func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
 	msg := &nodev1.GovernanceMessage{
 		Sequence: 11,

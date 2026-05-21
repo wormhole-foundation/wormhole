@@ -625,6 +625,280 @@ var adminCommandTest = []adminCommandTestEntry{
 				}`,
 	},
 
+	// build/bin/guardiand template bridge-set-pauser-addresses --target-chain-id ethereum --pauser aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --unpauser bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+	{
+		label:   "BridgeSetPauserAddresses success EVM",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+						unpauser: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses success Solana",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 1
+						pauser: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+						unpauser: ""
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses success both unassigned",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: ""
+						unpauser: ""
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses unknown module",
+		errText: "unknown module",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokemBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses NFTBridge rejected",
+		errText: "unknown module",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "NFTBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses empty module",
+		errText: "unknown module",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses unknown target chain id",
+		errText: "failed to convert target_chain_id",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 65535
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses target chain id out of range",
+		errText: "failed to convert target_chain_id",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 65536
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses invalid pauser hex",
+		errText: "invalid pauser address encoding",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "Hello, World!"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses invalid unpauser hex",
+		errText: "invalid unpauser address encoding",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						unpauser: "Hello, World!"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses odd-length pauser hex",
+		errText: "invalid pauser address encoding",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 18-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 22-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 31-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 33-byte pauser",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 64-byte pauser (Near)",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 255-byte pauser (max)",
+		errText: "",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses 256-byte pauser (overflow)",
+		errText: "exceeds max 255",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+					}
+				}`,
+	},
+
 	// build/bin/guardiand template wormchain-store-code --wasm-hash 0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16
 	{
 		label:   "WormchainStoreCode success",
