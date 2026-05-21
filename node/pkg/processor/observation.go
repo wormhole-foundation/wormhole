@@ -980,7 +980,7 @@ func (s *delegateState) consensusTxID() []byte {
 		if idx == -1 {
 			// No TxID bucket exists, so this is the first time we've seen this TxID.
 			// Create a new bucket.
-			counts = append(counts, entry{txID: obs.TxHash})
+			counts = append(counts, entry{txID: obs.TxHash, count: 0})
 			idx = len(counts) - 1
 		}
 		counts[idx].count++
