@@ -933,6 +933,91 @@ func TestGuardianConfigs(t *testing.T) {
 	runGuardianConfigTests(t, tc)
 }
 
+func TestApplyOptionsValidatesOrderAndUniqueness(t *testing.T) {
+	t.Parallel()
+
+	logger := zap.NewNop()
+	errBoom := errors.New("boom")
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		var applied []string
+		g := &G{}
+		err := g.applyOptions(context.Background(), logger,
+			[]*GuardianOption{
+				{
+					name: "first",
+					f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+						applied = append(applied, "first")
+						return nil
+					},
+				},
+				{
+					name:         "second",
+					dependencies: []string{"first"},
+					f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+						applied = append(applied, "second")
+						return nil
+					},
+				},
+			})
+
+		require.NoError(t, err)
+		require.Equal(t, []string{"first", "second"}, applied)
+	})
+
+	t.Run("duplicate", func(t *testing.T) {
+		t.Parallel()
+
+		g := &G{}
+		err := g.applyOptions(context.Background(), logger,
+			[]*GuardianOption{
+				{name: "same", f: func(context.Context, *zap.Logger, *G) error { return nil }},
+				{name: "same", f: func(context.Context, *zap.Logger, *G) error { return nil }},
+			})
+
+		var duplicateErr ComponentAlreadyConfiguredError
+		require.ErrorAs(t, err, &duplicateErr)
+		require.EqualError(t, err, "component same is already configured and cannot be configured a second time")
+	})
+
+	t.Run("missing dependency", func(t *testing.T) {
+		t.Parallel()
+
+		g := &G{}
+		err := g.applyOptions(context.Background(), logger,
+			[]*GuardianOption{
+				{name: "dependent", dependencies: []string{"base"}, f: func(context.Context, *zap.Logger, *G) error { return nil }},
+			})
+
+		var dependencyErr ComponentDependencyError
+		require.ErrorAs(t, err, &dependencyErr)
+		require.EqualError(t, err, "component dependent requires base to be configured first, check the order of your options")
+	})
+
+	t.Run("option error is wrapped", func(t *testing.T) {
+		t.Parallel()
+
+		g := &G{}
+		err := g.applyOptions(context.Background(), logger,
+			[]*GuardianOption{
+				{name: "failing", f: func(context.Context, *zap.Logger, *G) error { return errBoom }},
+			})
+
+		require.ErrorIs(t, err, errBoom)
+		require.EqualError(t, err, "error applying option for component failing: boom")
+	})
+}
+
+func TestMakeChannelPairUsesSameChannel(t *testing.T) {
+	t.Parallel()
+
+	pair := makeChannelPair[int](1)
+	pair.writeC <- 7
+	require.Equal(t, 7, <-pair.readC)
+}
+
 func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 	for _, tc := range testCases {
 		// because we're only instantiating the guardians and kill them right after they started running, 2s should be plenty of time
