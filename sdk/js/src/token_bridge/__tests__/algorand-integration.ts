@@ -62,247 +62,247 @@ const CORE_ID = BigInt(1004);
 const TOKEN_BRIDGE_ID = BigInt(1006);
 
 describe("Algorand tests", () => {
-  test("Algorand transfer native ALGO to Eth and back again", (done) => {
-    (async () => {
+  test("Algorand transfer native ALGO to Eth and back again", async () => {
+    const client: algosdk.Algodv2 = getAlgoClient();
+    const tempAccts: Account[] = await getTempAccounts();
+    const numAccts: number = tempAccts.length;
+    expect(numAccts).toBeGreaterThan(0);
+    const wallet: Account = tempAccts[0];
+
+    // let accountInfo = await client.accountInformation(wallet.addr).do();
+    // Asset Index of native ALGO is 0
+    const AlgoIndex = BigInt(0);
+    // const b = await getBalances(client, wallet.addr);
+    const txs = await attestFromAlgorand(
+      client,
+      TOKEN_BRIDGE_ID,
+      CORE_ID,
+      wallet.addr,
+      AlgoIndex
+    );
+
+    const result = await signSendAndConfirmAlgorand(client, txs, wallet);
+
+    const sn = parseSequenceFromLogAlgorand(result);
+
+    // Now, try to send a NOP
+    const suggParams: algosdk.SuggestedParams = await client
+      .getTransactionParams()
+      .do();
+    const nopTxn = makeApplicationCallTxnFromObject({
+      from: wallet.addr,
+      appIndex: safeBigIntToNumber(TOKEN_BRIDGE_ID),
+      onComplete: OnApplicationComplete.NoOpOC,
+      appArgs: [textToUint8Array("nop")],
+      suggestedParams: suggParams,
+    });
+    const resp = await client
+      .sendRawTransaction(nopTxn.signTxn(wallet.sk))
+      .do();
+    await waitForConfirmation(client, resp.txId, 1);
+    // End of NOP
+
+    const emitterAddr = getEmitterAddressAlgorand(TOKEN_BRIDGE_ID);
+    const { vaaBytes } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
+      CHAIN_ID_ALGORAND,
+      emitterAddr,
+      sn,
+      { transport: NodeHttpTransport() },
+      1000,
+      60
+    ).catch((e) => {
+      throw new Error(
+        `Timed out fetching Algorand native ALGO attestation VAA for emitter ${emitterAddr} sequence ${sn}: ${e}`
+      );
+    });
+    const pvaa = _parseVAAAlgorand(vaaBytes);
+    const provider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL) as any;
+    const signer = new ethers.Wallet(ETH_PRIVATE_KEY7, provider);
+    let success: boolean = true;
+    try {
+      const cr = await createWrappedOnEth(
+        CONTRACTS.DEVNET.ethereum.token_bridge,
+        signer,
+        vaaBytes
+      );
+    } catch (e) {
+      success = false;
+    }
+    if (!success) {
       try {
-        const client: algosdk.Algodv2 = getAlgoClient();
-        const tempAccts: Account[] = await getTempAccounts();
-        const numAccts: number = tempAccts.length;
-        expect(numAccts).toBeGreaterThan(0);
-        const wallet: Account = tempAccts[0];
-
-        // let accountInfo = await client.accountInformation(wallet.addr).do();
-        // Asset Index of native ALGO is 0
-        const AlgoIndex = BigInt(0);
-        // const b = await getBalances(client, wallet.addr);
-        const txs = await attestFromAlgorand(
-          client,
-          TOKEN_BRIDGE_ID,
-          CORE_ID,
-          wallet.addr,
-          AlgoIndex
-        );
-
-        const result = await signSendAndConfirmAlgorand(client, txs, wallet);
-
-        const sn = parseSequenceFromLogAlgorand(result);
-
-        // Now, try to send a NOP
-        const suggParams: algosdk.SuggestedParams = await client
-          .getTransactionParams()
-          .do();
-        const nopTxn = makeApplicationCallTxnFromObject({
-          from: wallet.addr,
-          appIndex: safeBigIntToNumber(TOKEN_BRIDGE_ID),
-          onComplete: OnApplicationComplete.NoOpOC,
-          appArgs: [textToUint8Array("nop")],
-          suggestedParams: suggParams,
-        });
-        const resp = await client
-          .sendRawTransaction(nopTxn.signTxn(wallet.sk))
-          .do();
-        await waitForConfirmation(client, resp.txId, 1);
-        // End of NOP
-
-        const emitterAddr = getEmitterAddressAlgorand(TOKEN_BRIDGE_ID);
-        const { vaaBytes } = await getSignedVAAWithRetry(
-          WORMHOLE_RPC_HOSTS,
-          CHAIN_ID_ALGORAND,
-          emitterAddr,
-          sn,
-          { transport: NodeHttpTransport() }
-        );
-        const pvaa = _parseVAAAlgorand(vaaBytes);
-        const provider = new ethers.providers.JsonRpcProvider(
-          ETH_NODE_URL
-        ) as any;
-        const signer = new ethers.Wallet(ETH_PRIVATE_KEY7, provider);
-        let success: boolean = true;
-        try {
-          const cr = await createWrappedOnEth(
-            CONTRACTS.DEVNET.ethereum.token_bridge,
-            signer,
-            vaaBytes
-          );
-        } catch (e) {
-          success = false;
-        }
-        if (!success) {
-          try {
-            const cr = await updateWrappedOnEth(
-              CONTRACTS.DEVNET.ethereum.token_bridge,
-              signer,
-              vaaBytes
-            );
-            success = true;
-          } catch (e) {
-            console.error("failed to updateWrappedOnEth", e);
-          }
-        }
-        // Check wallet
-        const a = parseInt(AlgoIndex.toString());
-        const originAssetHex = (
-          "0000000000000000000000000000000000000000000000000000000000000000" +
-          a.toString(16)
-        ).slice(-64);
-        const foreignAsset = await getForeignAssetEth(
-          CONTRACTS.DEVNET.ethereum.token_bridge,
-          provider,
-          CHAIN_ID_ALGORAND,
-          hexToUint8Array(originAssetHex)
-        );
-        if (!foreignAsset) {
-          throw new Error("foreignAsset is null");
-        }
-        let token = TokenImplementation__factory.connect(foreignAsset, signer);
-
-        // Get initial balance on ethereum
-        const initialBalOnEth = await token.balanceOf(
-          await signer.getAddress()
-        );
-        const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
-
-        // Get initial balance on Algorand
-        let algoWalletBals: Map<number, number> = await getBalances(
-          client,
-          wallet.addr
-        );
-        const startingAlgoBal = algoWalletBals.get(
-          safeBigIntToNumber(AlgoIndex)
-        );
-        if (!startingAlgoBal) {
-          throw new Error("startingAlgoBal is undefined");
-        }
-
-        // Start transfer from Algorand to Ethereum
-        const hexStr = nativeToHexString(
-          await signer.getAddress(),
-          CHAIN_ID_ETH
-        );
-        if (!hexStr) {
-          throw new Error("Failed to convert to hexStr");
-        }
-        const AmountToTransfer: number = 12300;
-        const Fee: number = 0;
-        const transferTxs = await transferFromAlgorand(
-          client,
-          TOKEN_BRIDGE_ID,
-          CORE_ID,
-          wallet.addr,
-          AlgoIndex,
-          BigInt(AmountToTransfer),
-          hexStr,
-          CHAIN_ID_ETH,
-          BigInt(Fee)
-        );
-        const transferResult = await signSendAndConfirmAlgorand(
-          client,
-          transferTxs,
-          wallet
-        );
-        const txSid = parseSequenceFromLogAlgorand(transferResult);
-        const signedVaa = await getSignedVAAWithRetry(
-          WORMHOLE_RPC_HOSTS,
-          CHAIN_ID_ALGORAND,
-          emitterAddr,
-          txSid,
-          { transport: NodeHttpTransport() }
-        );
-        const pv = _parseVAAAlgorand(signedVaa.vaaBytes);
-        const roe = await redeemOnEth(
+        const cr = await updateWrappedOnEth(
           CONTRACTS.DEVNET.ethereum.token_bridge,
           signer,
-          signedVaa.vaaBytes
+          vaaBytes
         );
-        expect(
-          await getIsTransferCompletedEth(
-            CONTRACTS.DEVNET.ethereum.token_bridge,
-            provider,
-            signedVaa.vaaBytes
-          )
-        ).toBe(true);
-        // Test finished.  Check wallet balances
-        const balOnEthAfter = await token.balanceOf(await signer.getAddress());
-        const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
-        expect(balOnEthAfterInt - initialBalOnEthInt).toEqual(AmountToTransfer);
-
-        // Get final balance on Algorand
-        algoWalletBals = await getBalances(client, wallet.addr);
-        const finalAlgoBal = algoWalletBals.get(safeBigIntToNumber(AlgoIndex));
-        if (!finalAlgoBal) {
-          throw new Error("finalAlgoBal is undefined");
-        }
-        // expect(startingAlgoBal - finalAlgoBal).toBe(AmountToTransfer);
-
-        // Attempt to transfer from Eth back to Algorand
-        const Amount: string = "100";
-
-        // approve the bridge to spend tokens
-        await approveEth(
-          CONTRACTS.DEVNET.ethereum.token_bridge,
-          foreignAsset,
-          signer,
-          Amount
-        );
-        const receipt = await transferFromEth(
-          CONTRACTS.DEVNET.ethereum.token_bridge,
-          signer,
-          foreignAsset,
-          Amount,
-          CHAIN_ID_ALGORAND,
-          decodeAddress(wallet.addr).publicKey
-        );
-        // get the sequence from the logs (needed to fetch the vaa)
-        const sequence = parseSequenceFromLogEth(
-          receipt,
-          CONTRACTS.DEVNET.ethereum.core
-        );
-        const emitterAddress = getEmitterAddressEth(
-          CONTRACTS.DEVNET.ethereum.token_bridge
-        );
-        await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
-
-        // poll until the guardian(s) witness and sign the vaa
-        const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
-          WORMHOLE_RPC_HOSTS,
-          CHAIN_ID_ETH,
-          emitterAddress,
-          sequence,
-          {
-            transport: NodeHttpTransport(),
-          }
-        );
-        algoWalletBals = await getBalances(client, wallet.addr);
-        const redeemTxs = await redeemOnAlgorand(
-          client,
-          TOKEN_BRIDGE_ID,
-          CORE_ID,
-          signedVAA,
-          wallet.addr
-        );
-        await signSendAndConfirmAlgorand(client, redeemTxs, wallet);
-        const completed = await getIsTransferCompletedAlgorand(
-          client,
-          TOKEN_BRIDGE_ID,
-          signedVAA
-        );
-        expect(completed).toBe(true);
-
-        // Get second final balance on Algorand
-        algoWalletBals = await getBalances(client, wallet.addr);
-        const secondFinalAlgoBal = algoWalletBals.get(
-          safeBigIntToNumber(AlgoIndex)
-        );
-        if (!secondFinalAlgoBal) {
-          throw new Error("secondFinalAlgoBal is undefined");
-        }
+        success = true;
       } catch (e) {
-        console.error("Algorand ALGO transfer error:", e);
-        done("Algorand ALGO transfer error");
-        return;
+        console.error("failed to updateWrappedOnEth", e);
       }
-      done();
-    })();
+    }
+    // Check wallet
+    const a = parseInt(AlgoIndex.toString());
+    const originAssetHex = (
+      "0000000000000000000000000000000000000000000000000000000000000000" +
+      a.toString(16)
+    ).slice(-64);
+    const foreignAsset = await getForeignAssetEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      provider,
+      CHAIN_ID_ALGORAND,
+      hexToUint8Array(originAssetHex)
+    );
+    if (!foreignAsset) {
+      throw new Error("foreignAsset is null");
+    }
+    let token = TokenImplementation__factory.connect(foreignAsset, signer);
+
+    // Get initial balance on ethereum
+    const initialBalOnEth = await token.balanceOf(await signer.getAddress());
+    const initialBalOnEthInt = parseInt(initialBalOnEth._hex);
+
+    // Get initial balance on Algorand
+    let algoWalletBals: Map<number, number> = await getBalances(
+      client,
+      wallet.addr
+    );
+    const startingAlgoBal = algoWalletBals.get(safeBigIntToNumber(AlgoIndex));
+    if (!startingAlgoBal) {
+      throw new Error("startingAlgoBal is undefined");
+    }
+
+    // Start transfer from Algorand to Ethereum
+    const hexStr = nativeToHexString(await signer.getAddress(), CHAIN_ID_ETH);
+    if (!hexStr) {
+      throw new Error("Failed to convert to hexStr");
+    }
+    const AmountToTransfer: number = 12300;
+    const Fee: number = 0;
+    const transferTxs = await transferFromAlgorand(
+      client,
+      TOKEN_BRIDGE_ID,
+      CORE_ID,
+      wallet.addr,
+      AlgoIndex,
+      BigInt(AmountToTransfer),
+      hexStr,
+      CHAIN_ID_ETH,
+      BigInt(Fee)
+    );
+    const transferResult = await signSendAndConfirmAlgorand(
+      client,
+      transferTxs,
+      wallet
+    );
+    const txSid = parseSequenceFromLogAlgorand(transferResult);
+    const signedVaa = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
+      CHAIN_ID_ALGORAND,
+      emitterAddr,
+      txSid,
+      { transport: NodeHttpTransport() },
+      1000,
+      60
+    ).catch((e) => {
+      throw new Error(
+        `Timed out fetching Algorand native ALGO transfer VAA for emitter ${emitterAddr} sequence ${txSid}: ${e}`
+      );
+    });
+    const pv = _parseVAAAlgorand(signedVaa.vaaBytes);
+    const roe = await redeemOnEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      signer,
+      signedVaa.vaaBytes
+    );
+    expect(
+      await getIsTransferCompletedEth(
+        CONTRACTS.DEVNET.ethereum.token_bridge,
+        provider,
+        signedVaa.vaaBytes
+      )
+    ).toBe(true);
+    // Test finished.  Check wallet balances
+    const balOnEthAfter = await token.balanceOf(await signer.getAddress());
+    const balOnEthAfterInt = parseInt(balOnEthAfter._hex);
+    expect(balOnEthAfterInt - initialBalOnEthInt).toEqual(AmountToTransfer);
+
+    // Get final balance on Algorand
+    algoWalletBals = await getBalances(client, wallet.addr);
+    const finalAlgoBal = algoWalletBals.get(safeBigIntToNumber(AlgoIndex));
+    if (!finalAlgoBal) {
+      throw new Error("finalAlgoBal is undefined");
+    }
+    // expect(startingAlgoBal - finalAlgoBal).toBe(AmountToTransfer);
+
+    // Attempt to transfer from Eth back to Algorand
+    const Amount: string = "100";
+
+    // approve the bridge to spend tokens
+    await approveEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      foreignAsset,
+      signer,
+      Amount
+    );
+    const receipt = await transferFromEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      signer,
+      foreignAsset,
+      Amount,
+      CHAIN_ID_ALGORAND,
+      decodeAddress(wallet.addr).publicKey
+    );
+    // get the sequence from the logs (needed to fetch the vaa)
+    const sequence = parseSequenceFromLogEth(
+      receipt,
+      CONTRACTS.DEVNET.ethereum.core
+    );
+    const emitterAddress = getEmitterAddressEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge
+    );
+    await provider.send("anvil_mine", ["0x40"]); // 64 blocks should get the above block to `finalized`
+
+    // poll until the guardian(s) witness and sign the vaa
+    const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
+      CHAIN_ID_ETH,
+      emitterAddress,
+      sequence,
+      {
+        transport: NodeHttpTransport(),
+      },
+      1000,
+      60
+    ).catch((e) => {
+      throw new Error(
+        `Timed out fetching Ethereum-to-Algorand native ALGO transfer VAA for emitter ${emitterAddress} sequence ${sequence}: ${e}`
+      );
+    });
+    algoWalletBals = await getBalances(client, wallet.addr);
+    const redeemTxs = await redeemOnAlgorand(
+      client,
+      TOKEN_BRIDGE_ID,
+      CORE_ID,
+      signedVAA,
+      wallet.addr
+    );
+    await signSendAndConfirmAlgorand(client, redeemTxs, wallet);
+    const completed = await getIsTransferCompletedAlgorand(
+      client,
+      TOKEN_BRIDGE_ID,
+      signedVAA
+    );
+    expect(completed).toBe(true);
+
+    // Get second final balance on Algorand
+    algoWalletBals = await getBalances(client, wallet.addr);
+    const secondFinalAlgoBal = algoWalletBals.get(
+      safeBigIntToNumber(AlgoIndex)
+    );
+    if (!secondFinalAlgoBal) {
+      throw new Error("secondFinalAlgoBal is undefined");
+    }
   });
   test("Algorand create chuckNorium, transfer to Eth and back again", (done) => {
     (async () => {
