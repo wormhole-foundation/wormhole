@@ -11,7 +11,7 @@ use crate::{
     },
     types::{
         write_pauser_addresses,
-        CONFIG_FULL_LEN,
+        CONFIG_WITH_PAUSER_LEN,
     },
     TokenBridgeError::{
         InvalidGovernanceKey,
@@ -182,7 +182,7 @@ pub const PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR: [u8; 8] =
 pub struct SetPauserAddresses<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
 
-    /// Existing token bridge `Config` PDA. Realloc'd from 32 → `CONFIG_FULL_LEN` bytes the first
+    /// Existing token bridge `Config` PDA. Realloc'd from 32 → `CONFIG_WITH_PAUSER_LEN` bytes the first
     /// time this governance VAA is processed; subsequent VAAs only update the tail.
     pub config: Mut<ConfigAccount<'b, { AccountState::Initialized }>>,
 
@@ -227,13 +227,13 @@ pub fn set_pauser_addresses(
     // pauser state must use the `paused()` / `pauser()` / `unpauser()` helpers in `types.rs`,
     // or similar, which check the account length and treat un-migrated accounts as unassigned.
     let config_info = accs.config.info();
-    if config_info.data_len() < CONFIG_FULL_LEN {
+    if config_info.data_len() < CONFIG_WITH_PAUSER_LEN {
         // Top up the lamport balance so the account remains rent-exempt at the new size, then
         // realloc. `zero_init = true` zeroes the new tail bytes — that's the desired
         // initial state for `paused = false`.
         use solana_program::sysvar::Sysvar;
         let rent = solana_program::sysvar::rent::Rent::get()?;
-        let required = rent.minimum_balance(CONFIG_FULL_LEN);
+        let required = rent.minimum_balance(CONFIG_WITH_PAUSER_LEN);
         let current = config_info.lamports();
         if current < required {
             let topup = required - current;
@@ -244,7 +244,7 @@ pub fn set_pauser_addresses(
             );
             invoke_signed(&topup_ix, ctx.accounts, &[])?;
         }
-        config_info.realloc(CONFIG_FULL_LEN, true)?;
+        config_info.realloc(CONFIG_WITH_PAUSER_LEN, true)?;
     }
 
     {

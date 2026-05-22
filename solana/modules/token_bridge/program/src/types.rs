@@ -93,11 +93,11 @@ impl Owned for Config {
 /// See the "Pausing" section of whitepapers/0003_token_bridge.md.
 
 // Account-size sentinels: a Config account is either CONFIG_BORSH_LEN (legacy / un-migrated)
-// or CONFIG_FULL_LEN (post-migration). Any other length on a successfully-deserialized account
+// or CONFIG_WITH_PAUSER_LEN (post-migration). Any other length on a successfully-deserialized account
 // would indicate corruption.
 pub const CONFIG_BORSH_LEN: usize = 32;
 pub const PAUSER_TAIL_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES;
-pub const CONFIG_FULL_LEN: usize = CONFIG_BORSH_LEN + PAUSER_TAIL_LEN;
+pub const CONFIG_WITH_PAUSER_LEN: usize = CONFIG_BORSH_LEN + PAUSER_TAIL_LEN;
 
 // Byte offsets inside the tail (relative to the start of the Config account).
 pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
@@ -108,14 +108,14 @@ pub const UNPAUSER_OFFSET: usize = PAUSER_OFFSET + PUBKEY_BYTES;
 // silently corrupt the tail layout. (Written with `if ... { panic!() }` rather than `assert!`
 // because clippy's `assertions_on_constants` lint flags compile-time-constant `assert!` calls.)
 const _: () = {
-    if PAUSED_OFFSET >= CONFIG_FULL_LEN {
+    if PAUSED_OFFSET >= CONFIG_WITH_PAUSER_LEN {
         panic!("PAUSED_OFFSET must fall inside the tail");
     }
-    if PAUSER_OFFSET + PUBKEY_BYTES > CONFIG_FULL_LEN {
-        panic!("pauser slot must fit inside CONFIG_FULL_LEN");
+    if PAUSER_OFFSET + PUBKEY_BYTES > CONFIG_WITH_PAUSER_LEN {
+        panic!("pauser slot must fit inside CONFIG_WITH_PAUSER_LEN");
     }
-    if UNPAUSER_OFFSET + PUBKEY_BYTES != CONFIG_FULL_LEN {
-        panic!("unpauser slot must end exactly at CONFIG_FULL_LEN");
+    if UNPAUSER_OFFSET + PUBKEY_BYTES != CONFIG_WITH_PAUSER_LEN {
+        panic!("unpauser slot must end exactly at CONFIG_WITH_PAUSER_LEN");
     }
 };
 
@@ -125,7 +125,7 @@ const _: () = {
 /// store `0` or `1`, so a non-canonical byte should not occur in practice.
 #[must_use]
 pub fn paused(config_data: &[u8]) -> bool {
-    if config_data.len() < CONFIG_FULL_LEN {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
         return false;
     }
     match config_data[PAUSED_OFFSET] {
@@ -140,7 +140,7 @@ pub fn paused(config_data: &[u8]) -> bool {
 /// AND for accounts where governance explicitly set the role to the zero pubkey.
 #[must_use]
 pub fn pauser(config_data: &[u8]) -> Pubkey {
-    if config_data.len() < CONFIG_FULL_LEN {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
         return Pubkey::default();
     }
     Pubkey::new(&config_data[PAUSER_OFFSET..(PAUSER_OFFSET + PUBKEY_BYTES)])
@@ -149,7 +149,7 @@ pub fn pauser(config_data: &[u8]) -> Pubkey {
 /// Read the configured unpauser. Same legacy / unassigned semantics as [`pauser`].
 #[must_use]
 pub fn unpauser(config_data: &[u8]) -> Pubkey {
-    if config_data.len() < CONFIG_FULL_LEN {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
         return Pubkey::default();
     }
     Pubkey::new(&config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)])

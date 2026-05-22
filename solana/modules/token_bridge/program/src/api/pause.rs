@@ -4,7 +4,7 @@ use crate::{
         pauser,
         unpauser,
         write_paused,
-        CONFIG_FULL_LEN,
+        CONFIG_WITH_PAUSER_LEN,
     },
     TokenBridgeError::{
         InvalidPauser,
@@ -103,7 +103,7 @@ fn set_paused_state(
     paused: bool,
 ) -> Result<()> {
     // Reject if the Config account hasn't been migrated yet (legacy 32-byte layout).
-    if config_info.data_len() < CONFIG_FULL_LEN {
+    if config_info.data_len() < CONFIG_WITH_PAUSER_LEN {
         return Err(PauserNotConfigured.into());
     }
 

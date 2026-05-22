@@ -56,7 +56,7 @@ use token_bridge::{
         unpauser as read_unpauser,
         Config,
         CONFIG_BORSH_LEN,
-        CONFIG_FULL_LEN,
+        CONFIG_WITH_PAUSER_LEN,
     },
 };
 
@@ -774,7 +774,7 @@ async fn set_pauser_addresses_lazy_migration() {
     let post = fetch_config_data(&mut context).await;
     assert_eq!(
         post.len(),
-        CONFIG_FULL_LEN,
+        CONFIG_WITH_PAUSER_LEN,
         "Config should grow to 97 bytes after migration"
     );
     assert!(
@@ -794,7 +794,7 @@ async fn set_pauser_addresses_lazy_migration() {
     let rotated = fetch_config_data(&mut context).await;
     assert_eq!(
         rotated.len(),
-        CONFIG_FULL_LEN,
+        CONFIG_WITH_PAUSER_LEN,
         "rotation must not change account size"
     );
     assert_eq!(read_pauser(&rotated), pauser_two);
@@ -1076,7 +1076,7 @@ async fn set_pauser_addresses_zero_length_means_unassigned() {
         .expect("zero-length pauser is a valid encoding");
 
     let post = fetch_config_data(&mut context).await;
-    assert_eq!(post.len(), CONFIG_FULL_LEN);
+    assert_eq!(post.len(), CONFIG_WITH_PAUSER_LEN);
     assert_eq!(
         read_pauser(&post),
         Pubkey::default(),
