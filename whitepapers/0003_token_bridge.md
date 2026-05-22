@@ -302,6 +302,8 @@ Unpauser [UnpauserLen]uint8
 
 Implementations MUST perform length-based validation for `SetPauserAddresses` on the target runtime, ensuring each address is an expected length (e.g. 20 bytes for EVM, 32 bytes for SVM) and that there are no remaining bytes after parsing the two addresses.
 
+Existing deployments that are upgrading to include pausing functionality MUST ensure the new pause state initializes to false and does not alias non-zero pre-existing storage/account bytes.
+
 ## Caveats
 
 ### Transfer completion
