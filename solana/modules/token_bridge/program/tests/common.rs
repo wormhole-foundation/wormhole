@@ -76,10 +76,13 @@ mod helpers {
         CompleteNativeData,
         CompleteNativeWithPayloadData,
         CompleteWrappedData,
+        CompleteWrappedWithPayloadData,
         CreateWrappedData,
         RegisterChainData,
         TransferNativeData,
+        TransferNativeWithPayloadData,
         TransferWrappedData,
+        TransferWrappedWithPayloadData,
     };
 
     use token_bridge::messages::{
@@ -588,6 +591,149 @@ mod helpers {
         for account in instruction.accounts.iter().enumerate() {
             println!("{}: {}", account.0, account.1.pubkey);
         }
+
+        execute(
+            client,
+            payer,
+            &[payer, redeemer],
+            &[instruction],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn transfer_native_with_payload(
+        client: &mut BanksClient,
+        program: Pubkey,
+        bridge: Pubkey,
+        payer: &Keypair,
+        message: &Keypair,
+        from: &Keypair,
+        from_owner: &Keypair,
+        mint: Pubkey,
+        amount: u64,
+        payload: Vec<u8>,
+    ) -> Result<(), BanksClientError> {
+        let instruction = instructions::transfer_native_with_payload(
+            program,
+            bridge,
+            payer.pubkey(),
+            message.pubkey(),
+            from.pubkey(),
+            mint,
+            TransferNativeWithPayloadData {
+                nonce: 0,
+                amount,
+                target_address: [0u8; 32],
+                target_chain: 2,
+                payload,
+                cpi_program_id: None,
+            },
+        )
+        .expect("Could not create Transfer Native With Payload");
+
+        execute(
+            client,
+            payer,
+            &[payer, from_owner, message],
+            &[
+                spl_token::instruction::approve(
+                    &spl_token::id(),
+                    &from.pubkey(),
+                    &token_bridge::accounts::AuthoritySigner::key(None, &program),
+                    &from_owner.pubkey(),
+                    &[],
+                    amount,
+                )
+                .unwrap(),
+                instruction,
+            ],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn transfer_wrapped_with_payload(
+        client: &mut BanksClient,
+        program: Pubkey,
+        bridge: Pubkey,
+        payer: &Keypair,
+        message: &Keypair,
+        from: Pubkey,
+        from_owner: &Keypair,
+        token_chain: u16,
+        token_address: Address,
+        amount: u64,
+        payload: Vec<u8>,
+    ) -> Result<(), BanksClientError> {
+        let instruction = instructions::transfer_wrapped_with_payload(
+            program,
+            bridge,
+            payer.pubkey(),
+            message.pubkey(),
+            from,
+            from_owner.pubkey(),
+            token_chain,
+            token_address,
+            TransferWrappedWithPayloadData {
+                nonce: 0,
+                amount,
+                target_address: [5u8; 32],
+                target_chain: 2,
+                payload,
+                cpi_program_id: None,
+            },
+        )
+        .expect("Could not create Transfer Wrapped With Payload");
+
+        execute(
+            client,
+            payer,
+            &[payer, from_owner, message],
+            &[
+                spl_token::instruction::approve(
+                    &spl_token::id(),
+                    &from,
+                    &token_bridge::accounts::AuthoritySigner::key(None, &program),
+                    &from_owner.pubkey(),
+                    &[],
+                    amount,
+                )
+                .unwrap(),
+                instruction,
+            ],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn complete_wrapped_with_payload(
+        client: &mut BanksClient,
+        program: Pubkey,
+        bridge: Pubkey,
+        message_acc: Pubkey,
+        vaa: PostVAAData,
+        payload: PayloadTransferWithPayload,
+        to: Pubkey,
+        redeemer: &Keypair,
+        payer: &Keypair,
+    ) -> Result<(), BanksClientError> {
+        let instruction = instructions::complete_wrapped_with_payload(
+            program,
+            bridge,
+            payer.pubkey(),
+            message_acc,
+            vaa,
+            payload,
+            to,
+            redeemer.pubkey(),
+            None,
+            CompleteWrappedWithPayloadData {},
+        )
+        .expect("Could not create Complete Wrapped With Payload instruction");
 
         execute(
             client,

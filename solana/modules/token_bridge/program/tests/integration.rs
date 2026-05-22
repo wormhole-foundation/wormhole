@@ -4,6 +4,7 @@ use bridge::{
         PostedVAA,
         PostedVAADerivationData,
     },
+    PostVAAData,
     SerializePayload,
     OUR_CHAIN_ID,
 };
@@ -1150,26 +1151,83 @@ async fn set_pauser_addresses_rejects_legacy_action_id() {
 //
 // Per the "Pausing" section of whitepaper 0003, every user-facing entry point on the token
 // bridge must revert with `Paused` while the bridge is paused. The `require_not_paused`
-// helper in `types.rs` is wired into all of:
-//   - api::attest::attest_token
-//   - api::create_wrapped::create_wrapped
-//   - api::transfer::transfer_native / transfer_wrapped
-//   - api::transfer_payload::transfer_native_with_payload / transfer_wrapped_with_payload
-//   - api::complete_transfer::complete_native / complete_wrapped
-//   - api::complete_transfer_payload::complete_native_with_payload / complete_wrapped_with_payload
+// helper in `types.rs` is wired into all ten user entry points:
 //
-// Rather than spin up ten near-identical tests (each needs its own VAA + account setup), the
-// table-driven test below pauses the bridge once and exercises a representative subset of
-// these entry points sequentially. The subset is chosen so each distinct family of arguments
-// (outbound native, outbound wrapped, AssetMeta-driven create_wrapped, inbound transfer) is
-// represented at least once. The `*_with_payload` variants share the same gate call site as
-// their non-payload counterparts; the `pause_blocks_transfer_and_unpause_restores` test
-// already exercises the gate-followed-by-state-restore round trip end-to-end on transfer_native.
+//   1. api::attest::attest_token
+//   2. api::transfer::transfer_native
+//   3. api::transfer_payload::transfer_native_with_payload
+//   4. api::transfer::transfer_wrapped
+//   5. api::transfer_payload::transfer_wrapped_with_payload
+//   6. api::create_wrapped::create_wrapped
+//   7. api::complete_transfer::complete_native
+//   8. api::complete_transfer::complete_wrapped
+//   9. api::complete_transfer_payload::complete_native_with_payload
+//  10. api::complete_transfer_payload::complete_wrapped_with_payload
+//
+// The test below sets up bridge + wrapped-mint state ahead of time, pauses the bridge once,
+// and then drives every entry point with valid `FromAccounts` inputs so each call reaches the
+// `require_not_paused(...)` call site rather than failing in account validation. Each call is
+// expected to return an error while paused; an unpause + redo at the end verifies the gate
+// (not some misconfigured setup) is the sole reason the calls failed.
+
+/// Helper used inside `paused_blocks_all_user_entry_points` to build, post, and return the
+/// `(vaa, message_key)` pair for an inbound VAA that targets the token bridge. Takes the
+/// payload by reference so the caller retains ownership for the subsequent handler call.
+async fn post_inbound_vaa<P: SerializePayload>(
+    context: &mut Context,
+    emitter: [u8; 32],
+    chain: u16,
+    payload: &P,
+    sequence: u64,
+) -> (PostVAAData, Pubkey) {
+    let nonce = rand::thread_rng().gen();
+    let message = payload.try_to_vec().unwrap();
+    let (vaa, body, _) = common::generate_vaa(emitter, chain, message, nonce, sequence);
+    let signature_set = common::verify_signatures(
+        &mut context.client,
+        &context.bridge,
+        &context.payer,
+        body,
+        &context.guardian_keys,
+        0,
+    )
+    .await
+    .unwrap();
+    common::post_vaa(
+        &mut context.client,
+        context.bridge,
+        &context.payer,
+        signature_set,
+        vaa.clone(),
+    )
+    .await
+    .unwrap();
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: body.to_vec(),
+        },
+        &context.bridge,
+    );
+    (vaa, message_key)
+}
 
 #[tokio::test]
 async fn paused_blocks_all_user_entry_points() {
     let mut context = set_up().await.unwrap();
     register_chain(&mut context).await;
+    // `register_chain` hardcodes `sequence = 0` without touching the `Sequencer`. Manually
+    // consume sequence 0 in the sequencer so subsequent governance VAAs from the same emitter
+    // don't collide on the Claim PDA (`AlreadyInitialized`).
+    let governance_emitter = Keypair::from_bytes(&GOVERNANCE_KEY)
+        .unwrap()
+        .pubkey()
+        .to_bytes();
+    let _consumed_zero = context.seq.next(governance_emitter);
+
+    // Set up wrapped-mint state (token_address = [1u8; 32], token_chain = 2) so the wrapped-side
+    // `FromAccounts` validation passes once we pause. `create_wrapped_account` internally posts
+    // an AssetMeta VAA from foreign emitter `[0u8; 32]` / chain 2 at sequence 2.
+    let wrapped_acc = create_wrapped_account(&mut context).await.unwrap();
 
     // Configure pauser/unpauser and pause the bridge.
     let pauser = Keypair::new();
@@ -1200,79 +1258,99 @@ async fn paused_blocks_all_user_entry_points() {
     .await
     .unwrap();
 
-    // (1) attest — emits AssetMeta for a native mint. Outbound, simplest path.
-    {
-        let message = Keypair::new();
-        common::attest(
-            &mut context.client,
-            context.token_bridge,
-            context.bridge,
-            &context.payer,
-            &message,
-            context.mint.pubkey(),
-            0,
-        )
-        .await
-        .expect_err("attest must fail while paused");
-    }
+    // --------------- Outbound entry points ---------------
 
-    // (2) transfer_native — outbound burn of native SPL token.
-    {
-        let message = Keypair::new();
-        common::transfer_native(
-            &mut context.client,
-            context.token_bridge,
-            context.bridge,
-            &context.payer,
-            &message,
-            &context.token_account,
-            &context.token_authority,
-            context.mint.pubkey(),
-            100,
-        )
-        .await
-        .expect_err("transfer_native must fail while paused");
-    }
+    // (1) attest — emits AssetMeta for a native mint.
+    common::attest(
+        &mut context.client,
+        context.token_bridge,
+        context.bridge,
+        &context.payer,
+        &Keypair::new(),
+        context.mint.pubkey(),
+        0,
+    )
+    .await
+    .expect_err("attest must fail while paused");
 
-    // (3) create_wrapped — inbound AssetMeta-driven wrapper creation.
+    // (2) transfer_native — outbound lock of native SPL tokens into custody.
+    common::transfer_native(
+        &mut context.client,
+        context.token_bridge,
+        context.bridge,
+        &context.payer,
+        &Keypair::new(),
+        &context.token_account,
+        &context.token_authority,
+        context.mint.pubkey(),
+        100,
+    )
+    .await
+    .expect_err("transfer_native must fail while paused");
+
+    // (3) transfer_native_with_payload — same outbound path, additional opaque payload.
+    common::transfer_native_with_payload(
+        &mut context.client,
+        context.token_bridge,
+        context.bridge,
+        &context.payer,
+        &Keypair::new(),
+        &context.token_account,
+        &context.token_authority,
+        context.mint.pubkey(),
+        100,
+        vec![1, 2, 3],
+    )
+    .await
+    .expect_err("transfer_native_with_payload must fail while paused");
+
+    // (4) transfer_wrapped — outbound burn of wrapped tokens. Uses the wrapped account created
+    //     during setup; the SPL approve preceding the bridge instruction is a separate ix that
+    //     succeeds on a zero-balance account, so we still reach `require_not_paused`.
+    common::transfer_wrapped(
+        &mut context.client,
+        context.token_bridge,
+        context.bridge,
+        &context.payer,
+        &Keypair::new(),
+        wrapped_acc,
+        &context.token_authority,
+        2,
+        [1u8; 32],
+        10_000_000,
+    )
+    .await
+    .expect_err("transfer_wrapped must fail while paused");
+
+    // (5) transfer_wrapped_with_payload — same outbound path, additional opaque payload.
+    common::transfer_wrapped_with_payload(
+        &mut context.client,
+        context.token_bridge,
+        context.bridge,
+        &context.payer,
+        &Keypair::new(),
+        wrapped_acc,
+        &context.token_authority,
+        2,
+        [1u8; 32],
+        10_000_000,
+        vec![4, 5, 6],
+    )
+    .await
+    .expect_err("transfer_wrapped_with_payload must fail while paused");
+
+    // --------------- Inbound entry points (each gets its own VAA) ---------------
+
+    // (6) create_wrapped — inbound AssetMeta-driven wrapper creation for a fresh foreign token.
     {
-        let nonce = rand::thread_rng().gen();
         let payload = PayloadAssetMeta {
-            token_address: [2u8; 32],
+            token_address: [2u8; 32], // different from the one set up by create_wrapped_account
             token_chain: 2,
             decimals: 7,
             symbol: "".to_string(),
             name: "".to_string(),
         };
-        let message = payload.try_to_vec().unwrap();
-        let (vaa, body, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 42);
-        let signature_set = common::verify_signatures(
-            &mut context.client,
-            &context.bridge,
-            &context.payer,
-            body,
-            &context.guardian_keys,
-            0,
-        )
-        .await
-        .unwrap();
-        common::post_vaa(
-            &mut context.client,
-            context.bridge,
-            &context.payer,
-            signature_set,
-            vaa.clone(),
-        )
-        .await
-        .unwrap();
-        let msg_derivation_data = &PostedVAADerivationData {
-            payload_hash: body.to_vec(),
-        };
-        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
-            msg_derivation_data,
-            &context.bridge,
-        );
-
+        let (vaa, message_key) = post_inbound_vaa(&mut context, [0u8; 32], 2, &payload, 42).await;
         common::create_wrapped(
             &mut context.client,
             context.token_bridge,
@@ -1286,11 +1364,8 @@ async fn paused_blocks_all_user_entry_points() {
         .expect_err("create_wrapped must fail while paused");
     }
 
-    // (4) complete_native — inbound release of native custody. Construct a Transfer VAA that
-    //     targets the existing token account; the request must fail at the paused gate before
-    //     touching the custody account.
+    // (7) complete_native — release native custody to the existing token account.
     {
-        let nonce = rand::thread_rng().gen();
         let payload = PayloadTransfer {
             amount: U256::from(1u128),
             token_address: context.mint.pubkey().to_bytes(),
@@ -1299,35 +1374,7 @@ async fn paused_blocks_all_user_entry_points() {
             to_chain: 1,
             fee: U256::from(0u128),
         };
-        let message = payload.try_to_vec().unwrap();
-        let (vaa, body, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 43);
-        let signature_set = common::verify_signatures(
-            &mut context.client,
-            &context.bridge,
-            &context.payer,
-            body,
-            &context.guardian_keys,
-            0,
-        )
-        .await
-        .unwrap();
-        common::post_vaa(
-            &mut context.client,
-            context.bridge,
-            &context.payer,
-            signature_set,
-            vaa.clone(),
-        )
-        .await
-        .unwrap();
-        let msg_derivation_data = &PostedVAADerivationData {
-            payload_hash: body.to_vec(),
-        };
-        let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
-            msg_derivation_data,
-            &context.bridge,
-        );
-
+        let (vaa, message_key) = post_inbound_vaa(&mut context, [0u8; 32], 2, &payload, 43).await;
         common::complete_native(
             &mut context.client,
             context.token_bridge,
@@ -1341,6 +1388,86 @@ async fn paused_blocks_all_user_entry_points() {
         .expect_err("complete_native must fail while paused");
     }
 
+    // (8) complete_wrapped — mint wrapped tokens into the wrapped token account.
+    {
+        let payload = PayloadTransfer {
+            amount: U256::from(1u128),
+            token_address: [1u8; 32],
+            token_chain: 2,
+            to: wrapped_acc.to_bytes(),
+            to_chain: 1,
+            fee: U256::from(0u128),
+        };
+        let (vaa, message_key) = post_inbound_vaa(&mut context, [0u8; 32], 2, &payload, 44).await;
+        common::complete_transfer_wrapped(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            message_key,
+            vaa,
+            payload,
+            &context.payer,
+        )
+        .await
+        .expect_err("complete_wrapped must fail while paused");
+    }
+
+    // (9) complete_native_with_payload — release native custody with a redeemer signature.
+    {
+        let payload = PayloadTransferWithPayload {
+            amount: U256::from(1u128),
+            token_address: context.mint.pubkey().to_bytes(),
+            token_chain: OUR_CHAIN_ID,
+            to: context.token_authority.pubkey().to_bytes(),
+            to_chain: OUR_CHAIN_ID,
+            from_address: Keypair::new().pubkey().to_bytes(),
+            payload: vec![1, 2, 3],
+        };
+        let (vaa, message_key) =
+            post_inbound_vaa(&mut context, [0u8; 32], CHAIN_ID_ETH, &payload, 45).await;
+        common::complete_native_with_payload(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            message_key,
+            vaa,
+            payload,
+            context.token_account.pubkey(),
+            &context.token_authority,
+            &context.payer,
+        )
+        .await
+        .expect_err("complete_native_with_payload must fail while paused");
+    }
+
+    // (10) complete_wrapped_with_payload — mint wrapped tokens with a redeemer signature.
+    {
+        let payload = PayloadTransferWithPayload {
+            amount: U256::from(1u128),
+            token_address: [1u8; 32],
+            token_chain: 2,
+            to: context.token_authority.pubkey().to_bytes(),
+            to_chain: OUR_CHAIN_ID,
+            from_address: Keypair::new().pubkey().to_bytes(),
+            payload: vec![4, 5, 6],
+        };
+        let (vaa, message_key) =
+            post_inbound_vaa(&mut context, [0u8; 32], CHAIN_ID_ETH, &payload, 46).await;
+        common::complete_wrapped_with_payload(
+            &mut context.client,
+            context.token_bridge,
+            context.bridge,
+            message_key,
+            vaa,
+            payload,
+            wrapped_acc,
+            &context.token_authority,
+            &context.payer,
+        )
+        .await
+        .expect_err("complete_wrapped_with_payload must fail while paused");
+    }
+
     // Now unpause and verify at least one entry point is functional again — this proves the
     // gate is the sole reason the calls above were failing (not some unrelated misconfiguration).
     common::unpause(
@@ -1351,20 +1478,17 @@ async fn paused_blocks_all_user_entry_points() {
     )
     .await
     .unwrap();
-    {
-        let message = Keypair::new();
-        common::attest(
-            &mut context.client,
-            context.token_bridge,
-            context.bridge,
-            &context.payer,
-            &message,
-            context.mint.pubkey(),
-            0,
-        )
-        .await
-        .expect("attest must succeed after unpause");
-    }
+    common::attest(
+        &mut context.client,
+        context.token_bridge,
+        context.bridge,
+        &context.payer,
+        &Keypair::new(),
+        context.mint.pubkey(),
+        0,
+    )
+    .await
+    .expect("attest must succeed after unpause");
 }
 
 #[tokio::test]
