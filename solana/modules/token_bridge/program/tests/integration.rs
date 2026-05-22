@@ -1571,6 +1571,106 @@ async fn rotate_pauser_addresses_while_paused() {
     assert!(!read_paused(&fetch_config_data(&mut context).await));
 }
 
+// ==================== Idempotency tests ====================
+//
+// whitepaper 0003 "Pausing" specifies that while paused, every entry point reverts except for
+// governance handlers, `pause` (no-op), and `unpause`. By symmetry, calling `unpause` on a bridge
+// that is already unpaused is also a no-op. `SetPauserAddresses` is governed by VAA replay
+// protection (the Claim PDA), so re-submitting the same payload via a *fresh* VAA succeeds and
+// rewrites the tail with identical bytes.
+
+#[tokio::test]
+async fn pause_is_idempotent() {
+    let mut context = set_up().await.unwrap();
+
+    let pauser = Keypair::new();
+    let unpauser = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &pauser.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    submit_set_pauser_addresses(&mut context, pauser.pubkey(), unpauser.pubkey()).await;
+
+    // First pause: false -> true.
+    common::pause(
+        &mut context.client,
+        context.token_bridge,
+        &pauser,
+        &context.payer,
+    )
+    .await
+    .unwrap();
+    assert!(read_paused(&fetch_config_data(&mut context).await));
+
+    // Second pause on an already-paused bridge: succeeds, state unchanged.
+    common::pause(
+        &mut context.client,
+        context.token_bridge,
+        &pauser,
+        &context.payer,
+    )
+    .await
+    .expect("pause on already-paused bridge must be a no-op success");
+    assert!(read_paused(&fetch_config_data(&mut context).await));
+}
+
+#[tokio::test]
+async fn unpause_is_idempotent() {
+    let mut context = set_up().await.unwrap();
+
+    let pauser = Keypair::new();
+    let unpauser = Keypair::new();
+    common::transfer(
+        &mut context.client,
+        &context.payer,
+        &unpauser.pubkey(),
+        1_000_000_000,
+    )
+    .await
+    .unwrap();
+    submit_set_pauser_addresses(&mut context, pauser.pubkey(), unpauser.pubkey()).await;
+
+    // Fresh tail defaults to unpaused.
+    assert!(!read_paused(&fetch_config_data(&mut context).await));
+
+    // Unpause on an unpaused bridge: succeeds, state unchanged.
+    common::unpause(
+        &mut context.client,
+        context.token_bridge,
+        &unpauser,
+        &context.payer,
+    )
+    .await
+    .expect("unpause on already-unpaused bridge must be a no-op success");
+    assert!(!read_paused(&fetch_config_data(&mut context).await));
+}
+
+#[tokio::test]
+async fn set_pauser_addresses_is_idempotent() {
+    let mut context = set_up().await.unwrap();
+
+    let pauser = Pubkey::new_unique();
+    let unpauser = Pubkey::new_unique();
+
+    submit_set_pauser_addresses(&mut context, pauser, unpauser).await;
+    let first = fetch_config_data(&mut context).await;
+    assert_eq!(read_pauser(&first), pauser);
+    assert_eq!(read_unpauser(&first), unpauser);
+
+    // Second VAA with identical payload (fresh nonce/sequence so the Claim PDA differs and
+    // replay protection lets it through). The on-chain effect must be byte-identical.
+    submit_set_pauser_addresses(&mut context, pauser, unpauser).await;
+    let second = fetch_config_data(&mut context).await;
+    assert_eq!(
+        second, first,
+        "identical SetPauserAddresses payload must produce byte-identical Config",
+    );
+}
+
 // ==================== Event discriminator derivation pins ====================
 //
 // Each Anchor-style event discriminator is `SHA256("event:<EventName>")[..8]`. The constants in

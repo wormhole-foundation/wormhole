@@ -15,7 +15,7 @@ use crate::{
     },
     TokenBridgeError::{
         InvalidGovernanceKey,
-        InvalidProgramOwner,
+        InvalidSelfProgram,
         InvalidVAA,
     },
     INVALID_VAAS,
@@ -254,7 +254,7 @@ pub fn set_pauser_addresses(
     }
 
     if accs.self_program.key != ctx.program_id {
-        return Err(InvalidProgramOwner.into());
+        return Err(InvalidSelfProgram.into());
     }
     let mut payload = [0u8; 64];
     payload[..32].copy_from_slice(&accs.vaa.pauser.to_bytes());

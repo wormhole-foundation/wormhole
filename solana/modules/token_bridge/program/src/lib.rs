@@ -109,7 +109,7 @@ pub enum TokenBridgeError {
     PauserNotConfigured,
     /// `self_program` account passed by the caller does not match this program's `program_id`.
     /// Only used to defensively guard the self-CPI that emits Anchor-style events.
-    InvalidProgramOwner,
+    InvalidSelfProgram,
 }
 
 impl From<TokenBridgeError> for SolitaireError {

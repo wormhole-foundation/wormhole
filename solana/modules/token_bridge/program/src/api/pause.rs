@@ -8,7 +8,7 @@ use crate::{
     },
     TokenBridgeError::{
         InvalidPauser,
-        InvalidProgramOwner,
+        InvalidSelfProgram,
         PauserNotConfigured,
     },
 };
@@ -51,7 +51,7 @@ pub fn pause(ctx: &ExecutionContext, accs: &mut Pause, _data: PauseData) -> Resu
         /* paused */ true,
     )?;
     if accs.self_program.key != ctx.program_id {
-        return Err(InvalidProgramOwner.into());
+        return Err(InvalidSelfProgram.into());
     }
     emit_event_cpi(
         ctx,
@@ -86,7 +86,7 @@ pub fn unpause(ctx: &ExecutionContext, accs: &mut Unpause, _data: UnpauseData) -
         /* paused */ false,
     )?;
     if accs.self_program.key != ctx.program_id {
-        return Err(InvalidProgramOwner.into());
+        return Err(InvalidSelfProgram.into());
     }
     emit_event_cpi(
         ctx,
