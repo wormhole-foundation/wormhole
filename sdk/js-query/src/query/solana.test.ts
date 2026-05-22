@@ -43,6 +43,8 @@ const SOLANA_NODE_URL = CI
 const PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const ACCOUNTS = [
   "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ", // Example token in devnet
   "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna", // Example NFT in devnet
@@ -69,6 +71,34 @@ async function getSolanaSlot(comm: string): Promise<bigint> {
   });
 
   return response.data.result;
+}
+
+async function putQueryWithQuorumRetry(
+  signature: string,
+  serialized: Uint8Array,
+  apiKey = "my_secret_key"
+): Promise<AxiosResponse<any, any>> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await axios.put(
+        QUERY_URL,
+        {
+          signature,
+          bytes: Buffer.from(serialized).toString("hex"),
+        },
+        { headers: { "X-API-Key": apiKey } }
+      );
+    } catch (err: any) {
+      if (
+        attempt >= 3 ||
+        err?.response?.status !== 400 ||
+        err?.response?.data !== "quorum not met\n"
+      ) {
+        throw err;
+      }
+      await sleep(250 * 2 ** attempt);
+    }
+  }
 }
 
 describe("solana", () => {
@@ -494,14 +524,7 @@ describe("solana", () => {
       const serialized = request.serialize();
       const digest = QueryRequest.digest(ENV, serialized);
       const signature = sign(PRIVATE_KEY, digest);
-      const response = axios.put(
-        QUERY_URL,
-        {
-          signature,
-          bytes: Buffer.from(serialized).toString("hex"),
-        },
-        { headers: { "X-API-Key": "my_secret_key" } }
-      );
+      const response = putQueryWithQuorumRetry(signature, serialized);
       promises.push(response);
     }
 
@@ -571,13 +594,10 @@ describe("solana", () => {
     const serialized = request.serialize();
     const digest = QueryRequest.digest(ENV, serialized);
     const signature = sign(PRIVATE_KEY, digest);
-    const response = await axios.put(
-      QUERY_URL,
-      {
-        signature,
-        bytes: Buffer.from(serialized).toString("hex"),
-      },
-      { headers: { "X-API-Key": "my_secret_key_3" } }
+    const response = await putQueryWithQuorumRetry(
+      signature,
+      serialized,
+      "my_secret_key_3"
     );
     expect(response.status).toBe(200);
 
