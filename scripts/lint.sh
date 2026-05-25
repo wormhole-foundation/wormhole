@@ -42,11 +42,13 @@ format(){
         exit 1
     fi
 
-    GOFMT_OUTPUT="$(find "./sdk" "./node" "./wormchain" \
-        \( -name node_modules -prune \) -o \
-        \( -name .gocache -prune \) -o \
-        \( -name target -prune \) -o \
-        -type f -name '*.go' -not -path '*.pb.go' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
+
+    GOFMT_OUTPUT="$(git -C "$ROOT" ls-files -z --cached -- \
+        'sdk/**/*.go' \
+        'node/**/*.go' \
+        'wormchain/**/*.go' \
+        ':(exclude)**/*.pb.go' \
+        | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
 
     if [ -n "$GOFMT_OUTPUT" ]; then
         if [ "$GITHUB_ACTION" == "true" ]; then
