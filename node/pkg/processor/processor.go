@@ -336,7 +336,7 @@ func (p *Processor) checkPublicRpcEndpoints() {
 		return
 	}
 	if p.dgc == nil {
-		p.logger.Warn("public RPC endpoint check skipped: delegated guardian config is nil")
+		p.logger.Debug("public RPC endpoint check skipped: delegated guardian config is nil")
 		return
 	}
 
