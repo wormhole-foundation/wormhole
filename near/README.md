@@ -62,6 +62,8 @@ from `testlib.ts` and exercises governance upgrades, attestations, transfers, an
 
 ## CI coverage
 
+See `.github/workflows/build.yml` for the full CI matrix.
+
 | What | Where | Status |
 |---|---|---|
 | Contract compilation | `tilt` job (via `near/Dockerfile.deploy` → `build-contracts.sh`) | Runs on every PR |
@@ -71,8 +73,7 @@ from `testlib.ts` and exercises governance upgrades, attestations, transfers, an
 
 The `tilt` job runs NEAR deployment by default in CI mode
 (`near = cfg.get("near", ci)` in the root `Tiltfile`). This verifies contracts compile and
-deploy, but runs no behavioral assertions. See `.github/workflows/build.yml` for the full
-CI matrix.
+deploy. The tests under `sdk/js` perform some testing against NEAR.
 
 ## Docker images
 
