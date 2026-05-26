@@ -340,6 +340,14 @@ func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, n
 	return nil
 }
 
+// normalize0x strips the optional "0x" prefix so that values from config and
+// from the chain's JSON response can be compared without prefix asymmetry
+// causing false mismatches. Applies to bare Aptos addresses and to fully-
+// qualified type strings (which embed an address as their first segment).
+func normalize0x(s string) string {
+	return strings.TrimPrefix(s, "0x")
+}
+
 // Verify that the event on the response lines up with the
 // event on the subscription URL. Defense-in-depth check.
 func (e *Watcher) verifyEventType(event gjson.Result) error {
@@ -348,8 +356,12 @@ func (e *Watcher) verifyEventType(event gjson.Result) error {
 		return fmt.Errorf("event missing 'type' field")
 	}
 
-	// Type must be an exact string match. The casing matters.
-	if t.String() != e.aptosEventType {
+	// Type must be an exact string match, modulo the optional "0x" prefix on
+	// the embedded address. Casing is intentionally significant: Aptos Move
+	// module and struct names are case-sensitive at the language level, so
+	// "WormholeMessage" and "wormholemessage" are distinct types and must not
+	// be conflated.
+	if normalize0x(t.String()) != normalize0x(e.aptosEventType) {
 		return fmt.Errorf("event type mismatch: got %q, want %q", t.String(), e.aptosEventType)
 	}
 
@@ -359,7 +371,7 @@ func (e *Watcher) verifyEventType(event gjson.Result) error {
 	if !guidAddr.Exists() {
 		return fmt.Errorf("event missing 'guid.account_address' field")
 	}
-	if !strings.EqualFold(guidAddr.String(), e.aptosAccount) {
+	if !strings.EqualFold(normalize0x(guidAddr.String()), normalize0x(e.aptosAccount)) {
 		return fmt.Errorf("event guid.account_address mismatch: got %q, want %q", guidAddr.String(), e.aptosAccount)
 	}
 
