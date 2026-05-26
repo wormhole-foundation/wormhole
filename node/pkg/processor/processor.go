@@ -308,6 +308,10 @@ var publicRPCDenyList = map[string]struct{}{
 	"monadinfra.com":  {},
 	"hyperliquid.xyz": {},
 	"t.conduit.xyz":   {},
+	"drpc.org":        {},
+	"tenderly.co":     {},
+	"stakely":         {},
+	"tatum.io":        {},
 }
 
 func publicRPCDomain(host string) (string, bool) {
