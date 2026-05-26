@@ -62,16 +62,16 @@ func (sub *SuiSubscription) Unsubscribe() {
 type SuiClient interface {
 	// Get the latest version of object `objectID`
 	GetObject(ctx context.Context, objectID string) (SuiObject, error)
-	// Get version `version` of object `objectID`
-	GetObjectAtVersion(ctx context.Context, objectID string, version uint64) (SuiObject, error)
+	// Get version `version` of object `objectID`. A nil `version` requests the latest version.
+	GetObjectAtVersion(ctx context.Context, objectID string, version *uint64) (SuiObject, error)
 	// Get the latest checkpoint sequence number
 	GetLatestCheckpointSN(ctx context.Context) (uint64, error)
 	// Get the transaction data for `digest`
 	GetTransaction(ctx context.Context, digest string) (SuiTransaction, error)
 
-	// Subscribe to events of type `eventType`
-	SubscribeToEvent(ctx context.Context, eventType string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
-	SubscribeToEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
+	// Subscribe to transaction events of type `eventType`
+	SubscribeToTransactionEvent(ctx context.Context, eventType string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
+	SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
 
 	// Close the client
 	Close() error

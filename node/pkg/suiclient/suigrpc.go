@@ -4,9 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"math"
 	"slices"
-	"time"
 
 	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -15,11 +13,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
-)
-
-const (
-	suiGrpcTimeout        = 10 * time.Second // TODO: Export in future to be used from calling sites
-	SuiGrpcInvalidVersion = math.MaxUint64   // Used to signal that the most current version of an object should be retrieved, instead of a specific version.
 )
 
 // suiGrpcNilResponses counts nil/empty checkpoint responses received from the Sui
@@ -53,22 +46,20 @@ type SuiGrpcClient struct {
 	pbSubscriptionServiceClient GrpcSubscriptionServiceClientInterface //pb.SubscriptionServiceClient
 }
 
-// Calls `GetObjectAtVersion` with an invalid version, used to signal retrieving the
-// most current version of the object.
+// Retrieves the most recent version of the object.
 // docs: https://www.quicknode.com/docs/sui/sui-grpc/ledger/get-object
 func (s *SuiGrpcClient) GetObject(ctx context.Context, objectID string) (SuiObject, error) {
-	return s.GetObjectAtVersion(ctx, objectID, SuiGrpcInvalidVersion)
+	return s.GetObjectAtVersion(ctx, objectID, nil)
 }
 
 // To replace the old `suix_tryMultiGetPastObjects` behaviour, this method needs to be called
-// for each version of interest.
+// for each version of interest. A nil `version` requests the latest version of the object.
 //
 // docs: https://www.quicknode.com/docs/sui/sui-grpc/ledger/get-object
-func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string, version uint64) (SuiObject, error) {
-	// If the requested version is SuiGrpcInvalidVersion, nil the pointer to request the latest version of the object.
-	requestedVersion := &version
-	if *requestedVersion == SuiGrpcInvalidVersion {
-		requestedVersion = nil
+func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string, version *uint64) (SuiObject, error) {
+	versionStr := "latest"
+	if version != nil {
+		versionStr = fmt.Sprintf("%d", *version)
 	}
 
 	fields := []string{
@@ -80,7 +71,7 @@ func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string,
 	}
 	getObjectRequest := pb.GetObjectRequest{
 		ObjectId: &objectID,
-		Version:  requestedVersion,
+		Version:  version,
 		ReadMask: fieldMask(fields),
 	}
 
@@ -88,22 +79,22 @@ func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string,
 
 	// gRPC call error check
 	if err != nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject failed: %w", err)
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject failed for objectID=%s version=%s: %w", objectID, versionStr, err)
 	}
 
 	// nil-checks for top-level properties
 	if resp == nil || resp.Object == nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil top-level properties")
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil top-level properties for objectID=%s version=%s", objectID, versionStr)
 	}
 
 	// nil-checks for ObjectId and ObjectType
 	if resp.Object.ObjectId == nil || resp.Object.ObjectType == nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil ObjectId/ObjectType")
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil ObjectId/ObjectType for objectID=%s version=%s", objectID, versionStr)
 	}
 
 	// nil-checks for Contents
 	if resp.Object.Contents == nil || resp.Object.Contents.Name == nil || resp.Object.Contents.Value == nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil Contents properties")
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil Contents properties for objectID=%s version=%s", objectID, versionStr)
 	}
 
 	return SuiObject{
@@ -147,7 +138,6 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string) (SuiT
 	fields := []string{
 		"digest",
 		"events",
-		"effects",
 	}
 
 	getTransactionRequest := pb.GetTransactionRequest{
@@ -159,23 +149,23 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string) (SuiT
 
 	// gRPC call error check
 	if err != nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed: %w", err)
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed for digest=%s: %w", digest, err)
 	}
 
 	// nil-check for top-level properties
 	if resp == nil || resp.Transaction == nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil properties")
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil properties for digest=%s", digest)
 	}
 
 	// nil-check for inner properties
 	if resp.Transaction.Digest == nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil Digest")
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil Digest for digest=%s", digest)
 	}
 
 	suiTransaction := grpcExecutedTransactionToSuiTransaction(resp.Transaction)
 
 	if suiTransaction == nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed to convert gRPC tx to Sui tx")
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed to convert gRPC tx to Sui tx for digest=%s", digest)
 	}
 
 	return *suiTransaction, nil
@@ -193,15 +183,21 @@ func (s *SuiGrpcClient) createCheckpointStream(ctx context.Context, fields []str
 	return stream, err
 }
 
-func (s *SuiGrpcClient) SubscribeToEvent(ctx context.Context, event string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
+func (s *SuiGrpcClient) SubscribeToTransactionEvent(ctx context.Context, event string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
 	eventTypes := []string{
 		event,
 	}
 
-	return s.SubscribeToEvents(ctx, eventTypes, eventWriteChannel)
+	return s.SubscribeToTransactionEvents(ctx, eventTypes, eventWriteChannel)
 }
 
-func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
+func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
+	if len(eventTypes) == 0 {
+		return SuiSubscription{}, fmt.Errorf("sui gRPC SubscribeToTransactionEvents requires at least one event type")
+	}
+	if eventWriteChannel == nil {
+		return SuiSubscription{}, fmt.Errorf("sui gRPC SubscribeToTransactionEvents requires a non-nil eventWriteChannel")
+	}
 
 	// This stream is only concerned with transaction events
 	fields := []string{
@@ -216,7 +212,7 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 
 	if err != nil {
 		cancel()
-		return SuiSubscription{}, fmt.Errorf("sui gRPC CheckpointStream creation failed: %w", err)
+		return SuiSubscription{}, fmt.Errorf("sui gRPC CheckpointStream creation failed for eventTypes=%v: %w", eventTypes, err)
 	}
 
 	// Set up subscription
@@ -286,7 +282,9 @@ func (s *SuiGrpcClient) SubscribeToEvents(ctx context.Context, eventTypes []stri
 
 					// The grpcEvent was malformed, so ignore it.
 					if suiEvent == nil {
-						s.logger.Warn("Sui gRPC event was malformed")
+						s.logger.Warn("Sui gRPC event was malformed",
+							zap.Any("grpcEvent", grpcEvent),
+						)
 						continue
 					}
 
@@ -319,6 +317,9 @@ func (s *SuiGrpcClient) Close() error {
 // (e.g. for custom transport credentials, interceptors, or per-RPC metadata via interceptors) may
 // be supplied; they are appended after the defaults so callers can override them.
 func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialOption) (SuiClient, error) {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 
 	// Setting the minimum TLS version is a linting requirement, but should ideally be adhered to in production.
 	creds := credentials.NewTLS(&tls.Config{

@@ -85,6 +85,8 @@ func FuzzSuiGrpcClientGetObject(f *testing.F) {
 		input_objectId string,
 		input_version uint64,
 	) {
+		// This fuzz harness only checks for panics; returned errors are expected
+		// and explicitly discarded via `_, _ = ...` below.
 		resp := &pb.GetObjectResponse{}
 
 		// set resp to nil or not
@@ -133,10 +135,10 @@ func FuzzSuiGrpcClientGetObject(f *testing.F) {
 
 		// Request GetObject if version is even
 		if input_version%2 == 0 {
-			grpcClient.GetObject(context.Background(), input_objectId) //nolint:errcheck // The function returning an error is expected
+			_, _ = grpcClient.GetObject(context.Background(), input_objectId)
 		} else {
 			// Request GetObjectAtVersion if version is odd
-			grpcClient.GetObjectAtVersion(context.Background(), input_objectId, input_version) //nolint:errcheck // The function returning an error is expected
+			_, _ = grpcClient.GetObjectAtVersion(context.Background(), input_objectId, &input_version)
 		}
 
 		ledgerService.SetNextGetObjectResponse(nil)
@@ -161,6 +163,8 @@ func FuzzSuiGrpcClientGetCheckpoint(f *testing.F) {
 		checkpointNilOrNot bool,
 		sequenceNumber uint64,
 	) {
+		// This fuzz harness only checks for panics; returned errors are expected
+		// and explicitly discarded via `_, _ = ...` below.
 		resp := &pb.GetCheckpointResponse{}
 
 		if respNilOrNot {
@@ -180,7 +184,7 @@ func FuzzSuiGrpcClientGetCheckpoint(f *testing.F) {
 		}
 
 		ledgerService.SetNextGetCheckpointResponse(resp)
-		grpcClient.GetLatestCheckpointSN(context.Background()) //nolint:errcheck // The function returning an error is expected
+		_, _ = grpcClient.GetLatestCheckpointSN(context.Background())
 
 		ledgerService.SetNextGetCheckpointResponse(nil)
 
@@ -206,6 +210,8 @@ func FuzzSuiGrpcClientGetTransactionNoEvents(f *testing.F) {
 		transaction_digestNilOrNot bool,
 		transaction_digest string,
 	) {
+		// This fuzz harness only checks for panics; returned errors are expected
+		// and explicitly discarded via `_, _ = ...` below.
 		resp := &pb.GetTransactionResponse{}
 
 		if respNilOrNot {
@@ -223,7 +229,7 @@ func FuzzSuiGrpcClientGetTransactionNoEvents(f *testing.F) {
 		}
 
 		ledgerService.SetNextGetTransactionResponse(resp)
-		grpcClient.GetTransaction(context.Background(), "some digest") //nolint:errcheck // The function returning an error is expected
+		_, _ = grpcClient.GetTransaction(context.Background(), "some digest")
 		ledgerService.SetNextGetTransactionResponse(nil)
 	})
 }
@@ -472,9 +478,9 @@ func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
 		var subscription SuiSubscription
 		var err error
 		if useSingleSubscribe {
-			subscription, err = grpcClient.SubscribeToEvent(context.Background(), eventTypes[0], eventChan)
+			subscription, err = grpcClient.SubscribeToTransactionEvent(context.Background(), eventTypes[0], eventChan)
 		} else {
-			subscription, err = grpcClient.SubscribeToEvents(context.Background(), eventTypes, eventChan)
+			subscription, err = grpcClient.SubscribeToTransactionEvents(context.Background(), eventTypes, eventChan)
 		}
 
 		// When stream creation fails there is no background goroutine to wait on.

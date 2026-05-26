@@ -147,7 +147,7 @@ func TestGrpcClientGetCheckpointSN(t *testing.T) {
 	fmt.Println("Sequence Number: ", sequenceNumber)
 }
 
-func TestGrpcClientSubscribeToEvents(t *testing.T) {
+func TestGrpcClientSubscribeToTransactionEvents(t *testing.T) {
 	_, runSubscriptionTest := suiGrpcClientLiveTestEnabled()
 	if !runSubscriptionTest {
 		return
@@ -165,7 +165,7 @@ func TestGrpcClientSubscribeToEvents(t *testing.T) {
 	}
 
 	suiEventChan := make(chan SuiEvent)
-	subscription, err := client.SubscribeToEvents(ctx, eventTypes, suiEventChan)
+	subscription, err := client.SubscribeToTransactionEvents(ctx, eventTypes, suiEventChan)
 	require.NoError(t, err)
 	defer subscription.Unsubscribe()
 
