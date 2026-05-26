@@ -2,7 +2,6 @@
 // It uses a ticker to periodically run the audit. The audit occurs in two phases that operate off of a temporary map of all pending transfers known to this guardian.
 //
 // The first phase involves querying the smart contract for all pending transfers using the "all_pending_transfers" query. For each pending transfer returned:
-// - If the transfer is for a different guardian set, it is skipped.
 // - If this guardian has already signed (based on the signatures bitmask), it is skipped.
 // - If the transfer is in our local pending map, we resubmit our observation to the contract.
 // - If the transfer is not in our local map, we request a reobservation from the local watcher.
@@ -157,12 +156,12 @@ func (acct *Accountant) audit(ctx context.Context) error {
 // runAudit is the entry point for the audit of the pending transfer map. It creates a temporary map of all pending transfers and invokes the main audit function.
 func (acct *Accountant) runAudit(ctx context.Context) {
 	knownPendingTransferMap := acct.createAuditMap(false)
-	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", len(knownPendingTransferMap)))
+	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", numPendingEntries(knownPendingTransferMap)))
 	acct.performAudit(ctx, knownPendingTransferMap, acct.wormchainConn, acct.contract)
 	acct.logger.Debug("in AuditPendingTransfers: finished base audit")
 
 	knownPendingTransferMap = acct.createAuditMap(true)
-	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", len(knownPendingTransferMap)))
+	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", numPendingEntries(knownPendingTransferMap)))
 	acct.performAudit(ctx, knownPendingTransferMap, acct.nttWormchainConn, acct.nttContract)
 	acct.logger.Debug("in AuditPendingTransfers: finished ntt audit")
 }
@@ -284,8 +283,8 @@ func (acct *Accountant) performAudit(ctx context.Context, knownPendingTransferMa
 					} else {
 						acct.logger.Info("contract reported we have not signed a pending transfer but it is already pending submission, skipping", zap.String("msgId", pe.msgId))
 					}
-					delete(knownPendingTransferMap, key)
 				}
+				delete(knownPendingTransferMap, key)
 			} else {
 				// We don't have it locally - request reobservation
 				acct.handleMissingObservation(MissingObservation{
