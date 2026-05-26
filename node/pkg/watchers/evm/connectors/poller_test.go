@@ -168,6 +168,38 @@ func (m *mockConnectorForPoller) setBlockNumbers(finalized, latest uint64) {
 	m.mutex.Unlock()
 }
 
+// collectBlocks reads up to count blocks from sink within timeout. Fails the
+// test if fewer than count blocks are received.
+func collectBlocks(t *testing.T, sink <-chan *NewBlock, count int, timeout time.Duration) []*NewBlock {
+	t.Helper()
+	blocks := make([]*NewBlock, 0, count)
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	for len(blocks) < count {
+		select {
+		case b := <-sink:
+			if b != nil {
+				blocks = append(blocks, b)
+			}
+		case <-deadline.C:
+			t.Fatalf("timed out waiting for %d blocks (got %d) after %s", count, len(blocks), timeout)
+		}
+	}
+	return blocks
+}
+
+// expectNoBlock asserts that no block is published on sink within the given window.
+func expectNoBlock(t *testing.T, sink <-chan *NewBlock, window time.Duration) {
+	t.Helper()
+	timer := time.NewTimer(window)
+	defer timer.Stop()
+	select {
+	case b := <-sink:
+		t.Fatalf("unexpected block published: finality=%v number=%d", b.Finality, b.Number.Uint64())
+	case <-timer.C:
+	}
+}
+
 // TestPollConnector verifies the PollConnector's SubscribeForBlocks produces
 // finalized, generated-safe, and latest blocks without requiring WebSocket.
 func TestPollConnector(t *testing.T) {
@@ -178,9 +210,6 @@ func TestPollConnector(t *testing.T) {
 
 	// safeSupported=false mirrors Tron config.
 	poller := NewPollConnector(ctx, logger, mock, false, 1*time.Millisecond)
-
-	var mutex sync.Mutex
-	var blocks []*NewBlock
 
 	// Set initial blocks: finalized=100, latest=110.
 	mock.setBlockNumbers(100, 110)
@@ -193,26 +222,8 @@ func TestPollConnector(t *testing.T) {
 	require.NotNil(t, sub)
 	defer sub.Unsubscribe()
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case b := <-headSink:
-				if b != nil {
-					mutex.Lock()
-					blocks = append(blocks, b)
-					mutex.Unlock()
-				}
-			}
-		}
-	}()
-
-	// Wait for initial blocks. We expect: finalized, generated-safe, latest = 3 blocks.
-	time.Sleep(50 * time.Millisecond)
-	mutex.Lock()
-	require.GreaterOrEqual(t, len(blocks), 3, "expected at least 3 initial blocks (finalized + safe + latest)")
-
+	// Initial blocks: finalized, generated-safe, latest = 3 blocks.
+	blocks := collectBlocks(t, headSink, 3, time.Second)
 	hasFinalized := false
 	hasSafe := false
 	hasLatest := false
@@ -232,14 +243,10 @@ func TestPollConnector(t *testing.T) {
 	assert.True(t, hasFinalized, "missing finalized")
 	assert.True(t, hasSafe, "missing safe (generated)")
 	assert.True(t, hasLatest, "missing latest")
-	blocks = nil
-	mutex.Unlock()
 
-	// Advance blocks and verify polling picks them up.
+	// Advance blocks and verify polling picks them up (new finalized + safe + latest).
 	mock.setBlockNumbers(101, 111)
-	time.Sleep(50 * time.Millisecond)
-	mutex.Lock()
-	require.GreaterOrEqual(t, len(blocks), 3)
+	blocks = collectBlocks(t, headSink, 3, time.Second)
 	foundNewFinalized := false
 	foundNewLatest := false
 	for _, b := range blocks {
@@ -252,15 +259,10 @@ func TestPollConnector(t *testing.T) {
 	}
 	assert.True(t, foundNewFinalized, "should see new finalized block 101")
 	assert.True(t, foundNewLatest, "should see new latest block 111")
-	blocks = nil
-	mutex.Unlock()
 
 	// No new blocks — verify nothing extra is published.
 	mock.setBlockNumbers(101, 111)
-	time.Sleep(50 * time.Millisecond)
-	mutex.Lock()
-	assert.Empty(t, blocks, "no new blocks should be published when nothing changed")
-	mutex.Unlock()
+	expectNoBlock(t, headSink, 50*time.Millisecond)
 }
 
 // TestPollConnectorGetLatest verifies GetLatest returns correct values.
@@ -335,9 +337,6 @@ func TestPollConnectorGapFill(t *testing.T) {
 
 	poller := NewPollConnector(ctx, logger, mock, false, 1*time.Millisecond)
 
-	var mutex sync.Mutex
-	var blocks []*NewBlock
-
 	// Start at finalized=100, latest=110.
 	mock.setBlockNumbers(100, 110)
 
@@ -348,46 +347,23 @@ func TestPollConnectorGapFill(t *testing.T) {
 	require.NoError(t, err)
 	defer sub.Unsubscribe()
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case b := <-headSink:
-				if b != nil {
-					mutex.Lock()
-					blocks = append(blocks, b)
-					mutex.Unlock()
-				}
-			}
-		}
-	}()
+	// Drain the initial 3 blocks (finalized + generated-safe + latest).
+	_ = collectBlocks(t, headSink, 3, time.Second)
 
-	// Wait for initial.
-	time.Sleep(50 * time.Millisecond)
-	mutex.Lock()
-	blocks = nil
-	mutex.Unlock()
-
-	// Jump finalized from 100 to 103, latest from 110 to 113.
-	// Gap fill should produce 101, 102, 103 for finalized (+ generated safe for each).
+	// Jump finalized 100→103 and latest 110→113. Gap fill produces:
+	//   finalized: 101, 102, 103  (+ generated safe for each)  = 6 blocks
+	//   latest:    111, 112, 113                                = 3 blocks
+	// Total = 9 blocks.
 	mock.setBlockNumbers(103, 113)
-	time.Sleep(100 * time.Millisecond)
+	blocks := collectBlocks(t, headSink, 9, 2*time.Second)
 
-	mutex.Lock()
 	finalizedNums := make(map[uint64]bool)
-	latestNums := make(map[uint64]bool)
 	for _, b := range blocks {
 		if b.Finality == Finalized {
 			finalizedNums[b.Number.Uint64()] = true
 		}
-		if b.Finality == Latest {
-			latestNums[b.Number.Uint64()] = true
-		}
 	}
-	// Should have gap-filled 101, 102, plus the head 103.
 	assert.True(t, finalizedNums[101], "gap fill: finalized 101")
 	assert.True(t, finalizedNums[102], "gap fill: finalized 102")
 	assert.True(t, finalizedNums[103], "gap fill: finalized 103")
-	mutex.Unlock()
 }
