@@ -209,7 +209,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			events := gjson.ParseBytes(eventsJson)
 
-			if err := e.processPollingBatch(logger, events, &nextSequence); err != nil {
+			if err = e.processPollingBatch(logger, events, &nextSequence); err != nil {
 				return err
 			}
 
