@@ -449,14 +449,15 @@ func (acct *Accountant) loadPendingTransfers() error {
 // block until the channel has space, a timeout occurs, or the context is cancelled. This function grabs the state lock.
 func (acct *Accountant) submitObservation(ctx context.Context, pe *pendingEntry, blocking bool) bool {
 	pe.stateLock.Lock()
-	defer pe.stateLock.Unlock()
 
 	if pe.state.submitPending {
+		pe.stateLock.Unlock()
 		return false
 	}
 
 	pe.state.submitPending = true
 	pe.state.updTime = time.Now()
+	pe.stateLock.Unlock()
 
 	timeout := time.Duration(0)
 	if blocking {
