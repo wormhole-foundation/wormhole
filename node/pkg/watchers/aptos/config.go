@@ -26,7 +26,7 @@ func (wc *WatcherConfig) GetChainID() vaa.ChainID {
 	return wc.ChainID
 }
 
-//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
+//nolint:unparam // Reobserver return is always nil; Aptos uses the legacy obsvReqC channel rather than the Reobserver interface.
 func (wc *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -35,5 +35,9 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *common.GuardianSet,
 	_ common.Environment,
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
-	return NewWatcher(wc.ChainID, wc.NetworkID, wc.Rpc, wc.Account, wc.Handle, msgC, obsvReqC).Run, nil, nil
+	w, err := NewWatcher(wc.ChainID, wc.NetworkID, wc.Rpc, wc.Account, wc.Handle, msgC, obsvReqC)
+	if err != nil {
+		return nil, nil, err
+	}
+	return w.Run, nil, nil
 }
