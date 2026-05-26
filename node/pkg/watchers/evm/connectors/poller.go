@@ -15,7 +15,6 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	ethEvent "github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/rpc"
 
 	"go.uber.org/zap"
 )
@@ -23,30 +22,23 @@ import (
 // logMessagePublishedTopic is keccak256("LogMessagePublished(address,uint64,uint32,bytes,uint8)").
 var logMessagePublishedTopic = ethCrypto.Keccak256Hash([]byte("LogMessagePublished(address,uint64,uint32,bytes,uint8)"))
 
-const (
-	// pollMaxErrors is the number of consecutive polling errors before the connector gives up.
-	pollMaxErrors = 3
+// pollMaxErrors is the number of consecutive polling errors before the connector gives up.
+const pollMaxErrors = 3
 
-	// pollRPCTimeout is the timeout for batch RPC calls in the poll connector.
-	pollRPCTimeout = 15 * time.Second
-)
-
-// PollConnector is an HTTP-compatible connector that replaces all WebSocket-based
-// subscriptions with timer-driven polling. It handles chains whose eth-compat
-// JSON-RPC only exposes HTTP (e.g. Tron).
-//
-// Unlike BatchPollConnector, it does NOT call SubscribeNewHead (which requires
-// eth_subscribe over WebSocket). Instead it polls for latest, finalized, and
-// optionally safe blocks entirely via batch eth_getBlockByNumber calls.
-//
+// PollConnector is an HTTP-compatible connector for chains whose eth-compat
+// JSON-RPC only exposes HTTP (e.g. Tron). It embeds BatchPollConnector to
+// reuse the batch-polling logic for finalized/safe blocks, additionally
+// polling for the latest block (since SubscribeNewHead requires WebSocket).
 // It also replaces WatchLogMessagePublished (which calls eth_subscribe "logs")
 // with a polling loop that uses eth_getLogs.
 type PollConnector struct {
-	Connector
-	logger       *zap.Logger
-	Delay        time.Duration
-	batchData    []BatchEntry
-	generateSafe bool
+	*BatchPollConnector
+
+	// MaxLogScanBlocks caps the per-iteration eth_getLogs range in
+	// WatchLogMessagePublished. Zero means no cap. Useful as a safety net
+	// against pathological requests and to constrain tests scanning historic
+	// blocks.
+	MaxLogScanBlocks uint64
 }
 
 func NewPollConnector(
@@ -66,24 +58,27 @@ func NewPollConnector(
 	batchData = append(batchData, BatchEntry{tag: "latest", finality: Latest})
 
 	return &PollConnector{
-		Connector:    baseConnector,
-		logger:       logger,
-		Delay:        delay,
-		batchData:    batchData,
-		generateSafe: !safeSupported,
+		BatchPollConnector: &BatchPollConnector{
+			Connector:    baseConnector,
+			logger:       logger,
+			Delay:        delay,
+			batchData:    batchData,
+			generateSafe: !safeSupported,
+		},
 	}
 }
 
+// SubscribeForBlocks overrides the embedded BatchPollConnector implementation
+// by skipping the WebSocket-based SubscribeNewHead call. All block types,
+// including latest, are obtained via batch polling.
 func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	sub := NewPollSubscription()
 
-	// Get the initial blocks.
 	lastBlocks, err := p.getBlocks(ctx, p.logger)
 	if err != nil {
 		return sub, fmt.Errorf("failed to get initial blocks: %w", err)
 	}
 
-	// Publish initial blocks so downstream has a starting point.
 	for idx, block := range lastBlocks {
 		p.logger.Info(fmt.Sprintf("publishing initial %s block", p.batchData[idx].finality), zap.Uint64("initial_block", block.Number.Uint64()))
 		sink <- block
@@ -127,16 +122,22 @@ func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 }
 
 // WatchLogMessagePublished polls for LogMessagePublished events via eth_getLogs,
-// replacing the WebSocket-based WatchLogMessagePublished on the base connector.
+// replacing the WebSocket-based subscription on the base connector. It begins
+// at the current finalized block; callers that need a different starting block
+// (e.g. tests) should use WatchLogMessagePublishedFrom directly.
 func (p *PollConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
-	sub := NewPollSubscription()
-
-	// Start from the current finalized block.
 	block, err := GetBlockByFinality(ctx, p.Connector, Finalized)
 	if err != nil {
-		return sub, fmt.Errorf("failed to get initial block for log polling: %w", err)
+		return NewPollSubscription(), fmt.Errorf("failed to get initial block for log polling: %w", err)
 	}
-	fromBlock := block.Number.Uint64()
+	return p.WatchLogMessagePublishedFrom(ctx, errC, sink, block.Number.Uint64())
+}
+
+// WatchLogMessagePublishedFrom is the testable variant of
+// WatchLogMessagePublished: the caller specifies the starting block instead of
+// using the current finalized block. The scan respects MaxLogScanBlocks.
+func (p *PollConnector) WatchLogMessagePublishedFrom(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished, fromBlock uint64) (ethEvent.Subscription, error) {
+	sub := NewPollSubscription()
 
 	common.RunWithScissors(ctx, errC, "poller_watch_log_message_published", func(ctx context.Context) error {
 		timer := time.NewTimer(p.Delay)
@@ -149,7 +150,6 @@ func (p *PollConnector) WatchLogMessagePublished(ctx context.Context, errC chan 
 				sub.unsubDone <- struct{}{}
 				return nil
 			case <-timer.C:
-				// Query from the last seen block to "latest" for the LogMessagePublished topic.
 				latest, err := GetBlockByFinality(ctx, p.Connector, Latest)
 				if err != nil {
 					p.logger.Error("log poller failed to get latest block", zap.Error(err))
@@ -161,6 +161,9 @@ func (p *PollConnector) WatchLogMessagePublished(ctx context.Context, errC chan 
 				if toBlock < fromBlock {
 					timer.Reset(p.Delay)
 					continue
+				}
+				if p.MaxLogScanBlocks > 0 && toBlock-fromBlock+1 > p.MaxLogScanBlocks {
+					toBlock = fromBlock + p.MaxLogScanBlocks - 1
 				}
 
 				from := new(big.Int).SetUint64(fromBlock)
@@ -186,10 +189,6 @@ func (p *PollConnector) WatchLogMessagePublished(ctx context.Context, errC chan 
 					sink <- ev
 				}
 
-				// Advance past the range we just queried. Overlap by 1 to not
-				// miss logs at block boundaries if a new log appears in the
-				// same block after our query, though duplicates are handled
-				// downstream.
 				fromBlock = toBlock + 1
 				timer.Reset(p.Delay)
 			}
@@ -197,32 +196,6 @@ func (p *PollConnector) WatchLogMessagePublished(ctx context.Context, errC chan 
 	})
 
 	return sub, nil
-}
-
-func (p *PollConnector) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
-	block, err := GetBlockByFinality(ctx, p.Connector, Latest)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to get latest block: %w", err)
-	}
-	latest = block.Number.Uint64()
-
-	block, err = GetBlockByFinality(ctx, p.Connector, Finalized)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to get finalized block: %w", err)
-	}
-	finalized = block.Number.Uint64()
-
-	if p.generateSafe {
-		safe = finalized
-	} else {
-		block, err = GetBlockByFinality(ctx, p.Connector, Safe)
-		if err != nil {
-			return 0, 0, 0, fmt.Errorf("failed to get safe block: %w", err)
-		}
-		safe = block.Number.Uint64()
-	}
-
-	return
 }
 
 // TimeOfBlockByHash overrides the base connector's implementation because some
@@ -238,185 +211,8 @@ func (p *PollConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Ha
 	return uint64(m.Time), nil
 }
 
-// SubscribeNewHead is not used by PollConnector (we poll instead), but it must
-// satisfy the Connector interface. Callers should not rely on it.
+// SubscribeNewHead overrides the base connector to make WebSocket subscriptions
+// fail loudly. PollConnector polls for latest blocks via SubscribeForBlocks.
 func (p *PollConnector) SubscribeNewHead(ctx context.Context, ch chan<- *ethTypes.Header) (ethereum.Subscription, error) {
 	return nil, fmt.Errorf("SubscribeNewHead is not supported on HTTP-only connections; use PollConnector.SubscribeForBlocks")
-}
-
-// getBlocks mirrors BatchPollConnector.getBlocks using batch RPC.
-func (p *PollConnector) getBlocks(ctx context.Context, logger *zap.Logger) (Blocks, error) {
-	timeout, cancel := context.WithTimeout(ctx, pollRPCTimeout)
-	defer cancel()
-
-	batch := make([]rpc.BatchElem, len(p.batchData))
-	results := make([]BatchResult, len(p.batchData))
-	for idx, bd := range p.batchData {
-		batch[idx] = rpc.BatchElem{
-			Method: "eth_getBlockByNumber",
-			Args: []interface{}{
-				bd.tag,
-				false,
-			},
-			Result: &results[idx].result,
-			Error:  results[idx].err,
-		}
-	}
-
-	err := p.Connector.RawBatchCallContext(timeout, batch)
-	if err != nil {
-		logger.Error("failed to get blocks", zap.Error(err))
-		return nil, err
-	}
-
-	ret := make(Blocks, len(p.batchData))
-	for idx := range results {
-		finality := p.batchData[idx].finality
-		if results[idx].err != nil {
-			logger.Error("failed to get block", zap.Stringer("finality", finality), zap.Error(results[idx].err))
-			return nil, results[idx].err
-		}
-
-		var n big.Int
-		m := &results[idx].result
-		if m.Number == nil {
-			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality), zap.String("tag", p.batchData[idx].tag))
-		} else {
-			n = big.Int(*m.Number)
-		}
-
-		var l1bn *big.Int
-		if m.L1BlockNumber != nil {
-			bn := big.Int(*m.L1BlockNumber)
-			l1bn = &bn
-		}
-
-		ret[idx] = &NewBlock{
-			Number:        &n,
-			Time:          uint64(m.Time),
-			Hash:          m.Hash,
-			L1BlockNumber: l1bn,
-			Finality:      finality,
-		}
-	}
-
-	return ret, nil
-}
-
-// pollBlocks polls for the latest set of blocks, compares to previous, and publishes new ones with gap filling.
-func (p *PollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlock, prevBlocks Blocks) (Blocks, error) {
-	newBlocks, err := p.getBlocks(ctx, p.logger)
-	if err != nil {
-		return prevBlocks, err
-	}
-
-	if len(newBlocks) != len(prevBlocks) {
-		panic(fmt.Sprintf("getBlocks returned %d entries when there should be %d", len(newBlocks), len(prevBlocks)))
-	}
-
-	for idx, newBlock := range newBlocks {
-		if newBlock.Number.Cmp(prevBlocks[idx].Number) > 0 {
-			newBlockNum := newBlock.Number.Uint64()
-			blockNum := prevBlocks[idx].Number.Uint64() + 1
-			errorFound := false
-			lastPublishedBlock := prevBlocks[idx]
-			for blockNum < newBlockNum && !errorFound {
-				batchSize := newBlockNum - blockNum
-				if batchSize > MaxGapBatchSize {
-					batchSize = MaxGapBatchSize
-				}
-				gapBlocks, err := p.getBlockRange(ctx, p.logger, blockNum, batchSize, p.batchData[idx].finality)
-				if err != nil {
-					p.logger.Error("failed to get gap blocks", zap.Stringer("finality", p.batchData[idx].finality), zap.Error(err))
-					errorFound = true
-				} else {
-					for _, block := range gapBlocks {
-						if block.Number.Uint64() == 0 {
-							errorFound = true
-							break
-						}
-						sink <- block
-						if p.generateSafe && p.batchData[idx].finality == Finalized {
-							sink <- block.Copy(Safe)
-						}
-						lastPublishedBlock = block
-					}
-				}
-				blockNum += batchSize
-			}
-
-			if !errorFound {
-				sink <- newBlock
-				if p.generateSafe && p.batchData[idx].finality == Finalized {
-					sink <- newBlock.Copy(Safe)
-				}
-			} else {
-				newBlocks[idx] = lastPublishedBlock
-			}
-		} else if newBlock.Number.Cmp(prevBlocks[idx].Number) < 0 {
-			p.logger.Debug("block number went backwards, ignoring it", zap.Stringer("finality", p.batchData[idx].finality), zap.Any("new", newBlock.Number), zap.Any("prev", prevBlocks[idx].Number))
-			newBlocks[idx] = prevBlocks[idx]
-		}
-	}
-
-	return newBlocks, nil
-}
-
-// getBlockRange gets a range of blocks by number.
-func (p *PollConnector) getBlockRange(ctx context.Context, logger *zap.Logger, blockNum uint64, numBlocks uint64, finality FinalityLevel) (Blocks, error) {
-	timeout, cancel := context.WithTimeout(ctx, pollRPCTimeout)
-	defer cancel()
-
-	batch := make([]rpc.BatchElem, numBlocks)
-	results := make([]BatchResult, numBlocks)
-	for idx := uint64(0); idx < numBlocks; idx++ {
-		batch[idx] = rpc.BatchElem{
-			Method: "eth_getBlockByNumber",
-			Args: []interface{}{
-				"0x" + fmt.Sprintf("%x", blockNum),
-				false,
-			},
-			Result: &results[idx].result,
-			Error:  results[idx].err,
-		}
-		blockNum++
-	}
-
-	err := p.Connector.RawBatchCallContext(timeout, batch)
-	if err != nil {
-		logger.Error("failed to get blocks", zap.Error(err))
-		return nil, err
-	}
-
-	ret := make(Blocks, numBlocks)
-	for idx := range results {
-		if results[idx].err != nil {
-			logger.Error("failed to get block", zap.Int("idx", idx), zap.Stringer("finality", finality), zap.Error(results[idx].err))
-			return nil, results[idx].err
-		}
-
-		var n big.Int
-		m := &results[idx].result
-		if m.Number == nil {
-			logger.Debug("number is nil, treating as zero", zap.Stringer("finality", finality))
-		} else {
-			n = big.Int(*m.Number)
-		}
-
-		var l1bn *big.Int
-		if m.L1BlockNumber != nil {
-			bn := big.Int(*m.L1BlockNumber)
-			l1bn = &bn
-		}
-
-		ret[idx] = &NewBlock{
-			Number:        &n,
-			Time:          uint64(m.Time),
-			Hash:          m.Hash,
-			L1BlockNumber: l1bn,
-			Finality:      finality,
-		}
-	}
-
-	return ret, nil
 }

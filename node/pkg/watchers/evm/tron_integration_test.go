@@ -2,13 +2,12 @@ package evm
 
 import (
 	"context"
-	"math/big"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
-	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -73,7 +72,7 @@ func TestTronNileReobservation(t *testing.T) {
 	expectedEmitter := PadAddress(sender)
 	assert.Equal(t, expectedEmitter, msg.EmitterAddress, "emitter address")
 
-	t.Logf("block=%d emitter=%x nonce=%d seq=%d consistency=%d payload=%q",
+	t.Logf("block=%d emitter=%s nonce=%d seq=%d consistency=%d payload=%q",
 		blockNum, msg.EmitterAddress, msg.Nonce, msg.Sequence, msg.ConsistencyLevel, string(msg.Payload))
 }
 
@@ -111,8 +110,10 @@ func TestTronNilePollConnectorBlocks(t *testing.T) {
 	t.Logf("latest=%d finalized=%d safe=%d gap=%d", latest, finalized, safe, latest-finalized)
 }
 
-// TestTronNilePollConnectorLogPolling verifies that the PollConnector's
-// WatchLogMessagePublished can discover events via eth_getLogs polling.
+// TestTronNilePollConnectorLogPolling drives PollConnector.WatchLogMessagePublishedFrom
+// end-to-end against the live Tron Nile testnet, starting from a known block
+// that contains a publishMessage tx, and verifies the parsed event is
+// delivered to the sink.
 func TestTronNilePollConnectorLogPolling(t *testing.T) {
 	if os.Getenv("TRON_INTEGRATION") == "" {
 		t.Skip("set TRON_INTEGRATION=1 to run (hits live Tron Nile testnet)")
@@ -134,26 +135,28 @@ func TestTronNilePollConnectorLogPolling(t *testing.T) {
 	base, err := connectors.NewEthereumBaseConnector(ctx, "tron-nile-test", rpcURL, coreAddr, nil, logger)
 	require.NoError(t, err)
 
-	// Build a PollConnector but we won't use SubscribeForBlocks — we'll
-	// directly test that FilterLogs over HTTP works for the known block range.
-	poll := connectors.NewPollConnector(ctx, logger, base, false, time.Second)
+	poll := connectors.NewPollConnector(ctx, logger, base, false, 50*time.Millisecond)
+	// Cap each scan to a single block so the test only inspects the known
+	// block range instead of scanning the (very large) gap up to current latest.
+	poll.MaxLogScanBlocks = 1
 
-	// Use the connector's Client to call FilterLogs for the block containing our tx.
-	logs, err := poll.Client().FilterLogs(ctx, ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(txBlockNum),
-		ToBlock:   new(big.Int).SetUint64(txBlockNum),
-		Addresses: []ethCommon.Address{coreAddr},
-		Topics:    [][]ethCommon.Hash{{LogMessagePublishedTopic}},
-	})
+	sink := make(chan *ethabi.AbiLogMessagePublished, 4)
+	errC := make(chan error, 1)
+
+	sub, err := poll.WatchLogMessagePublishedFrom(ctx, errC, sink, txBlockNum)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(logs), 1, "expected at least one log in the tx block")
+	defer sub.Unsubscribe()
 
-	// Parse the first log as LogMessagePublished.
-	ev, err := poll.ParseLogMessagePublished(logs[0])
-	require.NoError(t, err)
-	assert.Equal(t, uint32(1), ev.Nonce)
-	assert.Equal(t, uint8(202), ev.ConsistencyLevel)
-	assert.Equal(t, "hello world", string(ev.Payload))
-
-	t.Logf("found %d log(s) in block %d; first event: nonce=%d payload=%q", len(logs), txBlockNum, ev.Nonce, string(ev.Payload))
+	select {
+	case ev := <-sink:
+		assert.Equal(t, uint32(1), ev.Nonce)
+		assert.Equal(t, uint8(202), ev.ConsistencyLevel)
+		assert.Equal(t, "hello world", string(ev.Payload))
+		t.Logf("received event from poller: nonce=%d seq=%d payload=%q",
+			ev.Nonce, ev.Sequence, string(ev.Payload))
+	case err := <-errC:
+		t.Fatalf("watcher reported error: %v", err)
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for LogMessagePublished event")
+	}
 }
