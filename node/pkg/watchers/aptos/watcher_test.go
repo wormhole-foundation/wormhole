@@ -3,6 +3,7 @@ package aptos
 import (
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -406,6 +407,50 @@ func TestVerifyEventType(t *testing.T) {
 			}`,
 			expectError: "event missing 'guid.account_address'",
 		},
+		{
+			// Config carries the "0x" prefix; this event omits it on
+			// guid.account_address. normalize0x should strip both sides.
+			name: "0x prefix stripped on guid.account_address",
+			json: `{
+				"guid": {
+					"creation_number": "2",
+					"account_address": "5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
+				},
+				"type" : "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
+				"sequence_number": "171377",
+				"data": {
+					"sender": "1",
+					"sequence": "171377",
+					"nonce": "0",
+					"payload": "0xdeadbeef",
+					"consistency_level": "0",
+					"timestamp": "1700000000"
+				}
+			}`,
+			expectError: "",
+		},
+		{
+			// Config carries the "0x" prefix; this event omits it on
+			// the type field. normalize0x should strip both sides.
+			name: "0x prefix stripped on type",
+			json: `{
+				"guid": {
+					"creation_number": "2",
+					"account_address": "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
+				},
+				"type" : "5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
+				"sequence_number": "171377",
+				"data": {
+					"sender": "1",
+					"sequence": "171377",
+					"nonce": "0",
+					"payload": "0xdeadbeef",
+					"consistency_level": "0",
+					"timestamp": "1700000000"
+				}
+			}`,
+			expectError: "",
+		},
 	}
 
 	for _, tc := range tests {
@@ -462,6 +507,19 @@ func TestProcessPollingBatch(t *testing.T) {
 	// nextSequence is advanced to eventSeq+1 and observeData is never called.
 	startupSkip := pollEvent() // sequence_number defaults to "100"
 
+	// Normalization: same valid event, but with the "0x" prefix stripped from
+	// guid.account_address only. verifyEventType should normalize and accept.
+	prefixStrippedGuid := pollEvent()
+	prefixStrippedGuid["guid"] = map[string]any{
+		"creation_number": "2",
+		"account_address": strings.TrimPrefix(testAptosAccount, "0x"),
+	}
+
+	// Normalization: same valid event, but with the "0x" prefix stripped from
+	// the type field only. verifyEventType should normalize and accept.
+	prefixStrippedType := pollEvent()
+	prefixStrippedType["type"] = strings.TrimPrefix(testExpectedType, "0x")
+
 	tests := []struct {
 		name             string
 		events           []map[string]any // marshaled to a JSON array unless rawJSON is set
@@ -474,6 +532,22 @@ func TestProcessPollingBatch(t *testing.T) {
 		{
 			name:             "happy path: one event",
 			events:           []map[string]any{happyFirst},
+			initialNextSeq:   100,
+			expectedNextSeq:  101,
+			expectedMsgCount: 1,
+			expectError:      "",
+		},
+		{
+			name:             "0x prefix stripped on guid.account_address",
+			events:           []map[string]any{prefixStrippedGuid},
+			initialNextSeq:   100,
+			expectedNextSeq:  101,
+			expectedMsgCount: 1,
+			expectError:      "",
+		},
+		{
+			name:             "0x prefix stripped on type",
+			events:           []map[string]any{prefixStrippedType},
 			initialNextSeq:   100,
 			expectedNextSeq:  101,
 			expectedMsgCount: 1,
