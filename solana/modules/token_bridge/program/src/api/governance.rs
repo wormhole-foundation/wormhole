@@ -7,9 +7,15 @@ use crate::{
     messages::{
         GovernancePayloadUpgrade,
         PayloadGovernanceRegisterChain,
+        PayloadSetPauserAddresses,
+    },
+    types::{
+        write_pauser_addresses,
+        CONFIG_WITH_PAUSER_LEN,
     },
     TokenBridgeError::{
         InvalidGovernanceKey,
+        InvalidSelfProgram,
         InvalidVAA,
     },
     INVALID_VAAS,
@@ -164,4 +170,99 @@ pub fn register_chain(
     accs.endpoint.contract = accs.vaa.endpoint_address;
 
     Ok(())
+}
+
+/// Event discriminator: `SHA256("event:PauserAddressesSet")[0..8]`. Emitted via Anchor-style
+/// self-CPI when `set_pauser_addresses` succeeds. Payload: 32-byte pauser pubkey followed by the
+/// 32-byte unpauser pubkey, in that order.
+pub const PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR: [u8; 8] =
+    [0xb9, 0xcf, 0x4f, 0x8f, 0x6c, 0x76, 0xdf, 0x6d];
+
+#[derive(FromAccounts)]
+pub struct SetPauserAddresses<'b> {
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
+
+    /// Existing token bridge `Config` PDA. Realloc'd from 32 → `CONFIG_WITH_PAUSER_LEN` bytes the first
+    /// time this governance VAA is processed; subsequent VAAs only update the tail.
+    pub config: Mut<ConfigAccount<'b, { AccountState::Initialized }>>,
+
+    /// Governance VAA carrying a `PayloadSetPauserAddresses` (action 4 per whitepaper 0003).
+    pub vaa: PayloadMessage<'b, PayloadSetPauserAddresses>,
+
+    /// VAA replay-protection claim, consistent with the rest of the token bridge governance.
+    pub claim: Mut<Claim<'b>>,
+
+    /// Event authority PDA for Anchor CPI event signing.
+    pub event_authority: Info<'b>,
+
+    /// This program (for self-CPI).
+    pub self_program: Info<'b>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Default)]
+pub struct SetPauserAddressesData {}
+
+pub fn set_pauser_addresses(
+    ctx: &ExecutionContext,
+    accs: &mut SetPauserAddresses,
+    _data: SetPauserAddressesData,
+) -> Result<()> {
+    if INVALID_VAAS.contains(&&*accs.vaa.info().key.to_string()) {
+        return Err(InvalidVAA.into());
+    }
+
+    verify_governance(&accs.vaa)?;
+    claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
+
+    // One-time migration: legacy 32-byte Config accounts grow to 97 bytes the first time this
+    // VAA is processed. Subsequent VAAs reuse the already-extended layout. The `paused` flag
+    // is preserved across updates — rotating the pauser/unpauser keys does not implicitly
+    // unpause the bridge.
+    //
+    // Borsh back-compat: the first 32 bytes of the account (the original `Config` struct) are
+    // never moved or rewritten, and the `Config::BorshDeserialize` impl in `types.rs` is
+    // hand-rolled to tolerate the trailing tail (instead of the derived impl that would reject
+    // any unread bytes). Off-chain clients that deserialize Config via Borsh against the raw
+    // account data continue to round-trip both before and after this migration. SDKs that read
+    // pauser state must use the `paused()` / `pauser()` / `unpauser()` helpers in `types.rs`,
+    // or similar, which check the account length and treat un-migrated accounts as unassigned.
+    let config_info = accs.config.info();
+    if config_info.data_len() < CONFIG_WITH_PAUSER_LEN {
+        // Top up the lamport balance so the account remains rent-exempt at the new size, then
+        // realloc. `zero_init = true` zeroes the new tail bytes — that's the desired
+        // initial state for `paused = false`.
+        use solana_program::sysvar::Sysvar;
+        let rent = solana_program::sysvar::rent::Rent::get()?;
+        let required = rent.minimum_balance(CONFIG_WITH_PAUSER_LEN);
+        let current = config_info.lamports();
+        if current < required {
+            let topup = required - current;
+            let topup_ix = solana_program::system_instruction::transfer(
+                accs.payer.key,
+                config_info.key,
+                topup,
+            );
+            invoke_signed(&topup_ix, ctx.accounts, &[])?;
+        }
+        config_info.realloc(CONFIG_WITH_PAUSER_LEN, true)?;
+    }
+
+    {
+        let mut data = config_info.data.borrow_mut();
+        write_pauser_addresses(&mut data, &accs.vaa.pauser, &accs.vaa.unpauser);
+        // `data` borrow dropped here so the self-CPI below can re-borrow the account.
+    }
+
+    if accs.self_program.key != ctx.program_id {
+        return Err(InvalidSelfProgram.into());
+    }
+    let mut payload = [0u8; 64];
+    payload[..32].copy_from_slice(&accs.vaa.pauser.to_bytes());
+    payload[32..].copy_from_slice(&accs.vaa.unpauser.to_bytes());
+    emit_event_cpi(
+        ctx,
+        &accs.event_authority,
+        &PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR,
+        &payload,
+    )
 }

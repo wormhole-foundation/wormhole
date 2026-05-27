@@ -12,7 +12,10 @@ use solana_program::{
         IsInitialized,
         Pack,
     },
-    pubkey::Pubkey,
+    pubkey::{
+        Pubkey,
+        PUBKEY_BYTES,
+    },
 };
 use solitaire::{
     pack_type,
@@ -26,13 +29,31 @@ use spl_token::state::{
     Account,
     Mint,
 };
+use std::io;
 
 pub type Address = [u8; 32];
 pub type ChainID = u16;
 
-#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, BorshSerialize, Serialize, Deserialize)]
 pub struct Config {
     pub wormhole_bridge: Pubkey,
+}
+
+// Hand-rolled `BorshDeserialize` so `try_from_slice` tolerates the pauser tail (bytes 32..97)
+// that the realloc'd Config carries after the first `SetPauserAddresses` governance VAA.
+// The derived `try_from_slice` rejects any trailing bytes, which would break every handler
+// that peels `ConfigAccount` (transfer, complete, attest, …) on a migrated bridge.
+impl BorshDeserialize for Config {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        Ok(Config {
+            wormhole_bridge: <Pubkey as BorshDeserialize>::deserialize(buf)?,
+        })
+    }
+
+    fn try_from_slice(v: &[u8]) -> io::Result<Self> {
+        let mut cursor = v;
+        <Self as BorshDeserialize>::deserialize(&mut cursor)
+    }
 }
 
 #[cfg(not(feature = "cpi"))]
@@ -48,6 +69,112 @@ impl Owned for Config {
         use std::str::FromStr;
         AccountOwner::Other(Pubkey::from_str(env!("TOKEN_BRIDGE_ADDRESS")).unwrap())
     }
+}
+
+/// Pauser tail layout written at offset `CONFIG_BORSH_LEN` of the existing `Config` PDA.
+///
+/// Backwards-compatible extension: the `Config` Borsh struct itself stays 32 bytes, so existing
+/// SDK transactions that pass the Config as writable continue to round-trip — solitaire's
+/// `Persist::persist` calls Borsh `serialize` which writes only the first 32 bytes and leaves
+/// the tail untouched.
+///
+/// Lazy migration: legacy 32-byte accounts are treated as "unpaused, no pauser configured".
+/// The first `SetPauserAddresses` governance VAA realloc's the account to
+/// `CONFIG_BORSH_LEN + PAUSER_TAIL_LEN` bytes and writes the tail. After migration, both
+/// `pauser` and `unpauser` may still be set to `Pubkey::default()` via governance — this is
+/// the canonical "role unassigned" encoding, and `api::pause` reverts before comparing the
+/// caller in that case (see whitepapers/0003_token_bridge.md Pausing).
+///
+/// Tail layout (97-byte total Config account):
+///   bytes 32 .. 33 : `paused` (u8, exactly 0 or 1 — see `write_paused` / `paused()`)
+///   bytes 33 .. 65 : `pauser`   (Pubkey)
+///   bytes 65 .. 97 : `unpauser` (Pubkey)
+///
+/// See the "Pausing" section of whitepapers/0003_token_bridge.md.
+
+// Account-size sentinels: a Config account is either CONFIG_BORSH_LEN (legacy / un-migrated)
+// or CONFIG_WITH_PAUSER_LEN (post-migration). Any other length on a successfully-deserialized account
+// would indicate corruption.
+pub const CONFIG_BORSH_LEN: usize = 32;
+pub const PAUSER_TAIL_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES;
+pub const CONFIG_WITH_PAUSER_LEN: usize = CONFIG_BORSH_LEN + PAUSER_TAIL_LEN;
+
+// Byte offsets inside the tail (relative to the start of the Config account).
+pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
+pub const PAUSER_OFFSET: usize = PAUSED_OFFSET + 1;
+pub const UNPAUSER_OFFSET: usize = PAUSER_OFFSET + PUBKEY_BYTES;
+
+// Pin offset/length relationships at compile time so a future tweak to the constants can't
+// silently corrupt the tail layout. (Written with `if ... { panic!() }` rather than `assert!`
+// because clippy's `assertions_on_constants` lint flags compile-time-constant `assert!` calls.)
+const _: () = {
+    if PAUSED_OFFSET >= CONFIG_WITH_PAUSER_LEN {
+        panic!("PAUSED_OFFSET must fall inside the tail");
+    }
+    if PAUSER_OFFSET + PUBKEY_BYTES > CONFIG_WITH_PAUSER_LEN {
+        panic!("pauser slot must fit inside CONFIG_WITH_PAUSER_LEN");
+    }
+    if UNPAUSER_OFFSET + PUBKEY_BYTES != CONFIG_WITH_PAUSER_LEN {
+        panic!("unpauser slot must end exactly at CONFIG_WITH_PAUSER_LEN");
+    }
+};
+
+/// Read the `paused` flag. Returns `false` for legacy (un-migrated) accounts; otherwise the
+/// stored byte is interpreted strictly — `0` is unpaused, `1` is paused, any other value is
+/// considered corrupted and treated as paused (fail-closed). Writers (`write_paused`) only ever
+/// store `0` or `1`, so a non-canonical byte should not occur in practice.
+#[must_use]
+pub fn paused(config_data: &[u8]) -> bool {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
+        return false;
+    }
+    match config_data[PAUSED_OFFSET] {
+        0 => false,
+        1 => true,
+        // Fail-closed on corruption: any non-canonical byte is treated as paused.
+        _ => true,
+    }
+}
+
+/// Read the configured pauser. Returns `Pubkey::default()` for legacy (un-migrated) accounts
+/// AND for accounts where governance explicitly set the role to the zero pubkey.
+#[must_use]
+pub fn pauser(config_data: &[u8]) -> Pubkey {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
+        return Pubkey::default();
+    }
+    Pubkey::new(&config_data[PAUSER_OFFSET..(PAUSER_OFFSET + PUBKEY_BYTES)])
+}
+
+/// Read the configured unpauser. Same legacy / unassigned semantics as [`pauser`].
+#[must_use]
+pub fn unpauser(config_data: &[u8]) -> Pubkey {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
+        return Pubkey::default();
+    }
+    Pubkey::new(&config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)])
+}
+
+pub(crate) fn write_paused(config_data: &mut [u8], paused: bool) {
+    config_data[PAUSED_OFFSET] = u8::from(paused);
+}
+
+pub(crate) fn write_pauser_addresses(config_data: &mut [u8], pauser: &Pubkey, unpauser: &Pubkey) {
+    config_data[PAUSER_OFFSET..(PAUSER_OFFSET + PUBKEY_BYTES)].copy_from_slice(&pauser.to_bytes());
+    config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)]
+        .copy_from_slice(&unpauser.to_bytes());
+}
+
+/// Returns `Err(Paused)` if the bridge is currently paused. Legacy (un-extended) Config
+/// accounts are treated as unpaused. Call from every non-governance, non-`unpause` entry point.
+pub fn require_not_paused(
+    config_info: &solana_program::account_info::AccountInfo,
+) -> solitaire::Result<()> {
+    let data = config_info.data.borrow();
+    if paused(&data) {
+        return Err(crate::TokenBridgeError::Paused.into());
+    }
+    Ok(())
 }
 
 #[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
