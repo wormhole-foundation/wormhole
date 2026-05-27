@@ -6,6 +6,10 @@ set -eo pipefail -o nounset
 ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 DOCKERFILE="$ROOT/scripts/Dockerfile.lint"
 
+# Custom wormhole-golangci-lint release to use.
+WORMHOLE_GOLANGCI_LINT_VERSION="v0.0.0-test6"
+WORMHOLE_GOLANGCI_LINT_CACHE="$ROOT/.wormhole-lint-cache"
+
 VALID_COMMANDS=("lint" "format")
 
 SELF_ARGS_WITHOUT_DOCKER=""
@@ -54,6 +58,39 @@ format(){
     fi
 }
 
+ensure_wormhole_golangci_lint() {
+    local os arch asset bin dir url tmp
+    os="$(uname -s)"
+    arch="$(uname -m)"
+    case "$os/$arch" in
+        Darwin/arm64) asset="darwin_arm64" ;;
+        Linux/x86_64) asset="linux_amd64" ;;
+        *)
+            echo "wormhole-golangci-lint: unsupported host $os/$arch (supported: Darwin/arm64, Linux/x86_64)" >&2
+            exit 1
+            ;;
+    esac
+
+    dir="$WORMHOLE_GOLANGCI_LINT_CACHE/$WORMHOLE_GOLANGCI_LINT_VERSION"
+    bin="$dir/wormhole-golangci-lint"
+
+    if [ ! -x "$bin" ]; then
+        mkdir -p "$dir"
+        url="https://github.com/asymmetric-research/wormhole-custom-ci/releases/download/${WORMHOLE_GOLANGCI_LINT_VERSION}/wormhole-golangci-lint_${WORMHOLE_GOLANGCI_LINT_VERSION}_${asset}"
+        tmp="$(mktemp "$dir/.download.XXXXXX")"
+        echo "Downloading wormhole-golangci-lint ${WORMHOLE_GOLANGCI_LINT_VERSION} (${asset})..." >&2
+        if ! curl -fsSL "$url" -o "$tmp"; then
+            rm -f "$tmp"
+            echo "Failed to download $url" >&2
+            exit 1
+        fi
+        chmod +x "$tmp"
+        mv "$tmp" "$bin"
+    fi
+
+    echo "$bin"
+}
+
 lint(){
     # === Spell check
     if ! command -v cspell >/dev/null 2>&1; then
@@ -61,19 +98,17 @@ lint(){
     else
         cspell "*/**.*md"
     fi
-    
-    # === Go linting
-    # Check for dependencies
-    if ! command -v golangci-lint >/dev/null 2>&1; then
-        printf "%s\n" "Require golangci-lint. You can run this command in a docker container instead with '-c' and not worry about it or install it: https://golangci-lint.run/usage/install/"
-    fi
+
+    # === Go linting (custom wormhole-golangci-lint)
+    local LINT_BIN
+    LINT_BIN="$(ensure_wormhole_golangci_lint)"
 
     # Do the actual linting!
     cd "$ROOT"/node
-    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./...
 
     cd "${ROOT}/sdk"
-    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./...
 }
 
 DOCKER="false"
