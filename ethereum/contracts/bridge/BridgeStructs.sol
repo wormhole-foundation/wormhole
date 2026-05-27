@@ -108,4 +108,5 @@ contract BridgeStructs {
         // Chain ID
         uint16 newChainId;
     }
+
 }
