@@ -25,7 +25,7 @@ module token_bridge::migrate {
         token_bridge_state: &mut State,
         receipt: DecreeReceipt<upgrade_contract::GovernanceWitness>
     ) {
-        state::migrate__v__0_2_0(token_bridge_state);
+        state::migrate__v__0_3_0(token_bridge_state);
 
         // Perform standard migrate.
         handle_migrate(token_bridge_state, receipt);
