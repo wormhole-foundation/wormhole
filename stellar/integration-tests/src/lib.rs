@@ -110,13 +110,7 @@ impl TestContext {
     }
 
     pub fn fund_identity(&self, name: &str) {
-        run(Command::new("stellar").args([
-            "keys",
-            "fund",
-            "--network",
-            &self.network,
-            name,
-        ]));
+        run(Command::new("stellar").args(["keys", "fund", "--network", &self.network, name]));
     }
 
     pub fn get_identity_address(&self, name: &str) -> String {
@@ -127,13 +121,7 @@ impl TestContext {
 
     pub fn setup_identity(&self, name: &str) -> String {
         let _ = Command::new("stellar").args(["keys", "rm", name]).output();
-        run(Command::new("stellar").args([
-            "keys",
-            "generate",
-            "--network",
-            &self.network,
-            name,
-        ]));
+        run(Command::new("stellar").args(["keys", "generate", "--network", &self.network, name]));
         let addr = run(Command::new("stellar").args(["keys", "address", name]))
             .trim()
             .to_string();

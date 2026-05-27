@@ -26,4 +26,6 @@ pub enum StorageKey {
     MessageFee,
     /// Next sequence number for each emitter address.
     EmitterSequence(Address),
+    /// Hash of an address used in `from/to` fields.
+    AddressTable(BytesN<32>),
 }

@@ -65,6 +65,8 @@ pub enum WormholeError {
     GuardianSetNotFound = 41,
     /// Cannot overwrite an existing guardian set.
     GuardianSetAlreadyExists = 42,
+    /// Requested address hash does not exist in storage.
+    AddressNotFound = 43,
 
     // ========== Fee Errors (50-59) ==========
     /// Emitter has not approved sufficient fee for message posting.

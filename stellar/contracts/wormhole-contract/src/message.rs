@@ -341,5 +341,4 @@ mod tests {
         assert_eq!(s2, 2);
         assert_eq!(client.get_emitter_sequence(&emitter), 3);
     }
-
 }

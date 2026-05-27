@@ -132,7 +132,9 @@ mod tests {
         contracttype,
         testutils::{Address as TestAddress, Events, Ledger},
     };
-    use wormhole_soroban_client::{CHAIN_ID_STELLAR, GOVERNANCE_EMITTER, MODULE_CORE, NATIVE_TOKEN_ADDRESS};
+    use wormhole_soroban_client::{
+        CHAIN_ID_STELLAR, GOVERNANCE_EMITTER, MODULE_CORE, NATIVE_TOKEN_ADDRESS,
+    };
 
     #[contracttype]
     #[derive(Clone)]

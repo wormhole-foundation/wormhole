@@ -44,6 +44,15 @@ pub use types::*;
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, String, contractclient};
 
+/// Computes the canonical Wormhole lookup hash for a Soroban address.
+///
+/// The hash input is the address StrKey string bytes.
+pub fn hash_address(env: &Env, address: &Address) -> BytesN<32> {
+    env.crypto()
+        .keccak256(&address.to_string().to_bytes())
+        .to_bytes()
+}
+
 /// Complete public interface for the Wormhole Core contract.
 ///
 /// Defines all contract entry points for VAA verification, governance actions,
@@ -271,6 +280,32 @@ pub trait WormholeCoreInterface {
     /// # Returns
     /// 32-byte governance emitter address
     fn get_governance_emitter(env: Env) -> BytesN<32>;
+
+    /// Record a Soroban address in the hash lookup table.
+    ///
+    /// Returns the canonical hash used as the lookup key.
+    fn record_address(env: Env, address: Address) -> Result<BytesN<32>, WormholeError>;
+
+    /// Resolve a previously recorded address hash.
+    fn get_address_from_hash(env: Env, hash: BytesN<32>) -> Result<Address, WormholeError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::testutils::Address as _;
+
+    #[test]
+    fn test_hash_address_uses_strkey_string_bytes() {
+        let env = Env::default();
+        let address = Address::generate(&env);
+        let expected = env
+            .crypto()
+            .keccak256(&address.to_string().to_bytes())
+            .to_bytes();
+
+        assert_eq!(hash_address(&env, &address), expected);
+    }
 }
 
 /// Public interface for the Wormhole Executor contract.

@@ -21,9 +21,11 @@ use crate::governance::{
     guardian_set::{get_current_guardian_set_index, get_guardian_set, get_guardian_set_expiry},
 };
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
+use storage::StorageKey;
 use wormhole_soroban_client::{
     CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, GuardianSetInfo,
-    WormholeCoreInterface, WormholeError,
+    STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, WormholeCoreInterface, WormholeError,
+    hash_address,
 };
 
 mod governance;
@@ -150,12 +152,35 @@ impl WormholeCoreInterface for Wormhole {
     fn get_governance_emitter(env: Env) -> BytesN<32> {
         BytesN::from_array(&env, &GOVERNANCE_EMITTER)
     }
+
+    fn record_address(env: Env, address: Address) -> Result<BytesN<32>, WormholeError> {
+        let hash = hash_address(&env, &address);
+        let key = StorageKey::AddressTable(hash.clone());
+        env.storage().persistent().set(&key, &address);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, STORAGE_TTL_THRESHOLD, STORAGE_TTL_EXTENSION);
+        Ok(hash)
+    }
+
+    fn get_address_from_hash(env: Env, hash: BytesN<32>) -> Result<Address, WormholeError> {
+        let key = StorageKey::AddressTable(hash);
+        let Some(address) = env.storage().persistent().get(&key) else {
+            return Err(WormholeError::AddressNotFound);
+        };
+
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, STORAGE_TTL_THRESHOLD, STORAGE_TTL_EXTENSION);
+
+        Ok(address)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{Bytes, BytesN, Env, vec};
+    use soroban_sdk::{Bytes, BytesN, Env, testutils::Address as _, vec};
     use wormhole_soroban_client::{
         ACTION_GUARDIAN_SET_UPGRADE, ACTION_SET_MESSAGE_FEE, ACTION_TRANSFER_FEES,
         GOVERNANCE_EMITTER, MODULE_CORE,
@@ -203,6 +228,41 @@ mod tests {
         let (_contract_id, client) = deploy_initialized(&env);
         assert_eq!(client.get_chain_id(), u32::from(CHAIN_ID_STELLAR));
         assert_eq!(client.get_governance_chain_id(), GOVERNANCE_CHAIN_ID);
+    }
+
+    #[test]
+    fn test_record_address_round_trip() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let address = Address::generate(&env);
+        let hash = hash_address(&env, &address);
+
+        assert_eq!(client.record_address(&address), hash);
+        assert_eq!(client.get_address_from_hash(&hash), address);
+    }
+
+    #[test]
+    fn test_record_account_address_round_trip() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let pk_bytes = BytesN::from_array(&env, &[7u8; 32]);
+        let address = crate::utils::address_from_ed25519_pk_bytes(&env, &pk_bytes);
+        let hash = hash_address(&env, &address);
+
+        assert_eq!(client.record_address(&address), hash);
+        assert_eq!(client.get_address_from_hash(&hash), address);
+    }
+
+    #[test]
+    fn test_get_address_from_hash_returns_not_found_for_missing_hash() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+        let hash = BytesN::<32>::from_array(&env, &[9u8; 32]);
+
+        assert_eq!(
+            client.try_get_address_from_hash(&hash),
+            Err(Ok(WormholeError::AddressNotFound))
+        );
     }
 
     #[test]

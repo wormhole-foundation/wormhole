@@ -119,7 +119,9 @@ mod tests {
     use super::*;
     use crate::Wormhole;
     use soroban_sdk::{Bytes, BytesN, IntoVal, Symbol, testutils::Events, vec};
-    use wormhole_soroban_client::{CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE};
+    use wormhole_soroban_client::{
+        CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE,
+    };
 
     fn build_payload(env: &Env, module: [u8; 32], action: u8, chain: u16, fee: u64) -> Bytes {
         let mut payload = Bytes::new(env);
