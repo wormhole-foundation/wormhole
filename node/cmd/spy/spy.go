@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net"
 	"net/http"
 	"os"
@@ -190,11 +189,12 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
 				}
-				if t.EmitterFilter.GetChainId() > math.MaxUint16 {
+				chainID, err := vaa.ChainIDFromNumber(t.EmitterFilter.GetChainId())
+				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("emitter chain id must be a valid 16 bit unsigned integer: %v", t.EmitterFilter.ChainId.Number()))
 				}
 				fi = append(fi, filterSignedVaa{
-					chainId:     vaa.ChainID(t.EmitterFilter.ChainId), // #nosec G115 -- This is validated above
+					chainId:     chainID,
 					emitterAddr: addr,
 				})
 			default:
