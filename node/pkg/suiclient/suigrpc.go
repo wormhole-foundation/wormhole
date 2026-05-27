@@ -46,29 +46,38 @@ type SuiGrpcClient struct {
 	pbSubscriptionServiceClient GrpcSubscriptionServiceClientInterface //pb.SubscriptionServiceClient
 }
 
-// Retrieves the most recent version of the object.
+// GetObject fetches the latest version of `objectID` populated with the
+// requested `fields` (see ObjectField* constants in suiclient.go).
 // docs: https://www.quicknode.com/docs/sui/sui-grpc/ledger/get-object
-func (s *SuiGrpcClient) GetObject(ctx context.Context, objectID string) (SuiObject, error) {
-	return s.GetObjectAtVersion(ctx, objectID, nil)
+//
+// Returned-field nil-checking is the caller's responsibility — any field
+// not requested OR not returned by the upstream node comes back nil/empty,
+// and this method does not enforce per-field presence.
+func (s *SuiGrpcClient) GetObject(ctx context.Context, objectID string, fields []string) (SuiObject, error) {
+	return s.GetObjectAtVersion(ctx, objectID, nil, fields)
 }
 
-// To replace the old `suix_tryMultiGetPastObjects` behaviour, this method needs to be called
-// for each version of interest. A nil `version` requests the latest version of the object.
+// GetObjectAtVersion fetches `objectID` at the given version, populated with
+// the requested `fields` (see ObjectField* constants in suiclient.go). A nil
+// `version` requests the latest version. To replace the old
+// `suix_tryMultiGetPastObjects` behaviour, call this method once per version
+// of interest.
 //
 // docs: https://www.quicknode.com/docs/sui/sui-grpc/ledger/get-object
-func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string, version *uint64) (SuiObject, error) {
+//
+// Returned-field nil-checking is the caller's responsibility — any field
+// not requested OR not returned by the upstream node comes back nil/empty,
+// and this method does not enforce per-field presence.
+func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string, version *uint64, fields []string) (SuiObject, error) {
+	if len(fields) == 0 {
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject requires at least one field for objectID=%s", objectID)
+	}
+
 	versionStr := "latest"
 	if version != nil {
 		versionStr = fmt.Sprintf("%d", *version)
 	}
 
-	fields := []string{
-		"object_id",
-		// NOTE: "contents" exists only for Move structs. If other types of
-		// objects are desired, "bcs" needs to be specified
-		"contents",
-		"object_type",
-	}
 	getObjectRequest := pb.GetObjectRequest{
 		ObjectId: &objectID,
 		Version:  version,
@@ -77,39 +86,26 @@ func (s *SuiGrpcClient) GetObjectAtVersion(ctx context.Context, objectID string,
 
 	resp, err := s.pbLedgerServiceClient.GetObject(ctx, &getObjectRequest)
 
-	// gRPC call error check
 	if err != nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject failed for objectID=%s version=%s: %w", objectID, versionStr, err)
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject failed for objectID=%s version=%s fields=%v: %w", objectID, versionStr, fields, err)
 	}
 
-	// nil-checks for top-level properties
 	if resp == nil || resp.Object == nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil top-level properties for objectID=%s version=%s", objectID, versionStr)
+		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil top-level properties for objectID=%s version=%s fields=%v", objectID, versionStr, fields)
 	}
 
-	// nil-checks for ObjectId and ObjectType
-	if resp.Object.ObjectId == nil || resp.Object.ObjectType == nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil ObjectId/ObjectType for objectID=%s version=%s", objectID, versionStr)
-	}
-
-	// nil-checks for Contents
-	if resp.Object.Contents == nil || resp.Object.Contents.Name == nil || resp.Object.Contents.Value == nil {
-		return SuiObject{}, fmt.Errorf("sui gRPC GetObject returned nil Contents properties for objectID=%s version=%s", objectID, versionStr)
-	}
-
-	return SuiObject{
-		ID:         *resp.Object.ObjectId,
-		ObjectType: *resp.Object.ObjectType,
-		BcsType:    *resp.Object.Contents.Name,
-		BcsBytes:   resp.Object.Contents.Value,
-	}, nil
+	return grpcObjectToSuiObject(resp.Object), nil
 }
 
-func (s *SuiGrpcClient) GetLatestCheckpointSN(ctx context.Context) (uint64, error) {
-
-	// NOTE: "digest" can be included here, if there is any need in the future.
-	fields := []string{
-		"sequence_number",
+// GetLatestCheckpoint fetches the most recent checkpoint populated with the
+// requested `fields` (see CheckpointField* constants in suiclient.go).
+//
+// Returned-field nil-checking is the caller's responsibility — any field
+// not requested OR not returned by the upstream node comes back nil/empty,
+// and this method does not enforce per-field presence.
+func (s *SuiGrpcClient) GetLatestCheckpoint(ctx context.Context, fields []string) (SuiCheckpoint, error) {
+	if len(fields) == 0 {
+		return SuiCheckpoint{}, fmt.Errorf("sui gRPC GetLatestCheckpoint requires at least one field")
 	}
 
 	getCheckpointRequest := pb.GetCheckpointRequest{
@@ -118,26 +114,28 @@ func (s *SuiGrpcClient) GetLatestCheckpointSN(ctx context.Context) (uint64, erro
 
 	resp, err := s.pbLedgerServiceClient.GetCheckpoint(ctx, &getCheckpointRequest)
 
-	// gRPC call error check
 	if err != nil {
-		return 0, fmt.Errorf("sui gRPC GetCheckpoint failed: %w", err)
+		return SuiCheckpoint{}, fmt.Errorf("sui gRPC GetLatestCheckpoint failed for fields=%v: %w", fields, err)
 	}
 
-	// nil-check
-	if resp == nil || resp.Checkpoint == nil || resp.Checkpoint.SequenceNumber == nil {
-		return 0, fmt.Errorf("sui gRPC GetCheckpoint returned nil properties")
+	if resp == nil || resp.Checkpoint == nil {
+		return SuiCheckpoint{}, fmt.Errorf("sui gRPC GetLatestCheckpoint returned nil top-level properties for fields=%v", fields)
 	}
 
-	return *resp.Checkpoint.SequenceNumber, nil
+	return grpcCheckpointToSuiCheckpoint(resp.Checkpoint), nil
 }
 
+// GetTransaction fetches the transaction identified by `digest` populated with
+// the requested `fields` (see TransactionField* constants in suiclient.go).
 // Replaces `sui_getTransactionBlock`.
 // Docs: https://www.quicknode.com/docs/sui/sui-grpc/ledger/get-transaction
-func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string) (SuiTransaction, error) {
-
-	fields := []string{
-		"digest",
-		"events",
+//
+// Returned-field nil-checking is the caller's responsibility — any field
+// not requested OR not returned by the upstream node comes back nil/empty,
+// and this method does not enforce per-field presence.
+func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string, fields []string) (SuiTransaction, error) {
+	if len(fields) == 0 {
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction requires at least one field for digest=%s", digest)
 	}
 
 	getTransactionRequest := pb.GetTransactionRequest{
@@ -147,28 +145,15 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string) (SuiT
 
 	resp, err := s.pbLedgerServiceClient.GetTransaction(ctx, &getTransactionRequest)
 
-	// gRPC call error check
 	if err != nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed for digest=%s: %w", digest, err)
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed for digest=%s fields=%v: %w", digest, fields, err)
 	}
 
-	// nil-check for top-level properties
 	if resp == nil || resp.Transaction == nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil properties for digest=%s", digest)
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil top-level properties for digest=%s fields=%v", digest, fields)
 	}
 
-	// nil-check for inner properties
-	if resp.Transaction.Digest == nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil Digest for digest=%s", digest)
-	}
-
-	suiTransaction := grpcExecutedTransactionToSuiTransaction(resp.Transaction)
-
-	if suiTransaction == nil {
-		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction failed to convert gRPC tx to Sui tx for digest=%s", digest)
-	}
-
-	return *suiTransaction, nil
+	return grpcExecutedTransactionToSuiTransaction(resp.Transaction), nil
 }
 
 func (s *SuiGrpcClient) createCheckpointStream(ctx context.Context, fields []string) (pb.SubscriptionService_SubscribeCheckpointsClient, error) {
@@ -394,38 +379,82 @@ func grpcEventToSuiEvent(grpcEvent *pb.Event) *SuiEvent {
 	}
 }
 
-// Convert a transaction from the Sui gRPC API to a SuiTransaction. This guarantees that the gRPC transaction is well-formed. If any of
-// the required fields are missing, the function returns `nil`, signalling to the caller that the API response is malformed.
-func grpcExecutedTransactionToSuiTransaction(grpcTransaction *pb.ExecutedTransaction) *SuiTransaction {
-	var suiEvents []SuiEvent
+// grpcExecutedTransactionToSuiTransaction maps a gRPC transaction into the
+// wrapper struct. Fields are populated only when present in the proto; absent
+// fields are left as their zero value (nil/empty). The caller is responsible
+// for nil-checking the fields they read on the returned SuiTransaction.
+func grpcExecutedTransactionToSuiTransaction(grpcTransaction *pb.ExecutedTransaction) SuiTransaction {
+	out := SuiTransaction{}
 
-	// nil-check the required transaction properties
-	if grpcTransaction == nil || grpcTransaction.Digest == nil {
-		return nil
+	if grpcTransaction == nil {
+		return out
 	}
 
-	// If there are no events, return the transaction with an empty event list.
-	if grpcTransaction.Events == nil {
-		return &SuiTransaction{
-			Digest: *grpcTransaction.Digest,
-			Events: suiEvents,
+	out.Digest = grpcTransaction.Digest
+	out.Checkpoint = grpcTransaction.Checkpoint
+
+	if grpcTransaction.Timestamp != nil {
+		ts := grpcTransaction.Timestamp.AsTime()
+		out.Timestamp = &ts
+	}
+
+	if grpcTransaction.Events != nil {
+		for _, event := range grpcTransaction.Events.Events {
+			if suiEventPtr := grpcEventToSuiEvent(event); suiEventPtr != nil {
+				out.Events = append(out.Events, *suiEventPtr)
+			}
 		}
 	}
 
-	for _, event := range grpcTransaction.Events.Events {
+	return out
+}
 
-		// Convert the gRPC event to a SuiEvent
-		suiEventPtr := grpcEventToSuiEvent(event)
+// grpcObjectToSuiObject maps a gRPC object into the wrapper struct. Fields are
+// populated only when present in the proto; absent fields are left as their
+// zero value (nil/empty). The Bcs and Contents sub-messages are flattened into
+// the corresponding {Bcs,Contents}{Type,Bytes} pairs. The caller is
+// responsible for nil-checking the fields they read.
+func grpcObjectToSuiObject(grpcObject *pb.Object) SuiObject {
+	out := SuiObject{}
 
-		// Dereference the converted suiEvent if it's non-nil, implying successful conversion
-		if suiEventPtr != nil {
-			suiEvents = append(suiEvents, *suiEventPtr)
-		}
-
+	if grpcObject == nil {
+		return out
 	}
 
-	return &SuiTransaction{
-		Digest: *grpcTransaction.Digest,
-		Events: suiEvents,
+	out.ObjectID = grpcObject.ObjectId
+	out.Version = grpcObject.Version
+	out.Digest = grpcObject.Digest
+	out.ObjectType = grpcObject.ObjectType
+	out.PreviousTransaction = grpcObject.PreviousTransaction
+	out.StorageRebate = grpcObject.StorageRebate
+	out.Balance = grpcObject.Balance
+
+	if grpcObject.Bcs != nil {
+		out.BcsType = grpcObject.Bcs.Name
+		out.BcsBytes = grpcObject.Bcs.Value
 	}
+
+	if grpcObject.Contents != nil {
+		out.ContentsType = grpcObject.Contents.Name
+		out.ContentsBytes = grpcObject.Contents.Value
+	}
+
+	return out
+}
+
+// grpcCheckpointToSuiCheckpoint maps a gRPC checkpoint into the wrapper
+// struct. Fields are populated only when present in the proto; absent fields
+// are left as their zero value (nil/empty). The caller is responsible for
+// nil-checking the fields they read.
+func grpcCheckpointToSuiCheckpoint(grpcCheckpoint *pb.Checkpoint) SuiCheckpoint {
+	out := SuiCheckpoint{}
+
+	if grpcCheckpoint == nil {
+		return out
+	}
+
+	out.SequenceNumber = grpcCheckpoint.SequenceNumber
+	out.Digest = grpcCheckpoint.Digest
+
+	return out
 }

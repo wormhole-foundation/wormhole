@@ -55,18 +55,26 @@ func TestGrpcClientGetObject(t *testing.T) {
 
 	// Sample Object ID: https://suivision.xyz/object/0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9
 	objectId := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9"
-	obj, err := client.GetObject(ctx, objectId)
+	obj, err := client.GetObject(ctx, objectId, []string{
+		ObjectFieldObjectID,
+		ObjectFieldObjectType,
+		ObjectFieldContents,
+	})
 
 	require.NoError(t, err)
+	require.NotNil(t, obj.ObjectID)
+	require.NotNil(t, obj.ObjectType)
+	require.NotNil(t, obj.ContentsType)
+	require.NotNil(t, obj.ContentsBytes)
 
-	state, err := DecodeBcs[WormholeState](obj.BcsBytes)
+	state, err := DecodeBcs[WormholeState](obj.ContentsBytes)
 	require.NoError(t, err)
 	require.NotNil(t, state)
 
-	fmt.Printf("[+] Object %s:\n", obj.ID)
-	fmt.Println("\tObjectType: ", obj.ObjectType)
-	fmt.Println("\tBcsType: ", obj.BcsType)
-	fmt.Println("\tBcsBytes: ", hex.EncodeToString(obj.BcsBytes))
+	fmt.Printf("[+] Object %s:\n", *obj.ObjectID)
+	fmt.Println("\tObjectType: ", *obj.ObjectType)
+	fmt.Println("\tContentsType: ", *obj.ContentsType)
+	fmt.Println("\tContentsBytes: ", hex.EncodeToString(obj.ContentsBytes))
 	fmt.Println("\tState: ")
 	fmt.Println("\t\tID: ", hex.EncodeToString(state.ID[:]))
 	fmt.Println("\t\tGovernanceChain: ", state.GovernanceChain)
@@ -101,11 +109,15 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 
 	// Sample transaction block: https://suivision.xyz/txblock/55q6tfVjenQwG8Uyn5EDQBuAjZHbPqdDaB9t8qAhYgBi
 	transactionDigest := "HUcA9av3dfKgGmzZ8eiw157824Y1nBSEfmUHbo4fs9dS"
-	tx, err := client.GetTransaction(ctx, transactionDigest)
+	tx, err := client.GetTransaction(ctx, transactionDigest, []string{
+		TransactionFieldDigest,
+		TransactionFieldEvents,
+	})
 
 	require.NoError(t, err)
+	require.NotNil(t, tx.Digest)
 
-	fmt.Println("[+] Transaction Digest: ", tx.Digest)
+	fmt.Println("[+] Transaction Digest: ", *tx.Digest)
 	for _, ev := range tx.Events {
 		fmt.Printf("\tEventType=%s\n", ev.EventType)
 		fmt.Println("\t\tPackageID:", ev.PackageID)
@@ -142,9 +154,10 @@ func TestGrpcClientGetCheckpointSN(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	sequenceNumber, err := client.GetLatestCheckpointSN(ctx)
+	ck, err := client.GetLatestCheckpoint(ctx, []string{CheckpointFieldSequenceNumber})
 	require.NoError(t, err)
-	fmt.Println("Sequence Number: ", sequenceNumber)
+	require.NotNil(t, ck.SequenceNumber)
+	fmt.Println("Sequence Number: ", *ck.SequenceNumber)
 }
 
 func TestGrpcClientSubscribeToTransactionEvents(t *testing.T) {

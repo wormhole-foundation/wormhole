@@ -133,12 +133,18 @@ func FuzzSuiGrpcClientGetObject(f *testing.F) {
 
 		ledgerService.SetNextGetObjectResponse(resp)
 
+		fields := []string{
+			ObjectFieldObjectID,
+			ObjectFieldObjectType,
+			ObjectFieldContents,
+		}
+
 		// Request GetObject if version is even
 		if input_version%2 == 0 {
-			_, _ = grpcClient.GetObject(context.Background(), input_objectId)
+			_, _ = grpcClient.GetObject(context.Background(), input_objectId, fields)
 		} else {
 			// Request GetObjectAtVersion if version is odd
-			_, _ = grpcClient.GetObjectAtVersion(context.Background(), input_objectId, &input_version)
+			_, _ = grpcClient.GetObjectAtVersion(context.Background(), input_objectId, &input_version, fields)
 		}
 
 		ledgerService.SetNextGetObjectResponse(nil)
@@ -184,7 +190,7 @@ func FuzzSuiGrpcClientGetCheckpoint(f *testing.F) {
 		}
 
 		ledgerService.SetNextGetCheckpointResponse(resp)
-		_, _ = grpcClient.GetLatestCheckpointSN(context.Background())
+		_, _ = grpcClient.GetLatestCheckpoint(context.Background(), []string{CheckpointFieldSequenceNumber})
 
 		ledgerService.SetNextGetCheckpointResponse(nil)
 
@@ -229,7 +235,10 @@ func FuzzSuiGrpcClientGetTransactionNoEvents(f *testing.F) {
 		}
 
 		ledgerService.SetNextGetTransactionResponse(resp)
-		_, _ = grpcClient.GetTransaction(context.Background(), "some digest")
+		_, _ = grpcClient.GetTransaction(context.Background(), "some digest", []string{
+			TransactionFieldDigest,
+			TransactionFieldEvents,
+		})
 		ledgerService.SetNextGetTransactionResponse(nil)
 	})
 }
