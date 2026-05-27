@@ -1,5 +1,6 @@
 *.log
 build
+/.wormhole-lint-cache/
 **/node_modules
 /aptos/.aptos/**
 .idea
