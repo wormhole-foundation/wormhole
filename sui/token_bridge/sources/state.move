@@ -6,6 +6,7 @@
 /// accessing registered assets and verifying `VAA` intended for Token Bridge by
 /// checking the emitter against its own registered emitters.
 module token_bridge::state {
+    use sui::dynamic_field::{Self as field};
     use sui::object::{Self, ID, UID};
     use sui::package::{UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::table::{Self, Table};
@@ -26,13 +27,17 @@ module token_bridge::state {
     const E_VERSION_MISMATCH: u64 = 1;
     /// Emitter has already been used to emit Wormhole messages.
     const E_USED_EMITTER: u64 = 2;
+    /// The token bridge is paused.
+    const E_PAUSED: u64 = 3;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
     friend token_bridge::create_wrapped;
     friend token_bridge::migrate;
+    friend token_bridge::pause;
     friend token_bridge::register_chain;
+    friend token_bridge::set_pauser_addresses;
     friend token_bridge::setup;
     friend token_bridge::transfer_tokens;
     friend token_bridge::transfer_tokens_with_payload;
@@ -42,6 +47,13 @@ module token_bridge::state {
     /// Capability reflecting that the current build version is used to invoke
     /// state methods.
     struct LatestOnly has drop {}
+
+    /// Dynamic field key for the `paused` boolean.
+    struct PausedKey has copy, drop, store {}
+    /// Dynamic field key for the pauser address.
+    struct PauserKey has copy, drop, store {}
+    /// Dynamic field key for the unpauser address.
+    struct UnpauserKey has copy, drop, store {}
 
     /// Container for all state variables for Token Bridge.
     struct State has key, store {
@@ -147,6 +159,35 @@ module token_bridge::state {
     ): VerifiedAsset<CoinType> {
         token_registry::assert_has<CoinType>(&self.token_registry);
         token_registry::verified_asset(&self.token_registry)
+    }
+
+    /// Returns `true` if the token bridge is paused. Returns `false` if
+    /// the `PausedKey` dynamic field has not been initialized yet (backwards
+    /// compatible with pre-pause state).
+    public fun is_paused(self: &State): bool {
+        if (field::exists_(&self.id, PausedKey {})) {
+            *field::borrow<PausedKey, bool>(&self.id, PausedKey {})
+        } else {
+            false
+        }
+    }
+
+    /// Returns the configured pauser address. Returns `@0x0` if unset.
+    public fun pauser(self: &State): address {
+        if (field::exists_(&self.id, PauserKey {})) {
+            *field::borrow<PauserKey, address>(&self.id, PauserKey {})
+        } else {
+            @0x0
+        }
+    }
+
+    /// Returns the configured unpauser address. Returns `@0x0` if unset.
+    public fun unpauser(self: &State): address {
+        if (field::exists_(&self.id, UnpauserKey {})) {
+            *field::borrow<UnpauserKey, address>(&self.id, UnpauserKey {})
+        } else {
+            @0x0
+        }
     }
 
     #[test_only]
@@ -292,6 +333,65 @@ module token_bridge::state {
 
     ////////////////////////////////////////////////////////////////////////////
     //
+    //  Pause
+    //
+    //  Methods to manage the pause state. Setters require `LatestOnly` to
+    //  ensure only the current build can modify pause state.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// Abort if the token bridge is paused.
+    public(friend) fun assert_not_paused(self: &State) {
+        assert!(!is_paused(self), E_PAUSED);
+    }
+
+    /// Set the paused flag. Requires `LatestOnly`.
+    public(friend) fun set_paused(
+        _: &LatestOnly,
+        self: &mut State,
+        paused: bool
+    ) {
+        if (field::exists_(&self.id, PausedKey {})) {
+            *field::borrow_mut<PausedKey, bool>(&mut self.id, PausedKey {}) = paused;
+        } else {
+            field::add(&mut self.id, PausedKey {}, paused);
+        }
+    }
+
+    /// Set the pauser address. Requires `LatestOnly`.
+    public(friend) fun set_pauser_address(
+        _: &LatestOnly,
+        self: &mut State,
+        new_pauser: address
+    ) {
+        if (field::exists_(&self.id, PauserKey {})) {
+            *field::borrow_mut<PauserKey, address>(
+                &mut self.id,
+                PauserKey {}
+            ) = new_pauser;
+        } else {
+            field::add(&mut self.id, PauserKey {}, new_pauser);
+        }
+    }
+
+    /// Set the unpauser address. Requires `LatestOnly`.
+    public(friend) fun set_unpauser_address(
+        _: &LatestOnly,
+        self: &mut State,
+        new_unpauser: address
+    ) {
+        if (field::exists_(&self.id, UnpauserKey {})) {
+            *field::borrow_mut<UnpauserKey, address>(
+                &mut self.id,
+                UnpauserKey {}
+            ) = new_unpauser;
+        } else {
+            field::add(&mut self.id, UnpauserKey {}, new_unpauser);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
     //  Upgradability
     //
     //  A special space that controls upgrade logic. These methods are invoked
@@ -371,8 +471,16 @@ module token_bridge::state {
     ///
     /// NOTE: Please keep this method as public(friend) because we never want
     /// to expose this method as a public method.
-    public(friend) fun migrate__v__0_2_0(_self: &mut State) {
-        // Intentionally do nothing.
+    public(friend) fun migrate__v__0_3_0(self: &mut State) {
+        // Initialize pause dynamic fields with defaults.
+        // paused = false, pauser = @0x0, unpauser = @0x0
+        // Guarded with exists_ check for resilience against partial migration
+        // retry scenarios.
+        if (!field::exists_(&self.id, PausedKey {})) {
+            field::add(&mut self.id, PausedKey {}, false);
+            field::add(&mut self.id, PauserKey {}, @0x0);
+            field::add(&mut self.id, UnpauserKey {}, @0x0);
+        };
     }
 
     #[test_only]
@@ -385,6 +493,30 @@ module token_bridge::state {
         // Intentionally do nothing.
     }
 
+    #[test_only]
+    /// Initialize pause state for tests. Call this in test setup so that
+    /// pause-related getters/setters work without running migrate.
+    public fun init_pause_state_test_only(self: &mut State) {
+        if (!field::exists_(&self.id, PausedKey {})) {
+            field::add(&mut self.id, PausedKey {}, false);
+            field::add(&mut self.id, PauserKey {}, @0x0);
+            field::add(&mut self.id, UnpauserKey {}, @0x0);
+        }
+    }
+
+    #[test_only]
+    /// Set the paused flag directly in tests (bypasses LatestOnly).
+    public fun set_paused_test_only(self: &mut State, paused: bool) {
+        let latest_only = assert_latest_only(self);
+        set_paused(&latest_only, self, paused);
+    }
+
+    #[test_only]
+    /// Call assert_not_paused from test context.
+    public fun assert_not_paused_test_only(self: &State) {
+        assert_not_paused(self);
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     //
     //  Deprecated
@@ -393,4 +525,8 @@ module token_bridge::state {
     //  be used in future builds.
     //
     ////////////////////////////////////////////////////////////////////////////
+
+    public(friend) fun migrate__v__0_2_0(_self: &mut State) {
+        // Intentionally do nothing.
+    }
 }

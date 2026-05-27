@@ -136,6 +136,7 @@ module token_bridge::transfer_tokens_with_payload {
     ): MessageTicket {
         // This capability ensures that the current build version is used.
         let latest_only = state::assert_latest_only(token_bridge_state);
+        state::assert_not_paused(token_bridge_state);
 
         // Encode Wormhole message payload.
         let (
