@@ -251,8 +251,7 @@ func (acct *Accountant) performAudit(ctx context.Context, knownPendingTransferMa
 		zap.Int("totalPending", len(pendingTransfers)),
 		zap.String("contract", contract))
 
-	// SECURITY: knownPendingTransferMap contains only transfers that this guardian has personally
-	// observed and verified through the normal message processing pipeline. Transfers returned by
+	// SECURITY: knownPendingTransferMap contains only transfers that are verified through the normal message processing pipeline. Transfers returned by
 	// the contract's all_pending_transfers query are untrusted external data. We must ONLY resubmit
 	// observations for transfers present in knownPendingTransferMap. For transfers the contract
 	// reports that we do NOT have locally, we request a reobservation from the watcher, which
