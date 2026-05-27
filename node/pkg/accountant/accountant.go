@@ -486,10 +486,14 @@ func (acct *Accountant) submitToChannel(ctx context.Context, pe *pendingEntry, s
 			acct.logger.Warn(fmt.Sprintf("timeout submitting observation to %s channel, will retry next audit", tag),
 				zap.String("msgId", pe.msgId),
 				zap.Duration("timeout", timeout))
+			pe.stateLock.Lock()
 			pe.state.submitPending = false
+			pe.stateLock.Unlock()
 		case <-ctx.Done():
 			acct.logger.Debug(fmt.Sprintf("context cancelled while submitting to %s channel", tag), zap.String("msgId", pe.msgId))
+			pe.stateLock.Lock()
 			pe.state.submitPending = false
+			pe.stateLock.Unlock()
 		}
 	} else {
 		// Non-blocking write (existing behavior for processor)
@@ -498,7 +502,9 @@ func (acct *Accountant) submitToChannel(ctx context.Context, pe *pendingEntry, s
 			acct.logger.Debug(fmt.Sprintf("submitted observation to channel for %s", tag), zap.String("msgId", pe.msgId))
 		default:
 			acct.logger.Error(fmt.Sprintf("unable to submit observation to %s because the channel is full, will try next interval", tag), zap.String("msgId", pe.msgId))
+			pe.stateLock.Lock()
 			pe.state.submitPending = false
+			pe.stateLock.Unlock()
 		}
 	}
 }
