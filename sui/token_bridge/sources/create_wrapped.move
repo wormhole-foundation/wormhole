@@ -46,7 +46,7 @@ module token_bridge::create_wrapped {
     use token_bridge::wrapped_asset::{Self};
 
     #[test_only]
-    use token_bridge::version_control::{Self, V__0_2_0 as V__CURRENT};
+    use token_bridge::version_control::{Self, V__0_3_0 as V__CURRENT};
 
     /// Failed one-time witness verification.
     const E_BAD_WITNESS: u64 = 0;
@@ -160,6 +160,7 @@ module token_bridge::create_wrapped {
         // created using the current package.
         let latest_only =
             state::assert_latest_only_specified<Version>(token_bridge_state);
+        state::assert_not_paused(token_bridge_state);
 
         let WrappedAssetSetup {
             id,
@@ -196,6 +197,7 @@ module token_bridge::create_wrapped {
     ) {
         // This capability ensures that the current build version is used.
         let latest_only = state::assert_latest_only(token_bridge_state);
+        state::assert_not_paused(token_bridge_state);
 
         // Deserialize to `AssetMeta`.
         let token_meta = asset_meta::deserialize(vaa::take_payload(msg));
@@ -300,7 +302,7 @@ module token_bridge::create_wrapped_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
-    use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
+    use token_bridge::version_control::{V__0_3_0 as V__CURRENT};
     use token_bridge::wrapped_asset::{Self};
 
     struct NOT_A_WITNESS has drop {}
