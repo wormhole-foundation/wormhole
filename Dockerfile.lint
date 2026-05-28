@@ -3,7 +3,8 @@ FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957
 
 RUN npm install -g cspell@9.8.0
 
-FROM docker.io/golang:1.24.13-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac
+# keep Go version in sync with node/go.mod
+FROM docker.io/golang:1.25.10-bookworm@sha256:154bd7001b6eb339e88c964442c0ad6ed5e53f09844cc818a41ce4ecb3ce3b43
 
 # Direct Go module/state under /tmp so the non-root user can write to it.
 ENV GOPATH=/tmp/go
