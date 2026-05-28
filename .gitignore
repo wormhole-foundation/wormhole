@@ -30,6 +30,7 @@ devnet-consts.json
 sui.log.*
 sui/examples/wrapped_coin
 *.prof
+/coverage-check
 # Only used for internal testing
 *.testnet.yaml
 coverage.txt
