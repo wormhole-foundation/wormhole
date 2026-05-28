@@ -7,7 +7,7 @@ ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 DOCKERFILE="$ROOT/scripts/Dockerfile.lint"
 
 # Custom wormhole-golangci-lint release to use.
-WORMHOLE_GOLANGCI_LINT_VERSION="v0.0.0-test6"
+WORMHOLE_GOLANGCI_LINT_VERSION="v0.0.0-test10"
 WORMHOLE_GOLANGCI_LINT_CACHE="$ROOT/.wormhole-lint-cache"
 
 VALID_COMMANDS=("lint" "format")
@@ -64,9 +64,11 @@ ensure_wormhole_golangci_lint() {
     arch="$(uname -m)"
     case "$os/$arch" in
         Darwin/arm64) asset="darwin_arm64" ;;
+        Darwin/x86_64) asset="darwin_amd64" ;;
         Linux/x86_64) asset="linux_amd64" ;;
+        Linux/aarch64) asset="linux_arm64" ;;
         *)
-            echo "wormhole-golangci-lint: unsupported host $os/$arch (supported: Darwin/arm64, Linux/x86_64)" >&2
+            echo "wormhole-golangci-lint: unsupported host $os/$arch (supported: Darwin/arm64, Darwin/x86_64, Linux/x86_64, Linux/aarch64)" >&2
             exit 1
             ;;
     esac
