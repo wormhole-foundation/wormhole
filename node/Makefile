@@ -1,6 +1,7 @@
 .PHONY: lint
-lint: 
-	golangci-lint run -c ../.golangci.yml ./...
+lint:
+# Lints spelling and Go via the custom wormhole-golangci-lint
+	bash ../scripts/lint.sh lint
 
 .PHONY: test
 test: 
