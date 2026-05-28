@@ -289,9 +289,9 @@ func (s *SolanaWatcher) shimProcessRest(
 	for idx := startIdx; idx < len(innerInstructions); idx++ {
 		inst := innerInstructions[idx]
 		if inst.ProgramIDIndex == whProgramIndex {
-			foundIt, err := shimVerifyCoreMessage(inst.Data)
-			if err != nil {
-				return fmt.Errorf("failed to verify inner core instruction for shim instruction %d, %d: %w", outerIdx, idx, err)
+			foundIt, verifyErr := shimVerifyCoreMessage(inst.Data)
+			if verifyErr != nil {
+				return fmt.Errorf("failed to verify inner core instruction for shim instruction %d, %d: %w", outerIdx, idx, verifyErr)
 			}
 			if foundIt {
 				if verifiedCoreEvent {
@@ -306,9 +306,9 @@ func (s *SolanaWatcher) shimProcessRest(
 			// The shim contract makes a self cross program invocation (self CPI) in the context of `post_message`.
 			// The function discriminator is effectively the event type. It's a contract call that can only be made by the
 			// shim contract because of the PDA signer that is required.
-			thisEvent, err := shimParseMessageEvent(s.shimMessageEventDiscriminator, inst.Data)
-			if err != nil {
-				return fmt.Errorf("failed to parse inner shim message event instruction for shim instruction %d, %d: %w", outerIdx, idx, err)
+			thisEvent, parseErr := shimParseMessageEvent(s.shimMessageEventDiscriminator, inst.Data)
+			if parseErr != nil {
+				return fmt.Errorf("failed to parse inner shim message event instruction for shim instruction %d, %d: %w", outerIdx, idx, parseErr)
 			}
 
 			if thisEvent != nil {

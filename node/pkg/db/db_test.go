@@ -143,11 +143,11 @@ func TestStoreSignedVAABatch(t *testing.T) {
 
 	// Verify all the VAAs are in the database.
 	for _, v := range vaaBatch {
-		storedBytes, err := db.GetSignedVAABytes(*VaaIDFromVAA(v))
-		require.NoError(t, err)
+		storedBytes, getErr := db.GetSignedVAABytes(*VaaIDFromVAA(v))
+		require.NoError(t, getErr)
 
-		origBytes, err := v.Marshal()
-		require.NoError(t, err)
+		origBytes, marshalErr := v.Marshal()
+		require.NoError(t, marshalErr)
 
 		assert.True(t, bytes.Equal(origBytes, storedBytes))
 	}
@@ -252,8 +252,8 @@ func BenchmarkVaaLookup(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		randId := math_rand.Intn(250000) //nolint
 		randId = 250000 - (i / 18)
-		vaaId, err := VaaIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
-		assert.NoError(b, err)
+		vaaId, idErr := VaaIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
+		assert.NoError(b, idErr)
 		vaaIds <- vaaId
 	}
 

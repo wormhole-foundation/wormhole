@@ -55,6 +55,9 @@ Cyfrin
 datagram
 denoms
 devnet
+dgset
+doclink
+doclinks
 Dogecoin
 dymension
 Dymension
@@ -64,6 +67,7 @@ ETHRPC
 evmos
 evmtypes
 fogo
+fogoshim
 Fogo
 forgeable
 FQTs
@@ -121,6 +125,7 @@ Litecoin
 localnet
 localterra
 lockfiles
+logonly
 marshal
 megaETH
 MegaETH
@@ -180,13 +185,14 @@ reobservations
 Reobservations
 reobserved
 repoint
+RLUSD
 runtimes
 rustup
 satoshi
 satoshis
+SECG
 secp
 SECQ
-SECG
 seda
 seievm
 Sepolia
@@ -197,6 +203,7 @@ SnaxChain
 solana
 Solana
 Solana's
+solshim
 spydk
 Starport
 statesync
@@ -223,14 +230,15 @@ uatom
 uluna
 unbond
 Uncompromised
+undelegated
 undercollateralization
 unforgeable
 unichain
 Unichain
-undelegated
 unmarshal
 unmarshals
 unnormalize
+unpauser
 untampered
 upserted
 utest

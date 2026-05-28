@@ -199,6 +199,8 @@ const (
 var (
 	emptyAddressBytes = vaa.Address{}.Bytes()
 	emptyGapBytes     = []byte{0, 0, 0}
+
+	addressLookupTableProgramID = solana.MustPublicKeyFromBase58("AddressLookupTab1e1111111111111111111111111")
 )
 
 var (
@@ -559,8 +561,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					rangeEnd := slot
 
 					// Requesting each slot
-					for slot := rangeStart; slot <= rangeEnd; slot++ {
-						_slot := slot
+					for slotIdx := rangeStart; slotIdx <= rangeEnd; slotIdx++ {
+						_slot := slotIdx
 						common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
 							s.retryFetchBlock(ctx, logger, _slot, 0, false)
 							return nil
@@ -756,23 +758,26 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 		return
 	}
 
-	var programIndex uint16
-	var shimProgramIndex uint16
-	var shimFound bool
+	var (
+		programIndex     uint16
+		coreFound        bool
+		shimProgramIndex uint16
+		shimFound        bool
+	)
 
 	// SECURITY: Mapping of AccountKeys matches the indexes associated with the original transaction.
 	// This is filled via a helper function. The ordering is AccountKeys (static accounts), Writable Account Lookup Table (ALT) entries, and Readable ALT entries.
-	//
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
 			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
+			coreFound = true
 		}
 		if s.shimEnabled && key.Equals(s.shimContractAddr) {
 			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
-	if programIndex == 0 {
+	if !coreFound {
 		return
 	}
 
@@ -1324,6 +1329,17 @@ func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, rpcClie
 		info, err := rpcClient.GetAccountInfo(ctx, key)
 		if err != nil {
 			return fmt.Errorf("failed to get account info for key %s: %w", key, err)
+		}
+
+		// SECURITY: A lookup table account must be owned by the on-chain
+		// address-lookup-table program. Otherwise, attacker could spoof account data.
+		// Solana runtime ensures this isn't possible. This is an extra check in
+		// case the runtime changes.
+		if info.Value == nil {
+			return fmt.Errorf("lookup table account %s does not exist", key)
+		}
+		if !info.Value.Owner.Equals(addressLookupTableProgramID) {
+			return fmt.Errorf("lookup table account %s has invalid owner %s", key, info.Value.Owner)
 		}
 
 		tableContent, err := lookup.DecodeAddressLookupTableState(info.GetBinary())

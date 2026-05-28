@@ -25,7 +25,7 @@ import {
   chainToNativeDenoms,
   CosmwasmAddress,
 } from "@wormhole-foundation/sdk-cosmwasm";
-import { isValidSuiAddress } from "@mysten/sui.js";
+import { isValidSuiAddress } from "./sui";
 import { sha3_256 } from "js-sha3";
 import {
   nativeStringToHexAlgorand,

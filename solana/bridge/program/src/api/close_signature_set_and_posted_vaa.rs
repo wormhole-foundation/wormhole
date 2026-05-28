@@ -32,8 +32,8 @@ use super::RETENTION_PERIOD;
 
 /// Default submission_time for accounts created before the submission_time
 /// field was populated. Gives legacy accounts a 30-day grace period from
-/// this date (10 April 2026) instead of being immediately closable.
-const DEFAULT_SUBMISSION_TIME: u32 = 1775833078;
+/// this date (1 June 2026) instead of being immediately closable.
+const DEFAULT_SUBMISSION_TIME: u32 = 1780272000;
 
 #[derive(FromAccounts)]
 pub struct CloseSignatureSetAndPostedVAA<'b> {

@@ -18,6 +18,8 @@ and code reviews are our most important tools to accomplish that.
 
 - Commits should be small and have a meaningful commit message. One commit should, roughly, be "one idea" and
   be as atomic as possible. A feature can consist of many such commits.
+- Where possible, use standard libraries, common dependencies, or SDK functions instead of re-implementing validation
+from scratch. This helps prevent duplication and drift for routine tasks, and helps the codebase stay lean and well-tested.
 - Feature flags and interface evolution are better than breaking changes and long-lived feature branches.
 - We optimize for reading, not for writing - over its lifetime, code is read much more often than written.
   Small commits, meaningful commit messages and useful comments make it easier to review code and improve the
@@ -161,9 +163,18 @@ Resources for writing good commit messages:
 
 ## Comment Conventions
 
+Make use of tools like Go's [doclinks](https://go.dev/doc/comment#doclinks) and Rust's [intra-doc links](https://doc.rust-lang.org/rustdoc/write-documentation/linking-to-items-by-name.html)
+to cross-correlate comments, especially when a field or structure is used 'at a distance' and modifying it could cause
+side-effects for other parts of the codebase.
+
+Comments should be full sentences in the present tense.
+
+Avoid referring to specific line numbers that may become stale.
+Avoid phrasing comments as changelogs e.g. "The function now returns an error instead of a string".
+
 ### Go
 
-Go code should follow the [Go Doc Comments](https://go.dev/doc/comment) standard.
+Go code should follow the [Go Doc Comments](https://go.dev/doc/comment) standard. 
 
 ### TypeScript
 
@@ -173,7 +184,10 @@ TypeScript code should follow the [TSDoc](https://tsdoc.org/) standard.
 
 You must format your code with `goimports` before submitting.
 You can install it with `go install golang.org/x/tools/cmd/goimports@latest` and run it with `goimports -d ./`.
-You can enable it in VSCode with the following in your `settings.json`.
+
+### Configuration: VSCode 
+
+You can enable goimports in VSCode with the following in your `settings.json`.
 
 ```json
   "go.useLanguageServer": true,
@@ -211,3 +225,9 @@ Places to find out more about existing test coverage and how to run those tests:
   - Run: `cd algorand && make test`
 
 The best place to understand how we invoke these tests via GitHub Actions on every commit can be found via `./.github/workflows/*.yml` and the best place to observe the results of these builds can be found via [https://github.com/wormhole-foundation/wormhole/actions](https://github.com/wormhole-foundation/wormhole/actions).
+
+### Code Coverage
+
+Refer to [Makefile] for instructions on checking on and updating code coverage.
+
+When adding new unit tests, please update the code coverage metrics.

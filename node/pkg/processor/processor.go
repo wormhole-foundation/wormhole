@@ -328,6 +328,7 @@ func NewProcessor(
 		alternatePublisher:              alternatePublisher,
 
 		logger:                    supervisor.Logger(ctx),
+		gs:                        nil,
 		state:                     &aggregationState{observationMap{}},
 		delegateState:             &delegateAggregationState{delegateObservationMap{}},
 		ourAddr:                   crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
@@ -337,6 +338,7 @@ func NewProcessor(
 		notary:                    notary,
 		pythnetVaas:               make(map[string]PythNetVaaEntry),
 		gatewayRelayer:            gatewayRelayer,
+		updateVAALock:             sync.Mutex{},
 		batchObsvPubC:             make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:               make(map[string]*updateVaaEntry),
 		networkID:                 networkID,

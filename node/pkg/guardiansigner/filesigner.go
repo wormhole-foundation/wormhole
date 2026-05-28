@@ -74,7 +74,22 @@ func NewFileSigner(_ context.Context, unsafeDevMode bool, signerKeyPath string) 
 }
 
 // Sign signs a hash using the go-ethereum/crypto package's `Sign` function.
+//
+// As noted in the go-ethereum documentation, this function is subject to
+// chosen-plaintext attacks. As a result, the input to this function must
+// be a hash of the message that is being signed. This function will
+// return an error if the hash is not the correct size.
 func (fs *FileSigner) Sign(ctx context.Context, hash []byte) ([]byte, error) {
+
+	// Ensure hash is 32 bytes.
+	// This check is also performed by the Sign() function below, but we do it here
+	// to ensure the integrity of Guardian's signed messages even if
+	// go-ethereum/crypto is updated in the future.
+	const digestLength = 32
+	if len(hash) != digestLength {
+		return nil, fmt.Errorf("hash is required to be exactly %d bytes (%d)", digestLength, len(hash))
+	}
+
 	// Sign the hash
 	sig, err := crypto.Sign(hash, fs.privateKey)
 

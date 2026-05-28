@@ -22,12 +22,14 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
+	managerxrpl "github.com/certusone/wormhole/node/pkg/manager/xrpl"
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
 	"github.com/certusone/wormhole/node/pkg/watchers/aptos"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
+	"github.com/certusone/wormhole/node/pkg/watchers/xrpl"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
@@ -95,10 +97,6 @@ var (
 	moonbeamRPC      *string
 	moonbeamContract *string
 
-	terraWS       *string
-	terraLCD      *string
-	terraContract *string
-
 	terra2WS       *string
 	terra2LCD      *string
 	terra2Contract *string
@@ -106,6 +104,10 @@ var (
 	injectiveWS       *string
 	injectiveLCD      *string
 	injectiveContract *string
+
+	seiWS       *string
+	seiLCD      *string
+	seiContract *string
 
 	gatewayWS       *string
 	gatewayLCD      *string
@@ -204,6 +206,10 @@ var (
 
 	xrplEvmRPC      *string
 	xrplEvmContract *string
+
+	xrplRPC         *string
+	xrplContract    *string
+	xrplNttAccounts *[]string
 
 	plasmaRPC      *string
 	plasmaContract *string
@@ -305,8 +311,9 @@ var (
 	featureFlags  []string
 	notaryEnabled *bool
 
-	managerServiceEnabled    *bool
-	dogecoinManagerSignerUri *string
+	managerServiceEnabled     *bool
+	dogecoinManagerSignerUris []string
+	xrplManagerSignerUris     []string
 )
 
 func init() {
@@ -354,10 +361,6 @@ func init() {
 	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
-	terraWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraWS", "Path to terrad root for websocket connection", "ws://terra-terrad:26657/websocket", []string{"ws", "wss"})
-	terraLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraLCD", "Path to LCD service root for http calls", "http://terra-terrad:1317", []string{"http", "https"})
-	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
-
 	terra2WS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2WS", "Path to terrad root for websocket connection", "ws://terra2-terrad:26657/websocket", []string{"ws", "wss"})
 	terra2LCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2LCD", "Path to LCD service root for http calls", "http://terra2-terrad:1317", []string{"http", "https"})
 	terra2Contract = NodeCmd.Flags().String("terra2Contract", "", "Wormhole contract address on Terra 2 blockchain")
@@ -365,6 +368,10 @@ func init() {
 	injectiveWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveWS", "Path to root for Injective websocket connection", "ws://injective:26657/websocket", []string{"ws", "wss"})
 	injectiveLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveLCD", "Path to LCD service root for Injective http calls", "http://injective:1317", []string{"http", "https"})
 	injectiveContract = NodeCmd.Flags().String("injectiveContract", "", "Wormhole contract address on Injective blockchain")
+
+	seiWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiWS", "Path to root for Sei websocket connection", "ws://sei:26657/websocket", []string{"ws", "wss"})
+	seiLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiLCD", "Path to LCD service root for Sei http calls", "http://sei:1317", []string{"http", "https"})
+	seiContract = NodeCmd.Flags().String("seiContract", "", "Wormhole contract address on Sei blockchain")
 
 	gatewayWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayWS", "Path to root for Gateway watcher websocket connection", "ws://wormchain:26657/websocket", []string{"ws", "wss"})
 	gatewayLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayLCD", "Path to LCD service root for Gateway watcher http calls", "http://wormchain:1317", []string{"http", "https"})
@@ -465,6 +472,10 @@ func init() {
 	xrplEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplEvmRPC", "XRPLEVM RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xrplEvmContract = NodeCmd.Flags().String("xrplEvmContract", "", "XRPLEVM contract address")
 
+	xrplRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplRPC", "XRPL RPC URL", "ws://xrpl:6006", []string{"ws", "wss"})
+	xrplContract = NodeCmd.Flags().String("xrplContract", "", "XRPL contract address")
+	xrplNttAccounts = NodeCmd.Flags().StringSlice("xrplNttAccounts", []string{}, "XRPL NTT manager accounts to subscribe to")
+
 	plasmaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plasmaRPC", "PLASMA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	plasmaContract = NodeCmd.Flags().String("plasmaContract", "", "Plasma contract address")
 
@@ -549,7 +560,8 @@ func init() {
 	notaryEnabled = NodeCmd.Flags().Bool("notaryEnabled", false, "Run the notary")
 
 	managerServiceEnabled = NodeCmd.Flags().Bool("managerServiceEnabled", false, "Run the manager service")
-	dogecoinManagerSignerUri = NodeCmd.Flags().String("dogecoinManagerSignerUri", "", "Dogecoin manager signer URI")
+	NodeCmd.Flags().StringSliceVarP(&dogecoinManagerSignerUris, "dogecoinManagerSignerUris", "", []string{}, "Dogecoin manager signer URI(s)")
+	NodeCmd.Flags().StringSliceVarP(&xrplManagerSignerUris, "xrplManagerSignerUris", "", []string{}, "XRPL manager signer URI(s)")
 }
 
 var (
@@ -653,9 +665,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.UnsafeDevNet {
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
+		hostname, hostErr := os.Hostname()
+		if hostErr != nil {
+			panic(hostErr)
 		}
 		*nodeName = hostname
 
@@ -673,9 +685,9 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
 	if env == common.UnsafeDevNet {
-		g0key, err := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
-		if err != nil {
-			panic(err)
+		g0key, keyErr := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
+		if keyErr != nil {
+			panic(keyErr)
 		}
 
 		// Use the first guardian node as bootstrap
@@ -762,9 +774,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.UnsafeDevNet {
 		// Only if the signer is file-based should we generate the deterministic key and write it to disk
 		if st, _, _ := guardiansigner.ParseSignerUri(*guardianSignerUri); st == guardiansigner.FileSignerType {
-			err := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
-			if err != nil {
-				logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
+			genErr := devnet.GenerateAndStoreDevnetGuardianKey(*guardianKeyPath)
+			if genErr != nil {
+				logger.Fatal("failed to generate devnet guardian key", zap.Error(genErr))
 			}
 		}
 	}
@@ -785,22 +797,22 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
 	if env == common.UnsafeDevNet {
-		idx, err := devnet.GetDevnetIndex()
-		if err != nil {
+		idx, idxErr := devnet.GetDevnetIndex()
+		if idxErr != nil {
 			logger.Fatal("Failed to parse hostname - are we running in devnet?")
 		}
 		p2pKey = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
 
 		if idx != 0 {
-			firstGuardianName, err := devnet.GetFirstGuardianNameFromBootstrapPeers(*p2pBootstrap)
-			if err != nil {
-				logger.Fatal("failed to get first guardian name from bootstrap peers", zap.String("bootstrapPeers", *p2pBootstrap), zap.Error(err))
+			firstGuardianName, lookupErr := devnet.GetFirstGuardianNameFromBootstrapPeers(*p2pBootstrap)
+			if lookupErr != nil {
+				logger.Fatal("failed to get first guardian name from bootstrap peers", zap.String("bootstrapPeers", *p2pBootstrap), zap.Error(lookupErr))
 			}
 			// try to connect to guardian-0
 			for {
 				//nolint:noctx // TODO: this should be refactored to use context.
-				_, err := net.LookupIP(firstGuardianName)
-				if err == nil {
+				_, resolveErr := net.LookupIP(firstGuardianName)
+				if resolveErr == nil {
 					break
 				}
 				logger.Info(fmt.Sprintf("Error resolving %s. Trying again...", firstGuardianName))
@@ -924,16 +936,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --pythnetContract, --pythnetRPC and --pythnetWS must all be set or all unset")
 	}
 
-	if !argsConsistent([]string{*terraContract, *terraWS, *terraLCD}) {
-		logger.Fatal("Either --terraContract, --terraWS and --terraLCD must all be set or all unset")
-	}
-
 	if !argsConsistent([]string{*terra2Contract, *terra2WS, *terra2LCD}) {
 		logger.Fatal("Either --terra2Contract, --terra2WS and --terra2LCD must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*injectiveContract, *injectiveWS, *injectiveLCD}) {
 		logger.Fatal("Either --injectiveContract, --injectiveWS and --injectiveLCD must all be set or all unset")
+	}
+
+	if !argsConsistent([]string{*seiContract, *seiWS, *seiLCD}) {
+		logger.Fatal("Either --seiContract, --seiWS and --seiLCD must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*algorandIndexerRPC, *algorandAlgodRPC, *algorandAlgodToken}) {
@@ -962,6 +974,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if !argsConsistent([]string{*suiRPC, *suiMoveEventType}) {
 		logger.Fatal("Either --suiRPC and --suiMoveEventType must all be set or all unset")
+	}
+
+	if !argsConsistent([]string{*xrplRPC, *xrplContract}) {
+		logger.Fatal("Either --xrplRPC and --xrplContract must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
@@ -1052,7 +1068,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["pythnetWS"] = *pythnetWS
 	// ChainIDBtc is not supported in the guardian.
 	rpcMap["baseRPC"] = *baseRPC
-	// ChainIDSei is supported over IBC, so it's not listed here.
+	rpcMap["seiWS"] = *seiWS
+	rpcMap["seiLCD"] = *seiLCD
 	// ChainIDRootstock is not supported in the guardian.
 	rpcMap["lineaRPC"] = *lineaRPC
 	rpcMap["berachainRPC"] = *berachainRPC
@@ -1069,6 +1086,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["xrplevmRPC"] = *xrplEvmRPC
 	rpcMap["plasmaRPC"] = *plasmaRPC
 	rpcMap["creditcoinRPC"] = *creditCoinRPC
+	rpcMap["xrplRPC"] = *xrplRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1604,19 +1622,14 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
-	if shouldStart(terraWS) {
-		if env != common.UnsafeDevNet {
-			logger.Fatal("Terra classic is only allowed in unsafe dev mode")
+	if shouldStart(nexusRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "nexus",
+			ChainID:          vaa.ChainIDNexus,
+			Rpc:              *nexusRPC,
+			Contract:         *nexusContract,
+			CcqBackfillCache: *ccqBackfillCache,
 		}
-
-		wc := &cosmwasm.WatcherConfig{
-			NetworkID: "terra",
-			ChainID:   vaa.ChainIDTerra,
-			Websocket: *terraWS,
-			Lcd:       *terraLCD,
-			Contract:  *terraContract,
-		}
-
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
@@ -1643,6 +1656,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			Websocket: *injectiveWS,
 			Lcd:       *injectiveLCD,
 			Contract:  *injectiveContract,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(seiWS) {
+		wc := &cosmwasm.WatcherConfig{
+			NetworkID: "sei",
+			ChainID:   vaa.ChainIDSei,
+			Websocket: *seiWS,
+			Lcd:       *seiLCD,
+			Contract:  *seiContract,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1700,6 +1725,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:               *suiRPC,
 			SuiMoveEventType:  *suiMoveEventType,
 			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSui),
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(xrplRPC) {
+		wc := &xrpl.WatcherConfig{
+			NetworkID:   "xrpl",
+			ChainID:     vaa.ChainIDXRPL,
+			RPC:         *xrplRPC,
+			Contract:    *xrplContract,
+			NttAccounts: *xrplNttAccounts,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
@@ -1902,18 +1938,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			watcherConfigs = append(watcherConfigs, wc)
 		}
 
-		if shouldStart(nexusRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID:        "nexus",
-				ChainID:          vaa.ChainIDNexus,
-				Rpc:              *nexusRPC,
-				Contract:         *nexusContract,
-				CcqBackfillCache: *ccqBackfillCache,
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
-
 	}
 
 	var ibcWatcherConfig *node.IbcWatcherConfig = nil
@@ -1937,17 +1961,20 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Initialize manager signers map
-	managerSigners := make(map[vaa.ChainID]guardiansigner.GuardianSigner)
-	if *dogecoinManagerSignerUri != "" {
-		// Ensure the manager signer is not the same as the guardian signer in non-devnet environments
-		if env != common.UnsafeDevNet && *dogecoinManagerSignerUri == *guardianSignerUri {
-			logger.Fatal("dogecoinManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+	managerSigners := make(map[vaa.ChainID][]guardiansigner.GuardianSigner)
+	for _, uri := range dogecoinManagerSignerUris {
+		if uri == "" {
+			continue
 		}
-		dogecoinSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, *dogecoinManagerSignerUri, env == common.UnsafeDevNet, "manager-dogecoin")
+		// Ensure the manager signer is not the same as the guardian signer in non-devnet environments
+		if env != common.UnsafeDevNet && uri == *guardianSignerUri {
+			logger.Fatal("dogecoinManagerSignerUris must be different from guardianSignerUri in non-devnet environments")
+		}
+		dogecoinSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, uri, env == common.UnsafeDevNet, "manager-dogecoin")
 		if err != nil {
 			logger.Fatal("failed to create dogecoin manager signer", zap.Error(err))
 		}
-		managerSigners[vaa.ChainIDDogecoin] = dogecoinSigner
+		managerSigners[vaa.ChainIDDogecoin] = append(managerSigners[vaa.ChainIDDogecoin], dogecoinSigner)
 
 		// Log the 33-byte compressed public key for use in P2SH multisig
 		pubKey := dogecoinSigner.PublicKey(rootCtx)
@@ -1957,6 +1984,32 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		compressedPubKey := btcecPubKey.SerializeCompressed()
 		logger.Info("initialized dogecoin manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", compressedPubKey)))
+	}
+	for _, uri := range xrplManagerSignerUris {
+		if uri == "" {
+			continue
+		}
+		if env != common.UnsafeDevNet && uri == *guardianSignerUri {
+			logger.Fatal("xrplManagerSignerUris must be different from guardianSignerUri in non-devnet environments")
+		}
+		xrplSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, uri, env == common.UnsafeDevNet, "manager-xrpl")
+		if err != nil {
+			logger.Fatal("failed to create XRPL manager signer", zap.Error(err))
+		}
+		managerSigners[vaa.ChainIDXRPL] = append(managerSigners[vaa.ChainIDXRPL], xrplSigner)
+
+		// Log the XRPL r-address
+		xrplPubKey := xrplSigner.PublicKey(rootCtx)
+		xrplBtcecPubKey, err := btcec.ParsePubKey(ethcrypto.FromECDSAPub(&xrplPubKey))
+		if err != nil {
+			logger.Fatal("failed to parse XRPL public key", zap.Error(err))
+		}
+		xrplCompressedPubKey := xrplBtcecPubKey.SerializeCompressed()
+		xrplAddress, err := managerxrpl.CompressedPubKeyToAddress(xrplCompressedPubKey)
+		if err != nil {
+			logger.Fatal("failed to derive XRPL address from public key", zap.Error(err))
+		}
+		logger.Info("initialized XRPL manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", xrplCompressedPubKey)), zap.String("xrpl_address", xrplAddress))
 	}
 
 	guardianOptions := []*node.GuardianOption{

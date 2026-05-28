@@ -855,7 +855,8 @@ describe("eth call", () => {
     const ethQuery = new PerChainQueryRequest(chainId, ethCall);
     let nonce = 1;
     let promises: Promise<AxiosResponse<any, any>>[] = [];
-    for (let count = 0; count < 20; count++) {
+    // The count should be no more than the number of workers defined for Ethereum in `node/pkg/query/query.go`.
+    for (let count = 0; count < 5; count++) {
       nonce += 1;
       const request = new QueryRequest(nonce, [ethQuery]);
       const serialized = request.serialize();

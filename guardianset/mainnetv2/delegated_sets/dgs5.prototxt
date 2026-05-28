@@ -1,0 +1,9 @@
+current_set_index: 6
+messages: {
+  sequence: 3032274751761744956
+  nonce: 1714131300
+  delegated_guardians_config: {
+    config: "{\r\n  \"69\": {\r\n    \"keys\" : [\r\n\t    \"0x178e21ad2E77AE06711549CFBB1f9c7a9d8096e8\",\r\n\t    \"0x000aC0076727b35FBea2dAc28fEE5cCB0fEA768e\",\r\n\t    \"0xD2CC37A4dc036a8D232b48f62cDD4731412f4890\",\r\n\t    \"0xAF45Ced136b9D9e24903464AE889F5C8a723FC14\",\r\n\t    \"0x938f104AEb5581293216ce97d771e0CB721221B1\",\r\n\t    \"0x3F851Ad586A47ceF8d04748f33ab0D71395f06b4\",\r\n\t    \"0x9D16870160e703324D057c3361c34C5beFBa2c34\"\r\n    ],\r\n    \"threshold\": 5\r\n  }\r\n}"
+    config_index: 4
+  }
+}

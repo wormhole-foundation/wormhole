@@ -161,7 +161,7 @@ module wormhole::transfer_fee_tests {
         assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
         // Deposit fee several times.
-        let (i, n) = (0, 8);
+        let (i, n) = (0u64, 8);
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,
@@ -234,7 +234,7 @@ module wormhole::transfer_fee_tests {
         assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
         // Deposit fee several times.
-        let (i, n) = (0, 8);
+        let (i, n) = (0u64, 8);
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,
@@ -292,7 +292,7 @@ module wormhole::transfer_fee_tests {
         assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
         // Deposit fee several times.
-        let (i, n) = (0, 8);
+        let (i, n) = (0u64, 8);
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,
@@ -484,7 +484,7 @@ module wormhole::transfer_fee_tests {
         assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
         // Deposit fee several times.
-        let (i, n) = (0, 8);
+        let (i, n) = (0u64, 8);
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,

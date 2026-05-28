@@ -1,4 +1,4 @@
-import { SuiTransactionBlockResponse } from "@mysten/sui.js";
+import { SuiTransactionBlockResponse } from "@mysten/sui/client";
 import fs from "fs";
 import yargs from "yargs";
 import {

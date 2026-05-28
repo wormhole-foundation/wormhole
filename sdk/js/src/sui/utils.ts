@@ -27,7 +27,7 @@ export const executeTransactionBlock = async (
 ): Promise<SuiTransactionBlockResponse> => {
   // Let caller handle parsing and logging info
   transactionBlock.setGasBudget(100000000);
-  return signer.signAndExecuteTransactionBlock({
+  const result = await signer.signAndExecuteTransactionBlock({
     transactionBlock,
     options: {
       showInput: true,
@@ -36,6 +36,13 @@ export const executeTransactionBlock = async (
       showObjectChanges: true,
     },
   });
+
+  // Add a small delay after transaction execution to allow the network state
+  // to propagate. This helps prevent stale gas coin references when building
+  // the next transaction.
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  return result;
 };
 
 // TODO: can we pass in the latest core bridge package Id after an upgrade?

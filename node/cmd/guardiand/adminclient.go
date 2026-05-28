@@ -818,8 +818,8 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 
 			var sentTimestamp int64
 			if obs.SentTimestamp != "" {
-				t, err := time.Parse(time.RFC3339, obs.SentTimestamp)
-				if err != nil {
+				t, timeParseErr := time.Parse(time.RFC3339, obs.SentTimestamp)
+				if timeParseErr != nil {
 					continue
 				}
 				sentTimestamp = t.Unix()
@@ -926,8 +926,8 @@ func runBroadcastDelegateSignatures(cmd *cobra.Command, args []string) {
 	}
 
 	var apiObservations []wormholescanDelegateObservation
-	if err := json.NewDecoder(httpResp.Body).Decode(&apiObservations); err != nil {
-		log.Fatalf("failed to decode API response: %v", err)
+	if jsonDecodeErr := json.NewDecoder(httpResp.Body).Decode(&apiObservations); jsonDecodeErr != nil {
+		log.Fatalf("failed to decode API response: %v", jsonDecodeErr)
 	}
 
 	broadcasts, err := buildDelegateSignaturesBroadcasts(vaaID, apiObservations)
@@ -1053,10 +1053,10 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	// defaults to 1 day if num_days isn't specified
 	numDays := uint32(1)
 	if len(args) > 1 {
-		numDaysArg, err := strconv.Atoi(args[1])
+		numDaysArg, parseErr := strconv.Atoi(args[1])
 
-		if numDaysArg > math.MaxUint32 || err != nil {
-			log.Fatalf("invalid num_days: %v", err)
+		if numDaysArg > math.MaxUint32 || parseErr != nil {
+			log.Fatalf("invalid num_days: %v", parseErr)
 		}
 
 		numDays = uint32(numDaysArg) // #nosec G115 -- This is validated above
@@ -1183,12 +1183,12 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	oldVAAReader := csv.NewReader(oldVAAFile)
 	numOldVAAs := 0
 	for {
-		row, err := oldVAAReader.Read()
-		if err != nil {
-			if err == io.EOF {
+		row, readErr := oldVAAReader.Read()
+		if readErr != nil {
+			if readErr == io.EOF {
 				break
 			}
-			log.Fatalf("failed to parse VAA CSV: %v", err)
+			log.Fatalf("failed to parse VAA CSV: %v", readErr)
 		}
 		if len(row) != 2 {
 			log.Fatalf("row [%d] does not have 2 elements", numOldVAAs)

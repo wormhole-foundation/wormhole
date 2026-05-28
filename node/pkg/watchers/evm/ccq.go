@@ -143,12 +143,12 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	}
 
 	// Verify that the block read was successful.
-	if err := w.ccqVerifyBlockResult(blockError, blockResult); err != nil {
+	if verifyErr := w.ccqVerifyBlockResult(blockError, blockResult); verifyErr != nil {
 		w.ccqLogger.Debug("failed to verify block for eth_call query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
-			zap.Error(err),
+			zap.Error(verifyErr),
 		)
 		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
 		return
@@ -379,26 +379,26 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	}
 
 	// Verify the target block read was successful.
-	if err := w.ccqVerifyBlockResult(blockError, blockResult); err != nil {
+	if verifyErr := w.ccqVerifyBlockResult(blockError, blockResult); verifyErr != nil {
 		w.ccqLogger.Debug("failed to verify target block for eth_call_by_timestamp query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
-			zap.Error(err),
+			zap.Error(verifyErr),
 		)
 		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
 		return
 	}
 
 	// Verify the following block read was successful.
-	if err := w.ccqVerifyBlockResult(nextBlockError, nextBlockResult); err != nil {
+	if verifyErr := w.ccqVerifyBlockResult(nextBlockError, nextBlockResult); verifyErr != nil {
 		w.ccqLogger.Debug("failed to verify next block for eth_call_by_timestamp query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
 			zap.Any("batch", batch),
-			zap.Error(err),
+			zap.Error(verifyErr),
 		)
 		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
 		return
@@ -565,12 +565,12 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	}
 
 	// Verify that the block read was successful.
-	if err := w.ccqVerifyBlockResult(blockError, blockResult); err != nil {
+	if verifyErr := w.ccqVerifyBlockResult(blockError, blockResult); verifyErr != nil {
 		w.ccqLogger.Debug("failed to verify block for eth_call_with_finality query",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
-			zap.Error(err),
+			zap.Error(verifyErr),
 		)
 		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
 		return

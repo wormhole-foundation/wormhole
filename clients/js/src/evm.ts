@@ -359,6 +359,12 @@ export async function execute_evm(
             "Hash: " + (await cb.submitRecoverChainId(vaa, overrides)).hash
           );
           break;
+        case "TransferFees":
+          console.log("Transferring core bridge fees");
+          console.log(
+            "Hash: " + (await cb.submitTransferFees(vaa, overrides)).hash
+          );
+          break;
         default:
           impossible(payload);
       }

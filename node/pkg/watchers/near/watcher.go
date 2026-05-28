@@ -234,8 +234,8 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 			return ctx.Err()
 
 		case job := <-e.transactionProcessingQueue:
-			err := e.processTx(logger, ctx, job)
-			if err != nil {
+			processErr := e.processTx(logger, ctx, job)
+			if processErr != nil {
 				// transaction processing unsuccessful. Retry if retry_counter not exceeded.
 				if job.retryCounter < txProcRetry {
 					// Log and retry with exponential backoff
@@ -243,14 +243,14 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 						"near.processTx",
 						zap.String("log_msg_type", "tx_processing_retry"),
 						zap.String("tx_hash", job.txHash),
-						zap.String("error", err.Error()),
+						zap.String("error", processErr.Error()),
 					)
 					job.retryCounter++
 					job.delay *= 2
-					err := e.schedule(ctx, job, job.delay)
-					if err != nil {
+					schedErr := e.schedule(ctx, job, job.delay)
+					if schedErr != nil {
 						// Debug-level logging here because it could be very noisy (one log entry for *any* transaction on the NEAR blockchain)
-						logger.Debug("error scheduling transaction processing job", zap.Error(err))
+						logger.Debug("error scheduling transaction processing job", zap.Error(schedErr))
 					}
 				} else {
 					// Warn and do not retry
@@ -258,7 +258,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 						"near.processTx",
 						zap.String("log_msg_type", "tx_processing_retries_exceeded"),
 						zap.String("tx_hash", job.txHash),
-						zap.String("error", err.Error()),
+						zap.String("error", processErr.Error()),
 					)
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				}

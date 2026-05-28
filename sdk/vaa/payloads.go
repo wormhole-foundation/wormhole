@@ -66,6 +66,9 @@ var GeneralPurposeGovernanceModule = [32]byte{
 }
 var GeneralPurposeGovernanceModuleStr = string(GeneralPurposeGovernanceModule[:])
 
+// TokenBridgeModuleName is the unpadded module identifier for the token bridge.
+const TokenBridgeModuleName = "TokenBridge"
+
 // DelegatedGuardiansModule is the identifier of the DelegatedGuardians module (which is used for governance messages).
 var DelegatedGuardiansModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44, 0x65,
@@ -110,9 +113,10 @@ var (
 	ActionModifyBalance GovernanceAction = 1
 
 	// Wormhole tokenbridge governance actions
-	ActionRegisterChain             GovernanceAction = 1
-	ActionUpgradeTokenBridge        GovernanceAction = 2
-	ActionTokenBridgeRecoverChainId GovernanceAction = 3
+	ActionRegisterChain                 GovernanceAction = 1
+	ActionUpgradeTokenBridge            GovernanceAction = 2
+	ActionTokenBridgeRecoverChainId     GovernanceAction = 3
+	ActionTokenBridgeSetPauserAddresses GovernanceAction = 4
 
 	// Circle Integration governance actions
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
@@ -165,6 +169,20 @@ type (
 		Module        string
 		TargetChainID ChainID
 		NewContract   Address
+	}
+
+	// BodyTokenBridgeSetPauserAddresses is a governance message to set the pauser
+	// and unpauser addresses on a token bridge (whitepaper 0003).
+	//
+	// Each address is length-prefixed (uint8). A zero-length address leaves the
+	// role unassigned. Non-empty addresses must match the target chain's native
+	// address size (e.g. 20 bytes on EVM, 32 bytes on Solana); the receiving
+	// contract is authoritative for that check.
+	BodyTokenBridgeSetPauserAddresses struct {
+		Module        string
+		TargetChainID ChainID
+		Pauser        []byte
+		Unpauser      []byte
 	}
 
 	// BodyRecoverChainId is a governance message to recover a chain id.
@@ -315,6 +333,14 @@ type (
 		MessageFee *uint256.Int
 	}
 
+	// BodyCoreBridgeTransferFees is a governance message to transfer collected fees from the core bridge
+	// fee_collector account to a recipient. See whitepapers/0004_message_publishing.md.
+	BodyCoreBridgeTransferFees struct {
+		ChainID   ChainID
+		Amount    *uint256.Int
+		Recipient Address
+	}
+
 	// BodyDelegatedGuardiansSetConfig is a governance message to set delegated guardian configurations for multiple chains.
 	BodyDelegatedGuardiansSetConfig struct {
 		ConfigIndex *uint256.Int
@@ -402,6 +428,24 @@ func (r BodyTokenBridgeRegisterChain) Serialize() ([]byte, error) {
 
 func (r BodyTokenBridgeUpgradeContract) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(r.Module, ActionUpgradeTokenBridge, r.TargetChainID, r.NewContract[:])
+}
+
+func (r BodyTokenBridgeSetPauserAddresses) Serialize() ([]byte, error) {
+	if r.Module != TokenBridgeModuleName {
+		return nil, fmt.Errorf("unknown module %q (expected %q)", r.Module, TokenBridgeModuleName)
+	}
+	if len(r.Pauser) > math.MaxUint8 {
+		return nil, fmt.Errorf("pauser too long: %d bytes (max %d)", len(r.Pauser), math.MaxUint8)
+	}
+	if len(r.Unpauser) > math.MaxUint8 {
+		return nil, fmt.Errorf("unpauser too long: %d bytes (max %d)", len(r.Unpauser), math.MaxUint8)
+	}
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Pauser))) // #nosec G115 -- checked above
+	payload.Write(r.Pauser)
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Unpauser))) // #nosec G115 -- checked above
+	payload.Write(r.Unpauser)
+	return serializeBridgeGovernanceVaa(r.Module, ActionTokenBridgeSetPauserAddresses, r.TargetChainID, payload.Bytes())
 }
 
 func (r BodyRecoverChainId) Serialize() ([]byte, error) {
@@ -584,6 +628,47 @@ func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
 	copy(padded[32-len(feeBytes):], feeBytes)
 	payload.Write(padded)
 	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
+}
+
+// CoreBridgeTransferFeesUsesCosmWasmLayout reports whether the core bridge on
+// the given chain expects the TransferFees payload in CosmWasm layout
+// (Recipient || Amount) rather than the spec layout (Amount || Recipient).
+// See whitepapers/0004_message_publishing.md and cosmwasm/contracts/wormhole/src/state.rs.
+func CoreBridgeTransferFeesUsesCosmWasmLayout(c ChainID) bool {
+	switch c {
+	case ChainIDTerra2, ChainIDInjective, ChainIDSei:
+		return true
+	}
+	return false
+}
+
+func (r BodyCoreBridgeTransferFees) Serialize() ([]byte, error) {
+	if r.ChainID == ChainIDUnset {
+		return nil, fmt.Errorf("chain id is required")
+	}
+	if r.Amount == nil || r.Amount.IsZero() {
+		return nil, fmt.Errorf("amount must be non-zero")
+	}
+	if r.Recipient == (Address{}) {
+		return nil, fmt.Errorf("recipient must be non-zero")
+	}
+	amountBytes := r.Amount.Bytes()
+	if len(amountBytes) > 32 {
+		return nil, fmt.Errorf("amount too large")
+	}
+	padded := make([]byte, 32)
+	copy(padded[32-len(amountBytes):], amountBytes)
+
+	payload := &bytes.Buffer{}
+	if CoreBridgeTransferFeesUsesCosmWasmLayout(r.ChainID) {
+		// CosmWasm core contract deserializes recipient first, then amount.
+		payload.Write(r.Recipient[:])
+		payload.Write(padded)
+	} else {
+		payload.Write(padded)
+		payload.Write(r.Recipient[:])
+	}
+	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreTransferFees, r.ChainID, payload.Bytes())
 }
 
 func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
@@ -806,8 +891,305 @@ func LeftPadBytes(payload string, length int) (*bytes.Buffer, error) {
 	return buf, nil
 }
 
+// GetPayloadPrefix extracts the 4-byte prefix from a payload.
+// This is used to dispatch on payload type (UTX0 vs XREL, etc.).
+func GetPayloadPrefix(bz []byte) [4]byte {
+	var prefix [4]byte
+	if len(bz) >= 4 {
+		copy(prefix[:], bz[0:4])
+	}
+	return prefix
+}
+
 // UTXOPayloadPrefix is the 4-byte prefix for UTXO unlock payloads
 var UTXOPayloadPrefix = [4]byte{'U', 'T', 'X', '0'}
+
+// XRPLPayloadPrefix is the 4-byte prefix for XRPL release payloads (0x5852454C)
+var XRPLPayloadPrefix = [4]byte{'X', 'R', 'E', 'L'}
+
+// XRPLTicketRefillPrefix is the 4-byte prefix for XRPL ticket refill payloads (0x5852464C)
+var XRPLTicketRefillPrefix = [4]byte{'X', 'R', 'F', 'L'}
+
+// XRPLBurnTicketPrefix is the 4-byte prefix for XRPL burn ticket payloads (0x5842524E)
+var XRPLBurnTicketPrefix = [4]byte{'X', 'B', 'R', 'N'}
+
+// XRPLTokenType represents the type of token in an XRPL release payload.
+type XRPLTokenType uint8
+
+const (
+	// XRPLTokenTypeXRP represents native XRP (drops)
+	XRPLTokenTypeXRP XRPLTokenType = 0x00
+	// XRPLTokenTypeIOU represents an issued currency (trust line)
+	XRPLTokenTypeIOU XRPLTokenType = 0x01
+	// XRPLTokenTypeMPT represents a multi-purpose token
+	XRPLTokenTypeMPT XRPLTokenType = 0x02
+)
+
+// XRPLTokenID represents the variable-length token identifier in an XRPL release payload.
+type XRPLTokenID struct {
+	// Type indicates the token type (XRP, IOU, or MPT)
+	Type XRPLTokenType
+	// Currency is the 20-byte currency code (only for IOU)
+	Currency [20]byte
+	// Issuer is the 20-byte issuer account ID (only for IOU)
+	Issuer [20]byte
+	// MPTID is the 24-byte MPT issuance ID (only for MPT)
+	MPTID [24]byte
+}
+
+// XRPLMemo represents a memo entry in an XRPL release payload.
+type XRPLMemo struct {
+	// Data is the raw memo data bytes
+	Data []byte
+	// Format is the raw memo format bytes (e.g., MIME type)
+	Format []byte
+	// Type is the raw memo type bytes
+	Type []byte
+}
+
+// XRPLReleasePayload represents a VAA payload for releasing funds on the XRP Ledger.
+// This payload is emitted by a registered emitter to trigger Manager Service signing.
+type XRPLReleasePayload struct {
+	// TicketID is the XRPL ticket sequence number for the payment transaction
+	TicketID uint64
+	// CustodyAccount is the 20-byte XRPL account ID of the custody account
+	CustodyAccount [20]byte
+	// Recipient is the 20-byte XRPL account ID of the recipient
+	Recipient [20]byte
+	// Amount is the amount in the smallest unit (e.g., drops for XRP)
+	Amount uint64
+	// TokenDecimals is the number of decimal places for the token
+	TokenDecimals uint8
+	// SourceChain is the Wormhole Chain ID of the source chain
+	SourceChain ChainID
+	// SourceEmitter is the 32-byte emitter address on the source chain
+	SourceEmitter [32]byte
+	// SourceSequence is the sequence number on the source chain
+	SourceSequence uint64
+	// Token is the variable-length token identifier
+	Token XRPLTokenID
+	// Memos is the list of memo entries attached to the payment transaction
+	Memos []XRPLMemo
+}
+
+// DeserializeXRPLReleasePayload deserializes an XRPLReleasePayload from bytes.
+func DeserializeXRPLReleasePayload(bz []byte) (*XRPLReleasePayload, error) {
+	// Minimum size: prefix (4) + ticket_id (8) + custody (20) + recipient (20) + amount (8) +
+	// decimals (1) + source_chain (2) + source_emitter (32) + source_sequence (8) + token_type (1) + memos_len (2) = 106
+	const minSize = 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 2
+
+	if len(bz) < minSize {
+		return nil, fmt.Errorf("XRPL release payload too short: expected at least %d bytes, got %d", minSize, len(bz))
+	}
+
+	// Check prefix
+	if !bytes.Equal(bz[0:4], XRPLPayloadPrefix[:]) {
+		return nil, fmt.Errorf("invalid XRPL payload prefix: expected %s, got %s", string(XRPLPayloadPrefix[:]), string(bz[0:4]))
+	}
+
+	payload := &XRPLReleasePayload{}
+	offset := 4
+
+	// TicketID (8 bytes)
+	payload.TicketID = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// CustodyAccount (20 bytes)
+	copy(payload.CustodyAccount[:], bz[offset:offset+20])
+	offset += 20
+
+	// Recipient (20 bytes)
+	copy(payload.Recipient[:], bz[offset:offset+20])
+	offset += 20
+
+	// Amount (8 bytes)
+	payload.Amount = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// TokenDecimals (1 byte)
+	payload.TokenDecimals = bz[offset]
+	offset++
+
+	// SourceChain (2 bytes)
+	payload.SourceChain = ChainID(binary.BigEndian.Uint16(bz[offset : offset+2]))
+	offset += 2
+
+	// SourceEmitter (32 bytes)
+	copy(payload.SourceEmitter[:], bz[offset:offset+32])
+	offset += 32
+
+	// SourceSequence (8 bytes)
+	payload.SourceSequence = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// Token ID (variable length)
+	if offset >= len(bz) {
+		return nil, fmt.Errorf("XRPL release payload truncated: missing token_id")
+	}
+
+	payload.Token.Type = XRPLTokenType(bz[offset])
+	offset++
+
+	switch payload.Token.Type {
+	case XRPLTokenTypeXRP:
+		// No additional bytes for XRP
+	case XRPLTokenTypeIOU:
+		// Currency (20 bytes) + Issuer (20 bytes)
+		if offset+40 > len(bz) {
+			return nil, fmt.Errorf("XRPL release payload truncated: IOU token_id requires 40 more bytes, got %d", len(bz)-offset)
+		}
+		copy(payload.Token.Currency[:], bz[offset:offset+20])
+		offset += 20
+		copy(payload.Token.Issuer[:], bz[offset:offset+20])
+		offset += 20
+	case XRPLTokenTypeMPT:
+		// MPTID (24 bytes)
+		if offset+24 > len(bz) {
+			return nil, fmt.Errorf("XRPL release payload truncated: MPT token_id requires 24 more bytes, got %d", len(bz)-offset)
+		}
+		copy(payload.Token.MPTID[:], bz[offset:offset+24])
+		offset += 24
+	default:
+		return nil, fmt.Errorf("unknown XRPL token type: 0x%02x", payload.Token.Type)
+	}
+
+	// Memos
+	if offset+2 > len(bz) {
+		return nil, fmt.Errorf("XRPL release payload truncated: missing memos_len")
+	}
+	memosLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+	offset += 2
+
+	if memosLen > 0 {
+		remaining := len(bz) - offset
+		// Each memo has at minimum 3 x 2-byte length prefixes = 6 bytes
+		if int(memosLen) > remaining/6 {
+			return nil, fmt.Errorf("XRPL memo count %d exceeds remaining payload size of %d bytes", memosLen, remaining)
+		}
+		payload.Memos = make([]XRPLMemo, memosLen)
+		for i := uint16(0); i < memosLen; i++ {
+			// memo_data_len + memo_data
+			if offset+2 > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: missing memo_data_len for memo %d", i)
+			}
+			dataLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+			offset += 2
+			if offset+int(dataLen) > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: memo_data for memo %d requires %d bytes, got %d", i, dataLen, len(bz)-offset)
+			}
+			payload.Memos[i].Data = make([]byte, dataLen)
+			copy(payload.Memos[i].Data, bz[offset:offset+int(dataLen)])
+			offset += int(dataLen)
+
+			// memo_format_len + memo_format
+			if offset+2 > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: missing memo_format_len for memo %d", i)
+			}
+			formatLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+			offset += 2
+			if offset+int(formatLen) > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: memo_format for memo %d requires %d bytes, got %d", i, formatLen, len(bz)-offset)
+			}
+			payload.Memos[i].Format = make([]byte, formatLen)
+			copy(payload.Memos[i].Format, bz[offset:offset+int(formatLen)])
+			offset += int(formatLen)
+
+			// memo_type_len + memo_type
+			if offset+2 > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: missing memo_type_len for memo %d", i)
+			}
+			typeLen := binary.BigEndian.Uint16(bz[offset : offset+2])
+			offset += 2
+			if offset+int(typeLen) > len(bz) {
+				return nil, fmt.Errorf("XRPL release payload truncated: memo_type for memo %d requires %d bytes, got %d", i, typeLen, len(bz)-offset)
+			}
+			payload.Memos[i].Type = make([]byte, typeLen)
+			copy(payload.Memos[i].Type, bz[offset:offset+int(typeLen)])
+			offset += int(typeLen)
+		}
+	}
+
+	// Verify we consumed all bytes
+	if offset != len(bz) {
+		return nil, fmt.Errorf("XRPL release payload has trailing bytes: consumed %d of %d bytes", offset, len(bz))
+	}
+
+	return payload, nil
+}
+
+// Serialize serializes an XRPLReleasePayload to bytes.
+func (p *XRPLReleasePayload) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Prefix
+	buf.Write(XRPLPayloadPrefix[:])
+
+	// TicketID
+	MustWrite(buf, binary.BigEndian, p.TicketID)
+
+	// CustodyAccount
+	buf.Write(p.CustodyAccount[:])
+
+	// Recipient
+	buf.Write(p.Recipient[:])
+
+	// Amount
+	MustWrite(buf, binary.BigEndian, p.Amount)
+
+	// TokenDecimals
+	buf.WriteByte(p.TokenDecimals)
+
+	// SourceChain
+	MustWrite(buf, binary.BigEndian, uint16(p.SourceChain))
+
+	// SourceEmitter
+	buf.Write(p.SourceEmitter[:])
+
+	// SourceSequence
+	MustWrite(buf, binary.BigEndian, p.SourceSequence)
+
+	// Token ID (variable length)
+	buf.WriteByte(byte(p.Token.Type))
+
+	switch p.Token.Type {
+	case XRPLTokenTypeXRP:
+		// No additional bytes
+	case XRPLTokenTypeIOU:
+		buf.Write(p.Token.Currency[:])
+		buf.Write(p.Token.Issuer[:])
+	case XRPLTokenTypeMPT:
+		buf.Write(p.Token.MPTID[:])
+	default:
+		return nil, fmt.Errorf("unknown XRPL token type: 0x%02x", p.Token.Type)
+	}
+
+	// Memos
+	if len(p.Memos) > math.MaxUint16 {
+		return nil, fmt.Errorf("too many memos: %d", len(p.Memos))
+	}
+	MustWrite(buf, binary.BigEndian, uint16(len(p.Memos))) // #nosec G115 -- checked above
+	for _, memo := range p.Memos {
+		if len(memo.Data) > math.MaxUint16 {
+			return nil, fmt.Errorf("memo data too long: %d bytes", len(memo.Data))
+		}
+		MustWrite(buf, binary.BigEndian, uint16(len(memo.Data))) // #nosec G115 -- checked above
+		buf.Write(memo.Data)
+
+		if len(memo.Format) > math.MaxUint16 {
+			return nil, fmt.Errorf("memo format too long: %d bytes", len(memo.Format))
+		}
+		MustWrite(buf, binary.BigEndian, uint16(len(memo.Format))) // #nosec G115 -- checked above
+		buf.Write(memo.Format)
+
+		if len(memo.Type) > math.MaxUint16 {
+			return nil, fmt.Errorf("memo type too long: %d bytes", len(memo.Type))
+		}
+		MustWrite(buf, binary.BigEndian, uint16(len(memo.Type))) // #nosec G115 -- checked above
+		buf.Write(memo.Type)
+	}
+
+	return buf.Bytes(), nil
+}
 
 // UTXOAddressType represents the type of address in a UTXO output
 type UTXOAddressType uint32
@@ -1058,6 +1440,134 @@ func (p *UTXOUnlockPayload) Serialize() ([]byte, error) {
 			return nil, fmt.Errorf("failed to write output %d: %w", i, err)
 		}
 	}
+
+	return buf.Bytes(), nil
+}
+
+// XRPLTicketRefillPayload represents a VAA payload for refilling tickets on the XRP Ledger.
+// This payload is emitted by the XRPL sequencer when tickets are running low.
+type XRPLTicketRefillPayload struct {
+	// Account is the 20-byte XRPL account ID that will create the tickets
+	Account [20]byte
+	// UseTicket is the ticket sequence to consume for the TicketCreate transaction
+	UseTicket uint64
+	// RequestCount is the number of tickets to create. The wire format reserves
+	// the full uint64 range; at the time of writing XRPL's TicketCreate caps
+	// TicketCount at 250, but the payload spec does not encode that limit so it
+	// can absorb a future protocol change without a payload version bump.
+	RequestCount uint64
+}
+
+// DeserializeXRPLTicketRefillPayload deserializes an XRPLTicketRefillPayload from bytes.
+// Expected format: prefix (4) + account (20) + use_ticket (8) + request_count (8) = 40 bytes
+func DeserializeXRPLTicketRefillPayload(bz []byte) (*XRPLTicketRefillPayload, error) {
+	const expectedSize = 4 + 20 + 8 + 8
+
+	if len(bz) < expectedSize {
+		return nil, fmt.Errorf("XRPL ticket refill payload too short: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	// Check prefix
+	if !bytes.Equal(bz[0:4], XRPLTicketRefillPrefix[:]) {
+		return nil, fmt.Errorf("invalid XRPL ticket refill payload prefix: expected %s, got %s", string(XRPLTicketRefillPrefix[:]), string(bz[0:4]))
+	}
+
+	if len(bz) > expectedSize {
+		return nil, fmt.Errorf("XRPL ticket refill payload has trailing bytes: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	payload := &XRPLTicketRefillPayload{}
+	offset := 4
+
+	// Account (20 bytes)
+	copy(payload.Account[:], bz[offset:offset+20])
+	offset += 20
+
+	// UseTicket (8 bytes)
+	payload.UseTicket = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// RequestCount (8 bytes)
+	payload.RequestCount = binary.BigEndian.Uint64(bz[offset : offset+8])
+
+	return payload, nil
+}
+
+// Serialize serializes an XRPLTicketRefillPayload to bytes.
+//
+//nolint:unparam // error is always nil but kept for consistency with other Serialize methods.
+func (p *XRPLTicketRefillPayload) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Prefix
+	buf.Write(XRPLTicketRefillPrefix[:])
+
+	// Account
+	buf.Write(p.Account[:])
+
+	// UseTicket
+	MustWrite(buf, binary.BigEndian, p.UseTicket)
+
+	// RequestCount
+	MustWrite(buf, binary.BigEndian, p.RequestCount)
+
+	return buf.Bytes(), nil
+}
+
+// XRPLBurnTicketPayload represents a VAA payload for burning (consuming) a ticket on the XRP Ledger.
+// This payload is emitted by the XRPL sequencer to consume a ticket via a no-op AccountSet transaction.
+type XRPLBurnTicketPayload struct {
+	// Account is the 20-byte XRPL account ID that owns the ticket
+	Account [20]byte
+	// TicketID is the ticket sequence to consume
+	TicketID uint64
+}
+
+// DeserializeXRPLBurnTicketPayload deserializes an XRPLBurnTicketPayload from bytes.
+// Expected format: prefix (4) + account (20) + ticket_id (8) = 32 bytes
+func DeserializeXRPLBurnTicketPayload(bz []byte) (*XRPLBurnTicketPayload, error) {
+	const expectedSize = 4 + 20 + 8
+
+	if len(bz) < expectedSize {
+		return nil, fmt.Errorf("XRPL burn ticket payload too short: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	// Check prefix
+	if !bytes.Equal(bz[0:4], XRPLBurnTicketPrefix[:]) {
+		return nil, fmt.Errorf("invalid XRPL burn ticket payload prefix: expected %s, got %s", string(XRPLBurnTicketPrefix[:]), string(bz[0:4]))
+	}
+
+	if len(bz) > expectedSize {
+		return nil, fmt.Errorf("XRPL burn ticket payload has trailing bytes: expected %d bytes, got %d", expectedSize, len(bz))
+	}
+
+	payload := &XRPLBurnTicketPayload{}
+	offset := 4
+
+	// Account (20 bytes)
+	copy(payload.Account[:], bz[offset:offset+20])
+	offset += 20
+
+	// TicketID (8 bytes)
+	payload.TicketID = binary.BigEndian.Uint64(bz[offset : offset+8])
+
+	return payload, nil
+}
+
+// Serialize serializes an XRPLBurnTicketPayload to bytes.
+//
+//nolint:unparam // error is always nil but kept for consistency with other Serialize methods.
+func (p *XRPLBurnTicketPayload) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Prefix
+	buf.Write(XRPLBurnTicketPrefix[:])
+
+	// Account
+	buf.Write(p.Account[:])
+
+	// TicketID
+	MustWrite(buf, binary.BigEndian, p.TicketID)
 
 	return buf.Bytes(), nil
 }

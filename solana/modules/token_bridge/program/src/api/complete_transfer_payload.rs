@@ -138,6 +138,8 @@ pub fn complete_native_with_payload(
     accs: &mut CompleteNativeWithPayload,
     _data: CompleteNativeWithPayloadData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
     accs.chain_registration
@@ -257,6 +259,8 @@ pub fn complete_wrapped_with_payload(
     accs: &mut CompleteWrappedWithPayload,
     _data: CompleteWrappedWithPayloadData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
     accs.chain_registration

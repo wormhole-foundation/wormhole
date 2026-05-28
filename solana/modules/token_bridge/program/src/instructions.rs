@@ -23,10 +23,13 @@ use crate::{
         },
         AttestTokenData,
         CreateWrappedData,
+        PauseData,
         RegisterChainData,
         SenderAccount,
+        SetPauserAddressesData,
         TransferNativeData,
         TransferWrappedData,
+        UnpauseData,
         UpgradeContractData,
     },
     messages::{
@@ -913,4 +916,85 @@ pub fn upgrade_contract(
             .try_to_vec()
             .unwrap(),
     }
+}
+
+/// Builder for the `SetPauserAddresses` (action 4) governance instruction. Realloc's the existing
+/// `Config` PDA from its legacy 32-byte layout to the 97-byte layout the first time it is called.
+/// Emits a `PauserAddressesSet` Anchor-style event via self-CPI (see `api::governance`).
+pub fn set_pauser_addresses(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    vaa: PostVAAData,
+) -> solitaire::Result<Instruction> {
+    let _ = bridge_id; // Kept on the signature for parity with other governance builders.
+    let config_key = ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &program_id);
+    // `claimable_vaa`'s first arg is misleadingly named — the Claim PDA is derived under the
+    // _consuming_ program (the token bridge), not the core bridge. See the existing
+    // `register_chain` builder above for precedent.
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa);
+    let (event_authority, _) =
+        Pubkey::find_program_address(&[solitaire::EVENT_AUTHORITY_SEED], &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(config_key, false),
+            message_acc,
+            claim_acc,
+            // Event-CPI accounts: PDA signer + self-program for `emit_event_cpi`.
+            AccountMeta::new_readonly(event_authority, false),
+            AccountMeta::new_readonly(program_id, false),
+            // Dependencies
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
+        data: (
+            crate::instruction::Instruction::SetPauserAddresses,
+            SetPauserAddressesData {},
+        )
+            .try_to_vec()?,
+    })
+}
+
+/// Builder for the `Pause` instruction. Caller must equal the configured pauser stored in the
+/// `Config` tail (set via a `SetPauserAddresses` governance VAA). Emits a `Paused` Anchor-style
+/// event via self-CPI.
+pub fn pause(program_id: Pubkey, pauser: Pubkey) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &program_id);
+    let (event_authority, _) =
+        Pubkey::find_program_address(&[solitaire::EVENT_AUTHORITY_SEED], &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new_readonly(pauser, true),
+            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(event_authority, false),
+            AccountMeta::new_readonly(program_id, false),
+        ],
+        data: (crate::instruction::Instruction::Pause, PauseData {}).try_to_vec()?,
+    })
+}
+
+/// Builder for the `Unpause` instruction. Caller must equal the configured unpauser stored in the
+/// `Config` tail (set via a `SetPauserAddresses` governance VAA). Emits an `Unpaused` Anchor-style
+/// event via self-CPI.
+pub fn unpause(program_id: Pubkey, unpauser: Pubkey) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &program_id);
+    let (event_authority, _) =
+        Pubkey::find_program_address(&[solitaire::EVENT_AUTHORITY_SEED], &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new_readonly(unpauser, true),
+            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(event_authority, false),
+            AccountMeta::new_readonly(program_id, false),
+        ],
+        data: (crate::instruction::Instruction::Unpause, UnpauseData {}).try_to_vec()?,
+    })
 }

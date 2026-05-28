@@ -51,8 +51,22 @@ type (
 	// Action of a VAA
 	Action uint8
 
-	// Address is a Wormhole protocol address, it contains the native chain's address. If the address data type of a
-	// chain is < 32bytes the value is zero-padded on the left.
+	// Address is a Wormhole protocol address otherwise referred to as a "wormhole normalized address." It typically
+	// contains the native chain's address for chains where the addresses are <= 32 bytes.
+	//
+	// If the address data type of a chain is < 32 bytes, the value is zero-padded on the left.
+	//
+	// For chains with addresses that support lengths greater than 32 bytes, this type MAY be used
+	// to represent an on-chain address by hashing it using an algorithm like sha256.
+	//
+	// For chains with variable length addresses, users MUST use this type consistently such that addresses
+	// can be uniquely identified. For example, if a chain supports addresses between length 2 and 64, this type
+	// should always encode addresses for that chain as sha256 digests. This helps to avoid a situation where
+	// addresses with length < 32 have zero-padded EVM-like addresses, but larger addresses on the same chain
+	// are represented as digests.
+	//
+	// Other uses of this type are NOT RECOMMENDED given that they can overload the semantic meaning of this field
+	// which already does a lot of conceptual work across disparate blockchain implementations.
 	Address [32]byte
 
 	// Signature of a single guardian
@@ -216,8 +230,7 @@ const (
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum ChainID = 2
-	// WARNING: ChainIDTerra is only supported in devnet / Tilt.
-	ChainIDTerra ChainID = 3
+	// OBSOLETE: ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon

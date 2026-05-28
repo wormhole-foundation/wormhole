@@ -75,7 +75,8 @@ export type Payload =
   | CoreContractRecoverChainId
   | PortalContractRecoverChainId<"TokenBridge">
   | PortalContractRecoverChainId<"NFTBridge">
-  | WormholeRelayerSetDefaultDeliveryProvider;
+  | WormholeRelayerSetDefaultDeliveryProvider
+  | CoreContractTransferFees;
 
 export type ContractUpgrade =
   | CoreContractUpgrade
@@ -105,7 +106,8 @@ export function parse(buffer: Buffer): VAA<Payload | Other> {
     .or(coreContractRecoverChainId())
     .or(portalContractRecoverChainId("TokenBridge"))
     .or(portalContractRecoverChainId("NFTBridge"))
-    .or(wormholeRelayerSetDefaultDeliveryProvider());
+    .or(wormholeRelayerSetDefaultDeliveryProvider())
+    .or(coreContractTransferFeesParser());
   let payload: Payload | Other | null = parser.parse(vaa.payload);
   if (payload === null) {
     payload = {
@@ -218,6 +220,9 @@ function vaaBody(vaa: VAA<Payload | Other>) {
             break;
           case "RecoverChainId":
             payload_str = serialiseCoreContractRecoverChainId(payload);
+            break;
+          case "TransferFees":
+            payload_str = serialiseCoreContractTransferFees(payload);
             break;
           default:
             impossible(payload);
@@ -586,6 +591,72 @@ function serialiseCoreContractRecoverChainId(
     encode("uint16", payload.newChainId),
   ];
   return body.join("");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Core TransferFees (whitepaper 0004)
+
+export interface CoreContractTransferFees {
+  module: "Core";
+  type: "TransferFees";
+  chain: number;
+  amount: bigint;
+  recipient: string;
+}
+
+// Chains whose CosmWasm core contract serializes the TransferFees payload as
+// `recipient || amount` instead of the spec's `amount || recipient`. See
+// cosmwasm/contracts/wormhole/src/state.rs and whitepapers/0004_message_publishing.md.
+const TRANSFER_FEES_COSMWASM_CHAINS = new Set<number>([
+  18, // Terra2
+  19, // Injective
+  32, // Sei
+]);
+
+const CORE_MODULE_HEX = Buffer.from("Core").toString("hex").padStart(64, "0");
+
+function coreContractTransferFeesParser(): P<CoreContractTransferFees> {
+  const p = new P<CoreContractTransferFees>(new Parser());
+  p.parse = (buffer: Buffer): CoreContractTransferFees | null => {
+    // module(32) || action(1) || chain(2) || amount(32) || recipient(32) = 99
+    if (buffer.length !== 99) return null;
+    if (buffer.slice(0, 32).toString("hex") !== CORE_MODULE_HEX) return null;
+    if (buffer.readUInt8(32) !== 4) return null;
+    const chain = buffer.readUInt16BE(33);
+    let amountBytes: Buffer;
+    let recipientBytes: Buffer;
+    if (TRANSFER_FEES_COSMWASM_CHAINS.has(chain)) {
+      recipientBytes = buffer.slice(35, 67);
+      amountBytes = buffer.slice(67, 99);
+    } else {
+      amountBytes = buffer.slice(35, 67);
+      recipientBytes = buffer.slice(67, 99);
+    }
+    return {
+      module: "Core",
+      type: "TransferFees",
+      chain,
+      amount: BigNumber.from(amountBytes).toBigInt(),
+      recipient: "0x" + recipientBytes.toString("hex"),
+    };
+  };
+  return p;
+}
+
+function serialiseCoreContractTransferFees(
+  payload: CoreContractTransferFees
+): string {
+  const head = [
+    encode("bytes32", encodeString(payload.module)),
+    encode("uint8", 4),
+    encode("uint16", payload.chain),
+  ];
+  const amount = encode("uint256", payload.amount);
+  const recipient = encode("bytes32", hex(payload.recipient));
+  const tail = TRANSFER_FEES_COSMWASM_CHAINS.has(payload.chain)
+    ? [recipient, amount]
+    : [amount, recipient];
+  return [...head, ...tail].join("");
 }
 
 export interface PortalContractRecoverChainId<

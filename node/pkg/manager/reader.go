@@ -1,13 +1,11 @@
 package manager
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"sync"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/manager/delegatedmanagersetabi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -57,12 +55,10 @@ func NewManagerSetReader(
 
 // GetManagerSet retrieves a manager set by chain ID and index.
 // It first checks the cache; on cache miss, it fetches from the contract and caches the result.
-// The signer parameter is used to determine if this node is part of the manager set.
 func (r *ManagerSetReader) GetManagerSet(
 	ctx context.Context,
 	chainID vaa.ChainID,
 	index uint32,
-	signer guardiansigner.GuardianSigner,
 ) (*ManagerSetConfig, error) {
 	// Check cache first
 	r.mu.RLock()
@@ -106,7 +102,7 @@ func (r *ManagerSetReader) GetManagerSet(
 	}
 
 	// Parse the manager set bytes
-	set, err := r.parseManagerSetBytes(ctx, data, index, signer)
+	set, err := r.parseManagerSetBytes(data, index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse manager set bytes: %w", err)
 	}
@@ -124,44 +120,65 @@ func (r *ManagerSetReader) GetManagerSet(
 		zap.Uint32("index", index),
 		zap.Uint8("m", set.M),
 		zap.Uint8("n", set.N),
-		zap.Bool("is_signer", set.IsSigner),
 	)
 
 	return set, nil
 }
 
+// GetCurrentManagerSet retrieves the current manager set for a chain by first looking up
+// the current index from the contract, then fetching that index.
+// This is needed for payload types like XREL that don't embed a manager set index.
+func (r *ManagerSetReader) GetCurrentManagerSet(
+	ctx context.Context,
+	chainID vaa.ChainID,
+) (*ManagerSetConfig, error) {
+	// Create a fresh connection for this call
+	client, err := ethclient.DialContext(ctx, r.rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to RPC %s: %w", r.rpcURL, err)
+	}
+	defer client.Close()
+
+	caller, err := delegatedmanagersetabi.NewDelegatedManagerSetCaller(
+		ethCommon.HexToAddress(r.contractAddr),
+		client,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create DelegatedManagerSet caller: %w", err)
+	}
+
+	// #nosec G115 -- ChainID is uint16
+	index, err := caller.GetCurrentManagerSetIndex(nil, uint16(chainID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call getCurrentManagerSetIndex(%d): %w", chainID, err)
+	}
+
+	r.logger.Debug("fetched current manager set index",
+		zap.Stringer("chain", chainID),
+		zap.Uint32("index", index),
+	)
+
+	// Reuse the existing GetManagerSet method (which handles caching)
+	return r.GetManagerSet(ctx, chainID, index)
+}
+
 // parseManagerSetBytes parses the raw bytes from the contract into a ManagerSetConfig.
 // Format: Type (1 byte) | M (1 byte) | N (1 byte) | PublicKeys (N * 33 bytes)
 func (r *ManagerSetReader) parseManagerSetBytes(
-	ctx context.Context,
 	data []byte,
 	index uint32,
-	signer guardiansigner.GuardianSigner,
 ) (*ManagerSetConfig, error) {
 	var set vaa.Secp256k1MultisigManagerSet
 	if err := set.Deserialize(data); err != nil {
 		return nil, fmt.Errorf("failed to deserialize manager set: %w", err)
 	}
 
-	// Convert [33]byte arrays to []byte slices
+	// Convert [33]byte arrays to []byte slices and build a pubkey -> index map for O(1) lookups
 	pubKeys := make([][]byte, set.N)
-	for i, pk := range set.PublicKeys {
-		pubKeys[i] = pk[:]
-	}
-
-	// Determine if this node is a signer
-	var isSigner bool
-	var signerIndex uint8
-	if signer != nil && ctx != nil {
-		signerPubKey := signer.PublicKey(ctx)
-		signerCompressed := compressPublicKey(&signerPubKey)
-		for i, pk := range pubKeys {
-			if bytes.Equal(signerCompressed, pk) {
-				isSigner = true
-				signerIndex = uint8(i) // #nosec G115 -- i < n which is uint8
-				break
-			}
-		}
+	pubKeyIndex := make(map[string]uint8, set.N)
+	for i := range set.N {
+		pubKeys[i] = set.PublicKeys[i][:]
+		pubKeyIndex[string(set.PublicKeys[i][:])] = i
 	}
 
 	return &ManagerSetConfig{
@@ -169,7 +186,6 @@ func (r *ManagerSetReader) parseManagerSetBytes(
 		M:           set.M,
 		N:           set.N,
 		PublicKeys:  pubKeys,
-		IsSigner:    isSigner,
-		SignerIndex: signerIndex,
+		pubKeyIndex: pubKeyIndex,
 	}, nil
 }

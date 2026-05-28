@@ -194,17 +194,17 @@ func (d *Database) FindEmitterSequenceGap(prefix VAAID) (resp []uint64, firstSeq
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			key := item.Key()
-			err := item.Value(func(val []byte) error {
-				v, err := vaa.Unmarshal(val)
-				if err != nil {
-					return fmt.Errorf("failed to unmarshal VAA for %s: %v", string(key), err)
+			valueErr := item.Value(func(val []byte) error {
+				v, unmarshalErr := vaa.Unmarshal(val)
+				if unmarshalErr != nil {
+					return fmt.Errorf("failed to unmarshal VAA for %s: %v", string(key), unmarshalErr)
 				}
 
 				seqs[v.Sequence] = true
 				return nil
 			})
-			if err != nil {
-				return err
+			if valueErr != nil {
+				return valueErr
 			}
 		}
 

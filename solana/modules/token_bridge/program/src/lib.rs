@@ -28,11 +28,14 @@ pub use api::{
     complete_wrapped_with_payload,
     create_wrapped,
     initialize,
+    pause,
     register_chain,
+    set_pauser_addresses,
     transfer_native,
     transfer_native_with_payload,
     transfer_wrapped,
     transfer_wrapped_with_payload,
+    unpause,
     upgrade_contract,
     AttestToken,
     AttestTokenData,
@@ -48,8 +51,12 @@ pub use api::{
     CreateWrappedData,
     Initialize,
     InitializeData,
+    Pause,
+    PauseData,
     RegisterChain,
     RegisterChainData,
+    SetPauserAddresses,
+    SetPauserAddressesData,
     TransferNative,
     TransferNativeData,
     TransferNativeWithPayload,
@@ -58,6 +65,8 @@ pub use api::{
     TransferWrappedData,
     TransferWrappedWithPayload,
     TransferWrappedWithPayloadData,
+    Unpause,
+    UnpauseData,
     UpgradeContract,
     UpgradeContractData,
 };
@@ -92,6 +101,15 @@ pub enum TokenBridgeError {
     NonexistentTokenMetadataAccount,
     NotMetadataV1Account,
     WrongMetadataAccount,
+    /// `paused == true`. Lifted only by a successful `unpause` call from the configured unpauser.
+    Paused,
+    /// Caller of `pause` / `unpause` is not the configured pauser / unpauser.
+    InvalidPauser,
+    /// Configured pauser / unpauser is the zero pubkey, so that side of the pair is disabled.
+    PauserNotConfigured,
+    /// `self_program` account passed by the caller does not match this program's `program_id`.
+    /// Only used to defensively guard the self-CPI that emits Anchor-style events.
+    InvalidSelfProgram,
 }
 
 impl From<TokenBridgeError> for SolitaireError {
@@ -101,6 +119,7 @@ impl From<TokenBridgeError> for SolitaireError {
 }
 
 solitaire! {
+    @event_cpi,
     Initialize => initialize,
     AttestToken => attest_token,
     CompleteNative => complete_native,
@@ -114,4 +133,7 @@ solitaire! {
     CompleteWrappedWithPayload => complete_wrapped_with_payload,
     TransferWrappedWithPayload => transfer_wrapped_with_payload,
     TransferNativeWithPayload => transfer_native_with_payload,
+    SetPauserAddresses => set_pauser_addresses,
+    Pause => pause,
+    Unpause => unpause,
 }

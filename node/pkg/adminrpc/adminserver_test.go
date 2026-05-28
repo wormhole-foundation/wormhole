@@ -116,13 +116,13 @@ func addrsToHexStrings(addrs []common.Address) (out []string) {
 	return
 }
 
-func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner, t *testing.T) []byte {
+func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner, ts time.Time, t *testing.T) []byte {
 	t.Helper()
 	v := &vaa.VAA{
 		Version:          1,
 		GuardianSetIndex: gsIndex,
 		Signatures:       nil,
-		Timestamp:        time.Now(),
+		Timestamp:        ts,
 		Nonce:            3,
 		Sequence:         79,
 		ConsistencyLevel: 1,
@@ -192,7 +192,7 @@ func TestSignExistingVAA_NotGuardian(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers, t)
+	v := generateMockVAA(0, signers, time.Now(), t)
 
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
 		Vaa:                 v,
@@ -206,7 +206,7 @@ func TestSignExistingVAA_InvalidVAA(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers[:2], t)
+	v := generateMockVAA(0, signers[:2], time.Now(), t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -221,7 +221,7 @@ func TestSignExistingVAA_DuplicateGuardian(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers, t)
+	v := generateMockVAA(0, signers, time.Now(), t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	gsAddrs = append(gsAddrs, s.guardianAddress)
@@ -241,7 +241,7 @@ func TestSignExistingVAA_AlreadyGuardian(t *testing.T) {
 		guardianSetIndex: 0,
 	}
 
-	v := generateMockVAA(0, append(signers, s.guardianSigner), t)
+	v := generateMockVAA(0, append(signers, s.guardianSigner), time.Now(), t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -256,7 +256,7 @@ func TestSignExistingVAA_NotAFutureGuardian(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers, t)
+	v := generateMockVAA(0, signers, time.Now(), t)
 
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
 		Vaa:                 v,
@@ -270,7 +270,7 @@ func TestSignExistingVAA_CantReachQuorum(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers, t)
+	v := generateMockVAA(0, signers, time.Now(), t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	_, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -285,7 +285,10 @@ func TestSignExistingVAA_Valid(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers, t)
+	// Pin the timestamp so v and v2 share it — otherwise a clock-second tick
+	// between the two generateMockVAA calls makes the digests (and signatures) differ.
+	ts := time.Now()
+	v := generateMockVAA(0, signers, ts, t)
 
 	gsAddrs = append(gsAddrs, s.guardianAddress)
 	res, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -295,7 +298,7 @@ func TestSignExistingVAA_Valid(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	v2 := generateMockVAA(1, append(signers, s.guardianSigner), t)
+	v2 := generateMockVAA(1, append(signers, s.guardianSigner), ts, t)
 	require.Equal(t, v2, res.Vaa)
 }
 
@@ -303,7 +306,8 @@ func TestSignExistingVAA_ValidMutatedSet(t *testing.T) {
 	signers, gsAddrs := generateGuardianSigners(5)
 	s := setupAdminServerForVAASigning(0, gsAddrs)
 
-	v := generateMockVAA(0, signers, t)
+	ts := time.Now()
+	v := generateMockVAA(0, signers, ts, t)
 
 	gsAddrs = append(gsAddrs[1:], s.guardianAddress) // We lose the first Guardian so the index changes for every Guardian
 	res, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
@@ -313,7 +317,7 @@ func TestSignExistingVAA_ValidMutatedSet(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	v2 := generateMockVAA(1, append(signers[1:], s.guardianSigner), t)
+	v2 := generateMockVAA(1, append(signers[1:], s.guardianSigner), ts, t)
 	require.Equal(t, v2, res.Vaa)
 }
 
@@ -444,7 +448,7 @@ func TestChainGovernorResetReleaseTimer(t *testing.T) {
 
 func TestDelegatedGuardiansConfigToVaa(t *testing.T) {
 	configJSON := `{
-		"3": {
+		"5": {
 			"keys": [
 				"0x1111111111111111111111111111111111111111",
 				"0x2222222222222222222222222222222222222222",
@@ -506,4 +510,194 @@ func TestDelegatedGuardiansConfigToVaa_InvalidChainID(t *testing.T) {
 	_, err := delegatedGuardiansConfigToVaa(req, time.Now(), 4, 12345, 67890)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid chain ID")
+}
+
+func TestCoreBridgeTransferFeesToVaa(t *testing.T) {
+	const recipientHex = "00000000000000000000000000000000000000000000000000000000deadbeef"
+	const expectedAmount = "0000000000000000000000000000000000000000000000000000000000002710"
+	const moduleAndAction = "00000000000000000000000000000000000000000000000000000000436f726504"
+
+	t.Run("Solana spec layout", func(t *testing.T) {
+		req := &nodev1.CoreBridgeTransferFees{
+			ChainId:   uint32(vaa.ChainIDSolana),
+			Amount:    "10000",
+			Recipient: recipientHex,
+		}
+		v, err := coreBridgeTransferFeesToVaa(req, time.Now(), 4, 7, 7)
+		require.NoError(t, err)
+		// chain (uint16 = 1) || amount || recipient
+		expected := moduleAndAction + "0001" + expectedAmount + recipientHex
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Injective cosmwasm reversed layout", func(t *testing.T) {
+		req := &nodev1.CoreBridgeTransferFees{
+			ChainId:   uint32(vaa.ChainIDInjective),
+			Amount:    "10000",
+			Recipient: recipientHex,
+		}
+		v, err := coreBridgeTransferFeesToVaa(req, time.Now(), 4, 7, 7)
+		require.NoError(t, err)
+		// chain (uint16 = 19 = 0x0013) || recipient || amount
+		expected := moduleAndAction + "0013" + recipientHex + expectedAmount
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+}
+
+func TestCoreBridgeTransferFeesToVaa_Errors(t *testing.T) {
+	const recipientHex = "00000000000000000000000000000000000000000000000000000000deadbeef"
+	base := func() *nodev1.CoreBridgeTransferFees {
+		return &nodev1.CoreBridgeTransferFees{
+			ChainId:   uint32(vaa.ChainIDSolana),
+			Amount:    "1",
+			Recipient: recipientHex,
+		}
+	}
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.CoreBridgeTransferFees)
+		errText string
+	}{
+		{"UnknownChain", func(r *nodev1.CoreBridgeTransferFees) { r.ChainId = 0xffff }, "convert chain id"},
+		{"InvalidAmount", func(r *nodev1.CoreBridgeTransferFees) { r.Amount = "not-a-number" }, "invalid amount"},
+		{"NegativeAmount", func(r *nodev1.CoreBridgeTransferFees) { r.Amount = "-1" }, "amount cannot be negative"},
+		{"AmountOverflow", func(r *nodev1.CoreBridgeTransferFees) {
+			r.Amount = "115792089237316195423570985008687907853269984665640564039457584007913129639936" // 2^256
+		}, "amount overflow"},
+		{"ZeroAmount", func(r *nodev1.CoreBridgeTransferFees) { r.Amount = "0" }, "amount must be non-zero"},
+		{"BadRecipientHex", func(r *nodev1.CoreBridgeTransferFees) { r.Recipient = "zz" }, "invalid recipient"},
+		{"ShortRecipient", func(r *nodev1.CoreBridgeTransferFees) { r.Recipient = "01" }, "invalid recipient"},
+		{"LongRecipient", func(r *nodev1.CoreBridgeTransferFees) {
+			r.Recipient = recipientHex + "00"
+		}, "invalid recipient"},
+		{"ZeroRecipient", func(r *nodev1.CoreBridgeTransferFees) {
+			r.Recipient = "0000000000000000000000000000000000000000000000000000000000000000"
+		}, "recipient must be non-zero"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := coreBridgeTransferFeesToVaa(req, time.Now(), 4, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}
+
+func TestTokenBridgeSetPauserAddresses(t *testing.T) {
+	evmPauser := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	evmUnpauser := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	svmAddr := "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+
+	t.Run("EVM both addresses set", func(t *testing.T) {
+		req := &nodev1.BridgeSetPauserAddresses{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDEthereum),
+			Pauser:        evmPauser,
+			Unpauser:      evmUnpauser,
+		}
+		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
+		require.NoError(t, err)
+		// module(32) || action(04) || chain(0002) || pauserLen(14) || pauser || unpauserLen(14) || unpauser
+		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
+			"04" + "0002" + "14" + evmPauser + "14" + evmUnpauser
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Solana single address", func(t *testing.T) {
+		req := &nodev1.BridgeSetPauserAddresses{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDSolana),
+			Pauser:        svmAddr,
+		}
+		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
+		require.NoError(t, err)
+		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
+			"04" + "0001" + "20" + svmAddr + "00"
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Both unassigned", func(t *testing.T) {
+		req := &nodev1.BridgeSetPauserAddresses{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDEthereum),
+		}
+		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
+		require.NoError(t, err)
+		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
+			"04" + "0002" + "00" + "00"
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("Error cases", func(t *testing.T) {
+		base := func() *nodev1.BridgeSetPauserAddresses {
+			return &nodev1.BridgeSetPauserAddresses{
+				Module:        "TokenBridge",
+				TargetChainId: uint32(vaa.ChainIDEthereum),
+				Pauser:        evmPauser,
+			}
+		}
+		cases := []struct {
+			name    string
+			mutate  func(r *nodev1.BridgeSetPauserAddresses)
+			errText string
+		}{
+			{"UnknownModule", func(r *nodev1.BridgeSetPauserAddresses) { r.Module = "TokemBridge" }, "unknown module"},
+			{"EmptyModule", func(r *nodev1.BridgeSetPauserAddresses) { r.Module = "" }, "unknown module"},
+			{"NFTBridgeRejected", func(r *nodev1.BridgeSetPauserAddresses) { r.Module = "NFTBridge" }, "unknown module"},
+			{"UnknownChain", func(r *nodev1.BridgeSetPauserAddresses) { r.TargetChainId = 0xffff }, "convert target_chain_id"},
+			{"ChainOutOfRange", func(r *nodev1.BridgeSetPauserAddresses) { r.TargetChainId = 0x10000 }, "convert target_chain_id"},
+			{"BadPauserHex", func(r *nodev1.BridgeSetPauserAddresses) { r.Pauser = "zz" }, "invalid pauser address encoding"},
+			{"BadUnpauserHex", func(r *nodev1.BridgeSetPauserAddresses) { r.Unpauser = "zz" }, "invalid unpauser address encoding"},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				req := base()
+				tc.mutate(req)
+				_, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 0, 0)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errText)
+			})
+		}
+	})
+}
+
+func TestGovMsgToVaa_DispatchesBridgeSetPauserAddresses(t *testing.T) {
+	msg := &nodev1.GovernanceMessage{
+		Sequence: 33,
+		Nonce:    44,
+		Payload: &nodev1.GovernanceMessage_BridgeSetPauserAddresses{
+			BridgeSetPauserAddresses: &nodev1.BridgeSetPauserAddresses{
+				Module:        "TokenBridge",
+				TargetChainId: uint32(vaa.ChainIDEthereum),
+				Pauser:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				Unpauser:      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			},
+		},
+	}
+	v, err := GovMsgToVaa(msg, 4, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	assert.Equal(t, uint64(33), v.Sequence)
+	assert.Equal(t, uint32(44), v.Nonce)
+}
+
+func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
+	msg := &nodev1.GovernanceMessage{
+		Sequence: 11,
+		Nonce:    22,
+		Payload: &nodev1.GovernanceMessage_CoreBridgeTransferFees{
+			CoreBridgeTransferFees: &nodev1.CoreBridgeTransferFees{
+				ChainId:   uint32(vaa.ChainIDSolana),
+				Amount:    "1",
+				Recipient: "00000000000000000000000000000000000000000000000000000000deadbeef",
+			},
+		},
+	}
+	v, err := GovMsgToVaa(msg, 4, time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	assert.Equal(t, uint64(11), v.Sequence)
+	assert.Equal(t, uint32(22), v.Nonce)
 }

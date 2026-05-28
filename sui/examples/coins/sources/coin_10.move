@@ -17,6 +17,7 @@ module coins::coin_10 {
         transfer::public_transfer(treasury, tx_context::sender(ctx));
     }
 
+    #[allow(deprecated_usage)]
     fun create_coin(
         witness: COIN_10,
         ctx: &mut TxContext

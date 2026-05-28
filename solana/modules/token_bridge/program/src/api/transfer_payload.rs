@@ -182,6 +182,8 @@ pub fn transfer_native_with_payload(
     accs: &mut TransferNativeWithPayload,
     data: TransferNativeWithPayloadData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Prevent transferring to the same chain.
     if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
@@ -311,6 +313,8 @@ pub fn transfer_wrapped_with_payload(
     accs: &mut TransferWrappedWithPayload,
     data: TransferWrappedWithPayloadData,
 ) -> Result<()> {
+    require_not_paused(accs.config.info())?;
+
     // Prevent transferring to the same chain.
     if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());

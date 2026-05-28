@@ -413,8 +413,8 @@ func (d *Database) StoreTransfer(t *Transfer) error {
 	}
 
 	err = d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(TransferMsgID(t), b); err != nil {
-			return err
+		if setErr := txn.Set(TransferMsgID(t), b); setErr != nil {
+			return setErr
 		}
 		return nil
 	})

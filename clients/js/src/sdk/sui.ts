@@ -1,20 +1,16 @@
-import {
-  JsonRpcProvider,
-  SuiObjectResponse,
-  isValidSuiAddress as isValidFullSuiAddress,
-  normalizeSuiAddress,
-} from "@mysten/sui.js";
+import { SuiClient, SuiObjectResponse } from "@mysten/sui/client";
 import { Chain, chainToChainId } from "@wormhole-foundation/sdk";
+import { normalizeSuiAddress } from "../chains/sui/utils";
 
 export async function getForeignAssetSui(
-  provider: JsonRpcProvider,
+  client: SuiClient,
   tokenBridgeStateObjectId: string,
   originChain: Chain,
   originAddress: Uint8Array
 ): Promise<string | null> {
   const originChainId = chainToChainId(originChain);
   return getTokenCoinType(
-    provider,
+    client,
     tokenBridgeStateObjectId,
     originAddress,
     originChainId
@@ -22,13 +18,13 @@ export async function getForeignAssetSui(
 }
 
 export const getTokenCoinType = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   tokenBridgeStateObjectId: string,
   tokenAddress: Uint8Array,
   tokenChain: number
 ): Promise<string | null> => {
   const tokenBridgeStateFields = await getObjectFields(
-    provider,
+    client,
     tokenBridgeStateObjectId
   );
   if (!tokenBridgeStateFields) {
@@ -46,7 +42,7 @@ export const getTokenCoinType = async (
     throw new Error("Unable to get key type");
   }
 
-  const response = await provider.getDynamicFieldObject({
+  const response = await client.getDynamicFieldObject({
     parentId: coinTypesObjectId,
     name: {
       type: keyType,
@@ -69,14 +65,14 @@ export const getTokenCoinType = async (
 };
 
 export const getObjectFields = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   objectId: string
 ): Promise<Record<string, any> | null> => {
   if (!isValidSuiAddress(objectId)) {
     throw new Error(`Invalid object ID: ${objectId}`);
   }
 
-  const res = await provider.getObject({
+  const res = await client.getObject({
     id: objectId,
     options: {
       showContent: true,
@@ -87,7 +83,9 @@ export const getObjectFields = async (
 
 export const getFieldsFromObjectResponse = (object: SuiObjectResponse) => {
   const content = object.data?.content;
-  return content && content.dataType === "moveObject" ? content.fields : null;
+  return content && content.dataType === "moveObject"
+    ? (content.fields as any)
+    : null;
 };
 
 export function ensureHexPrefix(x: string): string {
@@ -101,8 +99,14 @@ export function ensureHexPrefix(x: string): string {
  * @param address Address to check
  * @returns If given address is a valid Sui address or not
  */
-export const isValidSuiAddress = (address: string): boolean =>
-  isValidFullSuiAddress(normalizeSuiAddress(address));
+export const isValidSuiAddress = (address: string): boolean => {
+  try {
+    const normalized = normalizeSuiAddress(address);
+    return /^0x[a-fA-F0-9]{64}$/.test(normalized);
+  } catch {
+    return false;
+  }
+};
 
 export const getTableKeyType = (tableType: string): string | null => {
   if (!tableType) return null;

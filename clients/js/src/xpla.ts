@@ -67,6 +67,9 @@ export async function execute_xpla(
           break;
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on XPLA");
+        case "TransferFees":
+          console.log("Transferring core bridge fees");
+          break;
         default:
           impossible(payload);
       }
