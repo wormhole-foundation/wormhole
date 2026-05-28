@@ -142,3 +142,27 @@ something an attacker someday figures out how to leverage.
 Governance actions are infrequent and relevant contracts are expected to process them in a timely
 way, so we don't need to worry about a scenario where there are so many ongoing governance actions
 that something like ordering becomes very important.
+
+### NTT attestations are evaluated against live threshold/transceiver config rather than a snapshot taken when the attestation was recorded
+
+NTT's `ManagerBase` records each transceiver's attestation as a
+persistent bit but re-evaluates approval against the *current* threshold and *current*
+enabled-transceiver set at execution time, rather than against the `(threshold, enabled-set)`
+that existed when the attestation was recorded. The suggested impact is that a historical
+attestation which was insufficient under an original threshold of 2 or more becomes executable
+once governance later reduces the threshold to 1, allowing a pre-staged fraudulent
+`NativeTokenTransfer` to be executed by any permissionless caller.
+
+**Justification:**
+Once a message has been approved, it is expected that it can proceed. Reducing the number of
+transceivers is a non-trivial administrative action that requires the integrator to have full
+confidence in the remaining transceiver(s); lowering the threshold deliberately makes the
+remaining attestations sufficient, which is the intended behavior.
+
+For the described scenario to result in theft, an attacker must first cause a fraudulent
+attestation to be recorded against a transceiver. Many deployments use the Wormhole
+Transceiver, where producing such an attestation requires an arbitrary VAA to be emitted.
+Emitting an arbitrary VAA requires a quorum of Guardians to be malicious or compromised, which
+is out of scope per "Any impact that assumes control over a quorum of signing keys as a
+precondition" above. Absent a compromised attestation source, no insufficient attestation
+exists to be promoted by a later threshold reduction.
