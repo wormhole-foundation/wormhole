@@ -151,7 +151,8 @@ enabled-transceiver set at execution time, rather than against the `(threshold, 
 that existed when the attestation was recorded. The suggested impact is that a historical
 attestation which was insufficient under an original threshold of 2 or more becomes executable
 once governance later reduces the threshold to 1, allowing a pre-staged fraudulent
-`NativeTokenTransfer` to be executed by any permissionless caller.
+`NativeTokenTransfer` to be executed by any permissionless caller. A similar argument is made
+for transfers that are rate limited and queued for later release, during which time the threshold changes.
 
 **Justification:**
 Once a message has been approved, it is expected that it can proceed. Reducing the number of
