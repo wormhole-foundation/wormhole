@@ -67,8 +67,10 @@ func TestParseCloseEventAccountData(t *testing.T) {
 	require.True(t, bytes.Equal(eventData[8:16], closeEventDiscriminator))
 
 	// After the 16-byte header, the payload is full account data (prefix + borsh)
-	// which ParseMessagePublicationAccount knows how to parse.
-	msg, err := ParseMessagePublicationAccount(eventData[16:])
+	msgData, err := NewMessageAccountData(eventData[16:])
+	require.NoError(t, err)
+	require.NotNil(t, msgData)
+	msg, err := ParseMessagePublicationAccount(msgData)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
