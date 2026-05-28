@@ -67,7 +67,7 @@ func StartRunnable(ctx context.Context, errC chan error, catchPanics bool, name 
 					}
 					// We don't want this to hang if the listener has already gone away.
 					select {
-					case errC <- err:
+					case errC <- err: //nolint:channelcheck // intentional best-effort: silently drop if the listener has already gone away
 					default:
 					}
 					ScissorsPanicsCaught.WithLabelValues(name).Inc()
@@ -85,7 +85,7 @@ func startRunnable(ctx context.Context, errC chan error, name string, runnable s
 	if err != nil {
 		// We don't want this to hang if the listener has already gone away.
 		select {
-		case errC <- err:
+		case errC <- err: //nolint:channelcheck // intentional best-effort: silently drop if the listener has already gone away
 		default:
 		}
 		ScissorsErrorsCaught.WithLabelValues(name).Inc()
