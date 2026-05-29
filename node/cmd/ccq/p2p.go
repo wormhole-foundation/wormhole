@@ -284,14 +284,20 @@ func runP2P(
 						}
 					} else {
 						// Proxy should return early if quorum is no longer possible - i.e maxMatchingResponses + outstandingResponses < quorum
-						var totalSigners, maxMatchingResponses int
+						//
+						// A guardian may appear in more than one digest bucket, so count outstanding responses by unique guardian index, not by total signatures
+						// across digest buckets
+						uniqueSigners := make(map[int]struct{}, len(guardianSet.Keys))
+						var maxMatchingResponses int
 						for _, signers := range responses[requestSignature] {
-							totalSigners += len(signers)
+							for _, gs := range signers {
+								uniqueSigners[gs.Index] = struct{}{}
+							}
 							if len(signers) > maxMatchingResponses {
 								maxMatchingResponses = len(signers)
 							}
 						}
-						outstandingResponses := len(guardianSet.Keys) - totalSigners
+						outstandingResponses := len(guardianSet.Keys) - len(uniqueSigners)
 						pendingResponse.updateStats(maxMatchingResponses, outstandingResponses, quorum)
 						if maxMatchingResponses+outstandingResponses < quorum {
 							quorumNotMetByUser.WithLabelValues(pendingResponse.userName).Inc()
