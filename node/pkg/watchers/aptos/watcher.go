@@ -289,7 +289,7 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 	//nolint:gosec // the URL is hard-coded to the Aptos RPC endpoint.
 	res, err := http.Get(s)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get payload: %s", common.SafeErrorForLogging(err, s))
 	}
 	defer res.Body.Close()
 	body, err := common.SafeRead(res.Body)

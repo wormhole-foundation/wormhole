@@ -310,7 +310,7 @@ var publicRPCDenyList = map[string]struct{}{
 	"t.conduit.xyz":   {},
 	"drpc.org":        {},
 	"tenderly.co":     {},
-	"stakely":         {},
+	"stakely.io":      {},
 	"tatum.io":        {},
 }
 

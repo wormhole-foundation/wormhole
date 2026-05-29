@@ -371,7 +371,7 @@ func (s *SolanaWatcher) setupSubscription(ctx context.Context, logger *zap.Logge
 		resp.Body.Close()
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to establish websocket connection: %s", common.SafeErrorForLogging(err, s.wsUrl))
 	}
 
 	s.subId = uuid.New().String()

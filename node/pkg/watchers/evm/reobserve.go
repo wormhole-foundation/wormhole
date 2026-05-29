@@ -157,7 +157,8 @@ func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 	// Connect to the node using the appropriate type of connector and the custom endpoint.
 	ethConn, _, _, err := w.createConnector(timeout, customEndpoint)
 	if err != nil {
-		return 0, fmt.Errorf(`failed to connect to endpoint "%v": %w`, common.SafeURLForLogging(customEndpoint), err)
+		connectErrMsg := common.SafeErrorForLogging(err, customEndpoint)
+		return 0, fmt.Errorf(`failed to connect to endpoint "%v": %s`, common.SafeURLForLogging(customEndpoint), connectErrMsg)
 	}
 
 	// Get the current finalized and safe blocks.

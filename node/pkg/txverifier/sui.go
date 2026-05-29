@@ -349,7 +349,7 @@ func suiApiRequest[T SuiApiResponse](ctx context.Context, rpc string, method str
 
 	req, err := http.NewRequestWithContext(ctx, "POST", rpc, strings.NewReader(requestBody))
 	if err != nil {
-		return defaultT, fmt.Errorf("cannot create request: %w", err)
+		return defaultT, fmt.Errorf("cannot create request: %s", common.SafeErrorForLogging(err, rpc))
 	}
 
 	// Add headers
@@ -359,7 +359,7 @@ func suiApiRequest[T SuiApiResponse](ctx context.Context, rpc string, method str
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return defaultT, fmt.Errorf("cannot send request: %w", err)
+		return defaultT, fmt.Errorf("cannot send request: %s", common.SafeErrorForLogging(err, rpc))
 	}
 	defer resp.Body.Close()
 

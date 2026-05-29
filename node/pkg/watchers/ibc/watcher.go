@@ -243,7 +243,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
 		ibcErrors.WithLabelValues("websocket_dial_error").Inc()
-		return fmt.Errorf("failed to establish tendermint websocket connection: %w", err)
+		return fmt.Errorf("failed to establish tendermint websocket connection: %s", common.SafeErrorForLogging(err, w.wsUrl))
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 

@@ -234,7 +234,7 @@ func QueryEvmChainID(ctx context.Context, url string) (uint64, error) {
 
 	c, err := rpc.DialContext(timeout, url)
 	if err != nil {
-		return 0, fmt.Errorf("failed to connect to endpoint: %w", err)
+		return 0, fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	var str string
@@ -263,12 +263,7 @@ func (w *Watcher) verifyEvmChainID(ctx context.Context, logger *zap.Logger, url 
 
 	c, err := rpc.DialContext(timeout, url)
 	if err != nil {
-		// Sanitize the error message returned from the RPC library in case it contains the URL.
-		// This has the small downside of losing the %w error wrapping, limiting the ability
-		// of callers to handle the error using e.g. errors.Is.
-		dialErrMsg := err.Error()
-		sanitizedMsg := strings.ReplaceAll(dialErrMsg, url, common.SafeURLForLogging(url))
-		return fmt.Errorf("failed to connect to endpoint: %s", sanitizedMsg)
+		return fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	var str string

@@ -64,3 +64,14 @@ func SafeURLForLogging(urlStr string) string {
 
 	return "<invalid-url>"
 }
+
+// SafeErrorForLogging returns an error string with a raw URL replaced by its safe logging form.
+func SafeErrorForLogging(err error, urlStr string) string {
+	if err == nil {
+		return ""
+	}
+	if urlStr == "" {
+		return err.Error()
+	}
+	return strings.ReplaceAll(err.Error(), urlStr, SafeURLForLogging(urlStr))
+}

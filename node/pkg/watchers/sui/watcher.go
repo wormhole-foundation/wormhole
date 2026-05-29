@@ -723,7 +723,7 @@ func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte,
 	// Create a new request with the context
 	req, err := http.NewRequestWithContext(timeoutCtx, "POST", w.suiRPC, strings.NewReader(payload))
 	if err != nil {
-		return retVal, fmt.Errorf("createAndExecReq failed to create request: %w, payload: %s", err, payload)
+		return retVal, fmt.Errorf("createAndExecReq failed to create request: %s, payload: %s", common.SafeErrorForLogging(err, w.suiRPC), payload)
 	}
 
 	// Set the Content-Type header
@@ -732,7 +732,7 @@ func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte,
 	// Send the request using DefaultClient
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return retVal, fmt.Errorf("createAndExecReq failed to post: %w", err)
+		return retVal, fmt.Errorf("createAndExecReq failed to post: %s", common.SafeErrorForLogging(err, w.suiRPC))
 	}
 	body, err := common.SafeRead(resp.Body)
 	if err != nil {

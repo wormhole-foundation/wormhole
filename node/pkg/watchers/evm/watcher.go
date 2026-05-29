@@ -298,7 +298,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf(`failed to create connection to url "%s": %w`, common.SafeURLForLogging(w.url), err)
+			return fmt.Errorf(`failed to create connection to url "%s": %s`, common.SafeURLForLogging(w.url), common.SafeErrorForLogging(err, w.url))
 		}
 
 		// Log the connector details for troubleshooting purposes.
@@ -867,7 +867,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 
 		c, err := rpc.DialContext(timeout, w.url)
 		if err != nil {
-			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
+			return false, false, fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, w.url))
 		}
 
 		type Marshaller struct {
@@ -1206,7 +1206,7 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 
 	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.dgContractAddr, w.logger)
 	if err != nil {
-		err = fmt.Errorf("dialing eth client failed: %w", err)
+		err = fmt.Errorf("dialing eth client failed: %s", common.SafeErrorForLogging(err, url))
 		return
 	}
 

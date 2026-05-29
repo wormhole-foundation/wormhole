@@ -166,7 +166,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(e.networkName, "websocket_dial_error").Inc()
-		return fmt.Errorf("websocket dial failed: %w", err)
+		return fmt.Errorf("websocket dial failed: %s", common.SafeErrorForLogging(err, e.urlWS))
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 

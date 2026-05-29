@@ -60,3 +60,20 @@ func TestSafeURLForLogging(t *testing.T) {
 		})
 	}
 }
+
+func TestSafeErrorForLogging(t *testing.T) {
+	rawURL := "https://user:pass@example.com/path?api_key=secret"
+	err := assert.AnError
+	assert.Equal(t, err.Error(), SafeErrorForLogging(err, rawURL))
+
+	err = &urlErrorForTest{msg: "failed to dial " + rawURL}
+	assert.Equal(t, "failed to dial example.com", SafeErrorForLogging(err, rawURL))
+}
+
+type urlErrorForTest struct {
+	msg string
+}
+
+func (e *urlErrorForTest) Error() string {
+	return e.msg
+}
