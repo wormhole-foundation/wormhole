@@ -50,9 +50,9 @@ module token_bridge::state {
 
     /// Dynamic field key for the `paused` boolean.
     struct PausedKey has copy, drop, store {}
-    /// Dynamic field key for the pauser address.
+    /// Dynamic field key for the designated pauser capability id.
     struct PauserKey has copy, drop, store {}
-    /// Dynamic field key for the unpauser address.
+    /// Dynamic field key for the designated unpauser capability id.
     struct UnpauserKey has copy, drop, store {}
 
     /// Container for all state variables for Token Bridge.
@@ -172,7 +172,8 @@ module token_bridge::state {
         }
     }
 
-    /// Returns the configured pauser address. Returns `@0x0` if unset.
+    /// Returns the designated pauser capability's object id (as an `address`).
+    /// Returns `@0x0` if unset. See `token_bridge::pause`.
     public fun pauser(self: &State): address {
         if (field::exists_(&self.id, PauserKey {})) {
             *field::borrow<PauserKey, address>(&self.id, PauserKey {})
@@ -181,7 +182,8 @@ module token_bridge::state {
         }
     }
 
-    /// Returns the configured unpauser address. Returns `@0x0` if unset.
+    /// Returns the designated unpauser capability's object id (as an `address`).
+    /// Returns `@0x0` if unset. See `token_bridge::pause`.
     public fun unpauser(self: &State): address {
         if (field::exists_(&self.id, UnpauserKey {})) {
             *field::borrow<UnpauserKey, address>(&self.id, UnpauserKey {})
@@ -358,7 +360,7 @@ module token_bridge::state {
         }
     }
 
-    /// Set the pauser address. Requires `LatestOnly`.
+    /// Set the designated pauser capability id. Requires `LatestOnly`.
     public(friend) fun set_pauser_address(
         _: &LatestOnly,
         self: &mut State,
@@ -374,7 +376,7 @@ module token_bridge::state {
         }
     }
 
-    /// Set the unpauser address. Requires `LatestOnly`.
+    /// Set the designated unpauser capability id. Requires `LatestOnly`.
     public(friend) fun set_unpauser_address(
         _: &LatestOnly,
         self: &mut State,
@@ -472,10 +474,16 @@ module token_bridge::state {
     /// NOTE: Please keep this method as public(friend) because we never want
     /// to expose this method as a public method.
     public(friend) fun migrate__v__0_3_0(self: &mut State) {
-        // Initialize pause dynamic fields with defaults.
-        // paused = false, pauser = @0x0, unpauser = @0x0
-        // Guarded with exists_ check for resilience against partial migration
-        // retry scenarios.
+        // Initialize pause dynamic fields with defaults:
+        // paused = false, pauser cap id = @0x0, unpauser cap id = @0x0.
+        //
+        // The `exists_` guard is required (NOT redundant): `migrate` calls this
+        // handler BEFORE bumping the version in `handle_migrate`. So the version
+        // guard (`package_utils::migrate_version`, abort E_INCORRECT_OLD_VERSION)
+        // does not protect this init. Without this guard, a second `migrate`
+        // would abort here at `field::add` with `EFieldAlreadyExists` instead of
+        // the meaningful version-mismatch error (see
+        // `migrate_tests::test_cannot_migrate_again`).
         if (!field::exists_(&self.id, PausedKey {})) {
             field::add(&mut self.id, PausedKey {}, false);
             field::add(&mut self.id, PauserKey {}, @0x0);
