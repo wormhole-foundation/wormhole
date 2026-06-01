@@ -831,7 +831,7 @@ const DEVNET = {
   sui: {
     core: "0xea31c369d1f873d87d37f313ec37f1ee20a0b8136f06e3d3521330ee467312a4", // wormhole module State object ID
     token_bridge:
-      "0x2a57bc5fea204431f20c6804a35dc23549d09eb2b9162fd1d4c641c4185a3a6b", // token_bridge module State object ID
+      "0x952c15855b6b7a806e78e45858f4b909b1e2b25fa79a199e254c5ddf44590f9d", // token_bridge module State object ID
     nft_bridge: undefined,
   },
   moonbeam: {
