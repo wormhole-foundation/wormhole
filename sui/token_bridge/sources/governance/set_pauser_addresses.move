@@ -11,7 +11,7 @@
 ///
 /// Each `SetPauserAddresses` mints NEW caps. Rotation = new cap to the new
 /// owner; any previously minted cap becomes inert (its id no longer matches the
-/// recorded active id). A zero owner records `@0x0` (unassigned) and mints
+/// recorded active id). A zero/empty owner records `none` (unassigned) and mints
 /// nothing.
 ///
 /// On Sui the owner is a 32-byte address (an EOA, or an object that should own
@@ -28,9 +28,11 @@
 /// Validation:
 /// - PauserLen must be 0 (unassigned) or 32 (Sui address size).
 /// - UnpauserLen must be 0 (unassigned) or 32.
-/// - An all-zero 32-byte value is treated as unassigned (@0x0).
+/// - An all-zero 32-byte value is treated as unassigned (`none`).
 /// - No trailing bytes allowed (cursor must be fully consumed).
 module token_bridge::set_pauser_addresses {
+    use std::option::{Self, Option};
+    use sui::object::{ID};
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
     use wormhole::bytes::{Self};
@@ -52,11 +54,11 @@ module token_bridge::set_pauser_addresses {
     struct GovernanceWitness has drop {}
 
     /// Event emitted when pauser/unpauser caps are (re)assigned via governance.
-    /// `pauser`/`unpauser` are the newly minted cap object ids (as `address`);
-    /// `@0x0` means the role was left unassigned (no cap minted).
+    /// `pauser`/`unpauser` are the newly minted cap object ids, or `none` when
+    /// the role was left unassigned (no cap minted).
     struct PauserAddressesSet has drop, copy {
-        pauser: address,
-        unpauser: address
+        pauser: Option<ID>,
+        unpauser: Option<ID>
     }
 
     /// Create `DecreeTicket` for `SetPauserAddresses` governance VAA.
@@ -74,8 +76,8 @@ module token_bridge::set_pauser_addresses {
     }
 
     /// Execute the `SetPauserAddresses` governance action. Parses the two owner
-    /// addresses, mints a cap for each non-zero owner and transfers it there,
-    /// and records the new cap ids (or @0x0) as active.
+    /// addresses, mints a cap for each present owner and transfers it there,
+    /// and records the new cap ids (or `none`) as active.
     public fun set_pauser_addresses(
         token_bridge_state: &mut State,
         receipt: DecreeReceipt<GovernanceWitness>,
@@ -93,10 +95,10 @@ module token_bridge::set_pauser_addresses {
                 receipt
             );
 
-        // Parse the length-prefixed owner addresses.
+        // Parse the length-prefixed owner addresses (`none` = unassigned).
         let cur = cursor::new(payload);
-        let pauser_owner = take_address_length_prefixed(&mut cur);
-        let unpauser_owner = take_address_length_prefixed(&mut cur);
+        let pauser_owner = take_owner_length_prefixed(&mut cur);
+        let unpauser_owner = take_owner_length_prefixed(&mut cur);
 
         // No trailing bytes allowed.
         cursor::destroy_empty(cur);
@@ -111,58 +113,65 @@ module token_bridge::set_pauser_addresses {
         );
     }
 
-    /// Mint a `PauserCap` for `owner` and record its id as active. A zero owner
-    /// unassigns the role (records @0x0, mints nothing). Returns the recorded id.
+    /// Mint a `PauserCap` for `owner` and record its id as active. A `none`
+    /// owner unassigns the role (records `none`, mints nothing). Returns the
+    /// recorded id (`some(cap_id)` or `none`).
     fun assign_pauser(
         token_bridge_state: &mut State,
         latest_only: &state::LatestOnly,
-        owner: address,
+        owner: Option<address>,
         ctx: &mut TxContext
-    ): address {
-        if (owner == @0x0) {
-            state::set_pauser_address(latest_only, token_bridge_state, @0x0);
-            return @0x0
+    ): Option<ID> {
+        if (option::is_none(&owner)) {
+            state::set_pauser(latest_only, token_bridge_state, option::none());
+            return option::none()
         };
         let cap = pause::new_pauser_cap(ctx);
         let cap_id = pause::pauser_cap_id(&cap);
-        transfer::public_transfer(cap, owner);
-        state::set_pauser_address(latest_only, token_bridge_state, cap_id);
-        cap_id
+        transfer::public_transfer(cap, option::destroy_some(owner));
+        state::set_pauser(latest_only, token_bridge_state, option::some(cap_id));
+        option::some(cap_id)
     }
 
-    /// Mint an `UnpauserCap` for `owner` and record its id as active. A zero
-    /// owner unassigns the role. Returns the recorded id.
+    /// Mint an `UnpauserCap` for `owner` and record its id as active. A `none`
+    /// owner unassigns the role. Returns the recorded id (`some(cap_id)` or
+    /// `none`).
     fun assign_unpauser(
         token_bridge_state: &mut State,
         latest_only: &state::LatestOnly,
-        owner: address,
+        owner: Option<address>,
         ctx: &mut TxContext
-    ): address {
-        if (owner == @0x0) {
-            state::set_unpauser_address(latest_only, token_bridge_state, @0x0);
-            return @0x0
+    ): Option<ID> {
+        if (option::is_none(&owner)) {
+            state::set_unpauser(latest_only, token_bridge_state, option::none());
+            return option::none()
         };
         let cap = pause::new_unpauser_cap(ctx);
         let cap_id = pause::unpauser_cap_id(&cap);
-        transfer::public_transfer(cap, owner);
-        state::set_unpauser_address(latest_only, token_bridge_state, cap_id);
-        cap_id
+        transfer::public_transfer(cap, option::destroy_some(owner));
+        state::set_unpauser(latest_only, token_bridge_state, option::some(cap_id));
+        option::some(cap_id)
     }
 
     /// Parse a length-prefixed 32-byte owner address from the cursor. Length
-    /// must be 0 (returns @0x0, unassigned) or SUI_ADDRESS_SIZE (32). A 32-byte
-    /// all-zero value decodes to @0x0 via `from_bytes`, i.e. also unassigned.
-    fun take_address_length_prefixed(cur: &mut cursor::Cursor<u8>): address {
+    /// must be 0 (returns `none`, unassigned) or SUI_ADDRESS_SIZE (32). A
+    /// 32-byte all-zero value is also treated as `none` (unassigned).
+    fun take_owner_length_prefixed(cur: &mut cursor::Cursor<u8>): Option<address> {
         let len = bytes::take_u8(cur);
         if (len == 0) {
-            return @0x0
+            return option::none()
         };
         assert!((len as u64) == (SUI_ADDRESS_SIZE as u64), E_INVALID_ADDRESS_LENGTH);
 
         let addr_bytes = bytes::take_bytes(cur, (SUI_ADDRESS_SIZE as u64));
 
-        // Convert to address.
-        sui::address::from_bytes(addr_bytes)
+        // Convert to address. An all-zero address is treated as unassigned.
+        let owner = sui::address::from_bytes(addr_bytes);
+        if (owner == @0x0) {
+            option::none()
+        } else {
+            option::some(owner)
+        }
     }
 
     #[test_only]
@@ -174,10 +183,12 @@ module token_bridge::set_pauser_addresses {
     /// Parse a raw SetPauserAddresses payload (the part after the governance
     /// header) into the two owner addresses, exercising the exact decode path
     /// used by `set_pauser_addresses` (length validation + no-trailing-bytes).
-    public fun parse_payload_test_only(payload: vector<u8>): (address, address) {
+    public fun parse_payload_test_only(
+        payload: vector<u8>
+    ): (Option<address>, Option<address>) {
         let cur = cursor::new(payload);
-        let pauser_owner = take_address_length_prefixed(&mut cur);
-        let unpauser_owner = take_address_length_prefixed(&mut cur);
+        let pauser_owner = take_owner_length_prefixed(&mut cur);
+        let unpauser_owner = take_owner_length_prefixed(&mut cur);
         cursor::destroy_empty(cur);
         (pauser_owner, unpauser_owner)
     }
@@ -193,10 +204,10 @@ module token_bridge::set_pauser_addresses {
     /// recorded (pauser_id, unpauser_id).
     public fun set_pauser_addresses_test_only(
         token_bridge_state: &mut State,
-        pauser_owner: address,
-        unpauser_owner: address,
+        pauser_owner: Option<address>,
+        unpauser_owner: Option<address>,
         ctx: &mut TxContext
-    ): (address, address) {
+    ): (Option<ID>, Option<ID>) {
         let latest_only = state::assert_latest_only(token_bridge_state);
         let pauser_id =
             assign_pauser(token_bridge_state, &latest_only, pauser_owner, ctx);
