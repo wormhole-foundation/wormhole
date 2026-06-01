@@ -2,6 +2,7 @@
 
 #[test_only]
 module token_bridge::pause_tests {
+    use std::option::{Self};
     use std::vector::{Self};
     use sui::test_scenario::{Self};
 
@@ -35,10 +36,10 @@ module token_bridge::pause_tests {
         // Initialize pause state (simulating migration).
         state::init_pause_state_test_only(&mut token_bridge_state);
 
-        // Default state: not paused, pauser/unpauser cap ids = @0x0 (unassigned).
+        // Default state: not paused, pauser/unpauser unassigned (none).
         assert!(!state::is_paused(&token_bridge_state), 0);
-        assert!(state::pauser(&token_bridge_state) == @0x0, 0);
-        assert!(state::unpauser(&token_bridge_state) == @0x0, 0);
+        assert!(option::is_none(&state::pauser(&token_bridge_state)), 0);
+        assert!(option::is_none(&state::unpauser(&token_bridge_state)), 0);
 
         return_state(token_bridge_state);
         test_scenario::end(my_scenario);
@@ -58,8 +59,8 @@ module token_bridge::pause_tests {
 
         // Before pause state init, is_paused returns false (backwards compat).
         assert!(!state::is_paused(&token_bridge_state), 0);
-        assert!(state::pauser(&token_bridge_state) == @0x0, 0);
-        assert!(state::unpauser(&token_bridge_state) == @0x0, 0);
+        assert!(option::is_none(&state::pauser(&token_bridge_state)), 0);
+        assert!(option::is_none(&state::unpauser(&token_bridge_state)), 0);
 
         return_state(token_bridge_state);
         test_scenario::end(my_scenario);
@@ -85,14 +86,14 @@ module token_bridge::pause_tests {
         let (pauser_id, unpauser_id) =
             set_pauser_addresses::set_pauser_addresses_test_only(
                 &mut token_bridge_state,
-                pauser_owner,
-                unpauser_owner,
+                option::some(pauser_owner),
+                option::some(unpauser_owner),
                 test_scenario::ctx(scenario)
             );
 
-        // Recorded ids are the minted caps' ids (non-zero).
-        assert!(pauser_id != @0x0, 0);
-        assert!(unpauser_id != @0x0, 0);
+        // Recorded ids are the minted caps' ids (present).
+        assert!(option::is_some(&pauser_id), 0);
+        assert!(option::is_some(&unpauser_id), 0);
         assert!(state::pauser(&token_bridge_state) == pauser_id, 0);
         assert!(state::unpauser(&token_bridge_state) == unpauser_id, 0);
 
@@ -101,20 +102,20 @@ module token_bridge::pause_tests {
         // Caps were transferred to the owners.
         test_scenario::next_tx(scenario, pauser_owner);
         let pauser_cap = test_scenario::take_from_address<PauserCap>(scenario, pauser_owner);
-        assert!(pause::pauser_cap_id(&pauser_cap) == pauser_id, 0);
+        assert!(option::contains(&pauser_id, &pause::pauser_cap_id(&pauser_cap)), 0);
         test_scenario::return_to_address(pauser_owner, pauser_cap);
 
         test_scenario::next_tx(scenario, unpauser_owner);
         let unpauser_cap =
             test_scenario::take_from_address<UnpauserCap>(scenario, unpauser_owner);
-        assert!(pause::unpauser_cap_id(&unpauser_cap) == unpauser_id, 0);
+        assert!(option::contains(&unpauser_id, &pause::unpauser_cap_id(&unpauser_cap)), 0);
         test_scenario::return_to_address(unpauser_owner, unpauser_cap);
 
         test_scenario::end(my_scenario);
     }
 
     #[test]
-    fun test_set_pauser_to_zero_unassigns() {
+    fun test_set_pauser_to_none_unassigns() {
         let (caller, pauser_owner, unpauser_owner) = three_people();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -129,24 +130,24 @@ module token_bridge::pause_tests {
         // Assign owners.
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            pauser_owner,
-            unpauser_owner,
+            option::some(pauser_owner),
+            option::some(unpauser_owner),
             test_scenario::ctx(scenario)
         );
 
-        // Unassign by setting owners to @0x0 (mints nothing).
+        // Unassign by setting owners to none (mints nothing).
         let (pauser_id, unpauser_id) =
             set_pauser_addresses::set_pauser_addresses_test_only(
                 &mut token_bridge_state,
-                @0x0,
-                @0x0,
+                option::none(),
+                option::none(),
                 test_scenario::ctx(scenario)
             );
 
-        assert!(pauser_id == @0x0, 0);
-        assert!(unpauser_id == @0x0, 0);
-        assert!(state::pauser(&token_bridge_state) == @0x0, 0);
-        assert!(state::unpauser(&token_bridge_state) == @0x0, 0);
+        assert!(option::is_none(&pauser_id), 0);
+        assert!(option::is_none(&unpauser_id), 0);
+        assert!(option::is_none(&state::pauser(&token_bridge_state)), 0);
+        assert!(option::is_none(&state::unpauser(&token_bridge_state)), 0);
 
         return_state(token_bridge_state);
         test_scenario::end(my_scenario);
@@ -170,8 +171,8 @@ module token_bridge::pause_tests {
         state::init_pause_state_test_only(&mut token_bridge_state);
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            pauser_owner,
-            @0x0,
+            option::some(pauser_owner),
+            option::none(),
             test_scenario::ctx(scenario)
         );
         return_state(token_bridge_state);
@@ -208,8 +209,8 @@ module token_bridge::pause_tests {
         state::init_pause_state_test_only(&mut token_bridge_state);
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            @0x0,
-            unpauser_owner,
+            option::none(),
+            option::some(unpauser_owner),
             test_scenario::ctx(scenario)
         );
         state::set_paused_test_only(&mut token_bridge_state, true);
@@ -248,8 +249,8 @@ module token_bridge::pause_tests {
         state::init_pause_state_test_only(&mut token_bridge_state);
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            pauser_owner,
-            @0x0,
+            option::some(pauser_owner),
+            option::none(),
             test_scenario::ctx(scenario)
         );
         return_state(token_bridge_state);
@@ -283,8 +284,8 @@ module token_bridge::pause_tests {
         state::init_pause_state_test_only(&mut token_bridge_state);
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            @0x0,
-            unpauser_owner,
+            option::none(),
+            option::some(unpauser_owner),
             test_scenario::ctx(scenario)
         );
         return_state(token_bridge_state);
@@ -321,8 +322,8 @@ module token_bridge::pause_tests {
         // Assign owner_a.
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            owner_a,
-            @0x0,
+            option::some(owner_a),
+            option::none(),
             test_scenario::ctx(scenario)
         );
         return_state(token_bridge_state);
@@ -338,8 +339,8 @@ module token_bridge::pause_tests {
         // Rotate: governance mints a new cap for owner_b, deprecating cap_a.
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            owner_b,
-            @0x0,
+            option::some(owner_b),
+            option::none(),
             test_scenario::ctx(scenario)
         );
         test_scenario::return_to_address(owner_a, cap_a);
@@ -374,14 +375,14 @@ module token_bridge::pause_tests {
         // Assign owner_a, then rotate to owner_b (deprecating cap_a).
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            owner_a,
-            @0x0,
+            option::some(owner_a),
+            option::none(),
             test_scenario::ctx(scenario)
         );
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            owner_b,
-            @0x0,
+            option::some(owner_b),
+            option::none(),
             test_scenario::ctx(scenario)
         );
         return_state(token_bridge_state);
@@ -466,8 +467,8 @@ module token_bridge::pause_tests {
         // Designate a real pauser owner, but attempt with a stray (undesignated) cap.
         set_pauser_addresses::set_pauser_addresses_test_only(
             &mut token_bridge_state,
-            pauser_owner,
-            @0x0,
+            option::some(pauser_owner),
+            option::none(),
             test_scenario::ctx(scenario)
         );
         let stray_cap = pause::new_pauser_cap_test_only(test_scenario::ctx(scenario));
@@ -542,8 +543,8 @@ module token_bridge::pause_tests {
 
         let (pauser, unpauser) =
             set_pauser_addresses::parse_payload_test_only(payload);
-        assert!(pauser == @0xaa, 0);
-        assert!(unpauser == @0xbb, 0);
+        assert!(option::contains(&pauser, &@0xaa), 0);
+        assert!(option::contains(&unpauser, &@0xbb), 0);
     }
 
     #[test]
@@ -557,8 +558,8 @@ module token_bridge::pause_tests {
 
         let (pauser, unpauser) =
             set_pauser_addresses::parse_payload_test_only(payload);
-        assert!(pauser == @0x0, 0);
-        assert!(unpauser == @0xbb, 0);
+        assert!(option::is_none(&pauser), 0);
+        assert!(option::contains(&unpauser, &@0xbb), 0);
     }
 
     #[test]
@@ -570,13 +571,13 @@ module token_bridge::pause_tests {
 
         let (pauser, unpauser) =
             set_pauser_addresses::parse_payload_test_only(payload);
-        assert!(pauser == @0x0, 0);
-        assert!(unpauser == @0x0, 0);
+        assert!(option::is_none(&pauser), 0);
+        assert!(option::is_none(&unpauser), 0);
     }
 
     #[test]
     fun test_parse_payload_all_zero_addr_is_unassigned() {
-        // [32][0x00..00][0] -> all-zero 32-byte decodes to @0x0
+        // [32][0x00..00][0] -> all-zero 32-byte decodes to none (unassigned)
         let zeros = x"0000000000000000000000000000000000000000000000000000000000000000";
         let payload = vector::empty<u8>();
         vector::push_back(&mut payload, 32);
@@ -585,8 +586,8 @@ module token_bridge::pause_tests {
 
         let (pauser, unpauser) =
             set_pauser_addresses::parse_payload_test_only(payload);
-        assert!(pauser == @0x0, 0);
-        assert!(unpauser == @0x0, 0);
+        assert!(option::is_none(&pauser), 0);
+        assert!(option::is_none(&unpauser), 0);
     }
 
     #[test]
