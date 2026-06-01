@@ -87,7 +87,7 @@ type (
 
 	SuiResult struct {
 		ID struct {
-			TxDigest *string `json:"txDigest"`
+			TxDigest string  `json:"txDigest"`
 			EventSeq *string `json:"eventSeq"`
 		} `json:"id"`
 		PackageID         *string          `json:"packageId"`
@@ -265,7 +265,7 @@ func NewWatcher(
 }
 
 func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiResult, isReobservation bool) error {
-	if body.ID.TxDigest == nil {
+	if len(body.ID.TxDigest) == 0 {
 		return errors.New("missing TxDigest field")
 	}
 	if body.Type == nil {
@@ -308,7 +308,7 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 		return err
 	}
 
-	txHashBytes, err := base58.Decode(*body.ID.TxDigest)
+	txHashBytes, err := base58.Decode(body.ID.TxDigest)
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 			"Transaction hash is not 32 bytes",
 			zap.String("error_type", "malformed_wormhole_event"),
 			zap.String("log_msg_type", "tx_processing_error"),
-			zap.String("txHash", *body.ID.TxDigest),
+			zap.String("txHash", body.ID.TxDigest),
 		)
 		return errors.New("transaction hash is not 32 bytes")
 	}
@@ -340,12 +340,12 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 
 	// Verifies the observation through the Sui transaction verifier, if enabled, followed
 	// by publishing the observation to the message channel.
-	err = e.verifyAndPublish(ctx, observation, *body.ID.TxDigest, logger)
+	err = e.verifyAndPublish(ctx, observation, body.ID.TxDigest, logger)
 
 	if err != nil {
 		suiTransferVerifierFailures.Inc()
 		logger.Error("Message publication error",
-			zap.String("TxDigest", *body.ID.TxDigest),
+			zap.String("TxDigest", body.ID.TxDigest),
 			zap.Error(err))
 	}
 
@@ -571,7 +571,7 @@ func (w *Watcher) getEvents(ctx context.Context) ([]SuiResultInfo, error) {
 			return retVal, err
 		}
 		for _, datum := range res.Result.Data {
-			txs = append(txs, *datum.ID.TxDigest)
+			txs = append(txs, datum.ID.TxDigest)
 			results = append(results, datum)
 		}
 		if (len(res.Result.Data) == 0) || (len(txs) == 0) {
