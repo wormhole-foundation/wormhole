@@ -31,13 +31,14 @@
 ///      `store`, so this needs no governance). The cap keeps its id, so it
 ///      stays active — authority simply moves with the object. If a cap is
 ///      compromised, governance can always revoke it via path 1.
-/// - Unassign: a zero owner records `@0x0` as active and mints nothing; the
+/// - Unassign: a zero owner records `none` as active and mints nothing; the
 ///   corresponding entry point then reverts as not-configured.
 ///
 /// Neither `pause` nor `unpause` is guarded by `assert_not_paused` (both must be
 /// callable regardless of pause state — `pause` is a no-op when already paused,
 /// `unpause` must obviously work when paused).
 module token_bridge::pause {
+    use std::option::{Self};
     use sui::object::{Self, ID, UID};
     use sui::tx_context::{Self, TxContext};
 
@@ -45,9 +46,9 @@ module token_bridge::pause {
 
     friend token_bridge::set_pauser_addresses;
 
-    /// The pauser role is unassigned (active id is @0x0).
+    /// The pauser role is unassigned (active id is `none`).
     const E_PAUSER_NOT_CONFIGURED: u64 = 0;
-    /// The unpauser role is unassigned (active id is @0x0).
+    /// The unpauser role is unassigned (active id is `none`).
     const E_UNPAUSER_NOT_CONFIGURED: u64 = 1;
     /// Provided `PauserCap` is not the active pauser.
     const E_NOT_PAUSER: u64 = 2;
@@ -94,15 +95,15 @@ module token_bridge::pause {
         UnpauserCap { id: object::new(ctx) }
     }
 
-    /// The object id of a `PauserCap`, as an `address` (the value recorded as
-    /// the active pauser in `State`).
-    public fun pauser_cap_id(cap: &PauserCap): address {
-        object::id_to_address(&object::id(cap))
+    /// The object id of a `PauserCap` (the value recorded as the active pauser
+    /// in `State`).
+    public fun pauser_cap_id(cap: &PauserCap): ID {
+        object::id(cap)
     }
 
-    /// The object id of an `UnpauserCap`, as an `address`.
-    public fun unpauser_cap_id(cap: &UnpauserCap): address {
-        object::id_to_address(&object::id(cap))
+    /// The object id of an `UnpauserCap`.
+    public fun unpauser_cap_id(cap: &UnpauserCap): ID {
+        object::id(cap)
     }
 
     /// Destroy a `PauserCap`. The active pauser is tracked by id in `State`, so
@@ -120,7 +121,7 @@ module token_bridge::pause {
     }
 
     /// Pause the token bridge. Requires the active `PauserCap`.
-    /// Aborts if the pauser role is unassigned (@0x0).
+    /// Aborts if the pauser role is unassigned.
     public fun pause(
         token_bridge_state: &mut State,
         cap: &PauserCap,
@@ -130,10 +131,10 @@ module token_bridge::pause {
         let latest_only = state::assert_latest_only(token_bridge_state);
 
         let configured = state::pauser(token_bridge_state);
-        assert!(configured != @0x0, E_PAUSER_NOT_CONFIGURED);
+        assert!(option::is_some(&configured), E_PAUSER_NOT_CONFIGURED);
 
         let cap_id = object::id(cap);
-        assert!(object::id_to_address(&cap_id) == configured, E_NOT_PAUSER);
+        assert!(cap_id == option::destroy_some(configured), E_NOT_PAUSER);
 
         state::set_paused(&latest_only, token_bridge_state, true);
 
@@ -141,7 +142,7 @@ module token_bridge::pause {
     }
 
     /// Unpause the token bridge. Requires the active `UnpauserCap`.
-    /// Aborts if the unpauser role is unassigned (@0x0).
+    /// Aborts if the unpauser role is unassigned.
     /// NOT guarded by assert_not_paused (must be callable when paused).
     public fun unpause(
         token_bridge_state: &mut State,
@@ -152,10 +153,10 @@ module token_bridge::pause {
         let latest_only = state::assert_latest_only(token_bridge_state);
 
         let configured = state::unpauser(token_bridge_state);
-        assert!(configured != @0x0, E_UNPAUSER_NOT_CONFIGURED);
+        assert!(option::is_some(&configured), E_UNPAUSER_NOT_CONFIGURED);
 
         let cap_id = object::id(cap);
-        assert!(object::id_to_address(&cap_id) == configured, E_NOT_UNPAUSER);
+        assert!(cap_id == option::destroy_some(configured), E_NOT_UNPAUSER);
 
         state::set_paused(&latest_only, token_bridge_state, false);
 
