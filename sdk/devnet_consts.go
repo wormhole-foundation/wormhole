@@ -15,7 +15,7 @@ var knownDevnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDBSC:       "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
 	vaa.ChainIDAlgorand:  "8ec299cb7f3efec28f542397e07f07118d74c875f85409ed8e6b93c17b60e992",
 	vaa.ChainIDWormchain: "c9138c6e5bd7a2ab79c1a87486c9d7349d064b35ac9f7498f3b207b3a61e6013",
-	vaa.ChainIDSui:       "1c11fc81e11014109f388ba3efe4dbf35b278071da2e776fb851d65fca66c125",
+	vaa.ChainIDSui:       "07035e0d324df11aca0e5c7eef7d87bca4da632a623a9cb1aabf21215ee98cdc",
 }
 
 // KnownDevnetNFTBridgeEmitters is a map of known NFT emitters used during development.
