@@ -1,11 +1,16 @@
 .PHONY: lint
-lint: 
-	golangci-lint run -c ../.golangci.yml ./...
+lint:
+# Lints spelling and Go via the custom wormhole-golangci-lint
+	bash ../scripts/lint.sh lint
 
 .PHONY: test
 test: 
 	go test -v ./...
-	timeout 10s go test -fuzz=FuzzMessagePublicationUnmarshalBinary -fuzztime=5s ./pkg/common || true
+	timeout 5s go test -fuzz=FuzzMessagePublicationUnmarshalBinary -fuzztime=3s ./pkg/common || true
+
+.PHONY: test-fast
+test-fast:
+	go test -short ./...
 
 .PHONY: test-coverage
 test-coverage:

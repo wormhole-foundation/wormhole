@@ -47,6 +47,8 @@ func getVAAWithSeqNum(seqNum uint64) vaa.VAA {
 
 // Testing the expected default behavior of a CreateGovernanceVAA
 func TestVaaIDFromString(t *testing.T) {
+	t.Parallel()
+
 	vaaIdString := "1/0000000000000000000000000000000000000000000000000000000000000004/1"
 	vaaID, _ := VaaIDFromString(vaaIdString)
 	expectAddr := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
@@ -57,6 +59,8 @@ func TestVaaIDFromString(t *testing.T) {
 }
 
 func TestVaaIDFromVAA(t *testing.T) {
+	t.Parallel()
+
 	testVaa := getVAA()
 	vaaID := VaaIDFromVAA(&testVaa)
 	expectAddr := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
@@ -67,6 +71,8 @@ func TestVaaIDFromVAA(t *testing.T) {
 }
 
 func TestBytes(t *testing.T) {
+	t.Parallel()
+
 	vaaIdString := "1/0000000000000000000000000000000000000000000000000000000000000004/1"
 	vaaID, _ := VaaIDFromString(vaaIdString)
 	expected := []byte{0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x2f, 0x31, 0x2f, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x34, 0x2f, 0x31}
@@ -75,6 +81,8 @@ func TestBytes(t *testing.T) {
 }
 
 func TestEmitterPrefixBytesWithChainIDAndAddress(t *testing.T) {
+	t.Parallel()
+
 	vaaIdString := "1/0000000000000000000000000000000000000000000000000000000000000004/1"
 	vaaID, _ := VaaIDFromString(vaaIdString)
 	expected := []byte{0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x2f, 0x31, 0x2f, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x34}
@@ -83,11 +91,15 @@ func TestEmitterPrefixBytesWithChainIDAndAddress(t *testing.T) {
 }
 
 func TestEmitterPrefixBytesWithOnlyChainID(t *testing.T) {
+	t.Parallel()
+
 	vaaID := VAAID{EmitterChain: vaa.ChainID(26)}
 	assert.Equal(t, []byte("signed/26"), vaaID.EmitterPrefixBytes())
 }
 
 func TestStoreSignedVAAUnsigned(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -100,6 +112,8 @@ func TestStoreSignedVAAUnsigned(t *testing.T) {
 }
 
 func TestStoreSignedVAASigned(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -115,6 +129,12 @@ func TestStoreSignedVAASigned(t *testing.T) {
 }
 
 func TestStoreSignedVAABatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping large signed VAA batch stress test in short mode")
+	}
+
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -174,6 +194,8 @@ func TestStoreSignedVAABatch(t *testing.T) {
 }
 
 func TestGetSignedVAABytes(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -201,6 +223,8 @@ func TestGetSignedVAABytes(t *testing.T) {
 }
 
 func TestFindEmitterSequenceGap(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()

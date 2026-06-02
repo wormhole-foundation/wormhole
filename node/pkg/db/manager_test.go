@@ -11,6 +11,8 @@ import (
 )
 
 func TestAggregatedTransactionMarshalUnmarshal(t *testing.T) {
+	t.Parallel()
+
 	// Create test data
 	original := &AggregatedTransaction{
 		VAAHash:          []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
@@ -61,6 +63,8 @@ func TestAggregatedTransactionMarshalUnmarshal(t *testing.T) {
 }
 
 func TestAggregatedTransactionIsComplete(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		required   uint8
@@ -75,7 +79,10 @@ func TestAggregatedTransactionIsComplete(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			tx := &AggregatedTransaction{
 				Required:   tc.required,
 				Signatures: make(map[uint8][][]byte),
@@ -89,6 +96,8 @@ func TestAggregatedTransactionIsComplete(t *testing.T) {
 }
 
 func TestManagerDBStoreAndGet(t *testing.T) {
+	t.Parallel()
+
 	// Create in-memory database
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	badgerDB, err := badger.Open(opts)
@@ -130,6 +139,8 @@ func TestManagerDBStoreAndGet(t *testing.T) {
 }
 
 func TestManagerDBHasAggregatedTransaction(t *testing.T) {
+	t.Parallel()
+
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	badgerDB, err := badger.Open(opts)
 	require.NoError(t, err)
@@ -159,6 +170,8 @@ func TestManagerDBHasAggregatedTransaction(t *testing.T) {
 }
 
 func TestManagerDBDeleteAggregatedTransaction(t *testing.T) {
+	t.Parallel()
+
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	badgerDB, err := badger.Open(opts)
 	require.NoError(t, err)
@@ -208,6 +221,8 @@ func TestManagerDBDeleteAggregatedTransaction(t *testing.T) {
 }
 
 func TestManagerDBGetAggregatedTransactionByVAAID(t *testing.T) {
+	t.Parallel()
+
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	badgerDB, err := badger.Open(opts)
 	require.NoError(t, err)
@@ -247,6 +262,8 @@ func TestManagerDBGetAggregatedTransactionByVAAID(t *testing.T) {
 }
 
 func TestManagerDBIndexNotDeletedWhenPointingToDifferentHash(t *testing.T) {
+	t.Parallel()
+
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	badgerDB, err := badger.Open(opts)
 	require.NoError(t, err)
@@ -301,6 +318,8 @@ func TestManagerDBIndexNotDeletedWhenPointingToDifferentHash(t *testing.T) {
 }
 
 func TestManagerDBLoadAllAggregatedTransactions(t *testing.T) {
+	t.Parallel()
+
 	opts := badger.DefaultOptions("").WithInMemory(true).WithLogger(nil)
 	badgerDB, err := badger.Open(opts)
 	require.NoError(t, err)
