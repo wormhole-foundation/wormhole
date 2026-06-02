@@ -134,13 +134,15 @@ type (
 	// both the reliable and unreliable message types.
 	// It corresponds to the `data` field of the Wormhole PostedMessage account.
 	MessagePublicationAccount struct {
-		VaaVersion       uint8
-		ConsistencyLevel uint8
-		SubmissionTime   uint32
-		Nonce            uint32
-		Sequence         uint64
-		EmitterChain     uint16
-		EmitterAddress   vaa.Address
+		VaaVersion          uint8
+		ConsistencyLevel    uint8
+		VaaTime             uint32
+		VaaSignatureAccount solana.PublicKey
+		SubmissionTime      uint32
+		Nonce               uint32
+		Sequence            uint64
+		EmitterChain        uint16
+		EmitterAddress      vaa.Address
 		// Payload is the message payload. It is a variable-length byte array with no minimum length.
 		// Messages using the Shim contract will have a payload of length 0.
 		Payload []byte
