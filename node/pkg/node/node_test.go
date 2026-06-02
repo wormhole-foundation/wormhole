@@ -559,6 +559,10 @@ func createGovernanceMsgAndVaa(t testing.TB) (*common.MessagePublication, *nodev
 
 // TestConsensus tests that a set of guardians can form consensus on certain messages and reject certain other messages
 func TestConsensus(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow guardian consensus integration test in short mode")
+	}
+
 	// adjust processor time intervals to make tests pass faster
 	processor.FirstRetryMinWait = time.Second * 3
 	processor.CleanupInterval = time.Second * 1

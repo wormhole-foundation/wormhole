@@ -49,26 +49,37 @@ func (conn *mockBackfillConn) RawBatchCallContext(ctx context.Context, b []rpc.B
 // TestCcqBackFillDetermineMaxBatchSize verifies that the search for the max allowed block size converges for all values between 1 and CCQ_MAX_BATCH_SIZE + 1 inclusive.
 // It also verifies the returned set of blocks.
 func TestCcqBackFillDetermineMaxBatchSize(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping exhaustive CCQ backfill batch-size sweep in short mode")
+	}
+
+	t.Parallel()
+
 	ctx := context.Background()
 	logger := zap.NewNop()
 	latestBlockNum := int64(17533044)
 
 	for maxBatchSize := int64(1); maxBatchSize <= CCQ_MAX_BATCH_SIZE+1; maxBatchSize++ {
-		conn := &mockBackfillConn{maxBatchSize: maxBatchSize}
-		batchSize, blocks, err := ccqBackFillDetermineMaxBatchSize(ctx, logger, conn, latestBlockNum, time.Microsecond)
-		require.NoError(t, err)
-		if maxBatchSize > CCQ_MAX_BATCH_SIZE { // If the node supports more than our max size, we should cap the batch size at our max.
-			require.Equal(t, CCQ_MAX_BATCH_SIZE, batchSize)
-		} else {
-			require.Equal(t, maxBatchSize, batchSize)
-		}
-		require.Equal(t, batchSize, int64(len(blocks)))
+		maxBatchSize := maxBatchSize
+		t.Run(fmt.Sprintf("maxBatchSize=%d", maxBatchSize), func(t *testing.T) {
+			t.Parallel()
 
-		blockNum := uint64(latestBlockNum) // #nosec G115 -- This value is set above so the conversion is safe
-		for _, block := range blocks {
-			assert.Equal(t, blockNum, block.BlockNum)
-			assert.Equal(t, blockNum*10, block.Timestamp)
-			blockNum--
-		}
+			conn := &mockBackfillConn{maxBatchSize: maxBatchSize}
+			batchSize, blocks, err := ccqBackFillDetermineMaxBatchSize(ctx, logger, conn, latestBlockNum, time.Microsecond)
+			require.NoError(t, err)
+			if maxBatchSize > CCQ_MAX_BATCH_SIZE { // If the node supports more than our max size, we should cap the batch size at our max.
+				require.Equal(t, CCQ_MAX_BATCH_SIZE, batchSize)
+			} else {
+				require.Equal(t, maxBatchSize, batchSize)
+			}
+			require.Equal(t, batchSize, int64(len(blocks)))
+
+			blockNum := uint64(latestBlockNum) // #nosec G115 -- This value is set above so the conversion is safe
+			for _, block := range blocks {
+				assert.Equal(t, blockNum, block.BlockNum)
+				assert.Equal(t, blockNum*10, block.Timestamp)
+				blockNum--
+			}
+		})
 	}
 }

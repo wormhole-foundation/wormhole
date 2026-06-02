@@ -131,4 +131,3 @@ ictest-cw-shutdown-contracts: rm-testcache
 ictest-validator-hotswap: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestValidatorHotswap$$ ./...
 .PHONY: ictest-validator-hotswap
-
