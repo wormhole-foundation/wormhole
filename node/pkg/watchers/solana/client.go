@@ -130,20 +130,34 @@ type (
 		} `json:"params"`
 	}
 
+	// The two types below represent Go equivalent of the on-chain Solana structs corresponding
+	// to message publication accounts and the account data within those accounts.
+
 	// MessagePublicationAccount is the data structure used to deserialize Solana PostedMessage account data for
 	// both the reliable and unreliable message types.
 	// It corresponds to the `data` field of the Wormhole PostedMessage account.
+	// Keep this layout in sync with the Solana core bridge MessageData struct in
+	// solana/bridge/program/src/accounts/posted_message.rs.
 	MessagePublicationAccount struct {
-		VaaVersion          uint8
-		ConsistencyLevel    uint8
-		VaaTime             uint32
+		// VaaVersion corresponds to MessageData::vaa_version (u8).
+		VaaVersion uint8
+		// ConsistencyLevel corresponds to MessageData::consistency_level (u8).
+		ConsistencyLevel uint8
+		// VaaTime corresponds to MessageData::vaa_time (u32).
+		VaaTime uint32
+		// VaaSignatureAccount corresponds to MessageData::vaa_signature_account (Pubkey).
 		VaaSignatureAccount solana.PublicKey
-		SubmissionTime      uint32
-		Nonce               uint32
-		Sequence            uint64
-		EmitterChain        uint16
-		EmitterAddress      vaa.Address
-		// Payload is the message payload. It is a variable-length byte array with no minimum length.
+		// SubmissionTime corresponds to MessageData::submission_time (u32).
+		SubmissionTime uint32
+		// Nonce corresponds to MessageData::nonce (u32).
+		Nonce uint32
+		// Sequence corresponds to MessageData::sequence (u64).
+		Sequence uint64
+		// EmitterChain corresponds to MessageData::emitter_chain (u16).
+		EmitterChain uint16
+		// EmitterAddress corresponds to MessageData::emitter_address ([u8; 32]).
+		EmitterAddress vaa.Address
+		// Payload corresponds to MessageData::payload (Vec<u8>). It is a variable-length byte array with no minimum length.
 		// Messages using the Shim contract will have a payload of length 0.
 		Payload []byte
 	}
