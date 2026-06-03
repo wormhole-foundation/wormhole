@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const DialConnectTimeout = 10 * time.Second
+const dialConnectTimeout = 10 * time.Second
 
 func allowCORSWrapper(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +70,7 @@ func publicwebServiceRunnable(
 
 		// grpc.NewClient does not support blocking dials. The following code attempts to preserve the old behaviour.
 		conn.Connect()
-		dialCtx, dialCancel := context.WithTimeout(ctx, DialConnectTimeout)
+		dialCtx, dialCancel := context.WithTimeout(ctx, dialConnectTimeout)
 		defer dialCancel()
 		for {
 			state := conn.GetState()
@@ -82,7 +82,6 @@ func publicwebServiceRunnable(
 
 			// Wait until the state changes.
 			if !conn.WaitForStateChange(dialCtx, state) {
-				conn.Close()
 				return fmt.Errorf("publicwebServiceRunnable: timed out waiting for upstream connection")
 			}
 		}
@@ -90,7 +89,6 @@ func publicwebServiceRunnable(
 		gwmux := runtime.NewServeMux()
 		err := publicrpcv1.RegisterPublicRPCServiceHandler(ctx, gwmux, conn)
 		if err != nil {
-			conn.Close()
 			panic(err)
 		}
 
