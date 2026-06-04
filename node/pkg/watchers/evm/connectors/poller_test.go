@@ -209,7 +209,7 @@ func TestPollConnector(t *testing.T) {
 	mock := &mockConnectorForPoller{blockNumbers: []uint64{}}
 
 	// safeSupported=false mirrors Tron config.
-	poller := NewPollConnector(ctx, logger, mock, false, 1*time.Millisecond)
+	poller := NewPollConnector(ctx, logger, mock, false, 1*time.Millisecond, 0)
 
 	// Set initial blocks: finalized=100, latest=110.
 	mock.setBlockNumbers(100, 110)
@@ -275,7 +275,7 @@ func TestPollConnectorGetLatest(t *testing.T) {
 		prevSafe:      180,
 	}
 
-	poller := NewPollConnector(ctx, logger, mock, false, time.Second)
+	poller := NewPollConnector(ctx, logger, mock, false, time.Second, 0)
 
 	latest, finalized, safe, err := poller.GetLatest(ctx)
 	require.NoError(t, err)
@@ -289,7 +289,7 @@ func TestPollConnectorSubscribeNewHeadReturnsError(t *testing.T) {
 	ctx := context.Background()
 	logger := zap.NewNop()
 	mock := &mockConnectorForPoller{}
-	poller := NewPollConnector(ctx, logger, mock, false, time.Second)
+	poller := NewPollConnector(ctx, logger, mock, false, time.Second, 0)
 
 	ch := make(chan *ethTypes.Header)
 	_, err := poller.SubscribeNewHead(ctx, ch)
@@ -311,11 +311,32 @@ func TestPollConnectorTimeOfBlockByHash(t *testing.T) {
 		rawCallResult:          fmt.Sprintf(`{"number":"0x100","hash":"%s","timestamp":"0x%x"}`, hash.Hex(), expectedTime),
 	}
 
-	poller := NewPollConnector(ctx, logger, mock, false, time.Second)
+	poller := NewPollConnector(ctx, logger, mock, false, time.Second, 0)
 
 	blockTime, err := poller.TimeOfBlockByHash(ctx, hash)
 	require.NoError(t, err)
 	assert.Equal(t, expectedTime, blockTime)
+}
+
+// TestPollConnectorTimeOfBlockByHashNotFound verifies that an unknown block
+// (eth_getBlockByHash returns a JSON null result) surfaces as ethereum.NotFound
+// rather than a zero timestamp with a nil error.
+func TestPollConnectorTimeOfBlockByHashNotFound(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	hash := ethCommon.HexToHash("0xabcd")
+
+	mock := &mockConnectorForPollerWithRawCall{
+		mockConnectorForPoller: mockConnectorForPoller{},
+		rawCallResult:          `null`,
+	}
+
+	poller := NewPollConnector(ctx, logger, mock, false, time.Second, 0)
+
+	blockTime, err := poller.TimeOfBlockByHash(ctx, hash)
+	require.ErrorIs(t, err, ethereum.NotFound)
+	assert.Zero(t, blockTime)
 }
 
 // mockConnectorForPollerWithRawCall extends the mock to support RawCallContext.
@@ -335,7 +356,7 @@ func TestPollConnectorGapFill(t *testing.T) {
 	logger := zap.NewNop()
 	mock := &mockConnectorForPoller{blockNumbers: []uint64{}}
 
-	poller := NewPollConnector(ctx, logger, mock, false, 1*time.Millisecond)
+	poller := NewPollConnector(ctx, logger, mock, false, 1*time.Millisecond, 0)
 
 	// Start at finalized=100, latest=110.
 	mock.setBlockNumbers(100, 110)
@@ -366,4 +387,42 @@ func TestPollConnectorGapFill(t *testing.T) {
 	assert.True(t, finalizedNums[101], "gap fill: finalized 101")
 	assert.True(t, finalizedNums[102], "gap fill: finalized 102")
 	assert.True(t, finalizedNums[103], "gap fill: finalized 103")
+}
+
+// mockConnectorForPollerAlwaysErr fails every RawCallContext, simulating an RPC
+// node that is persistently unreachable.
+type mockConnectorForPollerAlwaysErr struct {
+	mockConnectorForPoller
+}
+
+func (m *mockConnectorForPollerAlwaysErr) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	return fmt.Errorf("simulated RPC failure")
+}
+
+// TestPollConnectorLogPollingEscalatesErrors verifies that persistent log-poll
+// failures escalate to errC (so the watcher restarts) rather than logging
+// forever.
+func TestPollConnectorLogPollingEscalatesErrors(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	logger := zap.NewNop()
+	mock := &mockConnectorForPollerAlwaysErr{}
+
+	poller := NewPollConnector(ctx, logger, mock, false, time.Millisecond, 0)
+
+	sink := make(chan *ethAbi.AbiLogMessagePublished, 1)
+	errC := make(chan error, 1)
+
+	// Note: no defer sub.Unsubscribe() here. On escalation the poll goroutine
+	// returns on its own, so it never reads sub.quit; calling Unsubscribe would
+	// block forever waiting on unsubDone. The context timeout handles cleanup.
+	_, err := poller.watchLogMessagePublishedFrom(ctx, errC, sink, 100)
+	require.NoError(t, err)
+
+	select {
+	case err := <-errC:
+		require.ErrorContains(t, err, "too many errors")
+	case <-ctx.Done():
+		t.Fatal("expected errC to receive an escalated error after persistent failures")
+	}
 }

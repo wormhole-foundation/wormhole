@@ -1651,7 +1651,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
-	
+
 	if shouldStart(tronRPC) {
 		wc := &evm.WatcherConfig{
 			NetworkID:        "tron",

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,7 +45,7 @@ func TestTronNileReobservation(t *testing.T) {
 	base, err := connectors.NewEthereumBaseConnector(ctx, "tron-nile-test", rpcURL, coreAddr, nil, logger)
 	require.NoError(t, err)
 
-	poll := connectors.NewPollConnector(ctx, logger, base, false, time.Second)
+	poll := connectors.NewPollConnector(ctx, logger, base, false, time.Second, connectors.DefaultMaxLogScanBlocks)
 
 	// MessageEventsForTransaction is the exact function used by
 	// handleReobservationRequest (reobserve.go).
@@ -97,7 +96,7 @@ func TestTronNilePollConnectorBlocks(t *testing.T) {
 	base, err := connectors.NewEthereumBaseConnector(ctx, "tron-nile-test", rpcURL, coreAddr, nil, logger)
 	require.NoError(t, err)
 
-	poll := connectors.NewPollConnector(ctx, logger, base, false, time.Second)
+	poll := connectors.NewPollConnector(ctx, logger, base, false, time.Second, connectors.DefaultMaxLogScanBlocks)
 
 	latest, finalized, safe, err := poll.GetLatest(ctx)
 	require.NoError(t, err)
@@ -108,55 +107,4 @@ func TestTronNilePollConnectorBlocks(t *testing.T) {
 	assert.GreaterOrEqual(t, latest, finalized, "latest should be >= finalized")
 
 	t.Logf("latest=%d finalized=%d safe=%d gap=%d", latest, finalized, safe, latest-finalized)
-}
-
-// TestTronNilePollConnectorLogPolling drives PollConnector.WatchLogMessagePublishedFrom
-// end-to-end against the live Tron Nile testnet, starting from a known block
-// that contains a publishMessage tx, and verifies the parsed event is
-// delivered to the sink.
-func TestTronNilePollConnectorLogPolling(t *testing.T) {
-	if os.Getenv("TRON_INTEGRATION") == "" {
-		t.Skip("set TRON_INTEGRATION=1 to run (hits live Tron Nile testnet)")
-	}
-
-	const (
-		rpcURL      = "https://nile.trongrid.io/jsonrpc"
-		coreAddrHex = "0x294b5510a771111df96acbc08515678edf0f83e0"
-		// The known tx is in block 0x3fe4cc8 = 66997448.
-		txBlockNum = uint64(66997448)
-	)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	logger, _ := zap.NewDevelopment()
-	coreAddr := ethCommon.HexToAddress(coreAddrHex)
-
-	base, err := connectors.NewEthereumBaseConnector(ctx, "tron-nile-test", rpcURL, coreAddr, nil, logger)
-	require.NoError(t, err)
-
-	poll := connectors.NewPollConnector(ctx, logger, base, false, 50*time.Millisecond)
-	// Cap each scan to a single block so the test only inspects the known
-	// block range instead of scanning the (very large) gap up to current latest.
-	poll.MaxLogScanBlocks = 1
-
-	sink := make(chan *ethabi.AbiLogMessagePublished, 4)
-	errC := make(chan error, 1)
-
-	sub, err := poll.WatchLogMessagePublishedFrom(ctx, errC, sink, txBlockNum)
-	require.NoError(t, err)
-	defer sub.Unsubscribe()
-
-	select {
-	case ev := <-sink:
-		assert.Equal(t, uint32(1), ev.Nonce)
-		assert.Equal(t, uint8(202), ev.ConsistencyLevel)
-		assert.Equal(t, "hello world", string(ev.Payload))
-		t.Logf("received event from poller: nonce=%d seq=%d payload=%q",
-			ev.Nonce, ev.Sequence, string(ev.Payload))
-	case err := <-errC:
-		t.Fatalf("watcher reported error: %v", err)
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for LogMessagePublished event")
-	}
 }

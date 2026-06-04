@@ -1216,7 +1216,7 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 	// - InstantFinalityConnector: for chains with instant finality, subscribes for latest heads.
 	if finalizedPollingSupported {
 		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-			ethConn = connectors.NewPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
+			ethConn = connectors.NewPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond, connectors.DefaultMaxLogScanBlocks)
 		} else {
 			ethConn = connectors.NewBatchPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
 		}
