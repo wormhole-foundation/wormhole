@@ -1633,6 +1633,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(tempoRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "tempo",
+			ChainID:          vaa.ChainIDTempo,
+			Rpc:              *tempoRPC,
+			Contract:         *tempoContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terra2WS) {
 		if env != common.UnsafeDevNet {
 			logger.Fatal("Terra2 classic is only allowed in unsafe dev mode")
@@ -1921,18 +1932,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				Contract:          *monadTestnetContract,
 				CcqBackfillCache:  *ccqBackfillCache,
 				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMonadTestnet),
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
-
-		if shouldStart(tempoRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID:        "tempo",
-				ChainID:          vaa.ChainIDTempo,
-				Rpc:              *tempoRPC,
-				Contract:         *tempoContract,
-				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
