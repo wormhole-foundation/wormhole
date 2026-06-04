@@ -4,6 +4,10 @@
 default:
     @just --list
 
+[doc("Production-shape SBF build.")]
+build:
+    cargo build-sbf --features bpf-entrypoint
+
 [doc("Host-side tests.")]
 test:
     cargo test --locked
@@ -11,6 +15,68 @@ test:
 [doc("Clippy, warnings denied.")]
 clippy:
     cargo clippy --locked --all-targets -- -D warnings
+
+# SBF-target type-check. There is no upstream `cargo check-sbf`, but
+# `cargo build-sbf` registers the platform-tools compiler with rustup (e.g.
+# `1.89.0-sbpf-solana-v1.52`), which can drive a plain `cargo check` against
+# the real `sbpf-solana-solana` target. This checks the exact cfg shape that
+# ships (`target_os = "solana"` arms, real syscall declarations) without the
+# cost of a full `build-sbf`, and without the host-side cfg fallbacks that
+# `cargo check` on the host exercises. The toolchain name embeds the
+# platform-tools version, so it is discovered rather than hard-coded.
+#
+# Note: clippy cannot run on this toolchain (Anza ships no cargo-clippy for
+# platform-tools, and rustup cannot add components to custom toolchains).
+# RUSTFLAGS=-Dwarnings promotes the compiler's own lints to errors on the SBF
+# target; `clippy-sbf` below approximates clippy coverage of the SBF arms.
+
+[doc("Type-check against the real SBF target (sbpf-solana-solana), warnings denied.")]
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    toolchain=$(rustup toolchain list | awk '/sbpf-solana/ {print $1; exit}')
+    if [ -z "${toolchain}" ]; then
+        echo "ERROR: no sbpf-solana platform-tools toolchain found in rustup." >&2
+        echo "Run 'cargo build-sbf' once to install it." >&2
+        exit 1
+    fi
+    echo "Using toolchain: ${toolchain}"
+    export RUSTFLAGS="-Dwarnings"
+    cargo "+${toolchain}" check --locked --target sbpf-solana-solana \
+        -p global-accountant --features bpf-entrypoint
+
+# SBF-arm clippy. The platform-tools toolchain ships no clippy, but upstream
+# nightly clippy knows the tier-3 `bpfel-unknown-none` target, which sets
+# `target_arch = "bpf"` — the second arm of the crate's cfg pattern
+# (`any(target_os = "solana", target_arch = "bpf")`), kept precisely so this
+# recipe can lint the SBF-shaped code (syscalls, entrypoint, no_std). Tier 3
+# ships no prebuilt core/alloc, hence nightly + rust-src + `-Zbuild-std`.
+#
+# Caveats, recorded so nobody is surprised later:
+#   * Approximation: code gated *exclusively* on `target_os = "solana"` is
+#     invisible here. The crate's convention is the `any(...)` pattern, which
+#     keeps coverage effectively total — maintain that convention.
+#   * Nightly: clippy lint names drift (e.g. workspace lint tables may emit
+#     `renamed_and_removed_lints` warnings). Supplementary gate only; the
+#     stable host `clippy` target remains authoritative.
+
+[doc("Nightly clippy of the SBF-shaped code via bpfel-unknown-none.")]
+clippy-sbf:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! cargo +nightly clippy --version >/dev/null 2>&1; then
+        echo "ERROR: nightly clippy not available." >&2
+        echo "Run 'rustup component add clippy --toolchain nightly'." >&2
+        exit 1
+    fi
+    if ! rustup component list --toolchain nightly --installed 2>/dev/null | grep -q rust-src; then
+        echo "ERROR: rust-src not installed for nightly (required by -Zbuild-std)." >&2
+        echo "Run 'rustup component add rust-src --toolchain nightly'." >&2
+        exit 1
+    fi
+    cargo +nightly clippy --locked -Zbuild-std=core,alloc --target bpfel-unknown-none \
+        -p global-accountant -p global-accountant-definitions \
+        --features bpf-entrypoint -- -D warnings
 
 [doc("rustfmt check.")]
 fmt:

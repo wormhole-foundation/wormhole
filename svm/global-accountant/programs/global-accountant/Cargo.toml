@@ -1,0 +1,42 @@
+[package]
+name = "global-accountant"
+description = "Wormhole Global Accountant Solana program (Pinocchio)."
+publish = false
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+# Build the BPF entrypoint. Disabled when consumed as a library (e.g. by tests
+# or client tooling).
+default = []
+bpf-entrypoint = []
+
+[dependencies]
+bytemuck.workspace = true
+global-accountant-definitions.workspace = true
+pinocchio.workspace = true
+pinocchio-system.workspace = true
+# Force-enable the `curve25519` feature on solana-address so host builds
+# (cargo check / clippy / cargo test) can resolve
+# `Address::find_program_address`. The function is feature-gated to
+# `curve25519` on the host path; pinocchio's transitive dep only enables
+# `syscalls`, which exposes it on the BPF target but not on the host. On the
+# SBF target the syscall path is unconditionally available, so the
+# curve25519-dalek that this brings in via solana-address's host-only branch
+# is dead code on-chain and adds no SBF binary cost.
+solana-address = { version = "2.6", features = ["curve25519"] }
+
+[dev-dependencies]
+# Integration tests drive `process_instruction` directly on the host and need
+# pinocchio's `Address` / `ProgramError` types to do so.
+pinocchio.workspace = true
+
+[lints]
+workspace = true
