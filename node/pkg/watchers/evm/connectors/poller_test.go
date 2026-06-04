@@ -413,16 +413,53 @@ func TestPollConnectorLogPollingEscalatesErrors(t *testing.T) {
 	sink := make(chan *ethAbi.AbiLogMessagePublished, 1)
 	errC := make(chan error, 1)
 
-	// Note: no defer sub.Unsubscribe() here. On escalation the poll goroutine
-	// returns on its own, so it never reads sub.quit; calling Unsubscribe would
-	// block forever waiting on unsubDone. The context timeout handles cleanup.
-	_, err := poller.watchLogMessagePublishedFrom(ctx, errC, sink, 100)
+	sub, err := poller.watchLogMessagePublishedFrom(ctx, errC, sink, 100)
 	require.NoError(t, err)
+	defer sub.Unsubscribe()
 
 	select {
 	case err := <-errC:
 		require.ErrorContains(t, err, "too many errors")
 	case <-ctx.Done():
 		t.Fatal("expected errC to receive an escalated error after persistent failures")
+	}
+}
+
+// TestPollConnectorUnsubscribeAfterEscalationNoDeadlock is the regression test
+// for the unsubDone deadlock: after the poll goroutine returns on its own (via
+// error escalation), the consumer's Unsubscribe() must still return promptly.
+// Before the fix it blocked forever waiting on unsubDone, which would also wedge
+// the watcher's context-cancel defer and prevent the supervisor from restarting.
+func TestPollConnectorUnsubscribeAfterEscalationNoDeadlock(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	logger := zap.NewNop()
+	mock := &mockConnectorForPollerAlwaysErr{}
+
+	poller := NewPollConnector(ctx, logger, mock, false, time.Millisecond, 0)
+
+	sink := make(chan *ethAbi.AbiLogMessagePublished, 1)
+	errC := make(chan error, 1)
+
+	sub, err := poller.watchLogMessagePublishedFrom(ctx, errC, sink, 100)
+	require.NoError(t, err)
+
+	// Wait for the runnable to escalate and exit on its own.
+	select {
+	case <-errC:
+	case <-ctx.Done():
+		t.Fatal("expected escalation error before unsubscribe")
+	}
+
+	// Unsubscribe must not block even though the runnable already returned.
+	done := make(chan struct{})
+	go func() {
+		sub.Unsubscribe()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Unsubscribe deadlocked after the poll goroutine self-exited")
 	}
 }

@@ -25,6 +25,10 @@ var logMessagePublishedTopic = ethCrypto.Keccak256Hash([]byte("LogMessagePublish
 // pollMaxErrors is the number of consecutive polling errors before the connector gives up.
 const pollMaxErrors = 3
 
+// filterLogsTimeout bounds a single eth_getLogs RPC call, matching the timeout
+// GetBlock uses for block lookups.
+const filterLogsTimeout = 15 * time.Second
+
 // DefaultMaxLogScanBlocks is the per-iteration eth_getLogs range cap used in
 // production. In normal operation the poller should stays near the chain head.
 // This is a safety against large gaps that may scan beyond typical provider limits,
@@ -100,6 +104,10 @@ func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 	errCount := 0
 
 	common.RunWithScissors(ctx, errC, "poller_subscribe_for_blocks", func(ctx context.Context) error {
+		// Signal completion on every exit path (quit, ctx cancel, error escalation,
+		// panic) so the consumer's Unsubscribe() never blocks waiting on a goroutine
+		// that has already returned. See PollSubscription.signalUnsubscribed.
+		defer sub.signalUnsubscribed()
 		timer := time.NewTimer(p.Delay)
 		defer timer.Stop()
 		for {
@@ -107,7 +115,6 @@ func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 			case <-ctx.Done():
 				return nil
 			case <-sub.quit:
-				sub.unsubDone <- struct{}{}
 				return nil
 			case <-timer.C:
 				lastBlocks, err = p.pollBlocks(ctx, sink, lastBlocks)
@@ -151,6 +158,10 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 	errCount := 0
 
 	common.RunWithScissors(ctx, errC, "poller_watch_log_message_published", func(ctx context.Context) error {
+		// Signal completion on every exit path (quit, ctx cancel, error escalation,
+		// panic) so the consumer's Unsubscribe() never blocks waiting on a goroutine
+		// that has already returned. See PollSubscription.signalUnsubscribed.
+		defer sub.signalUnsubscribed()
 		timer := time.NewTimer(p.Delay)
 		defer timer.Stop()
 		for {
@@ -158,7 +169,6 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 			case <-ctx.Done():
 				return nil
 			case <-sub.quit:
-				sub.unsubDone <- struct{}{}
 				return nil
 			case <-timer.C:
 				latest, err := GetBlockByFinality(ctx, p.Connector, Latest)
@@ -183,12 +193,18 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 
 					from := new(big.Int).SetUint64(fromBlock)
 					to := new(big.Int).SetUint64(toBlock)
-					logs, err := p.Client().FilterLogs(ctx, ethereum.FilterQuery{
+					// FilterLogs is a blocking RPC call; bound it with a per-iteration
+					// timeout (matching GetBlock) so a stalled node can't wedge the
+					// poll loop. cancel() is called inline rather than deferred to
+					// avoid accumulating cancels across loop iterations.
+					timeout, cancel := context.WithTimeout(ctx, filterLogsTimeout)
+					logs, err := p.Client().FilterLogs(timeout, ethereum.FilterQuery{
 						FromBlock: from,
 						ToBlock:   to,
 						Addresses: []ethCommon.Address{p.ContractAddress()},
 						Topics:    [][]ethCommon.Hash{{logMessagePublishedTopic}},
 					})
+					cancel()
 					if err != nil {
 						errCount++
 						p.logger.Error("log poller failed to get logs", zap.Int("errCount", errCount), zap.Error(err), zap.Uint64("fromBlock", fromBlock), zap.Uint64("toBlock", toBlock))

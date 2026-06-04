@@ -96,3 +96,18 @@ func (sub *PollSubscription) Unsubscribe() {
 		close(sub.err) // TODO FIXME this violates golang guidelines “Only the sender should close a channel, never the receiver. Sending on a closed channel will cause a panic.”
 	})
 }
+
+// signalUnsubscribed must be called by a poll runnable that returns on its own
+// (e.g. after escalating an error via errC) rather than in response to the
+// consumer's quit signal. Without it, a subsequent Unsubscribe() would send to
+// the buffered quit channel and then block forever on unsubDone, since the
+// runnable has already exited and will never read quit. Because the watcher
+// defers Unsubscribe() before its context cancel (defers are LIFO), that block
+// would also prevent the supervisor from restarting the watcher. The send is
+// non-blocking: unsubDone is buffered and only ever needs a single value.
+func (sub *PollSubscription) signalUnsubscribed() {
+	select {
+	case sub.unsubDone <- struct{}{}: //nolint:channelcheck // Buffered; single signal.
+	default:
+	}
+}
