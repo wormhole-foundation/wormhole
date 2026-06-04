@@ -1,0 +1,21 @@
+# Build & test the Wormhole Global Accountant Solana program.
+
+# Default recipe: list available targets with their docstrings.
+default:
+    @just --list
+
+[doc("Host-side tests.")]
+test:
+    cargo test --locked
+
+[doc("Clippy, warnings denied.")]
+clippy:
+    cargo clippy --locked --all-targets -- -D warnings
+
+[doc("rustfmt check.")]
+fmt:
+    cargo fmt --check
+
+[doc("cargo clean.")]
+clean:
+    cargo clean

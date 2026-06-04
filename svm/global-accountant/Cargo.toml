@@ -1,0 +1,50 @@
+[workspace]
+members = [
+    "crates/*",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/wormhole-foundation/wormhole"
+rust-version = "1.89"
+version = "0.1.0"
+
+[workspace.dependencies]
+bytemuck = { version = "1.21", features = ["derive", "min_const_generics"] }
+# 256-bit unsigned integer primitive backing `Uint256`. Pinned exact;
+# `default-features = false` is required so the crate compiles on the SBF
+# target (no `std`). We only consume `checked_add`/`checked_sub` plus the
+# `to_be_bytes` / `from_be_bytes` conversions, so the deactivated features
+# stay deactivated.
+ruint = { version = "=1.17.2", default-features = false }
+
+[profile.release]
+overflow-checks = false
+lto = "fat"
+codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
+incremental = false
+codegen-units = 1
+
+[workspace.lints.clippy]
+todo = "deny"
+unimplemented = "deny"
+eq_op = "warn"
+modulo_one = "warn"
+out_of_bounds_indexing = "warn"
+large_stack_arrays = "warn"
+large_stack_frames = "warn"
+undocumented_unsafe_blocks = "warn"
+unchecked_duration_subtraction = "warn"
+panicking_overflow_checks = "warn"
+if_let_mutex = "warn"
+or_fun_call = "warn"
+set_contains_or_insert = "warn"
+stable_sort_primitive = "warn"
+suspicious_operation_groupings = "warn"
+iter_over_hash_type = "warn"
+non_send_fields_in_send_ty = "warn"
