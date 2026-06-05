@@ -122,8 +122,12 @@ func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 					errCount++
 					p.logger.Error("poll connector encountered an error", zap.Int("errCount", errCount), zap.Error(err))
 					if errCount > pollMaxErrors {
-						errC <- fmt.Errorf("polling encountered too many errors: %w", err)
-						return nil
+						// Return the error rather than writing to errC directly: a
+						// blocking send could hang if the watcher is already shutting
+						// down and no longer reading errC, which would prevent the
+						// deferred signalUnsubscribed from running. RunWithScissors
+						// delivers the returned error to errC without blocking.
+						return fmt.Errorf("polling encountered too many errors: %w", err)
 					}
 				} else if errCount != 0 {
 					errCount = 0
@@ -176,8 +180,11 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 					errCount++
 					p.logger.Error("log poller failed to get latest block", zap.Int("errCount", errCount), zap.Error(err))
 					if errCount > pollMaxErrors {
-						errC <- fmt.Errorf("log polling encountered too many errors: %w", err)
-						return nil
+						// Return rather than send to errC directly: a blocking send could hang
+						// during watcher shutdown and strand the deferred signalUnsubscribed,
+						// re-introducing the Unsubscribe deadlock. RunWithScissors forwards
+						// the returned error to errC without blocking.
+						return fmt.Errorf("log polling encountered too many errors: %w", err)
 					}
 					timer.Reset(p.Delay)
 					continue
@@ -209,8 +216,11 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 						errCount++
 						p.logger.Error("log poller failed to get logs", zap.Int("errCount", errCount), zap.Error(err), zap.Uint64("fromBlock", fromBlock), zap.Uint64("toBlock", toBlock))
 						if errCount > pollMaxErrors {
-							errC <- fmt.Errorf("log polling encountered too many errors: %w", err)
-							return nil
+							// Return rather than send to errC directly: a blocking send could hang
+							// during watcher shutdown and strand the deferred signalUnsubscribed,
+							// re-introducing the Unsubscribe deadlock. RunWithScissors forwards
+							// the returned error to errC without blocking.
+							return fmt.Errorf("log polling encountered too many errors: %w", err)
 						}
 						timer.Reset(p.Delay)
 						continue
