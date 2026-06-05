@@ -819,10 +819,6 @@ func (w *Watcher) postMessage(
 		verifyCtx, cancel := context.WithCancel(parentCtx)
 		defer cancel()
 
-		// SECURITY: The TxHash existing within the particular block hash guarantees
-		// that the event exists without being modified. We don't
-		// check for the event mutating into something that's invalid (wrong event type, etc.)
-		// because of this.
 		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, receipt)
 		if pubErr != nil {
 			w.logger.Error("could not publish message: transfer verification failed",
@@ -1062,6 +1058,10 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 		)
 		delete(w.pending, key)
 
+		// SECURITY: The TxHash existing within the particular block hash guarantees
+		// that the event exists without being modified. We don't
+		// check for the event mutating into something that's invalid (wrong event type, etc.)
+		// because of this.
 		txHash := eth_common.Hash(pLock.message.TxID)
 		pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, txreceipt)
 		if pubErr != nil {
