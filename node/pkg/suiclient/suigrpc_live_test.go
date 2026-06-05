@@ -177,7 +177,7 @@ func TestGrpcClientSubscribeToTransactionEvents(t *testing.T) {
 		"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage",
 	}
 
-	suiEventChan := make(chan SuiEvent)
+	suiEventChan := make(chan SuiTransactionEvent)
 	subscription, err := client.SubscribeToTransactionEvents(ctx, eventTypes, suiEventChan)
 	require.NoError(t, err)
 	defer subscription.Unsubscribe()
@@ -209,8 +209,10 @@ func TestGrpcClientSubscribeToTransactionEvents(t *testing.T) {
 				<-subscription.Done()
 				return
 			}
-		case ev := <-suiEventChan:
+		case txEvent := <-suiEventChan:
 			{
+				ev := txEvent.Event
+				fmt.Printf("\tTxDigest=%s\n", txEvent.TxDigest)
 				fmt.Printf("\tEventType=%s\n", ev.EventType)
 				fmt.Println("\t\tPackageID:", ev.PackageID)
 				fmt.Println("\t\tModule:", ev.TransactionModule)

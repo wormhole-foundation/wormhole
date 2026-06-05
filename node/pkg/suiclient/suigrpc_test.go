@@ -477,7 +477,7 @@ func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
 
 		// Buffer the channel generously so the subscription goroutine never blocks while
 		// writing events. At most maxTransactions*maxEventsPerTx events can be produced.
-		eventChan := make(chan SuiEvent, maxTransactions*maxEventsPerTx+1)
+		eventChan := make(chan SuiTransactionEvent, maxTransactions*maxEventsPerTx+1)
 
 		eventTypes := []string{"non-matching-event-type"}
 		if matchEventType {
