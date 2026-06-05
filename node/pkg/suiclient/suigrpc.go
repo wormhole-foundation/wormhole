@@ -168,7 +168,7 @@ func (s *SuiGrpcClient) createCheckpointStream(ctx context.Context, fields []str
 	return stream, err
 }
 
-func (s *SuiGrpcClient) SubscribeToTransactionEvent(ctx context.Context, event string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
+func (s *SuiGrpcClient) SubscribeToTransactionEvent(ctx context.Context, event string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error) {
 	eventTypes := []string{
 		event,
 	}
@@ -176,7 +176,7 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvent(ctx context.Context, event s
 	return s.SubscribeToTransactionEvents(ctx, eventTypes, eventWriteChannel)
 }
 
-func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
+func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error) {
 	if len(eventTypes) == 0 {
 		return SuiSubscription{}, fmt.Errorf("sui gRPC SubscribeToTransactionEvents requires at least one event type")
 	}
@@ -184,8 +184,10 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 		return SuiSubscription{}, fmt.Errorf("sui gRPC SubscribeToTransactionEvents requires a non-nil eventWriteChannel")
 	}
 
-	// This stream is only concerned with transaction events
+	// This stream is concerned with transaction events plus the digest of the transaction
+	// that emitted them, which is paired with each event as a SuiTransactionEvent below.
 	fields := []string{
+		"transactions.digest",
 		"transactions.events",
 	}
 
@@ -273,10 +275,17 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 						continue
 					}
 
+					// Pair the event with the digest of the transaction that emitted it; the
+					// bare gRPC Event carries no digest of its own.
+					txDigest := ""
+					if tx.Digest != nil {
+						txDigest = *tx.Digest
+					}
+
 					// Writing to eventWriteChannel could be blocking if there are no readers. Use a select to include
 					// a simultaneous check to bail out if the context is cancelled.
 					select {
-					case eventWriteChannel <- *suiEvent:
+					case eventWriteChannel <- SuiTransactionEvent{TxDigest: txDigest, Event: *suiEvent}:
 					case <-ctx.Done():
 						return
 					}
@@ -298,9 +307,11 @@ func (s *SuiGrpcClient) Close() error {
 	return nil
 }
 
-// Create a new SuiClient, with the gRPC service as implementation. Additional gRPC dial options
-// (e.g. for custom transport credentials, interceptors, or per-RPC metadata via interceptors) may
-// be supplied; they are appended after the defaults so callers can override them.
+// Create a new SuiClient, with the gRPC service as implementation. The default transport is TLS.
+// Additional gRPC dial options (e.g. for custom transport credentials, interceptors, or per-RPC
+// metadata via interceptors) may be supplied; they are appended after the defaults so callers can
+// override them. In particular, passing grpc.WithTransportCredentials(insecure.NewCredentials())
+// overrides the default TLS transport with a plaintext one, as needed for a local dev-mode node.
 func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialOption) (SuiClient, error) {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -403,6 +414,20 @@ func grpcExecutedTransactionToSuiTransaction(grpcTransaction *pb.ExecutedTransac
 			if suiEventPtr := grpcEventToSuiEvent(event); suiEventPtr != nil {
 				out.Events = append(out.Events, *suiEventPtr)
 			}
+		}
+	}
+
+	if grpcTransaction.Effects != nil {
+		for _, changedObject := range grpcTransaction.Effects.ChangedObjects {
+			if changedObject == nil {
+				continue
+			}
+			out.ObjectChanges = append(out.ObjectChanges, SuiObjectChange{
+				ObjectID:      changedObject.ObjectId,
+				ObjectType:    changedObject.ObjectType,
+				InputVersion:  changedObject.InputVersion,
+				OutputVersion: changedObject.OutputVersion,
+			})
 		}
 	}
 
