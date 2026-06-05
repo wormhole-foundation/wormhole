@@ -6,8 +6,10 @@ RUN rustup update
 RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl make --no-install-recommends
 RUN apt-get install -y build-essential git
 
-RUN npm i -g n
-RUN n stable
+# n is not in any repo package.json; pinned to last stable v9 release
+RUN npm i -g n@9.2.3
+# keep in sync with .nvmrc
+RUN n 22.16.0
 
 COPY node_builder.sh /tmp
 
