@@ -819,6 +819,10 @@ func (w *Watcher) postMessage(
 		verifyCtx, cancel := context.WithCancel(parentCtx)
 		defer cancel()
 
+		// SECURITY: The TxHash existing within the particular block hash guarantees
+		// that the event exists without being modified. We don't
+		// check for the event mutating into something that's invalid (wrong event type, etc.)
+		// because of this.
 		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, receipt)
 		if pubErr != nil {
 			w.logger.Error("could not publish message: transfer verification failed",
@@ -920,6 +924,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 		queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
 		cancel()
 
+		// SECURITY: Protection against reorgs that remove or change observations
 		// If the node returns an error after waiting expectedConfirmation blocks,
 		// it means the chain reorged and the transaction was orphaned. The
 		// TransactionReceipt call is using the same websocket connection than the
@@ -1006,6 +1011,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 			continue
 		}
 
+		// SECURITY: Check that the tx succeeded.
 		// This should never happen - if we got this far, it means that logs were emitted,
 		// which is only possible if the transaction succeeded. We check it anyway just
 		// in case the EVM implementation is buggy.
