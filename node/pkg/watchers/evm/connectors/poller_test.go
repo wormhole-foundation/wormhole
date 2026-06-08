@@ -70,6 +70,7 @@ func (m *mockConnectorForPoller) GetLatest(ctx context.Context) (latest, finaliz
 	return m.prevLatest, m.prevFinalized, m.prevSafe, nil
 }
 func (m *mockConnectorForPoller) Client() *ethClient.Client { return m.client }
+func (m *mockConnectorForPoller) Close() error              { return nil }
 func (m *mockConnectorForPoller) SubscribeNewHead(ctx context.Context, ch chan<- *ethTypes.Header) (ethereum.Subscription, error) {
 	return nil, fmt.Errorf("not supported on HTTP")
 }

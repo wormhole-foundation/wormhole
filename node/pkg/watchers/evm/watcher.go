@@ -289,6 +289,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		return fmt.Errorf("failed to verify evm chain id: %w", verifyErr)
 	}
 
+	// Reset Run-scoped state: the watcher value persists across supervisor
+	// restarts, so a map left full by a prior Run accumulates without this.
+	w.pendingMu.Lock()
+	w.pending = make(map[pendingKey]*pendingMessage)
+	w.pendingMu.Unlock()
+
 	// Connect to the node using the appropriate type of connector.
 	{
 		var finalizedPollingSupported, safePollingSupported bool
@@ -300,6 +306,15 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf(`failed to create connection to url "%s": %w`, w.url, err)
 		}
+
+		// Release the rpc.Client when Run returns so a supervisor restart does
+		// not strand the prior client's dispatch goroutines. Captured by value.
+		ethConnToClose := w.ethConn
+		defer func() {
+			if ethConnToClose != nil {
+				_ = ethConnToClose.Close()
+			}
+		}()
 
 		// Log the connector details for troubleshooting purposes.
 		if finalizedPollingSupported {
