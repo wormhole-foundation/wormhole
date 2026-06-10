@@ -235,6 +235,9 @@ var (
 	tronRPC      *string
 	tronContract *string
 
+	arcRPC      *string
+	arcContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -502,6 +505,9 @@ func init() {
 
 	tronRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "tronRPC", "Tron RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
 	tronContract = NodeCmd.Flags().String("tronContract", "", "Tron contract address")
+
+	arcRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arcRPC", "Arc RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
+	arcContract = NodeCmd.Flags().String("arcContract", "", "Arc contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -922,6 +928,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*monadTestnetContract = checkEvmArgs(logger, *monadTestnetRPC, *monadTestnetContract, vaa.ChainIDMonadTestnet)
 	*tempoContract = checkEvmArgs(logger, *tempoRPC, *tempoContract, vaa.ChainIDTempo)
 	*nexusContract = checkEvmArgs(logger, *nexusRPC, *nexusContract, vaa.ChainIDNexus)
+	*arcContract = checkEvmArgs(logger, *arcRPC, *arcContract, vaa.ChainIDArc)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
@@ -1658,6 +1665,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDTron,
 			Rpc:              *tronRPC,
 			Contract:         *tronContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(arcRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "arc",
+			ChainID:          vaa.ChainIDArc,
+			Rpc:              *arcRPC,
+			Contract:         *arcContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
