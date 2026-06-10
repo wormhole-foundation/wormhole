@@ -1,6 +1,7 @@
 package aptos
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -54,6 +55,8 @@ var (
 		}, []string{"chain_name"})
 )
 
+var _ watchers.Watcher = (*Watcher)(nil)
+
 // NewWatcher creates a new Aptos appid watcher
 func NewWatcher(
 	chainID vaa.ChainID,
@@ -74,6 +77,66 @@ func NewWatcher(
 		obsvReqC:      obsvReqC,
 		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
 	}
+}
+
+func (e *Watcher) Validate(req *gossipv1.ObservationRequest) (watchers.ValidObservation, error) {
+	validatedObservation, err := watchers.ValidateObservationRequest(req, e.chainID)
+	if err != nil {
+		return watchers.ValidObservation{}, err
+	}
+
+	// Aptos's TxID is a uint64 event sequence number. Observation requests use a
+	// shared protobuf TxHash field that is 32 bytes for chains with full
+	// transaction hashes, so Aptos encodes its sequence number in the low 8 bytes
+	// and requires the high 24 bytes to be zero. It might be possible to refactor
+	// the gossip code such that the TxID received from p2p is exactly 8 bytes,
+	// which would obviate the need for the below bounds check and parsing.
+	//
+	// SECURITY: This acts as a bounds check for the BigEndian.Uint64 call in the
+	// reobservation handler.
+	const aptosTxIDSize = 32
+	if err := validatedObservation.RequireTxHashLength(aptosTxIDSize); err != nil {
+		return watchers.ValidObservation{}, fmt.Errorf("invalid Aptos TxID: %w", err)
+	}
+
+	txHash := validatedObservation.TxHash()
+	var zeroTxIDPrefix [aptosTxIDSize - 8]byte
+	if !bytes.Equal(txHash[:aptosTxIDSize-8], zeroTxIDPrefix[:]) {
+		return watchers.ValidObservation{}, fmt.Errorf("invalid Aptos TxID: first %d bytes must be zero", len(zeroTxIDPrefix))
+	}
+
+	return validatedObservation, nil
+}
+
+func (e *Watcher) ChainID() vaa.ChainID {
+	return e.chainID
+}
+
+func (e *Watcher) PublishMessage(msg *common.MessagePublication) error {
+	if msg == nil {
+		return watchers.ErrNilMessagePublication
+	}
+
+	if msg.EmitterChain != e.chainID {
+		return watchers.MessagePublicationChainMismatchError(msg.EmitterChain, e.chainID)
+	}
+
+	e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	aptosMessagesConfirmed.WithLabelValues(e.networkID).Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(e.chainID.String(), "std").Inc()
+	}
+
+	return nil
+}
+
+func (e *Watcher) PublishReobservation(observation watchers.ValidObservation, msg *common.MessagePublication) error {
+	if err := watchers.ValidateReobservedMessage(observation, msg); err != nil {
+		return err
+	}
+
+	msg.IsReobservation = true
+	return e.PublishMessage(msg)
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -120,30 +183,21 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
-			// and only writes to the channel for this chain id.
-			// If either of the below cases are true, something has gone wrong
-			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != e.chainID {
-				panic("invalid chain ID")
-			}
-
-			// Aptos's TxID is a uint64. Historically, all TxIDs used a fixed 32-byte hash type.
-			// This parsing is leftover from that time period. It should be possible to refactor
-			// this code such that the TxID received from p2p is exactly 8 bytes, which would
-			// obviate the need for the below bounds check and parsing.
-			//
-			// SECURITY: This acts as a bounds check for the BigEndian.Unint64 call below.
-			const AptosTxIDExpectedLen = 32
-			if len(r.TxHash) < AptosTxIDExpectedLen {
-				logger.Error("invalid TxID: too short")
+			validatedObservation, err := e.Validate(r)
+			if err != nil {
+				watchers.LogInvalidObservationRequest(logger, r, err)
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
 			}
 
-			// uint64 will read the *first* 8 bytes, but the sequence is stored in the *last* 8.
-			nativeSeq := binary.BigEndian.Uint64(r.TxHash[24:])
+			txHash := validatedObservation.TxHash()
 
-			logger.Info("Received obsv request", zap.Uint64("tx_hash", nativeSeq))
+			// uint64 will read the *first* 8 bytes, but the sequence is stored in the *last* 8.
+			// SECURITY: txHash is guaranteed to be 32 bytes on a [watchers.ValidObservation]
+			// for the Aptos watcher.
+			nativeSeq := binary.BigEndian.Uint64(txHash[24:])
+
+			logger.Info("received observation request", validatedObservation.ZapFields(zap.Uint64("tx_hash", nativeSeq))...)
 
 			s := fmt.Sprintf(`%s?start=%d&limit=1`, eventsEndpoint, nativeSeq)
 
@@ -179,7 +233,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if !data.Exists() {
 					break
 				}
-				e.observeData(logger, data, nativeSeq, true)
+				e.observeData(logger, data, nativeSeq, &validatedObservation)
 			}
 
 		case <-timer.C:
@@ -241,7 +295,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if !data.Exists() {
 					continue
 				}
-				e.observeData(logger, data, eventSeq, false)
+				e.observeData(logger, data, eventSeq, nil)
 			}
 
 			health, err := e.retrievePayload(aptosHealth)
@@ -299,7 +353,8 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 	return body, err
 }
 
-func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64, isReobservation bool) {
+func (w *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq uint64, validatedObservation *watchers.ValidObservation) {
+	isReobservation := validatedObservation != nil
 	em := data.Get("sender")
 	if !em.Exists() {
 		logger.Error("sender field missing")
@@ -375,7 +430,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		Timestamp:        time.Unix(int64(ts.Uint()), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            uint32(nonce.Uint()),           // #nosec G115 -- This is validated above
 		Sequence:         sequence.Uint(),
-		EmitterChain:     e.chainID,
+		EmitterChain:     w.chainID,
 		EmitterAddress:   a,
 		Payload:          pl,
 		ConsistencyLevel: uint8(consistencyLevel.Uint()), // #nosec G115 -- This is validated above
@@ -383,23 +438,19 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		Unreliable:       false,
 	}
 
-	aptosMessagesConfirmed.WithLabelValues(e.networkID).Inc()
-	if isReobservation {
-		watchers.ReobservationsByChain.WithLabelValues(e.chainID.String(), "std").Inc()
+	logger.Info("message observed", observation.ZapFields(zap.String("txHash", observation.TxIDString()), zap.Uint8("consistencyLevel", observation.ConsistencyLevel))...)
+
+	if validatedObservation != nil {
+		if err := w.PublishReobservation(*validatedObservation, observation); err != nil {
+			logger.Error("failed to publish reobservation", zap.Error(err))
+			return
+		}
+		return
 	}
 
-	logger.Info("message observed",
-		zap.String("txHash", observation.TxIDString()),
-		zap.Time("timestamp", observation.Timestamp),
-		zap.Uint32("nonce", observation.Nonce),
-		zap.Uint64("sequence", observation.Sequence),
-		zap.Stringer("emitter_chain", observation.EmitterChain),
-		zap.Stringer("emitter_address", observation.EmitterAddress),
-		zap.Binary("payload", observation.Payload),
-		zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
-	)
-
-	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	if err := w.PublishMessage(observation); err != nil {
+		logger.Error("failed to publish message", zap.Error(err))
+	}
 }
 
 // logVersion retrieves the Aptos node version and logs it
