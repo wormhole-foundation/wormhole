@@ -159,10 +159,11 @@ function tokenIdentityCountChangesByChain(existingTokenIdentities, newTokenIdent
 }
 
 // Builds a lookup from the cloud function's native address to its canonical Wormhole token address.
-// This is needed for Sui because /tvl emits Move coin types as native addresses, while the old
-// @certusone/wormhole-sdk version used by this script cannot convert Sui Move types to canonical
-// token addresses. /latest-tokendata is produced by the same upstream job and already includes the
-// resolved canonical token_address, so use it rather than redoing Sui RPC/SDK resolution here.
+// This workaround is only needed for Sui: /tvl emits Sui Move coin types as native addresses, while
+// the old @certusone/wormhole-sdk version used by this script cannot convert Sui Move types to
+// canonical token addresses. Aptos also uses Move types, but this SDK handles Aptos conversion, so it
+// stays on the normal SDK path. /latest-tokendata is produced by the same upstream job and already
+// includes Sui's resolved canonical token_address, so use it rather than redoing Sui RPC resolution.
 function latestTokenDataByNativeAddress(latestTokenData) {
   var latestByNativeAddress = {};
   if (!latestTokenData || !latestTokenData.data) {
@@ -315,12 +316,21 @@ axios
                   continue;
                 }
               }
-              
-              // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
-              if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
-                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
-                continue; 
-              }
+            }
+
+            // The Sui path can source the canonical address directly from /latest-tokendata
+            // instead of deriving it through the SDK. Make sure every path still produces a
+            // Wormhole canonical token address before writing it into generated Go code.
+            if (!isValidWormholeAddress(wormholeAddr)) {
+              console.log("Invalid canonical token address ", wormholeAddr, " provided")
+              failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
+              continue;
+            }
+
+            // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
+            if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
+              failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
+              continue; 
             }
 
             // This token looks like a USD stablecoin
@@ -571,4 +581,8 @@ function inputHasInvalidChars(input) : boolean{
   }
 
   return false; 
+}
+
+function isValidWormholeAddress(input) : boolean{
+  return /^[0-9a-fA-F]{64}$/.test(input);
 }
