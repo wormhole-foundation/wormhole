@@ -279,7 +279,7 @@ func TestVerifyEventType(t *testing.T) {
 			// compared case-insensitively.
 			name: "Happy path casing change",
 			mutate: func(m map[string]any) {
-				m["guid"].(map[string]any)["account_address"] = "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
+				m["guid"].(map[string]any)["account_address"] = "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625" //nolint:forcetypeassert // test data shape is known
 			},
 		},
 		{
@@ -307,7 +307,7 @@ func TestVerifyEventType(t *testing.T) {
 		},
 		{
 			name:        "Missing account_address",
-			mutate:      func(m map[string]any) { delete(m["guid"].(map[string]any), "account_address") },
+			mutate:      func(m map[string]any) { delete(m["guid"].(map[string]any), "account_address") }, //nolint:forcetypeassert // test data shape is known
 			expectError: "event missing 'guid.account_address'",
 		},
 		{
@@ -315,7 +315,7 @@ func TestVerifyEventType(t *testing.T) {
 			// guid.account_address. normalize0x should strip both sides.
 			name: "0x prefix stripped on guid.account_address",
 			mutate: func(m map[string]any) {
-				m["guid"].(map[string]any)["account_address"] = strings.TrimPrefix(testAptosAccount, "0x")
+				m["guid"].(map[string]any)["account_address"] = strings.TrimPrefix(testAptosAccount, "0x") //nolint:forcetypeassert // test data shape is known
 			},
 		},
 		{
