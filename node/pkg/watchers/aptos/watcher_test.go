@@ -3,6 +3,7 @@ package aptos
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -266,196 +267,72 @@ func TestVerifyEventType(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		json        string
+		mutate      func(m map[string]any) // Function to mutate the event JSON
 		expectError string
 	}{
 		{
-			name: "Happy path",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"type" : "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
-			expectError: "",
+			name:   "Happy path",
+			mutate: nil,
 		},
 		{
+			// Casing of the address is insignificant: guid.account_address is
+			// compared case-insensitively.
 			name: "Happy path casing change",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"type" : "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
-			expectError: "",
+			mutate: func(m map[string]any) {
+				m["guid"].(map[string]any)["account_address"] = "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
+			},
 		},
 		{
-			name: "Missing 'type' in the JSON",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
+			name:        "Missing 'type' in the JSON",
+			mutate:      func(m map[string]any) { delete(m, "type") },
 			expectError: "event missing 'type'",
 		},
 		{
+			// Different address in the package segment of the type.
 			name: "Wrong type package",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"type" : "0x11c11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
+			mutate: func(m map[string]any) {
+				m["type"] = "0x11c11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage"
+			},
 			expectError: "event type mismatch",
 		},
 		{
-			name: "Wrong type module",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"type" : "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::notstate::WormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
+			name:        "Wrong type module",
+			mutate:      func(m map[string]any) { m["type"] = testAptosAccount + "::notstate::WormholeMessage" },
 			expectError: "event type mismatch",
 		},
 		{
-			name: "Wrong type struct type",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"type" : "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::NotWormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
+			name:        "Wrong type struct type",
+			mutate:      func(m map[string]any) { m["type"] = testAptosAccount + "::state::NotWormholeMessage" },
 			expectError: "event type mismatch",
 		},
 		{
-			name: "Missing account_address",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-				},
-				"type" : "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
+			name:        "Missing account_address",
+			mutate:      func(m map[string]any) { delete(m["guid"].(map[string]any), "account_address") },
 			expectError: "event missing 'guid.account_address'",
 		},
 		{
 			// Config carries the "0x" prefix; this event omits it on
 			// guid.account_address. normalize0x should strip both sides.
 			name: "0x prefix stripped on guid.account_address",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"type" : "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
-			expectError: "",
+			mutate: func(m map[string]any) {
+				m["guid"].(map[string]any)["account_address"] = strings.TrimPrefix(testAptosAccount, "0x")
+			},
 		},
 		{
 			// Config carries the "0x" prefix; this event omits it on
 			// the type field. normalize0x should strip both sides.
-			name: "0x prefix stripped on type",
-			json: `{
-				"guid": {
-					"creation_number": "2",
-					"account_address": "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625"
-				},
-				"type" : "5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessage",
-				"sequence_number": "171377",
-				"data": {
-					"sender": "1",
-					"sequence": "171377",
-					"nonce": "0",
-					"payload": "0xdeadbeef",
-					"consistency_level": "0",
-					"timestamp": "1700000000"
-				}
-			}`,
-			expectError: "",
+			name:   "0x prefix stripped on type",
+			mutate: func(m map[string]any) { m["type"] = strings.TrimPrefix(testExpectedType, "0x") },
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := w.verifyEventType(gjson.Parse(tc.json))
+			e := pollEvent()
+			if tc.mutate != nil {
+				tc.mutate(e)
+			}
+			err := w.verifyEventType(gjson.Parse(marshalJSON(t, e)))
 
 			if tc.expectError == "" {
 				assert.NoError(t, err)
@@ -486,6 +363,31 @@ func pollEvent() map[string]any {
 // processPollingBatch expects via gjson.Parse.
 func encodeBatch(t *testing.T, events ...map[string]any) string {
 	return marshalJSON(t, events)
+}
+
+// assertLoggedError verifies the failure surface of the batch processors, which
+// no longer return an error but instead log it via zap and continue. The
+// haystack for each entry is its message plus its "error" context field (the
+// verifyEventType error is attached via zap.Error). When want is empty, no
+// error-level entry should have been logged at all.
+func assertLoggedError(t *testing.T, logs *observer.ObservedLogs, want string) {
+	t.Helper()
+
+	if want == "" {
+		assert.Empty(t, logs.All(), "expected no error logs")
+		return
+	}
+
+	for _, e := range logs.All() {
+		s := e.Message
+		if ev, ok := e.ContextMap()["error"]; ok {
+			s += " " + fmt.Sprint(ev)
+		}
+		if strings.Contains(s, want) {
+			return
+		}
+	}
+	assert.Failf(t, "missing expected log", "expected a logged error containing %q, got %v", want, logs.All())
 }
 
 func TestProcessPollingBatch(t *testing.T) {
@@ -583,7 +485,7 @@ func TestProcessPollingBatch(t *testing.T) {
 			initialNextSeq:   100,
 			expectedNextSeq:  100,
 			expectedMsgCount: 0,
-			expectError:      "aptos event type mismatch",
+			expectError:      "event type mismatch",
 		},
 		{
 			name:             "One valid, one invalid",
@@ -605,7 +507,7 @@ func TestProcessPollingBatch(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			core, _ := observer.New(zapcore.ErrorLevel)
+			core, logs := observer.New(zapcore.ErrorLevel)
 			logger := zap.New(core)
 			msgC := make(chan *common.MessagePublication, 16)
 			w := &Watcher{
@@ -623,14 +525,9 @@ func TestProcessPollingBatch(t *testing.T) {
 			}
 
 			nextSeq := tc.initialNextSeq
-			err := w.processPollingBatch(logger, gjson.Parse(jsonStr), &nextSeq)
+			w.processPollingBatch(logger, gjson.Parse(jsonStr), &nextSeq)
 
-			if tc.expectError == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expectError)
-			}
+			assertLoggedError(t, logs, tc.expectError)
 			assert.Equal(t, tc.expectedNextSeq, nextSeq)
 			assert.Len(t, msgC, tc.expectedMsgCount)
 		})
@@ -671,14 +568,14 @@ func TestProcessReobs(t *testing.T) {
 			events:           []map[string]any{happyFirst},
 			nativeSeq:        99, // Wrong sequence for the message
 			expectedMsgCount: 0,
-			expectError:      "",
+			expectError:      "newSeq != nativeSeq",
 		},
 		{
 			name:             "Bad event information",
 			events:           []map[string]any{badHandle},
 			nativeSeq:        100,
 			expectedMsgCount: 0,
-			expectError:      "aptos event type mismatch",
+			expectError:      "event type mismatch",
 		},
 		{
 			name:             "One valid, one invalid",
@@ -705,7 +602,7 @@ func TestProcessReobs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			core, _ := observer.New(zapcore.ErrorLevel)
+			core, logs := observer.New(zapcore.ErrorLevel)
 			logger := zap.New(core)
 			msgC := make(chan *common.MessagePublication, 16)
 			w := &Watcher{
@@ -722,14 +619,9 @@ func TestProcessReobs(t *testing.T) {
 				jsonStr = encodeBatch(t, tc.events...)
 			}
 
-			err := w.processReobsBatch(logger, gjson.Parse(jsonStr), tc.nativeSeq)
+			w.processReobsBatch(logger, gjson.Parse(jsonStr), tc.nativeSeq)
 
-			if tc.expectError == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expectError)
-			}
+			assertLoggedError(t, logs, tc.expectError)
 			assert.Len(t, msgC, tc.expectedMsgCount)
 		})
 	}
