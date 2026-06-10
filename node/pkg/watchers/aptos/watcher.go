@@ -66,6 +66,20 @@ func NewWatcher(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) (*Watcher, error) {
+
+	/*
+		The Aptos smart contracts have two items to consider:
+		- WormholeMessageHandle - searchable event
+		- WormholeMessage - decoded event data
+
+		During event validation, the code checks that the event is a 'state::WormholeMessage' type.
+		This check prevents bugs where the RPC returns an event of the wrong type to the watcher.
+		To do this, the text 'Handle' is removed from the `aptosHandle` to derive
+		the name of the event. This is done in order to avoid passing another parameter to the watcher.
+
+		This is only be convention this optimization can be done. If the Aptos smart contracts or
+		watcher was ever changed, this would no longer work and should be changed.
+	*/
 	if !strings.HasSuffix(aptosHandle, "Handle") {
 		return nil, fmt.Errorf("aptosHandle %q does not end with 'Handle'", aptosHandle)
 	}
@@ -169,9 +183,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			outcomes := gjson.ParseBytes(body)
 
-			if err := e.processReobsBatch(logger, outcomes, nativeSeq); err != nil {
-				return err
-			}
+			e.processReobsBatch(logger, outcomes, nativeSeq)
 
 		case <-timer.C:
 			s := ""
@@ -209,9 +221,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			events := gjson.ParseBytes(eventsJson)
 
-			if err = e.processPollingBatch(logger, events, &nextSequence); err != nil {
-				return err
-			}
+			e.processPollingBatch(logger, events, &nextSequence)
 
 			health, err := e.retrievePayload(aptosHealth)
 			if err != nil {
@@ -272,7 +282,7 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 // processPollingBatch iterates the events returned by the polling endpoint,
 // advancing nextSequence as events are consumed. Returns a non-nil error if
 // the watcher should exit (event type mismatch).
-func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, nextSequence *uint64) error {
+func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, nextSequence *uint64) {
 	// the endpoint returns an array of events, ordered by sequence id (ASC)
 	for _, event := range events.Array() {
 		eventSequence := event.Get("sequence_number")
@@ -282,9 +292,18 @@ func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, n
 		eventSeq := eventSequence.Uint()
 
 		if err := e.verifyEventType(event); err != nil {
-			logger.Error("event type mismatch, exiting watcher", zap.Error(err))
+			logger.Error("aptos event failed verification",
+				zap.Error(err),
+				zap.Uint64("eventSequence", eventSeq),
+				zap.String("eventType", event.Get("type").String()),
+				zap.String("guidAccountAddress", event.Get("guid.account_address").String()),
+				zap.String("guidCreationNumber", event.Get("guid.creation_number").String()),
+				zap.String("expectedType", e.aptosEventType),
+				zap.String("account", e.aptosAccount),
+				zap.String("handle", e.aptosHandle),
+			)
 			p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-			return fmt.Errorf("aptos event type mismatch: %w", err)
+			continue
 		}
 
 		if *nextSequence == 0 && eventSeq != 0 {
@@ -305,13 +324,13 @@ func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, n
 		// Validates and publishes the message to the processor
 		e.observeData(logger, data, eventSeq, false)
 	}
-	return nil
+	return
 }
 
 // processReobsBatch handles the response to a reobservation lookup. The query
 // uses limit=1 so outcomes is expected to be a zero- or one-element array.
 // Returns a non-nil error if the watcher should exit (event type mismatch).
-func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, nativeSeq uint64) error {
+func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, nativeSeq uint64) {
 	for _, aptosEvent := range outcomes.Array() {
 		newSeq := aptosEvent.Get("sequence_number")
 		if !newSeq.Exists() {
@@ -324,9 +343,18 @@ func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, n
 		}
 
 		if err := e.verifyEventType(aptosEvent); err != nil {
-			logger.Error("event type mismatch, exiting watcher", zap.Error(err))
+			logger.Error("aptos event failed verification",
+				zap.Error(err),
+				zap.Uint64("eventSequence", nativeSeq),
+				zap.String("eventType", aptosEvent.Get("type").String()),
+				zap.String("guidAccountAddress", aptosEvent.Get("guid.account_address").String()),
+				zap.String("guidCreationNumber", aptosEvent.Get("guid.creation_number").String()),
+				zap.String("expectedType", e.aptosEventType),
+				zap.String("account", e.aptosAccount),
+				zap.String("handle", e.aptosHandle),
+			)
 			p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-			return fmt.Errorf("aptos event type mismatch: %w", err)
+			continue
 		}
 
 		data := aptosEvent.Get("data")
@@ -337,7 +365,7 @@ func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, n
 		// Validates and publishes the message to the processor
 		e.observeData(logger, data, nativeSeq, true)
 	}
-	return nil
+	return
 }
 
 // normalize0x strips the optional "0x" prefix so that values from config and
