@@ -147,6 +147,7 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDTempo:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDNexus:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDTron:            {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDArc:             {NumWorkers: 1, TimestampCacheSupported: true},
 }
 
 // GetPerChainConfig returns the config for the specified chain. If the chain is not configured it returns an empty struct,
