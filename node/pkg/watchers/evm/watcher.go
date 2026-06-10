@@ -799,7 +799,7 @@ func (w *Watcher) postMessage(
 		receipt, err := w.ethConn.TransactionReceipt(receiptCtx, ev.Raw.TxHash)
 		receiptCancel()
 		queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
-		if err != nil {
+		if receipt == nil || err != nil {
 			w.logger.Error("failed to get transaction receipt for instant message",
 				zap.String("msgId", msg.MessageIDString()),
 				zap.String("txHash", msg.TxIDString()),
@@ -1021,7 +1021,7 @@ func (w *Watcher) processNewBlock(ctx context.Context, ev *connectors.NewBlock, 
 				zap.Stringer("current_blockNum", ev.Number),
 				zap.Stringer("finality", ev.Finality),
 				zap.Stringer("current_blockHash", currentHash),
-				zap.Error(err))
+				zap.Any("status", txreceipt.Status))
 			delete(w.pending, key)
 			ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_failed").Inc()
 			continue
