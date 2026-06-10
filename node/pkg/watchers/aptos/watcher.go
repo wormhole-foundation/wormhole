@@ -324,7 +324,6 @@ func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, n
 		// Validates and publishes the message to the processor
 		e.observeData(logger, data, eventSeq, false)
 	}
-	return
 }
 
 // processReobsBatch handles the response to a reobservation lookup. The query
@@ -365,7 +364,6 @@ func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, n
 		// Validates and publishes the message to the processor
 		e.observeData(logger, data, nativeSeq, true)
 	}
-	return
 }
 
 // normalize0x strips the optional "0x" prefix so that values from config and
