@@ -12,6 +12,7 @@ import (
 	binarycodec "github.com/Peersyst/xrpl-go/binary-codec"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction/types"
+	"github.com/certusone/wormhole/node/pkg/manager/der"
 	"github.com/certusone/wormhole/node/pkg/watchers/xrpl/currencycodec"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -27,27 +28,6 @@ const (
 	xrplBurnFeeDrops = 15
 	// secp256k1CompressedPubKeyLen is the length of a compressed secp256k1 public key.
 	secp256k1CompressedPubKeyLen = 33
-
-	// DER signature encoding constants.
-	derSequenceTag = 0x30 // ASN.1 SEQUENCE tag
-	derIntegerTag  = 0x02 // ASN.1 INTEGER tag
-	// derFixedOverhead is the fixed byte overhead inside the DER SEQUENCE body:
-	// integer tag + length byte for r, plus integer tag + length byte for s.
-	derFixedOverhead = 4
-	// derSequenceHeaderLen is the SEQUENCE tag byte plus the total-length byte.
-	derSequenceHeaderLen = 2
-
-	// secp256k1OrderLen is the byte length of the secp256k1 curve order (256 bits).
-	// Source: SEC 2 §2.4.1 — https://www.secg.org/sec2-v2.pdf
-	secp256k1OrderLen = 32
-	// secp256k1MaxIntEncodedLen is the maximum DER-encoded integer component length
-	// for a secp256k1 signature: the curve order (32 bytes) plus one leading zero
-	// byte that canonicalizeInt may prepend when the high bit is set.
-	secp256k1MaxIntEncodedLen = secp256k1OrderLen + 1
-	// derMaxTotalLen is the maximum DER SEQUENCE body length for a secp256k1
-	// signature: fixed overhead (two tag+length pairs; 4 bytes) plus both
-	// integer components at their max encoded length.
-	derMaxTotalLen = derFixedOverhead + 2*secp256k1MaxIntEncodedLen
 )
 
 // BuildPaymentTransaction builds and flattens an XRPL Payment transaction for multisigning.
@@ -241,25 +221,25 @@ func EncodeDERSignature(r, s []byte) []byte {
 
 	rLen := len(r)
 	sLen := len(s)
-	totalLen := derFixedOverhead + rLen + sLen // 0x02 + rLen + r + 0x02 + sLen + s
+	totalLen := der.FixedOverhead + rLen + sLen // 0x02 + rLen + r + 0x02 + sLen + s
 
 	// DER X.690 §8.1.3 — https://www.itu.int/rec/T-REC-X.690
 	// Short-form length encoding uses a single byte for lengths 0–127.
 	// The constants below reflect the secp256k1 physical maximums; this
 	// ensures that every length can be encoded in a single byte.
-	if totalLen > derMaxTotalLen || rLen > secp256k1MaxIntEncodedLen || sLen > secp256k1MaxIntEncodedLen {
+	if totalLen > der.MaxTotalLen || rLen > der.Secp256k1MaxIntEncodedLen || sLen > der.Secp256k1MaxIntEncodedLen {
 		return nil
 	}
 
-	sig := make([]byte, 0, totalLen+derSequenceHeaderLen) // +2 for 0x30 and totalLen
-	sig = append(sig, derSequenceTag)                     // DER sequence tag
-	sig = append(sig, byte(totalLen))                     // Total length
-	sig = append(sig, derIntegerTag)                      // Integer tag for r
-	sig = append(sig, byte(rLen))                         // r length
-	sig = append(sig, r...)                               // r value
-	sig = append(sig, derIntegerTag)                      // Integer tag for s
-	sig = append(sig, byte(sLen))                         // s length
-	sig = append(sig, s...)                               // s value
+	sig := make([]byte, 0, totalLen+der.SequenceHeaderLen) // +2 for 0x30 and totalLen
+	sig = append(sig, der.SequenceTag)                     // DER sequence tag
+	sig = append(sig, byte(totalLen))                      // Total length
+	sig = append(sig, der.IntegerTag)                      // Integer tag for r
+	sig = append(sig, byte(rLen))                          // r length
+	sig = append(sig, r...)                                // r value
+	sig = append(sig, der.IntegerTag)                      // Integer tag for s
+	sig = append(sig, byte(sLen))                          // s length
+	sig = append(sig, s...)                                // s value
 
 	return sig
 }

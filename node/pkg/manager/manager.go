@@ -982,7 +982,11 @@ func convertEthSigToDER(ethSig []byte, hashType txscript.SigHashType) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
-	return dogecoin.EncodeDERSignature(r, s, hashType), nil
+	derSig := dogecoin.EncodeDERSignature(r, s, hashType)
+	if derSig == nil {
+		return nil, fmt.Errorf("failed to DER-encode Dogecoin signature")
+	}
+	return derSig, nil
 }
 
 // signXRPLTransaction signs an XRPL Payment transaction for the given XRPL release payload.
@@ -1051,7 +1055,11 @@ func convertEthSigToXRPLDER(ethSig []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return xrpl.EncodeDERSignature(r, s), nil
+	derSig := xrpl.EncodeDERSignature(r, s)
+	if derSig == nil {
+		return nil, fmt.Errorf("failed to DER-encode XRPL signature")
+	}
+	return derSig, nil
 }
 
 // getCurrentManagerSet retrieves the current manager set for a chain by first looking up

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/certusone/wormhole/node/pkg/manager/der"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -388,6 +389,22 @@ func TestEncodeDERSignatureHighBit(t *testing.T) {
 
 	// Should have 0x00 prefix to prevent negative interpretation
 	assert.Equal(t, byte(0x00), rValue[0], "high-bit r should have 0x00 prefix")
+}
+
+func TestEncodeDERSignatureLengthOverflow(t *testing.T) {
+	valid := make([]byte, 32)
+	tooBig := make([]byte, der.Secp256k1MaxIntEncodedLen+1)
+	tooBig[0] = 0x01 // non-zero first byte prevents canonicalizeInt from stripping
+
+	t.Run("r too long", func(t *testing.T) {
+		assert.Nil(t, EncodeDERSignature(tooBig, valid, txscript.SigHashAll))
+	})
+	t.Run("s too long", func(t *testing.T) {
+		assert.Nil(t, EncodeDERSignature(valid, tooBig, txscript.SigHashAll))
+	})
+	t.Run("hash type too large", func(t *testing.T) {
+		assert.Nil(t, EncodeDERSignature(valid, valid, txscript.SigHashType(256)))
+	})
 }
 
 func TestCanonicalizeInt(t *testing.T) {
