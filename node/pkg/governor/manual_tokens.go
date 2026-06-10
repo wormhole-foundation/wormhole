@@ -31,6 +31,8 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 13, Addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", Symbol: "KLEVA", CoinGeckoId: "kleva", Decimals: 18, Price: 0.086661},
 		{Chain: 13, Addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", Symbol: "WEMIX", CoinGeckoId: "wemix-token", Decimals: 18, Price: 1.74},
 		{Chain: 15, Addr: "0000000000000000000000000000000000000000000000000000000000000000", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},
+		// The script used to populate the generated token lists has some gaps relating to native gas tokens. Injective is affected, so it gets added here.
+		{Chain: 19, Addr: "017038850bf3af746c36803cce35009268f00d22ae2b55ffb59ac5f2a6add40b", Symbol: "INJ", CoinGeckoId: "injective-protocol", Decimals: 18, Price: 2.87},                                        // Addr: inj, Notional: 433.8220134913
 		{Chain: 30, Addr: "000000000000000000000000cbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", Symbol: "CBBTC", CoinGeckoId: "coinbase-wrapped-btc", Decimals: 8, Price: 90_313.28},
 		{Chain: 30, Addr: "0000000000000000000000004F9Fd6Be4a90f2620860d680c0d4d5Fb53d1A825", Symbol: "AIXBT", CoinGeckoId: "aixbt", Decimals: 18, Price: 0.0419}, // https://www.coingecko.com/en/coins/aixbt
 		{Chain: 30, Addr: "000000000000000000000000Eb6d78148F001F3aA2f588997c5E102E489Ad341", Symbol: "CHAMP", CoinGeckoId: "super-champs", Decimals: 18, Price: 0.000900},
