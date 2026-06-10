@@ -63,9 +63,8 @@ type Connector interface {
 	RawBatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 	Client() *ethClient.Client
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
-	// Close releases the underlying rpc.Client (and its dispatch goroutine),
-	// which is otherwise leaked when the watcher restarts the connector.
-	Close() error
+	// Close releases the underlying rpc.Client and its goroutines.
+	Close()
 }
 
 type PollSubscription struct {

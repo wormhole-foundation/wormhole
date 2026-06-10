@@ -186,7 +186,7 @@ func (e *mockConnectorForBatchPoller) Client() *ethClient.Client {
 	return e.client
 }
 
-func (e *mockConnectorForBatchPoller) Close() error { return nil }
+func (e *mockConnectorForBatchPoller) Close() {}
 
 type mockSubscription struct {
 	errC chan error

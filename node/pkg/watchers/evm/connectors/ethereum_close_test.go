@@ -50,7 +50,7 @@ func TestEthereumBaseConnector_CloseReleasesGoroutines(t *testing.T) {
 	defer cancel()
 	warm, err := NewEthereumBaseConnector(ctx, "warmup", url, addr, nil, logger)
 	require.NoError(t, err)
-	require.NoError(t, warm.Close())
+	warm.Close()
 
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
@@ -59,6 +59,6 @@ func TestEthereumBaseConnector_CloseReleasesGoroutines(t *testing.T) {
 		c, err := NewEthereumBaseConnector(dctx, "test", url, addr, nil, logger)
 		dcancel()
 		require.NoError(t, err, "dial %d", i)
-		require.NoError(t, c.Close(), "close %d", i)
+		c.Close()
 	}
 }

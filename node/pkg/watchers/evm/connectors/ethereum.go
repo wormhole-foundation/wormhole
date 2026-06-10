@@ -145,11 +145,9 @@ func (e *EthereumBaseConnector) SubscribeNewHead(ctx context.Context, ch chan<- 
 	return e.client.SubscribeNewHead(ctx, ch)
 }
 
-// Close releases the JSON-RPC client, signalling its dispatch/read/write
-// goroutines to exit. Safe to call multiple times.
-func (e *EthereumBaseConnector) Close() error {
+// Close releases the JSON-RPC client and its goroutines. Safe to call multiple times.
+func (e *EthereumBaseConnector) Close() {
 	if e.rawClient != nil {
 		e.rawClient.Close()
 	}
-	return nil
 }

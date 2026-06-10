@@ -93,7 +93,7 @@ func (c mockEVMConnector) Client() *ethclient.Client {
 	panic("unimplemented")
 }
 
-func (c mockEVMConnector) Close() error { return nil }
+func (c mockEVMConnector) Close() {}
 
 func (c mockEVMConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
 	panic("unimplemented")

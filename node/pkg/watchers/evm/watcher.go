@@ -289,12 +289,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		return fmt.Errorf("failed to verify evm chain id: %w", verifyErr)
 	}
 
-	// Reset Run-scoped state: the watcher value persists across supervisor
-	// restarts, so a map left full by a prior Run accumulates without this.
-	w.pendingMu.Lock()
-	w.pending = make(map[pendingKey]*pendingMessage)
-	w.pendingMu.Unlock()
-
 	// Connect to the node using the appropriate type of connector.
 	{
 		var finalizedPollingSupported, safePollingSupported bool
@@ -307,14 +301,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			return fmt.Errorf(`failed to create connection to url "%s": %w`, w.url, err)
 		}
 
-		// Release the rpc.Client when Run returns so a supervisor restart does
-		// not strand the prior client's dispatch goroutines. Captured by value.
-		ethConnToClose := w.ethConn
-		defer func() {
-			if ethConnToClose != nil {
-				_ = ethConnToClose.Close()
-			}
-		}()
+		// Close this Run's connector on return so its goroutines exit.
+		// w.pending is deliberately kept: clearing it would drop messages.
+		defer w.ethConn.Close()
 
 		// Log the connector details for troubleshooting purposes.
 		if finalizedPollingSupported {
@@ -884,6 +873,8 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		if err != nil {
 			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
 		}
+		// The context only bounds the dial; the client must be closed explicitly.
+		defer c.Close()
 
 		type Marshaller struct {
 			Number *eth_hexutil.Big
