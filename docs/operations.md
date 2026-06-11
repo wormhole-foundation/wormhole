@@ -550,6 +550,21 @@ This enables the global accountant for WTT and NTT transfers:
 
 This feature shows up in the guardian heartbeats as `acct:ntt-acct` in enforcing mode when NTT is enabled. It shows up as `acct-logonly:ntt-acct` without `accountantCheckEnabled`. It will just show up as `acct` if NTT is not enabled.
 
+## Enabling IBC
+
+This enables watching cosmos chains connected to wormchain via IBC without running the nodes themselves. To enable, pass these flags pointing to your wormchain node:
+
+<!-- cspell:disable -->
+
+```shell
+--ibcWS=ws://<your_wormchain_validator>:26657/websocket
+--ibcLCD=http://<your_wormchain_validator>:1317
+--ibcContract=<ibc contract>
+```
+<!-- cspell:enable -->
+
+This feature shows up in the guardian heartbeats as `ibc`. The example ports are just the defaults and may change based on your wormchain configuration.
+
 ## Running a public API endpoint
 
 Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../whitepapers/0005_data_availability.md)).

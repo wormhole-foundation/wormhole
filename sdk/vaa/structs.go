@@ -352,6 +352,8 @@ const (
 	ChainIDNexus ChainID = 69
 	// ChainIDTron is the ChainID of Tron
 	ChainIDTron ChainID = 70
+	// ChainIDArc is the ChainID of Arc
+	ChainIDArc ChainID = 71
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104

@@ -37,7 +37,7 @@ var AdminClientListNodes = &cobra.Command{
 
 func runListNodes(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	conn, c, err := getPublicRPCServiceClient(ctx, *clientSocketPath)
+	conn, c, err := getPublicRPCServiceClient(*clientSocketPath)
 	if err != nil {
 		log.Fatalf("failed to get publicrpc client: %v", err)
 	}
@@ -133,6 +133,8 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"ZeroGravity", vaa.ChainIDZeroGravity},
 		{"Tempo", vaa.ChainIDTempo},
 		{"Nexus", vaa.ChainIDNexus},
+		{"Tron", vaa.ChainIDTron},
+		{"Arc", vaa.ChainIDArc},
 		// The IBC chains (4000 range) are not included here.
 		{"Sepolia", vaa.ChainIDSepolia},
 		{"ArbitrumSepolia", vaa.ChainIDArbitrumSepolia},

@@ -232,6 +232,12 @@ var (
 	nexusRPC      *string
 	nexusContract *string
 
+	tronRPC      *string
+	tronContract *string
+
+	arcRPC      *string
+	arcContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -496,6 +502,12 @@ func init() {
 
 	nexusRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nexusRPC", "Nexus RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	nexusContract = NodeCmd.Flags().String("nexusContract", "", "Nexus contract address")
+
+	tronRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "tronRPC", "Tron RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
+	tronContract = NodeCmd.Flags().String("tronContract", "", "Tron contract address")
+
+	arcRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arcRPC", "Arc RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
+	arcContract = NodeCmd.Flags().String("arcContract", "", "Arc contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -904,6 +916,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*mocaContract = checkEvmArgs(logger, *mocaRPC, *mocaContract, vaa.ChainIDMoca)
 	*megaEthContract = checkEvmArgs(logger, *megaEthRPC, *megaEthContract, vaa.ChainIDMegaETH)
 	*zeroGravityContract = checkEvmArgs(logger, *zeroGravityRPC, *zeroGravityContract, vaa.ChainIDZeroGravity)
+	*tronContract = checkEvmArgs(logger, *tronRPC, *tronContract, vaa.ChainIDTron)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -915,6 +928,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*monadTestnetContract = checkEvmArgs(logger, *monadTestnetRPC, *monadTestnetContract, vaa.ChainIDMonadTestnet)
 	*tempoContract = checkEvmArgs(logger, *tempoRPC, *tempoContract, vaa.ChainIDTempo)
 	*nexusContract = checkEvmArgs(logger, *nexusRPC, *nexusContract, vaa.ChainIDNexus)
+	*arcContract = checkEvmArgs(logger, *arcRPC, *arcContract, vaa.ChainIDArc)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
@@ -1087,6 +1101,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["plasmaRPC"] = *plasmaRPC
 	rpcMap["creditcoinRPC"] = *creditCoinRPC
 	rpcMap["xrplRPC"] = *xrplRPC
+	rpcMap["tronRPC"] = *tronRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1172,7 +1187,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Connect to wormchain for the accountant.
 		logger.Info("Connecting to wormchain for accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
-		accountantWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+		accountantWormchainConn, err = wormconn.NewConn(*wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain for accountant", zap.Error(err), zap.String("component", "gacct"))
 		}
@@ -1208,7 +1223,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		// Connect to wormchain for the NTT accountant.
 		logger.Info("Connecting to wormchain for NTT accountant", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", keyPathName), zap.String("component", "gacct"))
-		accountantNttWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+		accountantNttWormchainConn, err = wormconn.NewConn(*wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain for NTT accountant", zap.Error(err), zap.String("component", "gacct"))
 		}
@@ -1242,7 +1257,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		logger.Info("Connecting to wormchain", zap.String("wormchainURL", *wormchainURL), zap.String("keyPath", wormchainKeyPathName), zap.String("component", "gwrelayer"))
-		gatewayRelayerWormchainConn, err = wormconn.NewConn(rootCtx, *wormchainURL, wormchainKey, wormchainId)
+		gatewayRelayerWormchainConn, err = wormconn.NewConn(*wormchainURL, wormchainKey, wormchainId)
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
 		}
@@ -1633,6 +1648,39 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(tempoRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "tempo",
+			ChainID:          vaa.ChainIDTempo,
+			Rpc:              *tempoRPC,
+			Contract:         *tempoContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(tronRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "tron",
+			ChainID:          vaa.ChainIDTron,
+			Rpc:              *tronRPC,
+			Contract:         *tronContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(arcRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "arc",
+			ChainID:          vaa.ChainIDArc,
+			Rpc:              *arcRPC,
+			Contract:         *arcContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terra2WS) {
 		if env != common.UnsafeDevNet {
 			logger.Fatal("Terra2 classic is only allowed in unsafe dev mode")
@@ -1921,18 +1969,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				Contract:          *monadTestnetContract,
 				CcqBackfillCache:  *ccqBackfillCache,
 				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMonadTestnet),
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
-
-		if shouldStart(tempoRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID:        "tempo",
-				ChainID:          vaa.ChainIDTempo,
-				Rpc:              *tempoRPC,
-				Contract:         *tempoContract,
-				CcqBackfillCache: *ccqBackfillCache,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
