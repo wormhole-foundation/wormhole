@@ -77,8 +77,8 @@ func NewWatcher(
 		To do this, the text 'Handle' is removed from the `aptosHandle` to derive
 		the name of the event. This is done in order to avoid passing another parameter to the watcher.
 
-		This is only be convention this optimization can be done. If the Aptos smart contracts or
-		watcher was ever changed, this would no longer work and should be changed.
+		This is only by the current convention this optimization can be done. If the Aptos smart contracts or
+		watcher event consumption were ever changed, this may no longer work.
 	*/
 	if !strings.HasSuffix(aptosHandle, "Handle") {
 		return nil, fmt.Errorf("aptosHandle %q does not end with 'Handle'", aptosHandle)
