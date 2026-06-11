@@ -113,7 +113,7 @@ func (m *mockSuiClient) registerObject(change ObjectChange, result ResultTestCas
 
 	var currentContents, previousContents []byte
 	if result.wrapped {
-		tokenChain := mustU16(result.tokenChain)
+		tokenChain := vaa.ChainID(mustU16(result.tokenChain))
 		currentContents = bcsWrappedObject(mustU64(result.newBalance), tokenAddress, tokenChain, result.decimals)
 		previousContents = bcsWrappedObject(mustU64(result.oldBalance), tokenAddress, tokenChain, result.decimals)
 	} else {
@@ -148,7 +148,7 @@ func parseByteCSV(s string) []byte {
 	parts := strings.Split(s, ",")
 	out := make([]byte, len(parts))
 	for i, p := range parts {
-		v, err := strconv.Atoi(strings.TrimSpace(p))
+		v, err := strconv.ParseUint(strings.TrimSpace(p), 10, 8)
 		if err != nil {
 			panic(fmt.Sprintf("invalid byte %q: %v", p, err))
 		}
@@ -179,7 +179,7 @@ func bcsNativeObject(balance uint64, tokenAddress []byte, decimals uint8) []byte
 	})
 }
 
-func bcsWrappedObject(supply uint64, tokenAddress []byte, tokenChain uint16, decimals uint8) []byte {
+func bcsWrappedObject(supply uint64, tokenAddress []byte, tokenChain vaa.ChainID, decimals uint8) []byte {
 	return mystenbcs.MustMarshal(suiWrappedAssetField{
 		Value: suiWrappedAsset{
 			Info: suiForeignInfo{

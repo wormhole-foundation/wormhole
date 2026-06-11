@@ -130,12 +130,23 @@ func (s *SuiGrpcClient) GetLatestCheckpoint(ctx context.Context, fields []string
 // Replaces `sui_getTransactionBlock`.
 // Docs: https://www.quicknode.com/docs/sui/sui-grpc/ledger/get-transaction
 //
+// The execution status is always fetched in addition to the requested fields, and an error is
+// returned unless the transaction carries an explicit successful status. Wormhole only ever
+// cares about successful transactions, so enforcing this here guarantees callers never act on
+// data from a failed (or status-less) transaction.
+//
 // Returned-field nil-checking is the caller's responsibility — any field
 // not requested OR not returned by the upstream node comes back nil/empty,
 // and this method does not enforce per-field presence.
 func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string, fields []string) (SuiTransaction, error) {
 	if len(fields) == 0 {
 		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction requires at least one field for digest=%s", digest)
+	}
+
+	if !slices.Contains(fields, TransactionFieldStatus) {
+		// Clone before appending so the caller's slice is never mutated through a shared
+		// backing array.
+		fields = append(slices.Clone(fields), TransactionFieldStatus)
 	}
 
 	getTransactionRequest := pb.GetTransactionRequest{
@@ -153,7 +164,21 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string, field
 		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil top-level properties for digest=%s fields=%v", digest, fields)
 	}
 
+	if !transactionSucceeded(resp.Transaction) {
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction: transaction did not execute successfully (or its execution status is missing) for digest=%s", digest)
+	}
+
 	return grpcExecutedTransactionToSuiTransaction(resp.Transaction), nil
+}
+
+// transactionSucceeded reports whether the executed transaction carries an explicit successful
+// execution status. A missing effects/status/success field counts as failure (fail closed).
+func transactionSucceeded(tx *pb.ExecutedTransaction) bool {
+	return tx != nil &&
+		tx.Effects != nil &&
+		tx.Effects.Status != nil &&
+		tx.Effects.Status.Success != nil &&
+		*tx.Effects.Status.Success
 }
 
 func (s *SuiGrpcClient) createCheckpointStream(ctx context.Context, fields []string) (pb.SubscriptionService_SubscribeCheckpointsClient, error) {
@@ -186,9 +211,12 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 
 	// This stream is concerned with transaction events plus the digest of the transaction
 	// that emitted them, which is paired with each event as a SuiTransactionEvent below.
+	// The execution status is fetched as well so that events from failed transactions can
+	// be dropped.
 	fields := []string{
 		"transactions.digest",
 		"transactions.events",
+		"transactions.effects.status",
 	}
 
 	// Create a cancel context for use in the subscription
@@ -249,6 +277,16 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 
 				// If there are no events, proceed to next transaction
 				if tx.Events == nil || len(tx.Events.Events) == 0 {
+					continue
+				}
+
+				// Sui only commits events for successful transactions, so a transaction that
+				// carries events without an explicit successful status is anomalous. Drop its
+				// events (fail closed).
+				if !transactionSucceeded(tx) {
+					s.logger.Warn("Sui gRPC subscription: dropping events from a transaction without a successful execution status",
+						zap.Stringp("digest", tx.Digest),
+					)
 					continue
 				}
 

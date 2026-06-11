@@ -52,7 +52,7 @@ type suiNativeAsset struct {
 //		symbol: String,                // serialized as vector<u8>
 //	}
 type suiForeignInfo struct {
-	TokenChain     uint16
+	TokenChain     vaa.ChainID
 	TokenAddress   suiExternalAddress
 	NativeDecimals uint8
 	Symbol         []byte
@@ -83,15 +83,15 @@ type suiWrappedAsset struct {
 //		value: Value,
 //	}
 type suiNativeAssetField struct {
-	ID    [32]byte
-	Name  bool
-	Value suiNativeAsset
+	ID        [32]byte
+	DummyName bool
+	Value     suiNativeAsset
 }
 
 type suiWrappedAssetField struct {
-	ID    [32]byte
-	Name  bool
-	Value suiWrappedAsset
+	ID        [32]byte
+	DummyName bool
+	Value     suiWrappedAsset
 }
 
 // WormholeMessage mirrors the on-chain `publish_message::WormholeMessage` event emitted by

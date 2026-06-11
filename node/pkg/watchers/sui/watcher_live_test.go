@@ -1,3 +1,5 @@
+//go:build integration
+
 package sui
 
 import (
@@ -26,11 +28,11 @@ import (
 // TestLiveSuiWatcher runs the real Sui watcher against a live gRPC endpoint (mainnet by
 // default) and, for every observed Wormhole message, cross-checks the gRPC/BCS-decoded fields
 // against the node's own JSON-RPC `parsedJson` rendering of the same event. A field mismatch
-// fails the test. It is skipped unless SUI_WATCHER_LIVE is set.
+// fails the test. It is only compiled with the `integration` build tag.
 //
 // Run it (streams logs; Ctrl-C to stop early):
 //
-//	SUI_WATCHER_LIVE=1 go test ./pkg/watchers/sui -run TestLiveSuiWatcher -v -timeout 0
+//	go test -tags integration ./pkg/watchers/sui -run TestLiveSuiWatcher -v -timeout 0
 //
 // Optional environment variables:
 //
@@ -40,10 +42,6 @@ import (
 //	SUI_WATCHER_SECONDS     how long to observe          (default 120)
 //	SUI_WATCHER_TXVERIFIER  set to any value to enable the transfer verifier
 func TestLiveSuiWatcher(t *testing.T) {
-	if os.Getenv("SUI_WATCHER_LIVE") == "" {
-		t.Skip("set SUI_WATCHER_LIVE=1 to run the live Sui watcher test")
-	}
-
 	rpc := liveEnv("SUI_WATCHER_RPC", suiclient.SuiRPCMainnet)
 	jsonRPC := liveEnv("SUI_WATCHER_JSONRPC", "https://fullnode.mainnet.sui.io")
 	eventType := liveEnv("SUI_WATCHER_EVENT_TYPE", "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage")

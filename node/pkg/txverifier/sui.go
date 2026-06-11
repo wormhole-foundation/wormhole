@@ -89,7 +89,8 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 		// instances. If the contents cannot be decoded, the event is simply skipped.
 		wormholeMessage, err := suiclient.DecodeBcs[WormholeMessage](event.BcsBytes)
 		if err != nil {
-			logger.Debug("Failed to BCS-decode WormholeMessage event", zap.Error(err))
+			// We expect that all events of the correct type can be decoded successfully so error loudly
+			logger.Error("Failed to BCS-decode WormholeMessage event", zap.Error(err))
 			continue
 		}
 
@@ -115,7 +116,6 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 		// If there is an error decoding the payload, skip the event. One reason for a potential
 		// failure in decoding is that an attestation of a token was requested.
 		if err != nil {
-			logger.Debug("Error decoding payload", zap.Error(err))
 			continue
 		}
 

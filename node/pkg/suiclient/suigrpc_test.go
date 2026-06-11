@@ -7,9 +7,17 @@ import (
 	"testing"
 
 	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 )
+
+// successfulEffects returns transaction effects carrying an explicit successful execution
+// status, as expected by the status checks in GetTransaction and the event subscription.
+func successfulEffects() *pb.TransactionEffects {
+	success := true
+	return &pb.TransactionEffects{Status: &pb.ExecutionStatus{Success: &success}}
+}
 
 // A mock LedgerService client for testing. Each of the requests (GetObject, GetCheckpoint, GetTransaction) can
 // be simulated by calling the appropriate `SetNext*Response` function, to return a prepared response.
@@ -226,7 +234,9 @@ func FuzzSuiGrpcClientGetTransactionNoEvents(f *testing.F) {
 			if transactionNilOrNot {
 				resp.Transaction = nil
 			} else {
-				resp.Transaction = &pb.ExecutedTransaction{}
+				// The successful status keeps the post-status-check conversion path
+				// exercised; the status check itself is covered by unit tests.
+				resp.Transaction = &pb.ExecutedTransaction{Effects: successfulEffects()}
 
 				if !transaction_digestNilOrNot {
 					resp.Transaction.Digest = &transaction_digest
@@ -426,6 +436,9 @@ func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
 					grpcTx := &pb.ExecutedTransaction{
 						Digest: &txDigest,
 						Events: &pb.TransactionEvents{},
+						// The successful status keeps the event-matching path exercised;
+						// the status check itself is covered by unit tests.
+						Effects: successfulEffects(),
 					}
 					for idx := range entries {
 						grpcEvent := &pb.Event{}
@@ -508,6 +521,119 @@ func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
 		// Unsubscribe again to confirm it is safe to call after the goroutine has exited.
 		subscription.Unsubscribe()
 	})
+}
+
+// TestGetTransactionEnforcesExecutionStatus verifies that GetTransaction returns an error for
+// any transaction that does not carry an explicit successful execution status, including all
+// the partially-populated status shapes (fail closed).
+func TestGetTransactionEnforcesExecutionStatus(t *testing.T) {
+	digest := "0xDigest"
+	successFalse := false
+
+	cases := []struct {
+		name    string
+		effects *pb.TransactionEffects
+		wantErr bool
+	}{
+		{name: "success", effects: successfulEffects(), wantErr: false},
+		{name: "failed", effects: &pb.TransactionEffects{Status: &pb.ExecutionStatus{Success: &successFalse}}, wantErr: true},
+		{name: "success field missing", effects: &pb.TransactionEffects{Status: &pb.ExecutionStatus{}}, wantErr: true},
+		{name: "status missing", effects: &pb.TransactionEffects{}, wantErr: true},
+		{name: "effects missing", effects: nil, wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ledgerService := &MockLedgerServiceClient{}
+			grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, ledgerService, nil)
+
+			ledgerService.SetNextGetTransactionResponse(&pb.GetTransactionResponse{
+				Transaction: &pb.ExecutedTransaction{
+					Digest:  &digest,
+					Effects: tc.effects,
+				},
+			})
+
+			tx, err := grpcClient.GetTransaction(context.Background(), digest, []string{TransactionFieldDigest})
+
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, tx.Digest)
+			}
+		})
+	}
+}
+
+// TestSubscribeDropsEventsFromFailedTransactions verifies that the event subscription only
+// forwards events from transactions with an explicit successful execution status. The streamed
+// checkpoint contains one successful and one failed transaction, each carrying an otherwise
+// identical matching event; only the successful transaction's event must be delivered.
+func TestSubscribeDropsEventsFromFailedTransactions(t *testing.T) {
+	successDigest := "0xSuccess"
+	failedDigest := "0xFailed"
+	packageId := "PackageId"
+	module := "Module"
+	sender := "Sender"
+	eventType := "EventType"
+	contentsName := "Contents.Name"
+	contentsValue := []byte{0x13, 0x37}
+	successFalse := false
+
+	makeEvent := func() *pb.Event {
+		return &pb.Event{
+			PackageId: &packageId,
+			Module:    &module,
+			Sender:    &sender,
+			EventType: &eventType,
+			Contents: &pb.Bcs{
+				Name:  &contentsName,
+				Value: contentsValue,
+			},
+		}
+	}
+
+	resp := &pb.SubscribeCheckpointsResponse{
+		Checkpoint: &pb.Checkpoint{
+			Transactions: []*pb.ExecutedTransaction{
+				{
+					Digest:  &successDigest,
+					Events:  &pb.TransactionEvents{Events: []*pb.Event{makeEvent()}},
+					Effects: successfulEffects(),
+				},
+				{
+					Digest:  &failedDigest,
+					Events:  &pb.TransactionEvents{Events: []*pb.Event{makeEvent()}},
+					Effects: &pb.TransactionEffects{Status: &pb.ExecutionStatus{Success: &successFalse}},
+				},
+			},
+		},
+	}
+
+	subscriptionService := &MockSubscriptionServiceClient{
+		nextStream: &MockSubscribeCheckpointsStream{
+			responses: []*pb.SubscribeCheckpointsResponse{resp},
+			recvErr:   io.EOF,
+		},
+	}
+	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, nil, subscriptionService)
+
+	eventChan := make(chan SuiTransactionEvent, 4)
+	subscription, err := grpcClient.SubscribeToTransactionEvent(context.Background(), eventType, eventChan)
+	require.NoError(t, err)
+	defer subscription.Unsubscribe()
+
+	// Wait for the subscription goroutine to process the single response and exit.
+	<-subscription.Done()
+
+	var received []SuiTransactionEvent
+	for len(eventChan) > 0 {
+		received = append(received, <-eventChan)
+	}
+
+	require.Len(t, received, 1)
+	require.Equal(t, successDigest, received[0].TxDigest)
 }
 
 func FuzzNewSuiGrpcClient(f *testing.F) {
