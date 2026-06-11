@@ -6,8 +6,15 @@ set -eo pipefail -o nounset
 ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 DOCKERFILE="$ROOT/scripts/Dockerfile.lint"
 
-# Custom wormhole-golangci-lint release to use.
-WORMHOLE_GOLANGCI_LINT_VERSION="v0.0.0-test10"
+# The custom golangci-lint (with our linters/ module plugins baked in) is built
+# from source under linters/ via `make -C linters build-golangci-lint`. The
+# golangci-lint version is owned by linters/ (GOLANGCI_LINT_VERSION in
+# linters/Makefile, which must match `version:` in linters/.custom-gcl.yml).
+#
+# Built binaries are cached, content-addressed by a hash of the linters/ source
+# tree (which includes .custom-gcl.yml and the Makefile, so a version bump flips
+# the hash). We build once and only rebuild when the linter source changes.
+LINTERS_DIR="$ROOT/linters"
 WORMHOLE_GOLANGCI_LINT_CACHE="$ROOT/.wormhole-lint-cache"
 
 VALID_COMMANDS=("lint" "format")
@@ -58,36 +65,37 @@ format(){
     fi
 }
 
-ensure_wormhole_golangci_lint() {
-    local os arch asset bin dir url tmp
-    os="$(uname -s)"
-    arch="$(uname -m)"
-    case "$os/$arch" in
-        Darwin/arm64) asset="darwin_arm64" ;;
-        Darwin/x86_64) asset="darwin_amd64" ;;
-        Linux/x86_64) asset="linux_amd64" ;;
-        Linux/aarch64) asset="linux_arm64" ;;
-        *)
-            echo "wormhole-golangci-lint: unsupported host $os/$arch (supported: Darwin/arm64, Darwin/x86_64, Linux/x86_64, Linux/aarch64)" >&2
-            exit 1
-            ;;
-    esac
+# Content hash of the linters/ source, used to decide whether a rebuild is needed.
+# Hashes every file under linters/ (regardless of git tracking) except the
+# bin/ and build/ build outputs, so any source edit triggers exactly one rebuild.
+linters_source_hash() {
+    find "$LINTERS_DIR" -type f \
+        -not -path '*/bin/*' -not -path '*/build/*' \
+        -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1
+}
 
-    dir="$WORMHOLE_GOLANGCI_LINT_CACHE/$WORMHOLE_GOLANGCI_LINT_VERSION"
+ensure_wormhole_golangci_lint() {
+    local hash dir bin tmp
+
+    # In the -c docker image the custom linter is already built from source and
+    # placed on PATH; run that instead of rebuilding (the repo mount is read-only).
+    if command -v wormhole-golangci-lint >/dev/null 2>&1; then
+        command -v wormhole-golangci-lint
+        return
+    fi
+
+    hash="$(linters_source_hash)"
+    dir="$WORMHOLE_GOLANGCI_LINT_CACHE/$hash"
     bin="$dir/wormhole-golangci-lint"
 
     if [ ! -x "$bin" ]; then
+        echo "Building wormhole-golangci-lint (source ${hash:0:12})..." >&2
+        make -C "$LINTERS_DIR" build-golangci-lint >&2
         mkdir -p "$dir"
-        url="https://github.com/asymmetric-research/wormhole-custom-ci/releases/download/${WORMHOLE_GOLANGCI_LINT_VERSION}/wormhole-golangci-lint_${WORMHOLE_GOLANGCI_LINT_VERSION}_${asset}"
-        tmp="$(mktemp "$dir/.download.XXXXXX")"
-        echo "Downloading wormhole-golangci-lint ${WORMHOLE_GOLANGCI_LINT_VERSION} (${asset})..." >&2
-        if ! curl -fsSL "$url" -o "$tmp"; then
-            rm -f "$tmp"
-            echo "Failed to download $url" >&2
-            exit 1
-        fi
+        tmp="$(mktemp "$dir/.build.XXXXXX")"
+        cp "$LINTERS_DIR/bin/wormhole-golangci-lint" "$tmp"
         chmod +x "$tmp"
-        mv "$tmp" "$bin"
+        mv "$tmp" "$bin"  # atomic publish; safe under concurrent runs
     fi
 
     echo "$bin"

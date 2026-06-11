@@ -39,6 +39,7 @@
 /wormchain/devnet/ @evan-gray
 /wormchain/devnet/txverifier @djb15 @johnsaigle @mdulin2 @pleasew8t
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
+/linters/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 # Protobuf for node
 
