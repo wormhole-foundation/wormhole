@@ -312,7 +312,7 @@ func TestVerifyEventType(t *testing.T) {
 		},
 		{
 			// Config carries the "0x" prefix; this event omits it on
-			// guid.account_address. normalize0x should strip both sides.
+			// guid.account_address. The address comparison ignores the prefix.
 			name: "0x prefix stripped on guid.account_address",
 			mutate: func(m map[string]any) {
 				m["guid"].(map[string]any)["account_address"] = strings.TrimPrefix(testAptosAccount, "0x") //nolint:forcetypeassert // test data shape is known
@@ -320,7 +320,7 @@ func TestVerifyEventType(t *testing.T) {
 		},
 		{
 			// Config carries the "0x" prefix; this event omits it on
-			// the type field. normalize0x should strip both sides.
+			// the type field. The embedded address comparison ignores the prefix.
 			name:   "0x prefix stripped on type",
 			mutate: func(m map[string]any) { m["type"] = strings.TrimPrefix(testExpectedType, "0x") },
 		},
@@ -390,14 +390,53 @@ func assertLoggedError(t *testing.T, logs *observer.ObservedLogs, want string) {
 	assert.Failf(t, "missing expected log", "expected a logged error containing %q, got %v", want, logs.All())
 }
 
+func TestAptosAddrEqual(t *testing.T) {
+	// Prefix, casing, and leading-zero padding are all ignored.
+	assert.True(t, aptosAddrEqual("0x01", "0x0000000000000000000000000000000000000000000000000000000000000001"))
+	assert.True(t, aptosAddrEqual("0xABCD", "abcd"))
+	assert.True(t, aptosAddrEqual("0X01", "0x01"))            // "0X" prefix
+	assert.True(t, aptosAddrEqual("0x00", "0x00000000000000")) // zero address, any padding
+
+	// Distinct addresses must not be equal.
+	assert.False(t, aptosAddrEqual("0x1", "0x2"))
+
+	// Invalid inputs are never equal: empty, non-hex, and over-32-byte (>64 hex chars).
+	assert.False(t, aptosAddrEqual("", "0x1"))
+	assert.False(t, aptosAddrEqual("0xZZ", "0x1"))
+	assert.False(t, aptosAddrEqual(strings.Repeat("a", 65), strings.Repeat("a", 65)))
+}
+
+func TestParseAptosAddrLeftPads(t *testing.T) {
+	// A short address must land in the low-order (rightmost) bytes: 0x01 -> 0x00..01,
+	// not 0x01 followed by zeros.
+	got, ok := parseAptosAddr("0x01")
+	require.True(t, ok)
+	want := [32]byte{}
+	want[31] = 0x01
+	assert.Equal(t, want, got)
+
+	// A wrongly right-padded (left-aligned) layout must NOT be produced.
+	wrong := [32]byte{}
+	wrong[0] = 0x01
+	assert.NotEqual(t, wrong, got)
+
+	// Multi-byte values stay big-endian and right-aligned.
+	got, ok = parseAptosAddr("0x0102")
+	require.True(t, ok)
+	want = [32]byte{}
+	want[30] = 0x01
+	want[31] = 0x02
+	assert.Equal(t, want, got)
+}
+
 func TestProcessPollingBatch(t *testing.T) {
 	// happy path: two consecutive events. Built by mutating pollEvent() defaults.
 	happyFirst := pollEvent()
 	happySecond := pollEvent()
 	happySecond["sequence_number"] = "101"
 
-	// Bad event information: wrong event type triggers verifyEventType, which
-	// causes processPollingBatch to return an error before touching nextSequence.
+	// Bad event information: wrong event type fails verifyEventType, so the event is
+	// skipped (not published) but its sequence slot is still consumed (nextSequence advances).
 	badHandle := pollEvent()
 	badHandle["type"] = "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::NotAWormholeMessage"
 
@@ -483,7 +522,7 @@ func TestProcessPollingBatch(t *testing.T) {
 			name:             "Bad event information",
 			events:           []map[string]any{badHandle},
 			initialNextSeq:   100,
-			expectedNextSeq:  100,
+			expectedNextSeq:  101, // slot consumed even though the event is skipped
 			expectedMsgCount: 0,
 			expectError:      "event type mismatch",
 		},
