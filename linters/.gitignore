@@ -1,0 +1,11 @@
+# Built binaries.
+/bin/
+
+# Stray root-level builds, e.g. from a bare `go build ./...` (the Makefile
+# targets put these under bin/).
+/wormhole-lint
+/wormhole-golangci-lint
+
+# Cloned + patched upstream sources (revive, golangci-lint) used to build
+# bin/wormhole-golangci-lint. Recreated by `make build-golangci-lint`.
+/build/

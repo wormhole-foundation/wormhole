@@ -1,0 +1,35 @@
+GOLANGCI_LINT_VERSION ?= v2.8.0
+
+BIN_DIR := bin
+
+.PHONY: build build-golangci-lint install-golangci-lint test vet clean
+
+# Standalone multichecker over every rules/<linter>.Analyzer.
+build:
+	go build -o $(BIN_DIR)/wormhole-lint ./cmd/wormhole-lint
+
+# Pinned upstream golangci-lint, dropped into $(BIN_DIR). Used as the driver
+# for `golangci-lint custom`; keep its version aligned with the `version:`
+# field in .custom-gcl.yml.
+install-golangci-lint:
+	GOOS= GOARCH= GOBIN=$(abspath $(BIN_DIR)) go install \
+	  github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
+# Custom golangci-lint with our module plugins baked in. Driven by
+# .custom-gcl.yml at the repo root; output goes to ./bin per `destination:`.
+build-golangci-lint: install-golangci-lint
+	$(BIN_DIR)/golangci-lint custom
+
+test:
+	go test -v ./...
+	@for mod in $$(find rules -name go.mod); do \
+	  dir=$$(dirname $$mod); \
+	  echo "==> testing $$dir"; \
+	  (cd $$dir && go test -v ./...) || exit $$?; \
+	done
+
+vet:
+	go vet ./...
+
+clean:
+	rm -rf $(BIN_DIR)
