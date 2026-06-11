@@ -23,6 +23,7 @@ const (
 	TransactionFieldCheckpoint     = "checkpoint"
 	TransactionFieldTimestamp      = "timestamp"
 	TransactionFieldChangedObjects = "effects.changed_objects"
+	TransactionFieldStatus         = "effects.status"
 )
 
 const (
@@ -180,6 +181,10 @@ type SuiClient interface {
 	// SuiTransaction; see the TransactionField* constants. At least one field
 	// is required.
 	//
+	// The execution status is always fetched in addition to the requested
+	// fields, and an error is returned unless the transaction executed
+	// successfully — callers never see data from failed transactions.
+	//
 	// Fields not requested (and fields requested but missing from the upstream
 	// response) come back nil/empty. Callers MUST nil-check every field they
 	// read — this method does not enforce per-field presence.
@@ -187,7 +192,7 @@ type SuiClient interface {
 
 	// Subscribe to transaction events of type `eventType`. Each matching event is delivered
 	// on the channel as a SuiTransactionEvent, pairing it with the digest of the transaction
-	// that emitted it.
+	// that emitted it. Events from transactions that did not execute successfully are dropped.
 	SubscribeToTransactionEvent(ctx context.Context, eventType string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error)
 	SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error)
 

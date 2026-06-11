@@ -1,3 +1,13 @@
+//go:build integration
+
+// The tests in this file run against a live Sui mainnet gRPC endpoint and are only compiled
+// with the `integration` build tag:
+//
+//	go test -tags integration ./pkg/suiclient -v
+//
+// The subscription test additionally requires SUI_GRPC_TEST_SUBSCRIPTION to be set, since it
+// depends on live event traffic.
+
 package suiclient
 
 import (
@@ -12,25 +22,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// To enable live tests, set the environmental variable SUI_GRPC_TEST_LIVE=ANYTHING.
-// Set it to INCLUDE_SUBSCRIPTION_TEST specifically to enable the subscription test.
-func suiGrpcClientLiveTestEnabled() (bool, bool) {
-	val := os.Getenv("SUI_GRPC_TEST_LIVE")
-
-	runNormalTests := false
-	runSubscriptionTest := false
-
-	if len(val) > 0 {
-		runNormalTests = true
-	}
-
-	if val == "INCLUDE_SUBSCRIPTION_TEST" {
-		runSubscriptionTest = true
-	}
-
-	return runNormalTests, runSubscriptionTest
-}
-
 // Definition converted from the Sui module's definition. Field order and types must match the
 // on-chain Move struct exactly so BCS decoding succeeds. To derive these by hand, run
 // `sui move summary --bytecode <package-id>` against the published package and translate each
@@ -42,11 +33,6 @@ type WormholeState struct {
 }
 
 func TestGrpcClientGetObject(t *testing.T) {
-	runNormalTests, _ := suiGrpcClientLiveTestEnabled()
-	if !runNormalTests {
-		return
-	}
-
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
@@ -96,11 +82,6 @@ type WormholeMessage struct {
 }
 
 func TestGrpcClientGetTransaction(t *testing.T) {
-	runNormalTests, _ := suiGrpcClientLiveTestEnabled()
-	if !runNormalTests {
-		return
-	}
-
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
@@ -143,11 +124,6 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 }
 
 func TestGrpcClientGetCheckpointSN(t *testing.T) {
-	runNormalTests, _ := suiGrpcClientLiveTestEnabled()
-	if !runNormalTests {
-		return
-	}
-
 	testLogger := zap.NewNop()
 	ctx := context.Background()
 	client, err := NewSuiGrpcClient(SuiRPCMainnet, testLogger)
@@ -161,9 +137,8 @@ func TestGrpcClientGetCheckpointSN(t *testing.T) {
 }
 
 func TestGrpcClientSubscribeToTransactionEvents(t *testing.T) {
-	_, runSubscriptionTest := suiGrpcClientLiveTestEnabled()
-	if !runSubscriptionTest {
-		return
+	if os.Getenv("SUI_GRPC_TEST_SUBSCRIPTION") == "" {
+		t.Skip("set SUI_GRPC_TEST_SUBSCRIPTION=1 to run the live subscription test")
 	}
 
 	testLogger := zap.NewNop()
