@@ -1,4 +1,4 @@
-# AR Golang CI Lints
+# Golang CI Lints
 
 Custom Go linters used on Wormhole CI. Each linter is a [golangci-lint
 module plugin](https://golangci-lint.run/plugins/module-plugins/) and lives
