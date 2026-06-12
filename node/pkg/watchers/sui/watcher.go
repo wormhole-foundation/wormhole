@@ -372,7 +372,7 @@ func (e *Watcher) verifyAndPublish(
 		msg = &verifiedMsg
 	}
 
-	e.msgChan <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	e.msgChan <- msg // Note on channel capacity: The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	suiMessagesConfirmed.Inc()
 	if msg.IsReobservation {
@@ -730,6 +730,7 @@ func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte,
 	req.Header.Set("Content-Type", "application/json")
 
 	// Send the request using DefaultClient
+	// #nosec G704 -- Sui RPC URL from operator configuration
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to post: %w", err)

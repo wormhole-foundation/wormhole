@@ -83,6 +83,7 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 			// perform HTTP request
 			req, _ := http.NewRequestWithContext(timeout, http.MethodPost, n.nearRpc, bytes.NewBuffer([]byte(s)))
 			req.Header.Add("Content-Type", "application/json")
+			// #nosec G704 -- NEAR RPC URL from operator configuration
 			resp, err := n.nearHttpClient.Do(req)
 
 			if err == nil {

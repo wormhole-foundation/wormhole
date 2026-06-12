@@ -12,6 +12,7 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+	"github.com/certusone/wormhole/node/pkg/manager/der"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -206,19 +207,30 @@ func EncodeDERSignature(r, s []byte, hashType txscript.SigHashType) []byte {
 	// Calculate lengths
 	rLen := len(r)
 	sLen := len(s)
-	totalLen := 4 + rLen + sLen // 0x02 + rLen + r + 0x02 + sLen + s
+	totalLen := der.FixedOverhead + rLen + sLen // 0x02 + rLen + r + 0x02 + sLen + s
+
+	// DER X.690 section 8.1.3, https://www.itu.int/rec/T-REC-X.690
+	// Short-form length encoding uses a single byte for lengths 0-127.
+	// The constants below reflect the secp256k1 physical maximums; this
+	// ensures that every length can be encoded in a single byte.
+	if totalLen > der.MaxTotalLen || rLen > der.Secp256k1MaxIntEncodedLen || sLen > der.Secp256k1MaxIntEncodedLen {
+		return nil
+	}
+	if hashType > 255 {
+		return nil
+	}
 
 	// Build DER signature
-	sig := make([]byte, 0, totalLen+3) // +3 for 0x30, totalLen, and hashType
-	sig = append(sig, 0x30)            // DER sequence tag
-	sig = append(sig, byte(totalLen))  // Total length
-	sig = append(sig, 0x02)            // Integer tag for r
-	sig = append(sig, byte(rLen))      // r length
-	sig = append(sig, r...)            // r value
-	sig = append(sig, 0x02)            // Integer tag for s
-	sig = append(sig, byte(sLen))      // s length
-	sig = append(sig, s...)            // s value
-	sig = append(sig, byte(hashType))  // Sighash type
+	sig := make([]byte, 0, totalLen+der.SequenceHeaderLen+1) // +1 for hashType
+	sig = append(sig, der.SequenceTag)                       // DER sequence tag
+	sig = append(sig, byte(totalLen))                        // Total length
+	sig = append(sig, der.IntegerTag)                        // Integer tag for r
+	sig = append(sig, byte(rLen))                            // r length
+	sig = append(sig, r...)                                  // r value
+	sig = append(sig, der.IntegerTag)                        // Integer tag for s
+	sig = append(sig, byte(sLen))                            // s length
+	sig = append(sig, s...)                                  // s value
+	sig = append(sig, byte(hashType))                        // Sighash type
 
 	return sig
 }
