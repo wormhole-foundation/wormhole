@@ -65,6 +65,13 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func skipNearWatcherInShortMode(t *testing.T) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("skipping async NEAR watcher test in short mode")
+	}
+}
+
 func portalEmitterAddress() vaa.Address {
 	s := "contract.portalbridge.near"
 	h := sha256.New()
@@ -213,6 +220,8 @@ func (testCase *testCase) setupAndRun(logger *zap.Logger) {
 
 // TestWatcherSimple() tests the most simple case: "final" API only retruns one block which contains a Wormhole transaction. No re-observation requests.
 func TestWatcherSimple(t *testing.T) {
+	skipNearWatcherInShortMode(t)
+
 	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
@@ -248,6 +257,8 @@ func TestWatcherSimple(t *testing.T) {
 
 // TestWatcherSimple2() tests the case where the "final" API returns a sequence of real blocks which contain a single Wormhole transaction. No re-observation requests.
 func TestWatcherSimple2(t *testing.T) {
+	skipNearWatcherInShortMode(t)
+
 	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
@@ -291,6 +302,8 @@ func TestWatcherSimple2(t *testing.T) {
 // TestWatcherReobservation() tests the simple re-observation case: The "final" endpoint returns
 // the same unrelated block and there is a re-observation request for past data.
 func TestWatcherReobservation(t *testing.T) {
+	skipNearWatcherInShortMode(t)
+
 	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
@@ -334,6 +347,8 @@ func TestWatcherReobservation(t *testing.T) {
 // TestWatcherDelayedFinal() tests the case where a block cannot be finalized by a parent having it as
 // last_final_block and instead needs to be finalized by having it observed as finalized during polling
 func TestWatcherDelayedFinal(t *testing.T) {
+	skipNearWatcherInShortMode(t)
+
 	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
@@ -379,6 +394,8 @@ func TestWatcherDelayedFinal(t *testing.T) {
 // last_final_block and instead needs to be finalized by having it observed as finalized during polling
 // additionally, there is a large gap between polls
 func TestWatcherDelayedFinalAndGaps(t *testing.T) {
+	skipNearWatcherInShortMode(t)
+
 	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
@@ -426,6 +443,8 @@ func TestWatcherDelayedFinalAndGaps(t *testing.T) {
 "6eCgeVSC4Hwm8tAVy4qNQpnLs4S9EpzRjGtAipwZ632A", // 76538236 block 7: tx3 receipt
 */
 func TestWatcherSynthetic(t *testing.T) {
+	skipNearWatcherInShortMode(t)
+
 	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
@@ -524,6 +543,8 @@ func TestWatcherSynthetic(t *testing.T) {
 "6eCgeVSC4Hwm8tAVy4qNQpnLs4S9EpzRjGtAipwZ632A", // 76538236 block 7: tx3 receipt
 */
 func TestWatcherUnfinalized(t *testing.T) {
+	skipNearWatcherInShortMode(t)
+
 	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
