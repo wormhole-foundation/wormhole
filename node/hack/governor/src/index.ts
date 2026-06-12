@@ -27,11 +27,13 @@ const usdPeggedStablecoins = [
 ];
 const expectedUSDDepeggs = [
   "1-689ac099ef657e5d3b7efaf1e36ab8b897e2746232d8a9261b3e49b35c1dead4-xUSD", // Synthetic USD is inactive and deactivated
+  "1-85cdebc205dddf95b88200aba0ac9bcbb78096324e276fce85d63c69211f0845-usdy", // Ondo USDY is yield-bearing and not intended to be pegged exactly to $1
   "1-aa77c1f5d0d2c07ce7075e31d348ca1c0965bb287be13984dec1c5615bf22665-CUSD", // Coin98 Dollar has been depegged since March 2024
   "2-00000000000000000000000000c5ca160a968f47e7272a0cfcda36428f386cb6-USDEBT", // US Debt Meme coin
   "2-000000000000000000000000309627af60f0926daa6041b8279484312f2bf060-USDB", // USDB (USD Bancor) has been deactivated
   "2-0000000000000000000000003432b6a60d23ca0dfca7761b7ab56459d9c964d0-FXS", // Frax Share
   "2-00000000000000000000000045804880de22913dafe09f4980848ece6ecbaf78-PAXG", // This is PaxGold and not pegged to $1
+  "2-00000000000000000000000096f6ef951840721adbf46ac996b59e0235cb985c-usdy", // Ondo USDY is yield-bearing and not intended to be pegged exactly to $1
   "2-000000000000000000000000d13cfd3133239a3c73a9e535a5c4dadee36b395c-VAI", // This is Vaiot, not the VAI stablecoin
   "2-000000000000000000000000df574c24545e5ffecb9a659c229253d4111d87e1-HUSD", // HUSD has been depegged for a number of years now
   "2-000000000000000000000000dfdb7f72c1f195c5951a234e8db9806eb0635346-NFD", // Feisty Doge NFT
@@ -64,6 +66,9 @@ const deprecatedChains = [3,7,9,10,11,12,17,18,28,34,35,36,37,43];
 const axios = require("axios");
 const fs = require("fs");
 const execSync = require("child_process").execSync;
+
+const TvlUrl = "https://europe-west3-wormhole-message-db-mainnet.cloudfunctions.net/tvl";
+const LatestTokenDataUrl = "https://europe-west3-wormhole-message-db-mainnet.cloudfunctions.net/latest-tokendata";
 
 const IncludeFileName = "./include_list.csv";
 let includedTokens = new Map();
@@ -98,29 +103,114 @@ if (fs.existsSync(IncludeFileName)) {
 
 // Get the existing token list to check for any extreme price changes and removed tokens
 var existingTokenPrices = {};
+var existingTokenIdentities = {};
 var existingTokenKeys: string[] = [];
 var newTokenKeys = {};
+var newTokenIdentities = {};
 var depeggedUSDStablecoins = [];
 
-fs.readFile("../../pkg/governor/generated_mainnet_tokens.go", "utf8", function(_, doc) {
-  var matches = doc.matchAll(/{Chain: (?<chain>[0-9]+).+Addr: "(?<addr>[0-9a-fA-F]+)".*Symbol: "(?<symbol>.*)", Coin.*Price: (?<price>.*)}.*\n/g);
+{
+  const doc = fs.readFileSync("../../pkg/governor/generated_mainnet_tokens.go", "utf8");
+  var matches = doc.matchAll(/{Chain: (?<chain>[0-9]+).+Addr: "(?<addr>[0-9a-fA-F]+)".*Symbol: "(?<symbol>.*)", CoinGeckoId: "(?<coinGeckoId>.*)", Decimals.*Price: (?<price>.*)}.*\n/g);
   for(let result of matches) {
-    let {chain, addr, symbol, price} = result.groups;
+    let {chain, addr, symbol, coinGeckoId, price} = result.groups;
     if (!existingTokenPrices[chain]) existingTokenPrices[chain] = {};
     existingTokenPrices[chain][addr] = parseFloat(price);
+    existingTokenIdentities[tokenIdentityKey(chain, addr)] = {
+      symbol: symbol,
+      coinGeckoId: coinGeckoId,
+      price: parseFloat(price),
+    };
     existingTokenKeys.push(chain + "-" + addr + "-" + symbol);
   }
-});
+}
+
+function tokenIdentityKey(chain, addr): string {
+  return chain + "-" + addr.toLowerCase();
+}
+
+function tokenIdentityDescription(chain, addr, symbol, coinGeckoId): string {
+  return tokenIdentityKey(chain, addr) + "-" + symbol + " (https://www.coingecko.com/en/coins/" + coinGeckoId + ")";
+}
+
+function countTokenIdentitiesByChain(tokenIdentities) {
+  var counts = {};
+  for (var key in tokenIdentities) {
+    var chain = key.split("-", 1)[0];
+    counts[chain] = (counts[chain] || 0) + 1;
+  }
+
+  return counts;
+}
+
+function tokenIdentityCountChangesByChain(existingTokenIdentities, newTokenIdentities): string[] {
+  var existingCounts = countTokenIdentitiesByChain(existingTokenIdentities);
+  var newCounts = countTokenIdentitiesByChain(newTokenIdentities);
+  var chains = new Set([...Object.keys(existingCounts), ...Object.keys(newCounts)]);
+  var countChanges = [];
+
+  for (var chain of Array.from(chains).sort((a, b) => parseInt(a) - parseInt(b))) {
+    var before = existingCounts[chain] || 0;
+    var after = newCounts[chain] || 0;
+    countChanges.push(chain + ": " + before + " -> " + after + " (delta " + (after - before) + ")");
+  }
+
+  return countChanges;
+}
+
+// Builds a lookup from the cloud function's native address to its canonical Wormhole token address.
+// This workaround is only needed for Sui: /tvl emits Sui Move coin types as native addresses, while
+// the old @certusone/wormhole-sdk version used by this script cannot convert Sui Move types to
+// canonical token addresses. Aptos also uses Move types, but this SDK handles Aptos conversion, so it
+// stays on the normal SDK path. /latest-tokendata is produced by the same upstream job and already
+// includes Sui's resolved canonical token_address, so use it rather than redoing Sui RPC resolution.
+function latestTokenDataByNativeAddress(latestTokenData) {
+  var latestByNativeAddress = {};
+  if (!latestTokenData || !latestTokenData.data) {
+    return latestByNativeAddress;
+  }
+
+  for (let tokenData of latestTokenData.data) {
+    latestByNativeAddress[tokenData.token_chain + ":" + tokenData.native_address.toLowerCase()] = tokenData;
+  }
+
+  return latestByNativeAddress;
+}
+
+function latestTokenDataNotInTvl(latestTokenData, tvlTokenIdentities): string[] {
+  var latestNotInTvl = [];
+  if (!latestTokenData || !latestTokenData.data) {
+    return latestNotInTvl;
+  }
+
+  for (let tokenData of latestTokenData.data) {
+    let chainId = parseInt(tokenData.token_chain) as ChainId;
+    if (deprecatedChains.includes(chainId)) {
+      continue;
+    }
+
+    let key = tokenIdentityKey(tokenData.token_chain, tokenData.token_address);
+    if (tvlTokenIdentities[key] === undefined) {
+      latestNotInTvl.push(tokenIdentityDescription(tokenData.token_chain, tokenData.token_address, tokenData.symbol, tokenData.coin_gecko_coin_id));
+    }
+  }
+
+  return latestNotInTvl;
+}
 
 axios
-  .get(
-    "https://europe-west3-wormhole-message-db-mainnet.cloudfunctions.net/tvl"
-  )
-  .then(async (res) => {
+  .all([axios.get(TvlUrl), axios.get(LatestTokenDataUrl)])
+  .then(async ([res, latestTokenDataRes]) => {
     if (res.status != 200) {
-      console.error("failed to read symbols, statusCode: %o", res.status);
-      process.exit;
+      console.error("failed to read tvl, statusCode: %o", res.status);
+      process.exit(1);
     }
+    if (latestTokenDataRes.status != 200) {
+      console.error("failed to read latest token data, statusCode: %o", latestTokenDataRes.status);
+      process.exit(1);
+    }
+
+    var latestByNativeAddress = latestTokenDataByNativeAddress(latestTokenDataRes.data);
 
     var content = "";
 
@@ -141,6 +231,9 @@ axios
     var addedTokens = [];
     var removedTokens = [];
     var changedSymbols = [];
+    var addedTokenIdentities = [];
+    var removedTokenIdentities = [];
+    var changedSymbolsWithSameIdentity = [];
     var failedInputValidationTokens = [];
     var newTokensCount = 0;
 
@@ -183,6 +276,8 @@ axios
                   zeroPad(arrayify(Number.parseInt(data.Address)), 32)
                 ).toString("hex");
               }
+            } else if (chainId == CHAIN_ID_SUI && latestByNativeAddress[key] !== undefined) {
+              wormholeAddr = latestByNativeAddress[key].token_address;
             } else {
               try {
                 wormholeAddr = tryNativeToHexString(data.Address, chainId);
@@ -221,12 +316,21 @@ axios
                   continue;
                 }
               }
-              
-              // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
-              if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
-                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
-                continue; 
-              }
+            }
+
+            // The Sui path can source the canonical address directly from /latest-tokendata
+            // instead of deriving it through the SDK. Make sure every path still produces a
+            // Wormhole canonical token address before writing it into generated Go code.
+            if (!isValidWormholeAddress(wormholeAddr)) {
+              console.log("Invalid canonical token address ", wormholeAddr, " provided")
+              failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
+              continue;
+            }
+
+            // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
+            if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
+              failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
+              continue; 
             }
 
             // This token looks like a USD stablecoin
@@ -297,6 +401,10 @@ axios
             // We add in the "=" character to ensure an undefined symbol
             // does not mess up the removed tokens logic
             newTokenKeys[chain + "-" + wormholeAddr] = ["=" + data.Symbol, data.CoinGeckoId];
+            newTokenIdentities[tokenIdentityKey(chain, wormholeAddr)] = {
+              symbol: data.Symbol,
+              coinGeckoId: data.CoinGeckoId,
+            };
             newTokensCount += 1;
           }
         }
@@ -318,6 +426,25 @@ axios
       }
     }
 
+    for (var key in newTokenIdentities) {
+      var newTokenIdentity = newTokenIdentities[key];
+      var existingTokenIdentity = existingTokenIdentities[key];
+      if (existingTokenIdentity === undefined) {
+        addedTokenIdentities.push(key + "-" + newTokenIdentity.symbol + " (https://www.coingecko.com/en/coins/" + newTokenIdentity.coinGeckoId + ")");
+      } else if (existingTokenIdentity.symbol !== newTokenIdentity.symbol) {
+        changedSymbolsWithSameIdentity.push(key + ": " + existingTokenIdentity.symbol + " -> " + newTokenIdentity.symbol + " (https://www.coingecko.com/en/coins/" + newTokenIdentity.coinGeckoId + ")");
+      }
+    }
+
+    for (var key in existingTokenIdentities) {
+      if (newTokenIdentities[key] === undefined) {
+        removedTokenIdentities.push(key + "-" + existingTokenIdentities[key].symbol + " (https://www.coingecko.com/en/coins/" + existingTokenIdentities[key].coinGeckoId + ")");
+      }
+    }
+
+    var latestNotInTvl = latestTokenDataNotInTvl(latestTokenDataRes.data, newTokenIdentities);
+    var tokenIdentityCountChanges = tokenIdentityCountChangesByChain(existingTokenIdentities, newTokenIdentities);
+
     // Sanity check to make sure the script is doing what we think it is
     if (existingTokenKeys.length + addedTokens.length - removedTokens.length != newTokensCount) {
       console.error(`Num existing tokens (${existingTokenKeys.length}) + Added tokens (${addedTokens.length}) - Removed tokens (${removedTokens.length}) != Num new tokens (${newTokensCount})`);
@@ -332,6 +459,18 @@ axios
     changedContent += JSON.stringify(removedTokens, null, 1);
     changedContent += "\n\nTokens with changed symbols = " + changedSymbols.length + ":\n<WH_chain_id>-<WH_token_addr>-<old_token_symbol>-><new_token_symbol>\n\n";
     changedContent += JSON.stringify(changedSymbols, null, 1);
+
+    changedContent += "\n\nToken identity counts by chain:\n<WH_chain_id>: <before> -> <after> (delta <after-before>)\n\n";
+    changedContent += JSON.stringify(tokenIdentityCountChanges, null, 1);
+
+    changedContent += "\n\nToken identities added = " + addedTokenIdentities.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
+    changedContent += JSON.stringify(addedTokenIdentities, null, 1);
+    changedContent += "\n\nToken identities removed = " + removedTokenIdentities.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
+    changedContent += JSON.stringify(removedTokenIdentities, null, 1);
+    changedContent += "\n\nToken symbols changed with same identity = " + changedSymbolsWithSameIdentity.length + ":\n<WH_chain_id>-<WH_token_addr>: <old_token_symbol> -> <new_token_symbol>\n\n";
+    changedContent += JSON.stringify(changedSymbolsWithSameIdentity, null, 1);
+    changedContent += "\n\nTokens in latest token data but not TVL = " + latestNotInTvl.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
+    changedContent += JSON.stringify(latestNotInTvl, null, 1);
 
     changedContent += "\n\nTokens with invalid symbols = " + failedInputValidationTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(failedInputValidationTokens, null, 1);
@@ -442,4 +581,8 @@ function inputHasInvalidChars(input) : boolean{
   }
 
   return false; 
+}
+
+function isValidWormholeAddress(input) : boolean{
+  return /^[0-9a-fA-F]{64}$/.test(input);
 }
