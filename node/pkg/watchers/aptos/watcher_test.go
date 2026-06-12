@@ -394,7 +394,7 @@ func TestAptosAddrEqual(t *testing.T) {
 	// Prefix, casing, and leading-zero padding are all ignored.
 	assert.True(t, aptosAddrEqual("0x01", "0x0000000000000000000000000000000000000000000000000000000000000001"))
 	assert.True(t, aptosAddrEqual("0xABCD", "abcd"))
-	assert.True(t, aptosAddrEqual("0X01", "0x01"))            // "0X" prefix
+	assert.True(t, aptosAddrEqual("0X01", "0x01"))             // "0X" prefix
 	assert.True(t, aptosAddrEqual("0x00", "0x00000000000000")) // zero address, any padding
 
 	// Distinct addresses must not be equal.
