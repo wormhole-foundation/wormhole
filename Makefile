@@ -46,7 +46,6 @@ lint-rust:
 node: $(BIN)/guardiand
 
 .PHONY: $(BIN)/guardiand
-$(BIN)/guardiand: CGO_ENABLED=1
 $(BIN)/guardiand: dirs generate
 	cd node && go build -ldflags "-X github.com/certusone/wormhole/node/pkg/version.version=${VERSION}" \
 	  -mod=readonly -o ../$(BIN)/guardiand \
