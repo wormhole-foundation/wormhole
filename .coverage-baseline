@@ -70,5 +70,5 @@ github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock 0.0
 github.com/certusone/wormhole/node/pkg/watchers/solana 39.9
 github.com/certusone/wormhole/node/pkg/watchers/sui 7.9
 github.com/certusone/wormhole/node/pkg/wormconn 0.0
-github.com/wormhole-foundation/wormhole/sdk 70.2
-github.com/wormhole-foundation/wormhole/sdk/vaa 61.4
+github.com/wormhole-foundation/wormhole/sdk 96.5
+github.com/wormhole-foundation/wormhole/sdk/vaa 83.4
