@@ -7,6 +7,8 @@ linters:
     - bidichk
     # Ensure that the body is closed on HTTP and websocket conns
     - bodyclose
+    # Blocking channel sends
+    - channelcheck
     - contextcheck
     - depguard
     # Duplicate word usage, such as 'and and' in a comment.
@@ -24,7 +26,6 @@ linters:
     - gosec
     - govet
     - ineffassign
-    - iotamixing
     - loggercheck
     # Check for simple misspellings of words. 
     - mnd
@@ -206,6 +207,13 @@ linters:
           #
           # Default: false
           check-exported: true
+    custom: 
+      channelcheck:
+        type: "module" 
+        description: Static analysis for go channel issues   
+        settings: 
+          CheckBlockingSends: true
+          CheckUnbufferedChannels: false
   exclusions:
     generated: lax
     presets:
@@ -231,6 +239,7 @@ linters:
         path: node/hack/
       # Ignore test files for these tools.
       - linters:
+          - channelcheck
           - contextcheck
           - dupWord
           - exhaustruct
