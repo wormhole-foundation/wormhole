@@ -128,7 +128,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 // makeDelegateObs builds a minimal DelegateObservation for the same VAA
 // (chain/emitter/sequence/payload), parameterized by the per-guardian fields
 // that don't affect the VAA digest: signer address, TxHash, IsReobservation.
-func makeDelegateObs(t *testing.T, signer ethcommon.Address, txHash []byte, isReobservation bool) *gossipv1.DelegateObservation {
+func makeDelegateObs(t testing.TB, signer ethcommon.Address, txHash []byte, isReobservation bool) *gossipv1.DelegateObservation {
 	t.Helper()
 	emitter, err := vaa.StringToAddress("000000000000000000000000b1731c586ca89a23809861c6103f0b96b3f57d92")
 	if err != nil {
@@ -148,6 +148,13 @@ func makeDelegateObs(t *testing.T, signer ethcommon.Address, txHash []byte, isRe
 		Unreliable:        false,
 		VerificationState: 0,
 	}
+}
+
+func makeDelegateMsgAndHash(t testing.TB, obs *gossipv1.DelegateObservation) (*common.MessagePublication, string) {
+	t.Helper()
+	mp, err := delegateObservationToMessagePublication(obs)
+	require.NoError(t, err)
+	return mp, mp.CreateDigest()
 }
 
 // TestHandleCanonicalDelegateObservation_BucketMergesAcrossIsReobservation feeds
@@ -182,11 +189,12 @@ func TestHandleCanonicalDelegateObservation_BucketMergesAcrossIsReobservation(t 
 	flags := []bool{false, false, true, true, true}
 	for i, signer := range signers {
 		obs := makeDelegateObs(t, signer, txID, flags[i])
+		mp, hash := makeDelegateMsgAndHash(t, obs)
 		// We don't drive checkForDelegateQuorum's downstream call here (that
 		// would require a full Processor); we stop after the bucket update.
 		// To do that, mark submitted on the bucket once it exists so the
 		// quorum-triggered downstream path is short-circuited.
-		_ = p.handleCanonicalDelegateObservation(t.Context(), cfg, obs)
+		_ = p.handleCanonicalDelegateObservation(t.Context(), cfg, obs, mp, hash)
 		if i == 0 {
 			// After the first observation, force submitted=true so subsequent
 			// calls return early without invoking the consensus handler.
@@ -305,14 +313,18 @@ func TestHandleCanonicalDelegateObservation_TxIDDisagreementWarn(t *testing.T) {
 	txA := ethcommon.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes()
 	txB := ethcommon.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").Bytes()
 
-	if err := p.handleCanonicalDelegateObservation(t.Context(), cfg, makeDelegateObs(t, signerA, txA, false)); err != nil {
+	obsA := makeDelegateObs(t, signerA, txA, false)
+	mpA, hashA := makeDelegateMsgAndHash(t, obsA)
+	if err := p.handleCanonicalDelegateObservation(t.Context(), cfg, obsA, mpA, hashA); err != nil {
 		t.Fatalf("first obs returned error: %v", err)
 	}
 	// Force submitted to short-circuit the quorum path on the second obs.
 	for _, s := range p.delegateState.observations {
 		s.submitted = true
 	}
-	if err := p.handleCanonicalDelegateObservation(t.Context(), cfg, makeDelegateObs(t, signerB, txB, false)); err != nil {
+	obsB := makeDelegateObs(t, signerB, txB, false)
+	mpB, hashB := makeDelegateMsgAndHash(t, obsB)
+	if err := p.handleCanonicalDelegateObservation(t.Context(), cfg, obsB, mpB, hashB); err != nil {
 		t.Fatalf("second obs returned error: %v", err)
 	}
 
