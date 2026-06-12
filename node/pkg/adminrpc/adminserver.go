@@ -1096,16 +1096,16 @@ func (s *nodePrivilegedService) fetchMissing(
 	defer cancel()
 
 	for _, node := range nodes {
-		req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
-			"%s/v1/signed_vaa/%d/%s/%d", node, chain, addr, seq), nil)
+		requestURL := fmt.Sprintf("%s/v1/signed_vaa/%d/%s/%d", node, chain, addr, seq)
+		req, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
 		if err != nil {
-			return false, fmt.Errorf("failed to create request: %w", err)
+			return false, fmt.Errorf("failed to create request: %s", common.SafeErrorForLogging(err, requestURL))
 		}
 
 		resp, err := c.Do(req)
 		if err != nil {
 			s.logger.Warn("failed to fetch missing VAA",
-				zap.String("node", node),
+				zap.String("node", common.SafeURLForLogging(node)),
 				zap.String("chain", chain.String()),
 				zap.String("address", addr),
 				zap.Uint64("sequence", seq),
@@ -1668,8 +1668,9 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	// Create the actual request
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, url, jsonBodyReader)
 	if err != nil {
-		fmt.Printf("GetAndObserveMissingVAAs: could not create request: %s\n", err)
-		return nil, err
+		safeErr := common.SafeErrorForLogging(err, url)
+		fmt.Printf("GetAndObserveMissingVAAs: could not create request: %s\n", safeErr)
+		return nil, fmt.Errorf("could not create request: %s", safeErr)
 	}
 
 	httpRequest.Header.Set("Content-Type", "application/json")
@@ -1681,8 +1682,9 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	// Call the cloud function to get the missing VAAs
 	results, err := client.Do(httpRequest)
 	if err != nil {
-		fmt.Printf("GetAndObserveMissingVAAs: error making http request: %s\n", err)
-		return nil, err
+		safeErr := common.SafeErrorForLogging(err, url)
+		fmt.Printf("GetAndObserveMissingVAAs: error making http request: %s\n", safeErr)
+		return nil, fmt.Errorf("error making http request: %s", safeErr)
 	}
 
 	defer results.Body.Close()

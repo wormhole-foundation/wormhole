@@ -364,14 +364,14 @@ func NewSolanaWatcher(
 }
 
 func (s *SolanaWatcher) setupSubscription(ctx context.Context, logger *zap.Logger) (*websocket.Conn, error) {
-	logger.Info(fmt.Sprintf("%s watcher connecting to WS node ", s.chainID.String()), zap.String("url", s.wsUrl))
+	logger.Info(fmt.Sprintf("%s watcher connecting to WS node ", s.chainID.String()), zap.String("wsURL", common.SafeURLForLogging(s.wsUrl)))
 
 	ws, resp, err := websocket.Dial(ctx, s.wsUrl, nil)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to establish websocket connection: %s", common.SafeErrorForLogging(err, s.wsUrl))
 	}
 
 	s.subId = uuid.New().String()
@@ -455,8 +455,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", s.chainID.String()),
-		zap.String("rpcUrl", s.rpcUrl),
-		zap.String("wsUrl", s.wsUrl),
+		zap.String("rpcURL", common.SafeURLForLogging(s.rpcUrl)),
+		zap.String("wsURL", common.SafeURLForLogging(s.wsUrl)),
 		zap.String("contract", contractAddr),
 		zap.String("rawContract", s.rawContract),
 		zap.String("shimContract", s.shimContractStr),

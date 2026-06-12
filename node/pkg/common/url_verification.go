@@ -40,3 +40,38 @@ func ValidateURL(urlStr string, validSchemes []string) bool {
 	}
 	return false
 }
+
+// SafeURLForLogging returns only the hostname for a URL-like string.
+// It intentionally omits userinfo, path, query, and fragment because those may contain credentials.
+func SafeURLForLogging(urlStr string) string {
+	if urlStr == "" {
+		return ""
+	}
+
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil || parsedURL.Host == "" {
+		// Schemeless host:port strings parse as scheme:opaque. Parse them again
+		// as network-path references so URL.Hostname can extract the host.
+		parsedURL, err = url.Parse("//" + urlStr)
+	}
+	if err != nil {
+		return "<invalid-url>"
+	}
+
+	if host := parsedURL.Hostname(); host != "" {
+		return host
+	}
+
+	return "<invalid-url>"
+}
+
+// SafeErrorForLogging returns an error string with a raw URL replaced by its safe logging form.
+func SafeErrorForLogging(err error, urlStr string) string {
+	if err == nil {
+		return ""
+	}
+	if urlStr == "" {
+		return err.Error()
+	}
+	return strings.ReplaceAll(err.Error(), urlStr, SafeURLForLogging(urlStr))
+}
