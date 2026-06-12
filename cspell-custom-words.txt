@@ -38,6 +38,8 @@ certusone
 chainid
 ChainID
 Chainlink
+channelcheck
+channellint
 Coinspect
 collateralization
 colour
@@ -71,6 +73,7 @@ Finalizer
 fogo
 fogoshim
 Fogo
+footguns
 forgeable
 FQTs
 frontends
@@ -142,8 +145,10 @@ monad
 Monad
 moonscan
 moretags
+multichecker
 Neodyme
 nhooyr
+nolint
 obsv
 Obsv
 OP_CHECKMULTISIG
@@ -222,6 +227,7 @@ superminority
 tendermint
 Tendermint
 terrad
+testdata
 tokenbridge
 tokenfactory
 trustlessly
@@ -232,6 +238,8 @@ txverifier
 uatom
 uluna
 unbond
+Unbuffered
+unbuffered
 Uncompromised
 undelegated
 undercollateralization
