@@ -53,6 +53,7 @@ func init() {
 	rootCmd.AddCommand(guardiand.KeygenCmd)
 	rootCmd.AddCommand(guardiand.AdminCmd)
 	rootCmd.AddCommand(guardiand.TemplateCmd)
+	rootCmd.AddCommand(guardiand.KeyprintCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(debug.DebugCmd)
 }
