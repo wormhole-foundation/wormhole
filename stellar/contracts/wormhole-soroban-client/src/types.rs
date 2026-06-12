@@ -6,7 +6,7 @@
 
 use crate::{BytesReader, VAA_HEADER_MIN_LENGTH, WormholeError};
 use core::convert::TryFrom;
-use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contracttype};
+use soroban_sdk::{Bytes, BytesN, Env, Vec, contracttype};
 
 // ========== VAA Types ==========
 
@@ -134,53 +134,6 @@ pub struct PostedMessageData {
     pub consistency_level: ConsistencyLevel,
     /// Application-specific message payload.
     pub payload: Bytes,
-}
-
-// ========== Executor Types ==========
-
-/// Off-chain quote submitted alongside a delivery request to the Wormhole
-/// Executor contract.
-///
-/// A `SignedQuote` binds a `quoter` and a `payee` to a (`src_chain`,
-/// `dst_chain`, `expiry`) tuple so that the payer knows who will relay the
-/// request, who must be paid, and until when the quote is valid.
-///
-/// # Authentication is NOT performed on-chain
-///
-/// **Neither the [`prefix`](Self::prefix) domain tag nor the `quoter`'s
-/// signature over the quote are verified by the Executor contract.** The
-/// name "SignedQuote" refers to the fact that relayer SDKs produce these
-/// structures with an off-chain signature, but the on-chain Executor treats
-/// the struct as plain untrusted data: only `src_chain`, `dst_chain` and
-/// `expiry` are checked, and the payer's authorization is required for the
-/// token transfer.
-///
-/// Validating that a given `quoter` actually authored the quote is the
-/// caller's responsibility and must be performed off-chain (typically by
-/// the relayer SDK) before invoking `request_execution`.
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct SignedQuote {
-    /// 4-byte domain separator from the off-chain signing scheme (e.g.
-    /// `b"EQ01"`)
-    pub prefix: BytesN<4>,
-    /// Address of the party that issued (and off-chain-signed) this quote.
-    pub quoter: Address,
-    /// Address credited with the `amount` native token transfer when
-    /// `request_execution` succeeds.
-    pub payee: Address,
-    /// Wormhole chain id the quote was issued for as the source chain.
-    /// Must equal the chain id configured at construction, otherwise
-    /// `ExecutorError::QuoteSrcChainMismatch` is returned.
-    pub src_chain: u32,
-    /// Wormhole chain id of the intended destination chain. Must equal the
-    /// `dst_chain` argument passed to `request_execution`, otherwise
-    /// `ExecutorError::QuoteDstChainMismatch` is returned.
-    pub dst_chain: u32,
-    /// Unix timestamp (seconds) after which the quote is no longer valid.
-    /// The contract rejects the call with `ExecutorError::QuoteExpired`
-    /// whenever `expiry <= env.ledger().timestamp()`.
-    pub expiry: u64,
 }
 
 // ========== Type Implementations ==========

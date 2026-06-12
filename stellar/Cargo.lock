@@ -1955,14 +1955,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-executor"
-version = "0.1.0"
-dependencies = [
- "soroban-sdk",
- "wormhole-soroban-client",
-]
-
-[[package]]
 name = "wormhole-soroban-client"
 version = "0.1.0"
 dependencies = [
