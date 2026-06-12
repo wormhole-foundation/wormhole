@@ -76,8 +76,8 @@ var flagSet flag.FlagSet
 // Global structure to store the variables in
 var settings Settings
 
-func New(settings_new any) (register.LinterPlugin, error) {
-	s, err := register.DecodeSettings[Settings](settings_new)
+func New(settingsNew any) (register.LinterPlugin, error) {
+	s, err := register.DecodeSettings[Settings](settingsNew)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// Fails open by design. Will
 			case *ast.SelectStmt: // Select statement for channel matching
 
-				if settings.CheckBlockingSends == false {
+				if !settings.CheckBlockingSends {
 					break
 				}
 				selectAnalysis := processSelect(pass, n)
@@ -160,6 +160,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 						sendsAreSafe = true
 					case EscapeContextDone:
 						foundContext = true
+					case EscapeNone, EscapeOther:
+						// Neither marks the send safe: EscapeNone shouldn't appear
+						// here (Escapes excludes it) and EscapeOther alone provides
+						// no backpressure relief.
 					}
 				}
 
@@ -207,17 +211,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// Most of the work is done in the previous case statement.
 			case *ast.SendStmt:
 
-				if settings.CheckBlockingSends == false {
+				if !settings.CheckBlockingSends {
 					break
 				}
 
 				// If the SendStmt was NOT found within a Select clause, then add a linter error.
-				tokenId := n.Pos()
-				if _, ok := seenPositions[tokenId]; !ok {
+				tokenID := n.Pos()
+				if _, ok := seenPositions[tokenID]; !ok {
 					if name, named := sendChanName(n); named && settings.ignoreChannelNames[name] {
 						return true
 					}
-					pass.Reportf(tokenId, "Blocking send. Add timer, ticker, or default case: %q", render(pass.Fset, n))
+					pass.Reportf(tokenID, "Blocking send. Add timer, ticker, or default case: %q", render(pass.Fset, n))
 				}
 				return true
 			case *ast.CallExpr:
@@ -227,7 +231,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					pass.Reportf(n.Pos(), "unbuffered channel creation detected - consider specifying buffer size %q", render(pass.Fset, n))
 				}
 
-				if settings.CheckBufferAmount > 0 && bufferAmount > 0 && uint64(bufferAmount) > settings.CheckBufferAmount {
+				if settings.CheckBufferAmount > 0 && bufferAmount > 0 && bufferAmount > settings.CheckBufferAmount {
 					pass.Reportf(n.Pos(), "channel buffer size exceeds the specified limit %q", render(pass.Fset, n))
 				}
 				return true
@@ -388,7 +392,11 @@ func isNamedType(candidateType types.Type, pkgPath, typeName string) bool {
 	return typeObj.Pkg().Path() == pkgPath && typeObj.Name() == typeName
 }
 
-func checkChannelCreation(pass *analysis.Pass, node *ast.CallExpr) (bool, int64) {
+// makeChanBufferedArgs is the argument count of a buffered channel make:
+// make(chan T, size) — the channel type plus the buffer-size expression.
+const makeChanBufferedArgs = 2
+
+func checkChannelCreation(pass *analysis.Pass, node *ast.CallExpr) (bool, uint64) {
 	fun, ok := node.Fun.(*ast.Ident)
 	if !ok || fun == nil || fun.Name != "make" {
 		return false, 0
@@ -400,7 +408,7 @@ func checkChannelCreation(pass *analysis.Pass, node *ast.CallExpr) (bool, int64)
 				return true, 0 // Unbuffered channel
 			}
 
-			if len(node.Args) == 2 {
+			if len(node.Args) == makeChanBufferedArgs {
 				// Evaluate the buffer size expression
 				bufferSize, err := evalBufferSize(pass, node.Args[1])
 				if err != nil {
@@ -415,7 +423,7 @@ func checkChannelCreation(pass *analysis.Pass, node *ast.CallExpr) (bool, int64)
 				if bufferSize == 0 {
 					return true, 0
 				}
-				return false, int64(bufferSize)
+				return false, bufferSize
 			}
 		}
 	}

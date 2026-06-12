@@ -1,6 +1,6 @@
 module github.com/certusone/wormhole/linters
 
-go 1.25.0
+go 1.25.10
 
 require (
 	github.com/certusone/wormhole/linters/rules/channelcheck v0.0.0

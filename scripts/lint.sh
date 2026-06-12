@@ -54,7 +54,7 @@ format(){
     fi
 
     # Use -exec because of pitfall #1 in http://mywiki.wooledge.org/BashPitfalls
-    GOFMT_OUTPUT="$(find "./sdk" "./node" "./wormchain" -type f -name '*.go' -not -path '*.pb.go' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
+    GOFMT_OUTPUT="$(find "./sdk" "./node" "./wormchain" "./linters" -type f -name '*.go' -not -path '*.pb.go' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
 
     if [ -n "$GOFMT_OUTPUT" ]; then
         if [ "$GITHUB_ACTION" == "true" ]; then
@@ -98,6 +98,15 @@ ensure_wormhole_golangci_lint() {
         mv "$tmp" "$bin"  # atomic publish; safe under concurrent runs
     fi
 
+    # Delete old cache entries. (stderr only — stdout is the binary path.)
+    for old in "$WORMHOLE_GOLANGCI_LINT_CACHE"/*/; do
+        [ -d "$old" ] || continue  # no subdirs yet: glob stayed literal
+        if [ "$(basename "$old")" != "$hash" ]; then
+            echo "Removing stale wormhole-golangci-lint ($(basename "$old" | cut -c1-12))..." >&2
+            rm -rf "$old"
+        fi
+    done
+
     echo "$bin"
 }
 
@@ -113,12 +122,20 @@ lint(){
     local LINT_BIN
     LINT_BIN="$(ensure_wormhole_golangci_lint)"
 
-    # Do the actual linting!
-    cd "$ROOT"/node
-    "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    # Lint each Go module root. linters/ is the custom linter's own code; its
+    # rules/<name>/ are separate modules (mirroring `make -C linters test`), so
+    # lint each one too. Run in a subshell so a failure still halts under
+    # `set -e` without leaking the working directory between modules.
+    lint_module() {
+        ( cd "$1" && "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./... )
+    }
 
-    cd "${ROOT}/sdk"
-    "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    lint_module "$ROOT/node"
+    lint_module "$ROOT/sdk"
+    lint_module "$ROOT/linters"
+    while IFS= read -r gomod; do
+        lint_module "$(dirname "$gomod")"
+    done < <(find "$ROOT/linters/rules" -name go.mod)
 }
 
 DOCKER="false"
