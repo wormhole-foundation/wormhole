@@ -280,3 +280,7 @@ xpla
 XPLA
 XRPL
 Zellic
+soroban
+deallocation
+stroops
+contractimpl

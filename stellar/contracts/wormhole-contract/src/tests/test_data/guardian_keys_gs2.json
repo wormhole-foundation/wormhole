@@ -1,0 +1,100 @@
+{
+  "index": 2,
+  "guardians": [
+    {
+      "index": 0,
+      "privateKey": "4c76bf6027096508b29524526755ac0081200872bc4790d67f92dd48e9fe2404",
+      "ethereumAddress": "0xf2f8f0E972123f381bA5bc8A1D7c54Ac5064429e"
+    },
+    {
+      "index": 1,
+      "privateKey": "8687a1376d6853549fafaed5fae63d815e869987b3cc8eb42783d3835dfdb7dd",
+      "ethereumAddress": "0x10013b48B87AF3f7510A1aE1A96ECEB29149cf97"
+    },
+    {
+      "index": 2,
+      "privateKey": "8df8cc2d63a96b080d45f92508d4b3d1d7a6d52e5cf19c612e11106a66b3d1da",
+      "ethereumAddress": "0xA0bfD07702A6768C29783605857D9922cc94b743"
+    },
+    {
+      "index": 3,
+      "privateKey": "ef4a0c87e6bafb3631a90146ac54356824d97d88e9b74d1d5fbea26c7560ef72",
+      "ethereumAddress": "0x73F09f5e9111557E6238B05582b9fd446F2697f8"
+    },
+    {
+      "index": 4,
+      "privateKey": "979720c5bc552d2e332e7b64fcb73519a8dbe81c069c776e7820e0359959eb01",
+      "ethereumAddress": "0x7E686Ec5f737128bdBe80B602D128C15bF53aaD9"
+    },
+    {
+      "index": 5,
+      "privateKey": "f716695c8fcb9603f23f5c6c9a513697baa5288e729b878e8ff6332f1ceeee13",
+      "ethereumAddress": "0x09a99C9E73734D7f5d733bDC0cF20F9a490Ca0F3"
+    },
+    {
+      "index": 6,
+      "privateKey": "7b736c5b87ac13d4caed0657af752d5957dc191ec8cbd17ab3701fcef6fd90dc",
+      "ethereumAddress": "0x2802fd0fdb2E3a5b775957cDc30a227e86231FcD"
+    },
+    {
+      "index": 7,
+      "privateKey": "b1f95bd69e80bdbd53d10b7c922c83584ccbb4d9311a71cff4b01c1ff64d6edb",
+      "ethereumAddress": "0xe0FEfD417D077c6F28aBd53BdFE57318a382bEd7"
+    },
+    {
+      "index": 8,
+      "privateKey": "1b3dd961f4248985e64706e380fc493eab3bbcff87c5d5efe982dbdb512ccc64",
+      "ethereumAddress": "0xE3e585b3514c4bB46bE3d46c21CB343F5A0eF74B"
+    },
+    {
+      "index": 9,
+      "privateKey": "c39ef04268e0088317843c151dbbeea4b75d7649633311385ce8d9861d637816",
+      "ethereumAddress": "0xA0ce0Ad850E3AC548755D31ed90Ae0aA576B76b3"
+    },
+    {
+      "index": 10,
+      "privateKey": "d390f2f6f581bbb360dfd6825c24d5fedccfcb540517641ab286b17229a7f3cf",
+      "ethereumAddress": "0x7Dd0C239E79480094eD1a0Fc187e057A94d4dCEA"
+    },
+    {
+      "index": 11,
+      "privateKey": "a1edac9ccb044340a45515ba36ea00b10253b53fb08eff28967f25ed5bfb83d0",
+      "ethereumAddress": "0xE14ce194a7080ABeDA7409e871D65C4D50db2Be5"
+    },
+    {
+      "index": 12,
+      "privateKey": "367e4b72f19cbe4eae0e4e12e995feabb2b110aa38c0a17c38bcdf7a87ccf1da",
+      "ethereumAddress": "0x252eC49276E1B73F5e7A705D624EeEf63a6B6C53"
+    },
+    {
+      "index": 13,
+      "privateKey": "33f42157480df3835969433c2fe6aa33ba942cc07ed5e27aff453b007b0d9190",
+      "ethereumAddress": "0x217B15C6fe0d67783a69CF619AC7e0797ce383d1"
+    },
+    {
+      "index": 14,
+      "privateKey": "2d28c22c2522b48233f856d24d961e9a516a667f11b4bc9da2ec9aa3e09993cd",
+      "ethereumAddress": "0xB4041c228F8bb853c610b994aFfaCbe73e8Df77f"
+    },
+    {
+      "index": 15,
+      "privateKey": "2dbd5ff8f217421be1f84b6802f43fc6e8c300514e7a6a00fa38c279947982fe",
+      "ethereumAddress": "0x77Bf28427492f8f247dc11ef9EB49dF59955Fc8f"
+    },
+    {
+      "index": 16,
+      "privateKey": "72fee4e3d0c50ddbbef881d9ede46de171f715839908f78b07fd562e46c21459",
+      "ethereumAddress": "0xB9Da46077e4BE1cB76f77E755221579F9B9BC9d9"
+    },
+    {
+      "index": 17,
+      "privateKey": "07c8235ca777835521e89886a9f708f8235f652ba84d55066beee788e3bf9c26",
+      "ethereumAddress": "0x4F6f5282382473895A449441dcCF7675bb39E28D"
+    },
+    {
+      "index": 18,
+      "privateKey": "d196d8c5c3b10165bc927e790ce34a49b6c19b77ece02beaabcaacc845a3c1da",
+      "ethereumAddress": "0x99d0B3E8a9AE4f2e8F0C5067530DAA1198E5b507"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+deployer: ""
+friendbot_url: ""  # No friendbot on mainnet
+
+# Standard Wormhole governance emitter address (32 bytes hex)
+# 0x0000...0004 is the canonical governance emitter
+governance_emitter: "0000000000000000000000000000000000000000000000000000000000000004"
+
+guardians: []
+
