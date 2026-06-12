@@ -12,7 +12,7 @@ module coins::coin {
     struct COIN has drop {}
 
     fun init(witness: COIN, ctx: &mut TxContext) {
-        use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
+        use token_bridge::version_control::{V__0_3_0 as V__CURRENT};
 
         transfer::public_transfer(
             create_wrapped::prepare_registration<COIN, V__CURRENT>(
@@ -62,7 +62,7 @@ module coins::coin_tests {
     use wormhole::external_address::{Self};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
-    use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
+    use token_bridge::version_control::{V__0_3_0 as V__CURRENT};
 
     use coins::coin::{COIN};
 

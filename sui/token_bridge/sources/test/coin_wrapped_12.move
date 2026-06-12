@@ -15,7 +15,7 @@ module token_bridge::coin_wrapped_12 {
     use token_bridge::token_registry::{Self};
     use token_bridge::wrapped_asset::{Self};
 
-    use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
+    use token_bridge::version_control::{V__0_3_0 as V__CURRENT};
 
     struct COIN_WRAPPED_12 has drop {}
 
