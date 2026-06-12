@@ -232,6 +232,8 @@ func QueryEvmChainID(ctx context.Context, url string) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to connect to endpoint: %w", err)
 	}
+	// The context only bounds the dial; the client must be closed explicitly.
+	defer c.Close()
 
 	var str string
 	err = c.CallContext(ctx, &str, "eth_chainId")
@@ -261,6 +263,7 @@ func (w *Watcher) verifyEvmChainID(ctx context.Context, logger *zap.Logger, url 
 	if err != nil {
 		return fmt.Errorf("failed to connect to endpoint: %w", err)
 	}
+	defer c.Close()
 
 	var str string
 	err = c.CallContext(ctx, &str, "eth_chainId")

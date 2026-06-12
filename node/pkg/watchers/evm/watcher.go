@@ -301,6 +301,10 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			return fmt.Errorf(`failed to create connection to url "%s": %w`, w.url, err)
 		}
 
+		// Close this Run's connector on return so its goroutines exit.
+		// w.pending is deliberately kept: clearing it would drop messages.
+		defer w.ethConn.Close()
+
 		// Log the connector details for troubleshooting purposes.
 		if finalizedPollingSupported {
 			if safePollingSupported {
@@ -869,6 +873,8 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		if err != nil {
 			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
 		}
+		// The context only bounds the dial; the client must be closed explicitly.
+		defer c.Close()
 
 		type Marshaller struct {
 			Number *eth_hexutil.Big
