@@ -6,6 +6,10 @@ RUN mkdir /app
 COPY tools/build.sh /app/tools/
 COPY tools/go.* /app/tools/
 
+# Build these tools as static binaries. They are compiled in this Debian-based
+# image but later copied into Alpine (below in the `node-build` step), which 
+# does not provide Debian's glibc dynamic loader. Without CGO_ENABLED=0, tools 
+# such as buf can be linked against glibc and fail in Alpine with a misleading "not found" error.
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
 	cd /app/tools && CGO_ENABLED=0 ./build.sh
 
