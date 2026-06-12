@@ -162,6 +162,12 @@ func (v VerificationState) String() string {
 	}
 }
 
+// MessagePublication represents an observation of a message being published on Wormhole.
+// It is the result of a direct on-chain observation of a message being published on a supported chain,
+// or the result of a gossiped observation of a message being published on the p2p network.
+// MessagePublication is the precursor to a [vaa.VAA], containing the same data but before signature verification.
+// It also has several metadata fields that are not part of the VAA signing digest and therefore MUST NOT be relied upon
+// for consensus. However, metadata fields SHOULD be consistent across all guardians for a given message.
 type MessagePublication struct {
 	// TxID is the chain-native transaction identifier where the wormhole
 	// message was emitted. TxID is per-guardian metadata: it is NOT hashed
@@ -191,21 +197,22 @@ type MessagePublication struct {
 	// whose buckets reach quorum at different observation subsets can still
 	// pick different majorities; recovery for that case is the audit /
 	// missing_observations reobs flow rather than the delegate-quorum path.
-	TxID      []byte
-	Timestamp time.Time
-
-	Nonce            uint32
-	Sequence         uint64
-	ConsistencyLevel uint8
-	EmitterChain     vaa.ChainID
-	EmitterAddress   vaa.Address
+	TxID []byte
 	// NOTE: there is no upper bound on the size of the payload. Wormhole supports arbitrary payloads
 	// due to the variance in transaction and block sizes between chains. However, during deserialization,
 	// payload lengths are bounds-checked against [PayloadLenMax] to prevent makeslice panics from malformed input.
 	// Similarly, for delegated chains, the entire payload needs to be sent over p2p and thus payload lengths are
 	// bounds-checked against [DelegatedPayloadLenMax] to avoid exceeding the p2p message size limit.
-	Payload         []byte
-	IsReobservation bool
+	Payload   []byte
+	Timestamp time.Time
+
+	// Non-pointer fields sorted by size
+	EmitterAddress   vaa.Address
+	Sequence         uint64
+	Nonce            uint32
+	EmitterChain     vaa.ChainID
+	ConsistencyLevel uint8
+	IsReobservation  bool
 
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
@@ -639,8 +646,8 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 func (msg *MessagePublication) MarshalJSON() ([]byte, error) {
 	type Alias MessagePublication
 	return json.Marshal(&struct {
-		Timestamp int64
 		*Alias
+		Timestamp int64
 	}{
 		Timestamp: msg.Timestamp.Unix(),
 		Alias:     (*Alias)(msg),
@@ -650,8 +657,8 @@ func (msg *MessagePublication) MarshalJSON() ([]byte, error) {
 func (msg *MessagePublication) UnmarshalJSON(data []byte) error {
 	type Alias MessagePublication
 	aux := &struct {
-		Timestamp int64
 		*Alias
+		Timestamp int64
 	}{
 		Alias: (*Alias)(msg),
 	}

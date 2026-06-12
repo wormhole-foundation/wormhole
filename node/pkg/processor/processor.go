@@ -59,27 +59,27 @@ type (
 		firstObserved time.Time
 		// A re-observation request shall not be sent before this time.
 		nextRetry time.Time
-		// Number of times we sent a re-observation request
-		retryCtr uint
-		// Copy of our observation.
-		ourObservation Observation
-		// Map of signatures seen by guardian. During guardian set updates, this may contain signatures belonging
-		// to either the old or new guardian set.
-		signatures map[ethcommon.Address][]byte
-		// Flag set after reaching quorum and submitting the VAA.
-		submitted bool
-		// Flag set by the cleanup service after the settlement timeout has expired and misses were counted.
-		settled bool
-		// Human-readable description of the VAA's source, used for metrics.
-		source string
-		// Our observation in case we need to resubmit it to the batch publisher.
-		ourObs *gossipv1.Observation
 		// Copy of the bytes we submitted (ourObservation, but signed and serialized). Used for retransmissions.
 		ourMsg []byte
 		// The hash of the transaction in which the observation was made.  Used for re-observation requests.
 		txHash []byte
+		// Human-readable description of the VAA's source, used for metrics.
+		source string
+		// Copy of our observation.
+		ourObservation Observation
+		// Our observation in case we need to resubmit it to the batch publisher.
+		ourObs *gossipv1.Observation
+		// Map of signatures seen by guardian. During guardian set updates, this may contain signatures belonging
+		// to either the old or new guardian set.
+		signatures map[ethcommon.Address][]byte
 		// Copy of the guardian set valid at observation/injection time.
 		gs *common.GuardianSet
+		// Number of times we sent a re-observation request
+		retryCtr uint
+		// Flag set after reaching quorum and submitting the VAA.
+		submitted bool
+		// Flag set by the cleanup service after the settlement timeout has expired and misses were counted.
+		settled bool
 	}
 
 	observationMap map[string]*state
@@ -97,13 +97,13 @@ type (
 		// Map of delegate observations sent by guardian.
 		observations map[ethcommon.Address]*gossipv1.DelegateObservation
 
-		// Flag set after reaching quorum and submitting the VAA.
-		submitted bool
-
 		// Copy of the delegated guardian config valid at first observation time.
 		// This ensures that during delegated guardian set updates, quorum is checked
 		// against the config that was active when the message was first observed
 		cfg *DelegatedGuardianChainConfig
+
+		// Flag set after reaching quorum and submitting the VAA.
+		submitted bool
 	}
 
 	delegateObservationMap map[string]*delegateState
@@ -130,6 +130,11 @@ type PythNetVaaEntry struct {
 }
 
 type Processor struct {
+	// guardiandSigner is the guardian node's signer
+	guardianSigner guardiansigner.GuardianSigner
+
+	networkID string
+
 	// msgC is a channel of observed emitted messages
 	msgC <-chan *common.MessagePublication
 
@@ -164,8 +169,8 @@ type Processor struct {
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
 
-	// guardianSigner is the guardian node's signer
-	guardianSigner guardiansigner.GuardianSigner
+	// managerC is the channel used to send signed VAAs to the manager service (nil if manager service is disabled)
+	managerC chan<- *vaa.VAA
 
 	logger *zap.Logger
 
@@ -188,28 +193,27 @@ type Processor struct {
 	state *aggregationState
 	// delegateState is the current delegate observation view
 	delegateState *delegateAggregationState
-	// gk pk as eth address
-	ourAddr ethcommon.Address
-
-	governor       *governor.ChainGovernor
-	acct           *accountant.Accountant
-	acctReadC      <-chan *common.MessagePublication
-	notary         *guardianNotary.Notary
-	pythnetVaas    map[string]PythNetVaaEntry
-	gatewayRelayer *gwrelayer.GatewayRelayer
-	updateVAALock  sync.Mutex
-	updatedVAAs    map[string]*updateVaaEntry
-	networkID      string
 
 	// batchObsvPubC is the internal channel used to publish observations to the batch processor for publishing.
 	batchObsvPubC chan *gossipv1.Observation
 
+	acctReadC <-chan *common.MessagePublication
+
+	pythnetVaas   map[string]PythNetVaaEntry
+	updatedVAAs   map[string]*updateVaaEntry
+	updateVAALock sync.Mutex
+
+	governor       *governor.ChainGovernor
+	acct           *accountant.Accountant
+	notary         *guardianNotary.Notary
+	gatewayRelayer *gwrelayer.GatewayRelayer
+
+	// gk pk as eth address
+	ourAddr ethcommon.Address
+
 	// delegatedGuardiansEnabled gates the delegated guardians protocol. When false, the processor
 	// always uses canonical guardian behavior and ignores incoming delegate observations.
 	delegatedGuardiansEnabled bool
-
-	// managerC is the channel used to send signed VAAs to the manager service (nil if manager service is disabled)
-	managerC chan<- *vaa.VAA
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
