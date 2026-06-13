@@ -130,12 +130,23 @@ func (s *SuiGrpcClient) GetLatestCheckpoint(ctx context.Context, fields []string
 // Replaces `sui_getTransactionBlock`.
 // Docs: https://www.quicknode.com/docs/sui/sui-grpc/ledger/get-transaction
 //
+// The execution status is always fetched in addition to the requested fields, and an error is
+// returned unless the transaction carries an explicit successful status. Wormhole only ever
+// cares about successful transactions, so enforcing this here guarantees callers never act on
+// data from a failed (or status-less) transaction.
+//
 // Returned-field nil-checking is the caller's responsibility — any field
 // not requested OR not returned by the upstream node comes back nil/empty,
 // and this method does not enforce per-field presence.
 func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string, fields []string) (SuiTransaction, error) {
 	if len(fields) == 0 {
 		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction requires at least one field for digest=%s", digest)
+	}
+
+	if !slices.Contains(fields, TransactionFieldStatus) {
+		// Clone before appending so the caller's slice is never mutated through a shared
+		// backing array.
+		fields = append(slices.Clone(fields), TransactionFieldStatus)
 	}
 
 	getTransactionRequest := pb.GetTransactionRequest{
@@ -153,7 +164,21 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string, field
 		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction returned nil top-level properties for digest=%s fields=%v", digest, fields)
 	}
 
+	if !transactionSucceeded(resp.Transaction) {
+		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction: transaction did not execute successfully (or its execution status is missing) for digest=%s", digest)
+	}
+
 	return grpcExecutedTransactionToSuiTransaction(resp.Transaction), nil
+}
+
+// transactionSucceeded reports whether the executed transaction carries an explicit successful
+// execution status. A missing effects/status/success field counts as failure (fail closed).
+func transactionSucceeded(tx *pb.ExecutedTransaction) bool {
+	return tx != nil &&
+		tx.Effects != nil &&
+		tx.Effects.Status != nil &&
+		tx.Effects.Status.Success != nil &&
+		*tx.Effects.Status.Success
 }
 
 func (s *SuiGrpcClient) createCheckpointStream(ctx context.Context, fields []string) (pb.SubscriptionService_SubscribeCheckpointsClient, error) {
@@ -168,7 +193,7 @@ func (s *SuiGrpcClient) createCheckpointStream(ctx context.Context, fields []str
 	return stream, err
 }
 
-func (s *SuiGrpcClient) SubscribeToTransactionEvent(ctx context.Context, event string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
+func (s *SuiGrpcClient) SubscribeToTransactionEvent(ctx context.Context, event string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error) {
 	eventTypes := []string{
 		event,
 	}
@@ -176,7 +201,7 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvent(ctx context.Context, event s
 	return s.SubscribeToTransactionEvents(ctx, eventTypes, eventWriteChannel)
 }
 
-func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error) {
+func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error) {
 	if len(eventTypes) == 0 {
 		return SuiSubscription{}, fmt.Errorf("sui gRPC SubscribeToTransactionEvents requires at least one event type")
 	}
@@ -184,9 +209,14 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 		return SuiSubscription{}, fmt.Errorf("sui gRPC SubscribeToTransactionEvents requires a non-nil eventWriteChannel")
 	}
 
-	// This stream is only concerned with transaction events
+	// This stream is concerned with transaction events plus the digest of the transaction
+	// that emitted them, which is paired with each event as a SuiTransactionEvent below.
+	// The execution status is fetched as well so that events from failed transactions can
+	// be dropped.
 	fields := []string{
+		"transactions.digest",
 		"transactions.events",
+		"transactions.effects.status",
 	}
 
 	// Create a cancel context for use in the subscription
@@ -250,6 +280,16 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 					continue
 				}
 
+				// Sui only commits events for successful transactions, so a transaction that
+				// carries events without an explicit successful status is anomalous. Drop its
+				// events (fail closed).
+				if !transactionSucceeded(tx) {
+					s.logger.Warn("Sui gRPC subscription: dropping events from a transaction without a successful execution status",
+						zap.Stringp("digest", tx.Digest),
+					)
+					continue
+				}
+
 				// Iterate over events.
 				for _, grpcEvent := range tx.Events.Events {
 
@@ -273,10 +313,17 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 						continue
 					}
 
+					// Pair the event with the digest of the transaction that emitted it; the
+					// bare gRPC Event carries no digest of its own.
+					txDigest := ""
+					if tx.Digest != nil {
+						txDigest = *tx.Digest
+					}
+
 					// Writing to eventWriteChannel could be blocking if there are no readers. Use a select to include
 					// a simultaneous check to bail out if the context is cancelled.
 					select {
-					case eventWriteChannel <- *suiEvent:
+					case eventWriteChannel <- SuiTransactionEvent{TxDigest: txDigest, Event: *suiEvent}:
 					case <-ctx.Done():
 						return
 					}
@@ -298,9 +345,11 @@ func (s *SuiGrpcClient) Close() error {
 	return nil
 }
 
-// Create a new SuiClient, with the gRPC service as implementation. Additional gRPC dial options
-// (e.g. for custom transport credentials, interceptors, or per-RPC metadata via interceptors) may
-// be supplied; they are appended after the defaults so callers can override them.
+// Create a new SuiClient, with the gRPC service as implementation. The default transport is TLS.
+// Additional gRPC dial options (e.g. for custom transport credentials, interceptors, or per-RPC
+// metadata via interceptors) may be supplied; they are appended after the defaults so callers can
+// override them. In particular, passing grpc.WithTransportCredentials(insecure.NewCredentials())
+// overrides the default TLS transport with a plaintext one, as needed for a local dev-mode node.
 func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialOption) (SuiClient, error) {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -403,6 +452,20 @@ func grpcExecutedTransactionToSuiTransaction(grpcTransaction *pb.ExecutedTransac
 			if suiEventPtr := grpcEventToSuiEvent(event); suiEventPtr != nil {
 				out.Events = append(out.Events, *suiEventPtr)
 			}
+		}
+	}
+
+	if grpcTransaction.Effects != nil {
+		for _, changedObject := range grpcTransaction.Effects.ChangedObjects {
+			if changedObject == nil {
+				continue
+			}
+			out.ObjectChanges = append(out.ObjectChanges, SuiObjectChange{
+				ObjectID:      changedObject.ObjectId,
+				ObjectType:    changedObject.ObjectType,
+				InputVersion:  changedObject.InputVersion,
+				OutputVersion: changedObject.OutputVersion,
+			})
 		}
 	}
 
