@@ -112,7 +112,7 @@ Three roles control the pause state, each configured per chain via a `SetPauserA
 
 - A `pauser` may call `pause` to set `paused` to `true` and set `pauseExpiry` to `block.timestamp + PAUSE_DURATION`, where `PAUSE_DURATION` is initially a hard-coded constant of 5 days. `pause` may be called repeatedly; each call pushes `pauseExpiry` to 5 days from the current time, so the bridge stays paused for as long as the `pauser` keeps re-pausing. A `pause` call MUST NOT reduce a `pauseExpiry` already further in the future (e.g. one set by `freeze`) - a lower-trust `pauser` cannot curtail a `freeze`. This requirement is why unpausing MUST set `pauseExpiry` to the current time: a stale expiry left over from a prior `freeze` would otherwise block a later `pause`.
 - A `freezer` may call `freeze` to set `paused` to `true` and set `pauseExpiry` to the maximum representable timestamp, pausing the bridge for the maximum amount of time. A frozen bridge will not become permissionlessly unpausable in practice and can only be lifted by the `unpauser`. `freeze` is the higher-trust counterpart to the temporary, self-expiring `pauser`. A `freeze` call from the `freeze` role always succeeds: if the bridge is unpaused, it causes a pause; if already paused, it extends the existing pause to the maximum duration. Successive `freeze` calls are a no-op.
-- An `unpauser` may call `unpause` to set `paused` back to `false` and `pauseExpiry` to `block.timestamp` at any time, regardless of `pauseExpiry`. Recording the current time (rather than `0`) leaves on-chain evidence of the last unpause while still bringing any stale `freeze` expiry down to the present so it cannot block a later `pause`. This is the privileged path to lift a pause (including a `freeze`) before it would otherwise expire.
+- An `unpauser` may call `unpause` to set `paused` back to `false` and `pauseExpiry` to `block.timestamp` at any time while paused, regardless of `pauseExpiry`. Recording the current time (rather than `0`) leaves on-chain evidence of the last unpause while still bringing any stale `freeze` expiry down to the present so it cannot block a later `pause`. This is the privileged path to lift a pause (including a `freeze`) before it would otherwise expire.
 
 Additionally, a permissionless `unpauseExpired` entry point allows anyone to set `paused` to `false` once `block.timestamp >= pauseExpiry`. This bounds a `pauser`-initiated pause to `PAUSE_DURATION` without requiring the `unpauser` to act, while ensuring the pause never lapses prematurely: the boolean `paused` remains authoritative, so a pause is only lifted by an explicit `unpause` or `unpauseExpired` call - never silently by the passage of time.
 
@@ -168,9 +168,9 @@ a `TransferWithPayload`. Amount in the tokens native decimals. `payload` is an a
 
 `freeze()` - Set `paused` to `true` and `pauseExpiry` to the maximum representable timestamp. Callable only by the `freezer`; reverts when `freezer` is unassigned. Idempotent.
 
-`unpause()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Callable only by the `unpauser`; reverts when `unpauser` is unassigned.
+`unpause()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Callable only by the `unpauser`; reverts if `unpauser` is unassigned or `paused` == false.
 
-`unpauseExpired()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Permissionless; reverts unless `block.timestamp >= pauseExpiry`.
+`unpauseExpired()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Permissionless; reverts if `block.timestamp < pauseExpiry` or `paused` == false.
 
 `setPauserAddresses(Message setPauserAddresses)` - Execute a `SetPauserAddresses` governance message
 
