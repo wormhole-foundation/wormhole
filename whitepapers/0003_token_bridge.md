@@ -28,18 +28,18 @@ token and create incompatible protocols with bad UX.
 We want to implement a generalized token bridge using the Wormhole message passing protocol that is able to bridge any
 standards-compliant token between chains, creating unique wrapped representations on each connected chain on demand.
 
-* Allow transfer of standards-compliant tokens between chains.
-* Allow creation of wrapped assets.
-* Use a universal token representation that is compatible with most VM data types.
-* Allow domain-specific payload to be transferred along the token, enabling
+- Allow transfer of standards-compliant tokens between chains.
+- Allow creation of wrapped assets.
+- Use a universal token representation that is compatible with most VM data types.
+- Allow domain-specific payload to be transferred along the token, enabling
   tight integration with smart contracts on the target chain.
-* Allow emergency pausing of token bridge operations.
+- Allow emergency pausing of token bridge operations.
 
 ## Non-Goals
 
-* Support fee-burning / rebasing / non-standard tokens.
-* Manage chain-specific token metadata that isn't broadly applicable to all chains.
-* Automatically relay token transfer messages to the target chain.
+- Support fee-burning / rebasing / non-standard tokens.
+- Manage chain-specific token metadata that isn't broadly applicable to all chains.
+- Automatically relay token transfer messages to the target chain.
 
 ## Overview
 
@@ -57,13 +57,13 @@ For inbound transfers they can consume, verify and process Wormhole messages con
 
 There will be seven different payloads:
 
-* `Transfer` - Will trigger the release of locked tokens or minting of wrapped tokens.
-* `TransferWithPayload` - Will trigger the release of locked tokens or minting of wrapped tokens, with additional domain-specific payload.
-* `AssetMeta` - Attests asset metadata (required before the first transfer).
-* `RegisterChain` - Register the token bridge contract (emitter address) for a foreign chain.
-* `UpgradeContract` - Upgrade the contract.
-* `RecoverChainId` - Recover the contract's `chainId` and `evmChainId` after a chain fork (EVM-only).
-* `SetPauserAddresses` - Set the addresses authorized to pause and unpause the token bridge.
+- `Transfer` - Will trigger the release of locked tokens or minting of wrapped tokens.
+- `TransferWithPayload` - Will trigger the release of locked tokens or minting of wrapped tokens, with additional domain-specific payload.
+- `AssetMeta` - Attests asset metadata (required before the first transfer).
+- `RegisterChain` - Register the token bridge contract (emitter address) for a foreign chain.
+- `UpgradeContract` - Upgrade the contract.
+- `RecoverChainId` - Recover the contract's `chainId` and `evmChainId` after a chain fork (EVM-only).
+- `SetPauserAddresses` - Set the addresses authorized to pause, freeze, and unpause the token bridge.
 
 Since anyone can use Wormhole to publish messages that match the payload format of the token bridge, an authorization
 payload needs to be implemented. This is done using an `(emitter_chain, emitter_address)` tuple. Every endpoint of the
@@ -77,7 +77,7 @@ of the bridge contract with the recipient details and respective fee they are wi
 hold the tokens in a custody account (in case it is a native token) or burn wrapped assets. Wrapped assets can be burned
 because they can be freely minted once tokens are transferred back and this way the total supply can indicate the total
 amount of tokens currently held on this chain. After the lockup the contract will post a `Transfer` (or
-`TransferWithPayload`) message to Wormhole.  Once the message has been signed by the guardians, it can be posted to the
+`TransferWithPayload`) message to Wormhole. Once the message has been signed by the guardians, it can be posted to the
 target chain of the transfer. Upon redeeming (see `completeTransfer` below), the target chain will either release native
 tokens from custody or mint a wrapped asset depending on whether it's a native token there.
 The token bridges guarantee that there will be a unique wrapped asset on each chain for each non-native token. In other
@@ -106,11 +106,19 @@ be mapped to this identifier. A wrapped asset may only ever be created once for 
 
 ### Pausing
 
-The token bridge supports an emergency pause for use during an active exploit. While paused, every entry point reverts except for governance handlers, `pause` (no-op), and `unpause`. Two roles control the pause state: a `pauser` may call `pause` to set `paused` to `true`, and an `unpauser` may call `unpause` to set it back to `false`. Both roles are configured per chain via a `SetPauserAddresses` governance message.
+The token bridge supports an emergency pause for use during an active exploit. While paused, every entry point reverts except for governance handlers and the pause-management entry points (`pause`, `freeze`, `unpause`, and the permissionless `unpauseExpired`). The pause state is a boolean `paused`; a companion `pauseExpiry` timestamp records the point at which an active pause becomes eligible to be lifted permissionlessly.
 
-The `pauser` and `unpauser` are kept as separate roles to allow for asymmetric authority between the two assigned addresses - for example, a 2/3 multisig empowered to pause while Wormhole governance is retained for unpause. These SHOULD be effectively different roles, but this is intentionally not enforced on-chain or in the Guardian VAA generation process.
+Three roles control the pause state, each configured per chain via a `SetPauserAddresses` governance message:
 
-Either role may be left unset. A zero-length value or an all-zero address (of the target chain's native address size) is treated as the role being unassigned. When a role is unassigned, the corresponding entry point MUST revert before comparing the caller against the configured role. Implementations MUST NOT treat an all-zero address as an authorized caller. This allows governance to disable `pause` or `unpause` without removing the entry point - for example, leaving `pauser` unassigned on chains where pause authority is not yet desired, or zeroing a key suspected of compromise without first provisioning its replacement. If `unpauser` is unassigned while the bridge is paused, recovery requires Wormhole governance to first assign a non-zero `unpauser` via `SetPauserAddresses`.
+- A `pauser` may call `pause` to set `paused` to `true` and set `pauseExpiry` to `block.timestamp + PAUSE_DURATION`, where `PAUSE_DURATION` is initially a hard-coded constant of 5 days. `pause` may be called repeatedly; each call pushes `pauseExpiry` to 5 days from the current time, so the bridge stays paused for as long as the `pauser` keeps re-pausing. A `pause` call MUST NOT reduce a `pauseExpiry` already further in the future (e.g. one set by `freeze`) - a lower-trust `pauser` cannot curtail a `freeze`. This requirement is why unpausing MUST set `pauseExpiry` to the current time: a stale expiry left over from a prior `freeze` would otherwise block a later `pause`.
+- A `freezer` may call `freeze` to set `paused` to `true` and set `pauseExpiry` to the maximum representable timestamp, pausing the bridge for the maximum amount of time. A frozen bridge will not become permissionlessly unpausable in practice and can only be lifted by the `unpauser`. `freeze` is the higher-trust counterpart to the temporary, self-expiring `pauser`. A `freeze` call from the `freeze` role always succeeds: if the bridge is unpaused, it causes a pause; if already paused, it extends the existing pause to the maximum duration. Successive `freeze` calls are a no-op.
+- An `unpauser` may call `unpause` to set `paused` back to `false` and `pauseExpiry` to `block.timestamp` at any time while paused, regardless of `pauseExpiry`. Recording the current time (rather than `0`) leaves on-chain evidence of the last unpause while still bringing any stale `freeze` expiry down to the present so it cannot block a later `pause`. This is the privileged path to lift a pause (including a `freeze`) before it would otherwise expire.
+
+Additionally, a permissionless `unpauseExpired` entry point allows anyone to set `paused` to `false` once `block.timestamp >= pauseExpiry`. This bounds a `pauser`-initiated pause to `PAUSE_DURATION` without requiring the `unpauser` to act, while ensuring the pause never lapses prematurely: the boolean `paused` remains authoritative, so a pause is only lifted by an explicit `unpause` or `unpauseExpired` call - never silently by the passage of time.
+
+The roles are kept separate to allow for asymmetric authority between the assigned addresses - for example, a 2/3 multisig empowered to `pause` for short windows, a higher-threshold key empowered to `freeze`, and Wormhole governance retained for `unpause`. These SHOULD be effectively different roles, but this is intentionally not enforced on-chain or in the Guardian VAA generation process.
+
+Any role may be left unset. A zero-length value or an all-zero address (of the target chain's native address size) is treated as the role being unassigned. When a role is unassigned, the corresponding entry point MUST revert before comparing the caller against the configured role. Implementations MUST NOT treat an all-zero address as an authorized caller. This allows governance to disable `pause`, `freeze`, or `unpause` without removing the entry point - for example, leaving `pauser` unassigned on chains where pause authority is not yet desired, or zeroing a key suspected of compromise without first provisioning its replacement. The permissionless `unpauseExpired` entry point has no associated role and is always callable. If `unpauser` is unassigned while the bridge is paused, recovery before `pauseExpiry` requires Wormhole governance to first assign a non-zero `unpauser` via `SetPauserAddresses`; otherwise the pause can be permissionlessly lifted once `pauseExpiry` has passed.
 
 ### Handling of token amounts and decimals
 
@@ -121,12 +129,14 @@ Any chains implementation must make sure that of any token only ever MaxUint64 u
 Token "dust" that can not be transferred due to truncation during a deposit needs to be refunded back to the user.
 
 **Examples:**
+
 - The amount "1" of a 18 decimal Ethereum token is originally represented as: `1000000000000000000`, over the wormhole it is passed as: `100000000`.
 - The amount "2" of a 4 decimal token is represented as `20000` and is passed over the wormhole without a decimal shift.
 
 **Handling on the target Chains:**
 
 Implementations on target chains can handle the decimal shift in one of the following ways:
+
 - In case the chain supports the original decimal amount (known from the `AssetMeta`) it can do a decimal shift back to the original decimal amount. This allows for out-of-the-box interoperability of DeFi protocols across for example different EVM environments.
 - Otherwise the wrapped token should stick to the 8 decimals that the protocol uses.
 
@@ -154,13 +164,18 @@ a `TransferWithPayload`. Amount in the tokens native decimals. `payload` is an a
 
 `submitRecoverChainId(Message recoverChainId)` - Execute a `RecoverChainId` governance message. Only callable on a forked chain (EVM-only).
 
-`pause()` - Set `paused` to `true`. Callable only by the `pauser`; reverts when `pauser` is unassigned.
+`pause()` - Set `paused` to `true` and `pauseExpiry` to `block.timestamp + PAUSE_DURATION` (5 days), never reducing a `pauseExpiry` already further in the future. Callable only by the `pauser`; reverts when `pauser` is unassigned. Not idempotent: each call pushes `pauseExpiry` forward.
 
-`unpause()` - Set `paused` to `false`. Callable only by the `unpauser`; reverts when `unpauser` is unassigned.
+`freeze()` - Set `paused` to `true` and `pauseExpiry` to the maximum representable timestamp. Callable only by the `freezer`; reverts when `freezer` is unassigned. Idempotent.
+
+`unpause()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Callable only by the `unpauser`; reverts if `unpauser` is unassigned or `paused` == false.
+
+`unpauseExpired()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Permissionless; reverts if `block.timestamp < pauseExpiry` or `paused` == false.
 
 `setPauserAddresses(Message setPauserAddresses)` - Execute a `SetPauserAddresses` governance message
 
 ---
+
 **Payloads**:
 
 Transfer:
@@ -290,8 +305,14 @@ ChainId uint16
 // address of the native size is equivalent to a zero length and is
 // also treated as unassigned.
 PauserLen uint8
-// Address authorized to pause the bridge
+// Address authorized to temporarily pause the bridge (for PAUSE_DURATION)
 Pauser [PauserLen]uint8
+// Length of the freezer address. Must equal the target chain's native
+// address size, or 0 to leave the role unassigned. An all-zero address
+// of the native size is also treated as unassigned.
+FreezerLen uint8
+// Address authorized to pause the bridge for the maximum duration
+Freezer [FreezerLen]uint8
 // Length of the unpauser address. Must equal the target chain's
 // native address size, or 0 to leave the role unassigned. An all-zero
 // address of the native size is also treated as unassigned.
@@ -300,21 +321,24 @@ UnpauserLen uint8
 Unpauser [UnpauserLen]uint8
 ```
 
-Implementations MUST perform length-based validation for `SetPauserAddresses` on the target runtime, ensuring each address is an expected length (e.g. 20 bytes for EVM, 32 bytes for SVM) and that there are no remaining bytes after parsing the two addresses.
+Implementations MUST perform length-based validation for `SetPauserAddresses` on the target runtime, ensuring each address is an expected length (e.g. 20 bytes for EVM, 32 bytes for SVM) and that there are no remaining bytes after parsing the three addresses.
 
-Existing deployments that are upgrading to include pausing functionality MUST ensure the new pause state initializes to false and does not alias non-zero pre-existing storage/account bytes.
+Existing deployments that are upgrading to include pausing functionality MUST ensure the new pause state initializes to `false`, `pauseExpiry` initializes to zero, and neither aliases non-zero pre-existing storage/account bytes.
 
 ## Caveats
 
 ### Transfer completion
+
 A user who initiated a transfer should call `completeTransfer` within 24 hours. Guardian Sets are guaranteed to be valid for at least 24 hours. If the user waits longer, it could be that the Guardian Set has changed between the time where the transfer was initiated and the the time the user attempts to redeem the VAA. Let's call the Guardian Set at the time of signing `setA` and the Guardian Set at the time of redeeming on the target chain `setB`.
 
 If `setA != setB` and more than 24 hours have passed, there are multiple options for still redeeming the VAA on the target chain:
+
 1. The quorum of Guardians that signed the VAA may still be part of `setB`. In this case, the VAA merely needs to be modified to have the new Guardian Set Index along with any `setA` only guardian signatures removed to make a valid VAA. The updated VAA can then be be redeemed. The typescript sdk includes a [`repairVaa()`](../sdk/js/src/utils/repairVaa.ts) function to perform this automatically.
 2. The intersection between `setA` and `setB` is greater than 2/3 of `setB`, but not all signatures of the VAA are from Guardians in `setB`. Then it may be possible to gather signatures from the other Guardians from other sources. E.g. Wormholescan provides an API under (/api/v1/observations/:chain/:emitter/:sequence)[https://docs.wormholescan.io/#/Wormscan/find-observations-by-sequence].
 3. A Guardian may send a signed re-observation request to the network using the `send-observation-request` admin command. A new valid VAA with an updated Guardian Set Index is generated once enough Guardians have re-observed the old message. Note that this is only possible if a quorum of Guardians is running archive nodes that still include this transaction.
 
 ### Setup of wrapped assets
+
 Since there is no way for a token bridge endpoint to know which other chain already has wrapped assets set up for the
 native asset on its chain, there may be transfers initiated for assets that don't have wrapped assets set up yet on the
 target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time).
@@ -335,9 +359,12 @@ However, deploying pause support updates existing contract state. For example, t
 
 Rather than a single boolean `paused` state, the bridge could expose finer-grained pauses (e.g. inbound vs. outbound) so that, for example, redemptions can continue while new deposits are blocked. We are not taking this approach now in favor of a simple boolean; granular pause can be added later without breaking the pause/unpause governance defined here.
 
-### Temporary pause
+### Pause state as a pure timestamp
 
-Instead of a boolean, the `paused` state could be set to a timestamp after which the contract is no longer considered paused. This would introduce a slight additional implementation complexity as well as a risk that the contract could become pre-maturely unpaused.
+The temporary pause could be represented solely by a timestamp - with no boolean - where every entry point treats the contract as paused while `block.timestamp < pauseExpiry`. This was rejected in favor of the boolean-plus-expiry design for two reasons:
+
+1. It would make the contract become unpaused silently the instant the timestamp passes, creating a risk that the bridge resumes prematurely - for example mid-incident - without any explicit action or event. Keeping `paused` boolean and authoritative means a pause is only lifted by an explicit `unpause` or `unpauseExpired` call, each of which emits an event.
+2. It would add a timestamp comparison to the hot path of every entry point. Retaining a boolean preserves the cheap single-boolean check on every call, while `pauseExpiry` is only consulted by the permissionless `unpauseExpired` entry point.
 
 ### Per-runtime `SetPauserAddresses` actions
 
