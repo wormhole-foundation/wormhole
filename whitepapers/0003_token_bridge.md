@@ -110,15 +110,15 @@ The token bridge supports an emergency pause for use during an active exploit. W
 
 Three roles control the pause state, each configured per chain via a `SetPauserAddresses` governance message:
 
-- A `pauser` may call `pause` to set `paused` to `true` and set `pauseExpiry` to `block.timestamp + PAUSE_DURATION`, where `PAUSE_DURATION` is initially a hard-coded constant of 5 days. `pause` may be called repeatedly; each call pushes `pauseExpiry` to 5 days from the current time, so the bridge stays paused for as long as the `pauser` keeps re-pausing. A `pause` call MUST NOT reduce a `pauseExpiry` already further in the future (e.g. one set by `freeze`) - a lower-trust `pauser` cannot curtail a `freeze`. This requirement is why unpausing MUST reset `pauseExpiry` to `0`: a stale expiry left over from a prior `freeze` would otherwise block a later `pause`.
-- A `freeze` authority may call `freeze` to set `paused` to `true` and set `pauseExpiry` to the maximum representable timestamp, pausing the bridge for the maximum amount of time. A frozen bridge will not become permissionlessly unpausable in practice and can only be lifted by the `unpauser`. `freeze` is the higher-trust counterpart to the temporary, self-expiring `pauser`.
-- An `unpauser` may call `unpause` to set `paused` back to `false` and `pauseExpiry` to `0` at any time, regardless of `pauseExpiry`. This is the privileged path to lift a pause (including a `freeze`) before it would otherwise expire.
+- A `pauser` may call `pause` to set `paused` to `true` and set `pauseExpiry` to `block.timestamp + PAUSE_DURATION`, where `PAUSE_DURATION` is initially a hard-coded constant of 5 days. `pause` may be called repeatedly; each call pushes `pauseExpiry` to 5 days from the current time, so the bridge stays paused for as long as the `pauser` keeps re-pausing. A `pause` call MUST NOT reduce a `pauseExpiry` already further in the future (e.g. one set by `freeze`) - a lower-trust `pauser` cannot curtail a `freeze`. This requirement is why unpausing MUST set `pauseExpiry` to the current time: a stale expiry left over from a prior `freeze` would otherwise block a later `pause`.
+- A `freezer` may call `freeze` to set `paused` to `true` and set `pauseExpiry` to the maximum representable timestamp, pausing the bridge for the maximum amount of time. A frozen bridge will not become permissionlessly unpausable in practice and can only be lifted by the `unpauser`. `freeze` is the higher-trust counterpart to the temporary, self-expiring `pauser`. A `freeze` call from the `freeze` role always succeeds: if the bridge is unpaused, it causes a pause; if already paused, it extends the existing pause to the maximum duration. Successive `freeze` calls are a no-op.
+- An `unpauser` may call `unpause` to set `paused` back to `false` and `pauseExpiry` to `block.timestamp` at any time, regardless of `pauseExpiry`. Recording the current time (rather than `0`) leaves on-chain evidence of the last unpause while still bringing any stale `freeze` expiry down to the present so it cannot block a later `pause`. This is the privileged path to lift a pause (including a `freeze`) before it would otherwise expire.
 
-Additionally, a permissionless `unpauseExpired` entry point allows anyone to set `paused` to `false` once `block.timestamp >= pauseExpiry`. This bounds a `pauser`-initiated pause to `PAUSE_DURATION` without requiring the `unpauser` to act, while ensuring the pause never lapses prematurely: the boolean `paused` remains authoritative for every other entry point's check, so a pause is only lifted by an explicit `unpause` or `unpauseExpired` call - never silently by the passage of time.
+Additionally, a permissionless `unpauseExpired` entry point allows anyone to set `paused` to `false` once `block.timestamp >= pauseExpiry`. This bounds a `pauser`-initiated pause to `PAUSE_DURATION` without requiring the `unpauser` to act, while ensuring the pause never lapses prematurely: the boolean `paused` remains authoritative, so a pause is only lifted by an explicit `unpause` or `unpauseExpired` call - never silently by the passage of time.
 
 The roles are kept separate to allow for asymmetric authority between the assigned addresses - for example, a 2/3 multisig empowered to `pause` for short windows, a higher-threshold key empowered to `freeze`, and Wormhole governance retained for `unpause`. These SHOULD be effectively different roles, but this is intentionally not enforced on-chain or in the Guardian VAA generation process.
 
-Any role may be left unset. A zero-length value or an all-zero address (of the target chain's native address size) is treated as the role being unassigned. When a role is unassigned, the corresponding entry point MUST revert before comparing the caller against the configured role. Implementations MUST NOT treat an all-zero address as an authorized caller. This allows governance to disable `pause`, `freeze`, or `unpause` without removing the entry point - for example, leaving `pauser` unassigned on chains where pause authority is not yet desired, or zeroing a key suspected of compromise without first provisioning its replacement. The permissionless `unpauseExpired` entry point has no associated role and is always callable. If `unpauser` is unassigned while the bridge is paused, recovery before `pauseExpiry` requires Wormhole governance to first assign a non-zero `unpauser` via `SetPauserAddresses`; otherwise the pause lifts permissionlessly once `pauseExpiry` has passed.
+Any role may be left unset. A zero-length value or an all-zero address (of the target chain's native address size) is treated as the role being unassigned. When a role is unassigned, the corresponding entry point MUST revert before comparing the caller against the configured role. Implementations MUST NOT treat an all-zero address as an authorized caller. This allows governance to disable `pause`, `freeze`, or `unpause` without removing the entry point - for example, leaving `pauser` unassigned on chains where pause authority is not yet desired, or zeroing a key suspected of compromise without first provisioning its replacement. The permissionless `unpauseExpired` entry point has no associated role and is always callable. If `unpauser` is unassigned while the bridge is paused, recovery before `pauseExpiry` requires Wormhole governance to first assign a non-zero `unpauser` via `SetPauserAddresses`; otherwise the pause can be permissionlessly lifted once `pauseExpiry` has passed.
 
 ### Handling of token amounts and decimals
 
@@ -164,13 +164,13 @@ a `TransferWithPayload`. Amount in the tokens native decimals. `payload` is an a
 
 `submitRecoverChainId(Message recoverChainId)` - Execute a `RecoverChainId` governance message. Only callable on a forked chain (EVM-only).
 
-`pause()` - Set `paused` to `true` and `pauseExpiry` to `block.timestamp + PAUSE_DURATION` (5 days), never reducing a `pauseExpiry` already further in the future. Callable only by the `pauser`; reverts when `pauser` is unassigned.
+`pause()` - Set `paused` to `true` and `pauseExpiry` to `block.timestamp + PAUSE_DURATION` (5 days), never reducing a `pauseExpiry` already further in the future. Callable only by the `pauser`; reverts when `pauser` is unassigned. Not idempotent: each call pushes `pauseExpiry` forward.
 
-`freeze()` - Set `paused` to `true` and `pauseExpiry` to the maximum representable timestamp. Callable only by the `freeze` authority; reverts when `freeze` is unassigned.
+`freeze()` - Set `paused` to `true` and `pauseExpiry` to the maximum representable timestamp. Callable only by the `freezer`; reverts when `freezer` is unassigned. Idempotent.
 
-`unpause()` - Set `paused` to `false` and `pauseExpiry` to `0`. Callable only by the `unpauser`; reverts when `unpauser` is unassigned.
+`unpause()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Callable only by the `unpauser`; reverts when `unpauser` is unassigned.
 
-`unpauseExpired()` - Set `paused` to `false` and `pauseExpiry` to `0`. Permissionless; reverts unless `block.timestamp >= pauseExpiry`.
+`unpauseExpired()` - Set `paused` to `false` and `pauseExpiry` to `block.timestamp`. Permissionless; reverts unless `block.timestamp >= pauseExpiry`.
 
 `setPauserAddresses(Message setPauserAddresses)` - Execute a `SetPauserAddresses` governance message
 
@@ -307,12 +307,12 @@ ChainId uint16
 PauserLen uint8
 // Address authorized to temporarily pause the bridge (for PAUSE_DURATION)
 Pauser [PauserLen]uint8
-// Length of the freeze address. Must equal the target chain's native
+// Length of the freezer address. Must equal the target chain's native
 // address size, or 0 to leave the role unassigned. An all-zero address
 // of the native size is also treated as unassigned.
-FreezeLen uint8
+FreezerLen uint8
 // Address authorized to pause the bridge for the maximum duration
-Freeze [FreezeLen]uint8
+Freezer [FreezerLen]uint8
 // Length of the unpauser address. Must equal the target chain's
 // native address size, or 0 to leave the role unassigned. An all-zero
 // address of the native size is also treated as unassigned.
