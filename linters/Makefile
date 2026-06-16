@@ -16,7 +16,8 @@ install-golangci-lint:
 	  github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 # Custom golangci-lint with our module plugins baked in. Driven by
-# .custom-gcl.yml at the repo root; output goes to ./bin per `destination:`.
+# .custom-gcl.yml in this directory (golangci-lint custom reads it from the
+# cwd); output goes to ./bin per `destination:`.
 build-golangci-lint: install-golangci-lint
 	$(BIN_DIR)/golangci-lint custom
 

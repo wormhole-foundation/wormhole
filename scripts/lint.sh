@@ -68,10 +68,12 @@ format(){
 # Content hash of the linters/ source, used to decide whether a rebuild is needed.
 # Hashes every file under linters/ (regardless of git tracking) except the
 # bin/ and build/ build outputs, so any source edit triggers exactly one rebuild.
+# Runs find from inside LINTERS_DIR so paths are relative: sha256sum embeds the
+# path, so an absolute one would make the hash checkout-path dependent.
 linters_source_hash() {
-    find "$LINTERS_DIR" -type f \
+    ( cd "$LINTERS_DIR" && find . -type f \
         -not -path '*/bin/*' -not -path '*/build/*' \
-        -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1
+        -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1 )
 }
 
 ensure_wormhole_golangci_lint() {
