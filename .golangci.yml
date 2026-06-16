@@ -26,6 +26,7 @@ linters:
     - gosec
     - govet
     - ineffassign
+    - iotamixing
     - loggercheck
     # Check for simple misspellings of words. 
     - mnd
@@ -211,9 +212,14 @@ linters:
       channelcheck:
         type: "module" 
         description: Static analysis for go channel issues   
-        settings: 
+        settings:
           CheckBlockingSends: true
           CheckUnbufferedChannels: false
+          CheckEmptyDefault: true
+          # msgC sends are intentionally blocking (watcher backpressure, not dropping).
+          IgnoreChannelsByName:
+            - msgC
+            - msgChan
   exclusions:
     generated: lax
     presets:

@@ -20,6 +20,7 @@ func runFixture(t *testing.T, pkg string, override Settings) {
 
 	settings.CheckUnbufferedChannels = override.CheckUnbufferedChannels
 	settings.CheckBlockingSends = override.CheckBlockingSends
+	settings.CheckEmptyDefault = override.CheckEmptyDefault
 	settings.CheckBufferAmount = override.CheckBufferAmount
 	settings.IgnoreChannelsByName = override.IgnoreChannelsByName
 	settings.ignoreChannelNames = buildIgnoreSet(override.IgnoreChannelsByName)
@@ -36,7 +37,7 @@ func TestBlockingSend(t *testing.T) {
 }
 
 func TestEmptyDefault(t *testing.T) {
-	runFixture(t, "empty_default", defaultSettings())
+	runFixture(t, "empty_default", Settings{CheckBlockingSends: true, CheckEmptyDefault: true})
 }
 
 func TestCtxDoneOnly(t *testing.T) {
