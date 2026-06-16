@@ -163,7 +163,7 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		// #nosec G704 -- Test mock server making requests to configured upstream
 		resp, reqErr := httpClient.Do(proxyReq)
 		if reqErr != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			http.Error(w, reqErr.Error(), http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
