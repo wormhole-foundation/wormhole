@@ -425,7 +425,11 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	// Effectively allow any uint16 value for ChainID here. A Guardian may want to find missing messages
 	// for deprecated chains, so we don't use [`vaa.StringToKnownChainID`] here.
-	chainId, err := vaa.ChainIDFromString(args[0])
+	//
+	// This value is later converted to uint32 for use in protobuf, but before that
+	// we should make sure it fits into uint16 to disallow numbers > max.Uint16
+	// from being serialized.
+	chainId, err := strconv.ParseUint(args[0], 10, 16)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
@@ -468,7 +472,10 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	if len(parts) != 3 {
 		log.Fatalf("invalid message ID: %s", args[0])
 	}
-	chainId, err := vaa.ChainIDFromString(parts[0])
+	// Parse string ChainID as uint16 to ensure it fits the vaa.ChainID type.
+	// There is no "known" check here as Guardians may want to dump messages
+	// even for deprecated chains.
+	chainId, err := strconv.ParseUint(parts[0], 10, 16)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
