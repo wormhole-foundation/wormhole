@@ -185,3 +185,6 @@ scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bem
 ## CI
 .golangci.yml @evan-gray @djb15 @johnsaigle @mdulin2
 cspell* @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+Dockerfile.unit @evan-gray @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+Dockerfile.lint @evan-gray @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+.dockerignore @evan-gray @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic

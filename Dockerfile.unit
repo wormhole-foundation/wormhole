@@ -1,0 +1,14 @@
+# syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
+# keep Go version in sync with node/go.mod
+FROM docker.io/golang:1.25.10-bookworm@sha256:154bd7001b6eb339e88c964442c0ad6ed5e53f09844cc818a41ce4ecb3ce3b43
+
+# Direct Go module/state under /tmp because the container runs as an arbitrary host UID,
+# which cannot write to the default /go owned by root.
+ENV GOPATH=/tmp/go
+ENV GOCACHE=/tmp/go-build
+
+# Create Go cache dirs with world-writable sticky bit so that any user (including
+# the host-mapped UID at runtime) can read and write module downloads and build cache.
+RUN mkdir -p /tmp/go /tmp/go-build && chmod -R 1777 /tmp/go /tmp/go-build
+
+WORKDIR /app
