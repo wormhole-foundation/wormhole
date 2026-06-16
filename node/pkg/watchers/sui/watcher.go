@@ -54,6 +54,7 @@ type (
 		obsvReqC      <-chan *gossipv1.ObservationRequest
 		readinessSync readiness.Component
 
+		// Note: suiclient.SuiClient is an interface. A `nil` check is therefore fine for checking initialization.
 		suiClient suiclient.SuiClient
 
 		// Sui transaction verifier

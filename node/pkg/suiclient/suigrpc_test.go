@@ -560,7 +560,7 @@ func TestGetTransactionEnforcesExecutionStatus(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, tx.Digest)
+				require.NotNil(t, tx.TxDigest)
 			}
 		})
 	}

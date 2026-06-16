@@ -106,7 +106,7 @@ type SuiObjectChange struct {
 // Callers MUST nil-check every field they read. The Get* methods do not
 // enforce per-field presence — that responsibility belongs to the caller.
 type SuiTransaction struct {
-	Digest        *string
+	TxDigest      *string
 	Events        []SuiEvent
 	Checkpoint    *uint64
 	Timestamp     *time.Time

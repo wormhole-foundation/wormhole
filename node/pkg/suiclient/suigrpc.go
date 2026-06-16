@@ -439,7 +439,7 @@ func grpcExecutedTransactionToSuiTransaction(grpcTransaction *pb.ExecutedTransac
 		return out
 	}
 
-	out.Digest = grpcTransaction.Digest
+	out.TxDigest = grpcTransaction.Digest
 	out.Checkpoint = grpcTransaction.Checkpoint
 
 	if grpcTransaction.Timestamp != nil {

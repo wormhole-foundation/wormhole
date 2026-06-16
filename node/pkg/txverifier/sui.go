@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/suiclient"
@@ -96,10 +95,11 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 
 		// The on-chain sender is a 32-byte address. The message ID format and the configured
 		// token bridge emitter both use a hex encoding with a "0x" prefix.
-		sender := "0x" + hex.EncodeToString(wormholeMessage.Sender[:])
+		sender := hex.EncodeToString(wormholeMessage.Sender[:])
+		senderWith0x := "0x" + sender
 
 		// Only process the event if it was emitted by the token bridge emitter.
-		if sender != s.suiTokenBridgeEmitter {
+		if senderWith0x != s.suiTokenBridgeEmitter {
 			logger.Debug("Event does not match the criteria",
 				zap.String("event type", event.EventType),
 				zap.String("event sender", sender),
@@ -119,10 +119,7 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 			continue
 		}
 
-		// The sender address is prefixed with "0x", but the message ID format does not include that prefix.
-		senderWithout0x := strings.TrimPrefix(sender, "0x")
-
-		msgIDStr := fmt.Sprintf("%d/%s/%d", vaa.ChainIDSui, senderWithout0x, wormholeMessage.Sequence)
+		msgIDStr := fmt.Sprintf("%d/%s/%d", vaa.ChainIDSui, sender, wormholeMessage.Sequence)
 		assetKey := fmt.Sprintf(KEY_FORMAT, hdr.OriginAddress.String(), hdr.OriginChain)
 
 		logger.Debug("Found request out of bridge",
