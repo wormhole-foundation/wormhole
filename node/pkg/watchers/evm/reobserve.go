@@ -158,6 +158,7 @@ func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 	if err != nil {
 		return 0, fmt.Errorf(`failed to connect to endpoint "%v": %w`, customEndpoint, err)
 	}
+	defer ethConn.Close()
 
 	// Get the current finalized and safe blocks.
 	_, finalized, safe, err := ethConn.GetLatest(timeout)
