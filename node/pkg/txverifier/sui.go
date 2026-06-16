@@ -172,7 +172,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 
 		previousObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.InputVersion, []string{suiclient.ObjectFieldContents})
 		if err != nil {
-			logger.Error("Error getting previous object version",
+			logger.Error("Error getting object at previous version",
 				zap.String("objectId", *objectChange.ObjectID),
 				zap.Uint64("version", *objectChange.InputVersion),
 				zap.Error(err))

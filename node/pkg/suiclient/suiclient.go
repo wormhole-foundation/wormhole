@@ -82,9 +82,9 @@ type SuiTransactionEvent struct {
 	Event    SuiEvent
 }
 
-// SuiObjectChange holds the subset of a transaction effect's changed-object
-// information needed to look up an object's state before and after a
-// transaction. It is populated from effects.changed_objects; request
+// SuiObjectChange holds basic metadata of an object that changed during the
+// execution of a transaction, such as it's ID, type and versions before and
+// after transaction execution. It is populated from effects.changed_objects; request
 // TransactionFieldChangedObjects to have it populated on SuiTransaction.
 //
 // Callers MUST nil-check every field they read.

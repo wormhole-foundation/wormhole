@@ -169,7 +169,7 @@ func (e *Watcher) processEvent(ctx context.Context, logger *zap.Logger, event su
 	msg, err := suiclient.DecodeBcs[txverifier.WormholeMessage](event.BcsBytes)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
-		return fmt.Errorf("processEvent failed to BCS-decode WormholeMessage: %w", err)
+		return fmt.Errorf("processEvent failed to decode WormholeMessage BCS bytes: %w", err)
 	}
 
 	txHashBytes, err := base58.Decode(txDigest)
@@ -374,7 +374,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				} else if checkpoint.SequenceNumber == nil {
 					logger.Error("latest checkpoint response missing sequence number")
 				} else {
-					height := int64(*checkpoint.SequenceNumber) // #nosec G115 -- Sui checkpoint sequence numbers will not exceed int64 for the foreseeable future
+					height := int64(*checkpoint.SequenceNumber) // #nosec G115 -- Sui checkpoint sequence numbers will not exceed math.MaxInt64 for the foreseeable future
 					currentSuiHeight.Set(float64(*checkpoint.SequenceNumber))
 					logger.Debug("sui_getLatestCheckpointSequenceNumber", zap.Int64("result", height))
 
