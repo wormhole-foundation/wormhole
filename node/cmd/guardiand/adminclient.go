@@ -423,7 +423,9 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 }
 
 func runFindMissingMessages(cmd *cobra.Command, args []string) {
-	chainId, err := vaa.StringToKnownChainID(args[0])
+	// Effectively allow any uint16 value for ChainID here. A Guardian may want to find missing messages
+	// for deprecated chains, so we don't use [`vaa.StringToKnownChainID`] here.
+	chainId, err := vaa.ChainIDFromString(args[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
@@ -466,7 +468,7 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	if len(parts) != 3 {
 		log.Fatalf("invalid message ID: %s", args[0])
 	}
-	chainId, err := vaa.StringToKnownChainID(parts[0])
+	chainId, err := vaa.ChainIDFromString(parts[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}

@@ -178,7 +178,10 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		truncAddrs := make(map[vaa.ChainID]string)
 		errors := map[vaa.ChainID]uint64{}
 		for _, n := range h.RawHeartbeat.Networks {
-			chainId, err := vaa.KnownChainIDFromNumber[uint32](n.Id)
+			// Convert uint32 to ChainID. We deliberately don't use [vaa.KnownChainIDFromNumber] here
+			// in case the Guardians are running with different versions and so have a different set of
+			// chain IDs that are considered "known".
+			chainId, err := vaa.ChainIDFromNumber[uint32](n.Id)
 			if err != nil {
 				log.Fatalf("invalid chain id in heartbeat: %v", err)
 			}
