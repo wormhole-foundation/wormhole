@@ -4,13 +4,6 @@ package channelcheck
 	Strategy: Identify proper SendStmt's early. If we don't see it within a Select, then it's not being used correctly.
 	 Or, we simply MISS it, making it a false positive which is fine. We'd rather fail open and get the user to
 	 use nolints than miss a potential bug altogether.
-
-	Steps for blocking channel send:
-	- Find a SelectStmt
-	- Check if Comm Clause:
-		- See if it has a 'ast.SendStmt'.
-		- If it does, then check 'default' or 'ticker' types there too.
-	- If we find SelectStmt otherwise, it must be non-blocking and we want to flag it.
 */
 import (
 	"bytes"
@@ -26,15 +19,18 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-type ChannelCheckPlugin struct {
-	settings Settings
-}
+// ChannelCheckPlugin is the golangci-lint module-plugin entry point. Its
+// configuration lives in the package-level settings var (populated by New),
+// which is the single source of truth — shared with the standalone
+// cmd/wormhole-lint multichecker, which populates the same var via flags.
+type ChannelCheckPlugin struct{}
 
 // Settings holds the configuration for the channelcheck linter.
 type Settings struct {
 	CheckUnbufferedChannels bool     // Enable/disable checking for unbuffered channel creation.
 	CheckBufferAmount       uint64   // The amount that can be in a buffer. 0 means don't do this check.
 	CheckBlockingSends      bool     // Enable/disable checking for blocking sends without default/timeout.
+	CheckEmptyDefault       bool     // Enable/disable the (advisory) empty-default-drops-the-send check.
 	IgnoreChannelsByName    []string // Channel/field names whose direct sends are exempt from the blocking-send check.
 
 	// ignoreChannelNames is the lookup form of IgnoreChannelsByName, built
@@ -81,13 +77,12 @@ func New(settingsNew any) (register.LinterPlugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	settings.CheckBlockingSends = s.CheckBlockingSends
-	settings.CheckBufferAmount = s.CheckBufferAmount
-	settings.CheckUnbufferedChannels = s.CheckUnbufferedChannels
-	settings.IgnoreChannelsByName = s.IgnoreChannelsByName
+	// Assign the whole struct so a future Settings field can't be silently
+	// dropped, then derive the lookup map from the decoded slice.
+	settings = s
 	settings.ignoreChannelNames = buildIgnoreSet(s.IgnoreChannelsByName)
 
-	return &ChannelCheckPlugin{settings: s}, nil
+	return &ChannelCheckPlugin{}, nil
 }
 
 func buildIgnoreSet(names []string) map[string]bool {
@@ -102,14 +97,9 @@ func buildIgnoreSet(names []string) map[string]bool {
 }
 
 func (f *ChannelCheckPlugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
-	return []*analysis.Analyzer{
-		{
-			Name:  "channelcheck",
-			Doc:   "reports channel blocking issues",
-			Run:   run,
-			Flags: flagSet,
-		},
-	}, nil
+	// Reuse the package-level Analyzer (the same one the standalone
+	// cmd/wormhole-lint multichecker runs) instead of defining a second one.
+	return []*analysis.Analyzer{Analyzer}, nil
 }
 
 // Initialize the flags from the golangci-lint
@@ -117,6 +107,7 @@ func init() {
 
 	flagSet.BoolVar(&settings.CheckUnbufferedChannels, "unbuffered", false, "Check for unbuffered channel creation")
 	flagSet.BoolVar(&settings.CheckBlockingSends, "blocking", true, "Check for blocking sends without default/timeout")
+	flagSet.BoolVar(&settings.CheckEmptyDefault, "emptyDefault", false, "Advise when an empty default case silently drops a send")
 	flagSet.Uint64Var(&settings.CheckBufferAmount, "bufferMax", 0, "Check for maximum length of channel buffer being exceeded")
 	Analyzer.Flags = flagSet
 	register.Plugin("channelcheck", New)
@@ -189,10 +180,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				// in the select (a receive-only select with an empty default has no
 				// backpressure concern). Anchor at each tracked send so users can
 				// suppress with a //nolint next to the blocking send.
-				if selectAnalysis.EmptyDefaultPos != token.NoPos {
+				if settings.CheckEmptyDefault && selectAnalysis.EmptyDefaultPos != token.NoPos {
 					for _, send := range trackedSends {
 						pass.Reportf(send.Pos(),
-							"empty default case in channel select. Please add logging to it on failure")
+							"empty default in channel select silently drops the send; log it or document why dropping is intended")
 					}
 				}
 

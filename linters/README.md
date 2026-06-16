@@ -10,7 +10,7 @@ Currently supported linters:
 
 | Name           | Purpose                                                  | Features                                                                                                                  |
 | -------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `channelcheck` | Flag channel usage patterns that can deadlock or block.  | • Blocking channel sends outside a `select`<br>• Unbuffered channel creation (`make(chan T)`)<br>• Ignore specific channels |
+| `channelcheck` | Flag channel usage patterns that can deadlock or block.  | • Blocking channel sends outside a `select`<br>• Unbuffered channel creation (`make(chan T)`)<br>• Empty `default:` that silently drops a send (advisory, off by default)<br>• Ignore specific channels |
 
 
 ## Build & test
@@ -58,8 +58,19 @@ linters:
           blocking: true
           unbuffered: false
           bufferMax: 0
+          emptyDefault: false
           ignoreChannelsByName: [errC]
 ```
+
+`channelcheck` settings:
+
+| Setting                | Type       | Default | Description                                                                                                                              |
+| ---------------------- | ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `blocking`             | `bool`     | `true`  | Flag blocking sends that have no escape (timer, `default:`, or `ctx.Done()`), including sends outside any `select`.                       |
+| `unbuffered`           | `bool`     | `false` | Flag unbuffered channel creation (`make(chan T)` / `make(chan T, 0)`).                                                                    |
+| `bufferMax`            | `uint`     | `0`     | Flag channel buffers larger than this. `0` disables the check.                                                                            |
+| `emptyDefault`         | `bool`     | `false` | Advisory: flag an empty `default:` in a `select` with a send, since it silently drops the send. Off by default — it fires on the idiomatic non-blocking/coalescing-send pattern, so enable it only where dropping should always be logged or documented. |
+| `ignoreChannelsByName` | `[]string` | `[]`    | Channel/field names whose direct sends are exempt from the blocking-send, empty-default, and `ctx.Done()` checks.                        |
 
 ## Development
 
@@ -94,6 +105,8 @@ linters:
        path: ./rules/<linter>
    ```
 6. `make test && make build && make build-golangci-lint` to verify.
+7. Add linter to `.golangci.yml`.
+8. Fix linter errors in the monorepo with legitimate changes or a `nolint` comment.
 
 ### Layout
 

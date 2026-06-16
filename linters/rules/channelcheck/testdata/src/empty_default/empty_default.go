@@ -4,7 +4,7 @@ package fixture
 func emptyDefault() {
 	c := make(chan int, 1)
 	select {
-	case c <- 1: // want `empty default case`
+	case c <- 1: // want `empty default in channel select silently drops the send`
 	default:
 	}
 }
