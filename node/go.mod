@@ -381,6 +381,11 @@ require (
 // https://github.com/cosmos/cosmos-sdk/issues/10925 for more details.
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
+// The solana-foundation repository still declares its module identity as
+// github.com/gagliardetto/solana-go. Keep importing the declared module path
+// until a future solana-foundation version updates its go.mod module path.
+replace github.com/gagliardetto/solana-go => github.com/solana-foundation/solana-go v1.8.4
+
 replace github.com/wormhole-foundation/wormhole/sdk => ../sdk
 
 replace github.com/wormhole-foundation/wormchain => ../wormchain
