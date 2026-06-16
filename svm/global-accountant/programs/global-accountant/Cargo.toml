@@ -1,0 +1,64 @@
+[package]
+name = "global-accountant"
+description = "Wormhole Global Accountant Solana program (Pinocchio)."
+publish = false
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+# Build the BPF entrypoint. Disabled when consumed as a library (e.g. by tests
+# or client tooling).
+default = []
+bpf-entrypoint = []
+
+[dependencies]
+bytemuck.workspace = true
+global-accountant-definitions.workspace = true
+pinocchio.workspace = true
+pinocchio-system.workspace = true
+# Force-enable the `curve25519` feature on solana-address so production-shape
+# host builds (cargo clippy without test features) can resolve
+# `Address::find_program_address`. The function is feature-gated to
+# `curve25519` on the host path; pinocchio's transitive dep only enables
+# `syscalls`, which exposes it on the BPF target but not on the host. On the
+# SBF target the syscall path is unconditionally available, so the dev-dep
+# curve25519-dalek that this brings in via solana-address's host-only branch
+# is dead code on-chain and adds no SBF binary cost. Already in the workspace
+# graph via solana-pubkey's dev-deps; no new supply-chain surface.
+solana-address = { version = "2.6", features = ["curve25519"] }
+
+[dev-dependencies]
+mollusk-svm.workspace = true
+solana-account.workspace = true
+solana-instruction.workspace = true
+solana-keccak-hasher.workspace = true
+solana-pubkey = { workspace = true, features = ["curve25519"] }
+# Pull `curve25519` into the unified feature set so the host build of this
+# crate can resolve `Address::find_program_address` (which is gated on
+# `target_os = "solana"` OR the `curve25519` feature). On-chain the syscall
+# path is unconditionally available; this is purely for `cargo test`.
+solana-address = { version = "2.6", features = ["curve25519"] }
+global-accountant = { path = "." }
+# Pure-Rust secp256k1. Tests sign synthetic guardian observations to populate
+# the pending bitmap and exercise the on-chain `sol_secp256k1_recover` path.
+# Already in the workspace lock via mollusk's transitive deps; pinning the
+# major version keeps the host-side test build aligned.
+libsecp256k1 = "0.6"
+# Hash-pinned `.so` fixtures live under `tests/fixtures/`. The mollusk-side
+# test harness verifies each fixture's SHA-256 against a hard-coded constant
+# before passing the bytes to mollusk; drift (an unintended rebuild of a
+# sibling program ending up in the fixtures dir) surfaces as a panic with
+# the recompute-and-update recipe in the failure message. Already in the
+# workspace lock graph via solana-program transitively; pinned to the
+# resolved version per the supply-chain rule in CLAUDE.md.
+sha2 = "=0.10.9"
+
+[lints]
+workspace = true
