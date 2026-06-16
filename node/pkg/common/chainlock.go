@@ -17,9 +17,6 @@ import (
 )
 
 const (
-	// AddressLength is the length of a normalized Wormhole address in bytes.
-	AddressLength = 32
-
 	// Wormhole supports arbitrary payloads due to the variance in transaction and block sizes between chains.
 	// However, during serialization, payload lengths are limited by Go slice length constraints and violations
 	// of these limits can cause panics.
@@ -54,6 +51,20 @@ const (
 	// minMsgIdLen is the minimum length of a message ID. It is used to uniquely identify
 	// messages in the case of a duplicate message ID and is stored in the database.
 	MinMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
+
+	// fixedFieldsLen is the minimum length of the fixed portion of a message publication.
+	// It is the sum of the sizes of each of the fields plus length information for the Payload.
+	// This is used to check that the data is long enough for the rest of the message after reading the TxID.
+	fixedFieldsLen = 8 + // Timestamp (int64)
+		4 + // Nonce (uint32)
+		8 + // Sequence (uint64)
+		1 + // ConsistencyLevel (uint8)
+		2 + // EmitterChain (uint16)
+		32 + // EmitterAddress (32 bytes)
+		1 + // IsReobservation (bool)
+		1 + // Unreliable (bool)
+		1 + // verificationState (uint8)
+		8 // Payload length (uint64)
 )
 
 var (
@@ -467,7 +478,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	}
 
 	emitterAddress := vaa.Address{}
-	if n, err := reader.Read(emitterAddress[:]); err != nil || n != AddressLength {
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != int(vaa.AddressLength) {
 		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
 	}
 	msg.EmitterAddress = emitterAddress
@@ -491,19 +502,6 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 
 // UnmarshalBinary implements the BinaryUnmarshaler interface for MessagePublication.
 func (m *MessagePublication) UnmarshalBinary(data []byte) error {
-
-	// fixedFieldsLen is the minimum length of the fixed portion of a message publication.
-	// It is the sum of the sizes of each of the fields plus length information for the Payload.
-	// This is used to check that the data is long enough for the rest of the message after reading the TxID.
-	const fixedFieldsLen = 8 + // Timestamp (int64)
-		4 + // Nonce (uint32)
-		8 + // Sequence (uint64)
-		1 + // ConsistencyLevel (uint8)
-		2 + // EmitterChain (uint16)
-		32 + // EmitterAddress (32 bytes)
-		1 + // IsReobservation (bool)
-		1 + // Unreliable (bool)
-		8 // Payload length (uint64)
 
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)

@@ -54,20 +54,20 @@ type (
 	// Address is a Wormhole protocol address otherwise referred to as a "wormhole normalized address." It typically
 	// contains the native chain's address for chains where the addresses are <= 32 bytes.
 	//
-	// If the address data type of a chain is < 32 bytes, the value is zero-padded on the left.
+	// If the address data type of a chain is less than [AddressLength] bytes, the value is zero-padded on the left.
 	//
-	// For chains with addresses that support lengths greater than 32 bytes, this type MAY be used
+	// For chains with addresses that support lengths greater than [AddressLength] bytes, this type MAY be used
 	// to represent an on-chain address by hashing it using an algorithm like sha256.
 	//
 	// For chains with variable length addresses, users MUST use this type consistently such that addresses
 	// can be uniquely identified. For example, if a chain supports addresses between length 2 and 64, this type
 	// should always encode addresses for that chain as sha256 digests. This helps to avoid a situation where
-	// addresses with length < 32 have zero-padded EVM-like addresses, but larger addresses on the same chain
+	// addresses with length < [AddressLength] have zero-padded EVM-like addresses, but larger addresses on the same chain
 	// are represented as digests.
 	//
 	// Other uses of this type are NOT RECOMMENDED given that they can overload the semantic meaning of this field
 	// which already does a lot of conceptual work across disparate blockchain implementations.
-	Address [32]byte
+	Address [AddressLength]byte
 
 	// Signature of a single guardian
 	Signature struct {
@@ -126,6 +126,9 @@ const (
 	ConsistencyLevelSafe               = uint8(201)
 	ConsistencyLevelFinalized          = uint8(202)
 	ConsistencyLevelCustom             = uint8(203)
+
+	// AddressLength is the length of an normalized [Address] in bytes.
+	AddressLength uint8 = 32
 )
 
 //nolint:unparam // error is always nil here but the return type is required to satisfy the interface.

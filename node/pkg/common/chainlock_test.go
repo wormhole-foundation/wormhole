@@ -136,6 +136,19 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 			},
 		},
 		{
+			name: "data too short - after non-empty TxID",
+			errorChecker: func(t *testing.T, err error) {
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "data too short after reading TxID")
+			},
+			setupData: func() []byte {
+				data := make([]byte, 1+1+fixedFieldsLen-1)
+				data[offsetTxIDLength] = 1
+				return data
+			},
+		},
+		{
 			name:        "invalid IsReobservation boolean - value 0x02",
 			expectedErr: ErrInvalidBinaryBool,
 			setupData: func() []byte {
