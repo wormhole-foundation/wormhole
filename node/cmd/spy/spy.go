@@ -154,6 +154,9 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 					}
 				}
 				targets = append(targets, sub)
+				// A VAA has a single (EmitterChain, EmitterAddress), so at most one filter can
+				// match. Stop here so a subscription is never collected more than once.
+				break
 			}
 		}
 
@@ -196,6 +199,13 @@ func (s *spyServer) verifyVAA(v *vaa.VAA, vaaBytes []byte) (*vaa.VAA, error) {
 func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, resp spyv1.SpyRPCService_SubscribeSignedVAAServer) error {
 	var fi []filterSignedVaa
 	if req.Filters != nil {
+		// Deduplicate filters. A VAA has a single (EmitterChain, EmitterAddress), so only identical
+		// filters can match it. Without dedup, duplicate filters would cause the same subscription to
+		// be collected multiple times in PublishSignedVAA and the same VAA to be sent more than once
+		// to the subscription's (buffered, capacity 1) channel. Because that send is intentionally
+		// blocking (we don't drop VAAs), more than one queued send to a torn-down subscriber can block
+		// the single publisher goroutine forever, halting delivery to all subscribers.
+		seen := make(map[filterSignedVaa]struct{}, len(req.Filters))
 		for _, f := range req.Filters {
 			switch t := f.Filter.(type) {
 			case *spyv1.FilterEntry_EmitterFilter:
@@ -206,10 +216,15 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 				if t.EmitterFilter.GetChainId() > math.MaxUint16 {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("emitter chain id must be a valid 16 bit unsigned integer: %v", t.EmitterFilter.ChainId.Number()))
 				}
-				fi = append(fi, filterSignedVaa{
+				filter := filterSignedVaa{
 					chainId:     vaa.ChainID(t.EmitterFilter.ChainId), // #nosec G115 -- This is validated above
 					emitterAddr: addr,
-				})
+				}
+				if _, ok := seen[filter]; ok {
+					continue
+				}
+				seen[filter] = struct{}{}
+				fi = append(fi, filter)
 			default:
 				return status.Error(codes.InvalidArgument, "unsupported filter type")
 			}
