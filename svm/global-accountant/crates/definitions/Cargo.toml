@@ -1,0 +1,17 @@
+[package]
+name = "global-accountant-definitions"
+description = "Shared types for the Wormhole Global Accountant Solana program."
+publish = false
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+bytemuck.workspace = true
+ruint.workspace = true
+
+[lints]
+workspace = true
