@@ -23,6 +23,8 @@ func (d *Database) rowExistsInDB(key []byte) error {
 }
 
 func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
+	t.Parallel()
+
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
@@ -58,6 +60,8 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 }
 
 func TestPendingMsgIDV5(t *testing.T) {
+	t.Parallel()
+
 	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
@@ -76,6 +80,8 @@ func TestPendingMsgIDV5(t *testing.T) {
 }
 
 func TestTransferMsgIDV5(t *testing.T) {
+	t.Parallel()
+
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
@@ -103,6 +109,8 @@ func TestTransferMsgIDV5(t *testing.T) {
 
 // TestTransferMsgIDV4 tests the old transfer format prefix (now superseded by V5).
 func TestTransferMsgIDV4(t *testing.T) {
+	t.Parallel()
+
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
@@ -131,6 +139,8 @@ func TestTransferMsgIDV4(t *testing.T) {
 // TestIsTransferV5 tests the IsTransfer function for the current transfer format.
 // The V5 suffix matches the "GOV:XFER5:" prefix used by the current transfer implementation.
 func TestIsTransferV5(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    []byte
@@ -189,7 +199,10 @@ func TestIsTransferV5(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := IsTransfer(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -199,6 +212,8 @@ func TestIsTransferV5(t *testing.T) {
 // TestIsTransferV4 tests the isOldTransfer function for the legacy transfer format.
 // The V4 suffix matches the "GOV:XFER4:" prefix used by the old transfer implementation.
 func TestIsTransferV4(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    []byte
@@ -252,7 +267,10 @@ func TestIsTransferV4(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := isOldTransfer(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -262,6 +280,8 @@ func TestIsTransferV4(t *testing.T) {
 // TestIsPendingMsgV5 tests the IsPendingMsg function for the current pending message format.
 // The V5 suffix matches the "GOV:PENDING5:" prefix used by the current pending message implementation.
 func TestIsPendingMsgV5(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    []byte
@@ -320,7 +340,10 @@ func TestIsPendingMsgV5(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := IsPendingMsg(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -330,6 +353,8 @@ func TestIsPendingMsgV5(t *testing.T) {
 // TestIsPendingMsgV4 tests the isOldPendingMsg function for the legacy pending message format.
 // The V4 suffix matches the "GOV:PENDING4:" prefix used by the legacy pending message implementation.
 func TestIsPendingMsgV4(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    []byte
@@ -383,7 +408,10 @@ func TestIsPendingMsgV4(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := isOldPendingMsg(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -391,6 +419,8 @@ func TestIsPendingMsgV4(t *testing.T) {
 }
 
 func TestGetChainGovernorData(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -405,6 +435,8 @@ func TestGetChainGovernorData(t *testing.T) {
 }
 
 func TestStoreTransfer(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -436,6 +468,8 @@ func TestStoreTransfer(t *testing.T) {
 }
 
 func TestDeleteTransfer(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -476,6 +510,8 @@ func TestDeleteTransfer(t *testing.T) {
 }
 
 func TestStorePendingMsg(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -501,6 +537,8 @@ func TestStorePendingMsg(t *testing.T) {
 }
 
 func TestDeletePendingMsg(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -535,6 +573,8 @@ func TestDeletePendingMsg(t *testing.T) {
 }
 
 func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
+	t.Parallel()
+
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
@@ -570,6 +610,8 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 }
 
 func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -664,6 +706,8 @@ func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 }
 
 func TestMarshalUnmarshalNoMsgIdOrHash(t *testing.T) {
+	t.Parallel()
+
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
@@ -696,6 +740,8 @@ func TestMarshalUnmarshalNoMsgIdOrHash(t *testing.T) {
 // Note that Transfer.Marshal can't fail, so there are no negative tests for that.
 
 func TestUnmarshalTransferFailures(t *testing.T) {
+	t.Parallel()
+
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
@@ -778,6 +824,8 @@ func TestUnmarshalTransferFailures(t *testing.T) {
 // Note that PendingTransfer.Marshal can't fail, so there are no negative tests for that.
 
 func TestUnmarshalPendingTransferFailures(t *testing.T) {
+	t.Parallel()
+
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 

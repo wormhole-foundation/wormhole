@@ -59,6 +59,13 @@ test-coverage:
 	@set -o pipefail && (cd node && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
 	@set -o pipefail && (cd sdk && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
 
+.PHONY: test-fast
+## Run fast tests for node and sdk, skipping tests gated by testing.Short() and fuzz smoke tests
+test-fast:
+	@echo "Running fast tests for node and sdk..."
+	@cd node && go test -short ./...
+	@cd sdk && go test -short ./...
+
 .PHONY: check-coverage
 ## Check coverage against baseline (run tests first)
 check-coverage: build-coverage-check test-coverage

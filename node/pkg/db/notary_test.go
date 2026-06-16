@@ -14,6 +14,8 @@ import (
 )
 
 func TestStoreAndReloadData(t *testing.T) {
+	t.Parallel()
+
 	// Set-up.
 	dbPath := t.TempDir()
 	database := OpenDb(zap.NewNop(), &dbPath)
@@ -44,6 +46,8 @@ func TestStoreAndReloadData(t *testing.T) {
 // TestDelete tests the deletion of a message from the notary's database.
 // It covers the deletion of both delayed and blackholed messages.
 func TestDelete(t *testing.T) {
+	t.Parallel()
+
 	// Set-up.
 	dbPath := t.TempDir()
 	database := OpenDb(zap.NewNop(), &dbPath)
@@ -93,6 +97,8 @@ func TestDelete(t *testing.T) {
 }
 
 func TestKeysForStoredMessagesV1(t *testing.T) {
+	t.Parallel()
+
 	msg1 := makeNewMsgPub(t)
 	pMsg := makeNewPendingMsg(t, msg1)
 
