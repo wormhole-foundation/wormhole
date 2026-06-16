@@ -15,7 +15,7 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 13, Addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", Symbol: "WEMIX", CoinGeckoId: "wemix-token", Decimals: 18, Price: 1.74},
 		{Chain: 15, Addr: "0000000000000000000000000000000000000000000000000000000000000000", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},
 		// The script used to populate the generated token lists has some gaps relating to native gas tokens. Injective is affected, so it gets added here.
-		{Chain: 19, Addr: "017038850bf3af746c36803cce35009268f00d22ae2b55ffb59ac5f2a6add40b", Symbol: "INJ", CoinGeckoId: "injective-protocol", Decimals: 18, Price: 2.87},    // Addr: inj, Notional: 433.8220134913
+		{Chain: 19, Addr: "017038850bf3af746c36803cce35009268f00d22ae2b55ffb59ac5f2a6add40b", Symbol: "INJ", CoinGeckoId: "injective-protocol", Decimals: 18, Price: 2.87}, // Addr: inj, Notional: 433.8220134913
 		{Chain: 32, Addr: "01881043998ff2b738519d444d2dd0da3da4545de08290c1076746538d5333df", Symbol: "SEI", CoinGeckoId: "sei-network", Decimals: 6, Price: 0.3},
 		// BERACHAIN (non-bridged tokens over $1,000,000 24h volume)
 		{Chain: 39, Addr: "0000000000000000000000006969696969696969696969696969696969696969", Symbol: "WBERA", CoinGeckoId: "wrapped-bera", Decimals: 18, Price: 6.62},

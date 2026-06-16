@@ -129,10 +129,6 @@ function tokenIdentityKey(chain, addr): string {
   return chain + "-" + addr.toLowerCase();
 }
 
-function tokenIdentityDescription(chain, addr, symbol, coinGeckoId): string {
-  return tokenIdentityKey(chain, addr) + "-" + symbol + " (https://www.coingecko.com/en/coins/" + coinGeckoId + ")";
-}
-
 function countTokenIdentitiesByChain(tokenIdentities) {
   var counts = {};
   for (var key in tokenIdentities) {
@@ -177,27 +173,6 @@ function latestTokenDataByNativeAddress(latestTokenData) {
   return latestByNativeAddress;
 }
 
-function latestTokenDataNotInTvl(latestTokenData, tvlTokenIdentities): string[] {
-  var latestNotInTvl = [];
-  if (!latestTokenData || !latestTokenData.data) {
-    return latestNotInTvl;
-  }
-
-  for (let tokenData of latestTokenData.data) {
-    let chainId = parseInt(tokenData.token_chain) as ChainId;
-    if (deprecatedChains.includes(chainId)) {
-      continue;
-    }
-
-    let key = tokenIdentityKey(tokenData.token_chain, tokenData.token_address);
-    if (tvlTokenIdentities[key] === undefined) {
-      latestNotInTvl.push(tokenIdentityDescription(tokenData.token_chain, tokenData.token_address, tokenData.symbol, tokenData.coin_gecko_coin_id));
-    }
-  }
-
-  return latestNotInTvl;
-}
-
 axios
   .all([axios.get(TvlUrl), axios.get(LatestTokenDataUrl)])
   .then(async ([res, latestTokenDataRes]) => {
@@ -231,8 +206,6 @@ axios
     var addedTokens = [];
     var removedTokens = [];
     var changedSymbols = [];
-    var addedTokenIdentities = [];
-    var removedTokenIdentities = [];
     var changedSymbolsWithSameIdentity = [];
     var failedInputValidationTokens = [];
     var newTokensCount = 0;
@@ -429,20 +402,11 @@ axios
     for (var key in newTokenIdentities) {
       var newTokenIdentity = newTokenIdentities[key];
       var existingTokenIdentity = existingTokenIdentities[key];
-      if (existingTokenIdentity === undefined) {
-        addedTokenIdentities.push(key + "-" + newTokenIdentity.symbol + " (https://www.coingecko.com/en/coins/" + newTokenIdentity.coinGeckoId + ")");
-      } else if (existingTokenIdentity.symbol !== newTokenIdentity.symbol) {
+      if (existingTokenIdentity !== undefined && existingTokenIdentity.symbol !== newTokenIdentity.symbol) {
         changedSymbolsWithSameIdentity.push(key + ": " + existingTokenIdentity.symbol + " -> " + newTokenIdentity.symbol + " (https://www.coingecko.com/en/coins/" + newTokenIdentity.coinGeckoId + ")");
       }
     }
 
-    for (var key in existingTokenIdentities) {
-      if (newTokenIdentities[key] === undefined) {
-        removedTokenIdentities.push(key + "-" + existingTokenIdentities[key].symbol + " (https://www.coingecko.com/en/coins/" + existingTokenIdentities[key].coinGeckoId + ")");
-      }
-    }
-
-    var latestNotInTvl = latestTokenDataNotInTvl(latestTokenDataRes.data, newTokenIdentities);
     var tokenIdentityCountChanges = tokenIdentityCountChangesByChain(existingTokenIdentities, newTokenIdentities);
 
     // Sanity check to make sure the script is doing what we think it is
@@ -463,14 +427,8 @@ axios
     changedContent += "\n\nToken identity counts by chain:\n<WH_chain_id>: <before> -> <after> (delta <after-before>)\n\n";
     changedContent += JSON.stringify(tokenIdentityCountChanges, null, 1);
 
-    changedContent += "\n\nToken identities added = " + addedTokenIdentities.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
-    changedContent += JSON.stringify(addedTokenIdentities, null, 1);
-    changedContent += "\n\nToken identities removed = " + removedTokenIdentities.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
-    changedContent += JSON.stringify(removedTokenIdentities, null, 1);
     changedContent += "\n\nToken symbols changed with same identity = " + changedSymbolsWithSameIdentity.length + ":\n<WH_chain_id>-<WH_token_addr>: <old_token_symbol> -> <new_token_symbol>\n\n";
     changedContent += JSON.stringify(changedSymbolsWithSameIdentity, null, 1);
-    changedContent += "\n\nTokens in latest token data but not TVL = " + latestNotInTvl.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
-    changedContent += JSON.stringify(latestNotInTvl, null, 1);
 
     changedContent += "\n\nTokens with invalid symbols = " + failedInputValidationTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(failedInputValidationTokens, null, 1);
