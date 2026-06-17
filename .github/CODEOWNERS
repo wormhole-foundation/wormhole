@@ -131,6 +131,10 @@
 
 /node/pkg/watchers @evan-gray @panoel @djb15 @johnsaigle @mdulin2 @pleasew8t
 
+## Suiclient
+
+/node/pkg/suiclient @djb15 @mdulin2 @pleasew8t
+
 ## Guardian Dependency Upgrades (go.mod) 
 /node/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 /sdk/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
