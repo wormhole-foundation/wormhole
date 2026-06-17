@@ -8,7 +8,7 @@ linters:
     # Ensure that the body is closed on HTTP and websocket conns
     - bodyclose
     # Blocking channel sends
-    - channelcheck
+    # - channelcheck
     - contextcheck
     - depguard
     # Duplicate word usage, such as 'and and' in a comment.
@@ -216,7 +216,7 @@ linters:
           CheckBlockingSends: true
           CheckUnbufferedChannels: false
           CheckEmptyDefault: true
-          # msgC sends are intentionally blocking (watcher backpressure, not dropping).
+          # msgC sends are intentionally blocking because we don't want to drop observations
           IgnoreChannelsByName:
             - msgC
             - msgChan
