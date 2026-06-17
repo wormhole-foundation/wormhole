@@ -245,6 +245,8 @@ For Go specifically:
   - So, require should be used carefully for setting up e.g. a mock or a test database that is required for the test to run. Asserts should be used for checking actual properties and business logic.
 - Use `t.Parallel()` for tests that can safely be run in parallel.
 - Use `testing.Short()` to gate  tests that are more integration-like or that otherwise are slow.
+- Use `t.Helper()` for any utility/helper functions that are not themselves explicitly tests that you do not want to see in the error traceback.
+
 
 ### Unit tests anti-patterns
 
