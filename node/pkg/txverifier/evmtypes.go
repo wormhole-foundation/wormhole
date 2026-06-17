@@ -275,9 +275,8 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 				)
 
 				if err != nil {
-					s.errC <- fmt.Errorf("failed to subscribe to logs: %w", err) //nolint:channelcheck // Will only block this subscriber routine
+					s.errC <- fmt.Errorf("failed to subscribe to logs: %w", err) // Note on channel capacity: Will only block this subscriber routine
 					time.Sleep(RECONNECT_DELAY)                                  //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // Wait before retrying
-
 					continue
 				}
 
@@ -287,9 +286,8 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 				err = s.handleSubscription(ctx, subscription)
 
 				if err != nil {
-					s.errC <- err               //nolint:channelcheck // Will only block this subscriber routine
+					s.errC <- err               // Note on channel capacity: Will only block this subscriber routine
 					time.Sleep(RECONNECT_DELAY) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // Wait before retrying
-
 				}
 			}
 		}

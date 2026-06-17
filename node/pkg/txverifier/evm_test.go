@@ -110,7 +110,7 @@ func setup() *mockConnections {
 		client:       &mockClient{},
 		logger:       *logger,
 	}
-	ctx, ctxCancel := context.WithCancel(context.Background())
+	ctx, ctxCancel := context.WithCancel(context.Background()) // #nosec G118 -- Cancel is owned by the test via mocks.ctxCancel().
 
 	return &mockConnections{
 		transferVerifier,

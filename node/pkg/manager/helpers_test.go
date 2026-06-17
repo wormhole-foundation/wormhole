@@ -271,6 +271,13 @@ func TestConvertEthSigToDER_Error(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestConvertEthSigToDER_EncodeError(t *testing.T) {
+	sig := makeEthSig(be32([]byte{0x05}), be32([]byte{0x06}))
+	_, err := convertEthSigToDER(sig, txscript.SigHashType(256))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to DER-encode Dogecoin signature")
+}
+
 func TestConvertEthSigToXRPLDER(t *testing.T) {
 	sig := makeEthSig(be32([]byte{0x05}), be32([]byte{0x06}))
 	der, err := convertEthSigToXRPLDER(sig)

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/manager/der"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -302,6 +303,22 @@ func TestEncodeDERSignatureStripLeadingZeros(t *testing.T) {
 	assert.Equal(t, byte(2), rLen)
 	assert.Equal(t, byte(0x01), derSig[4])
 	assert.Equal(t, byte(0x02), derSig[5])
+}
+
+func TestEncodeDERSignatureLengthOverflow(t *testing.T) {
+	valid := make([]byte, 32)
+	tooBig := make([]byte, der.Secp256k1MaxIntEncodedLen+1)
+	tooBig[0] = 0x01 // non-zero first byte prevents canonicalizeInt from stripping
+
+	t.Run("r too long", func(t *testing.T) {
+		assert.Nil(t, EncodeDERSignature(tooBig, valid))
+	})
+	t.Run("s too long", func(t *testing.T) {
+		assert.Nil(t, EncodeDERSignature(valid, tooBig))
+	})
+	t.Run("both too long", func(t *testing.T) {
+		assert.Nil(t, EncodeDERSignature(tooBig, tooBig))
+	})
 }
 
 func TestAccountIDToAddress(t *testing.T) {
