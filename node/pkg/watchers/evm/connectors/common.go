@@ -109,7 +109,7 @@ func (sub *PollSubscription) Unsubscribe() {
 // non-blocking: unsubDone is buffered and only ever needs a single value.
 func (sub *PollSubscription) signalUnsubscribed() {
 	select {
-	case sub.unsubDone <- struct{}{}: //nolint:channelcheck // Buffered; single signal.
+	case sub.unsubDone <- struct{}{}: // Note on channel capacity: Buffered; single signal.
 	default:
 	}
 }

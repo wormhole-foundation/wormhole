@@ -1,4 +1,4 @@
-version: v2.8.0
+version: v2.12.2
 name: wormhole-golangci-lint
 destination: ./bin
 plugins:
