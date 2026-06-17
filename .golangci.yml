@@ -13,6 +13,7 @@ linters:
     - dupword
     - durationcheck
     - errcheck
+    - errchkjson
     # Type assertion and comparison validation on errors. https://github.com/polyfloyd/go-errorlint
     - errorlint
     # Enum and maps used on switch statements are exhaustive
@@ -29,6 +30,8 @@ linters:
     # Check for simple misspellings of words. 
     - mnd
     - misspell
+    # TODO: enable in the future
+    # - modernize
     - nilerr
     - nilnesserr
     - noctx
@@ -102,6 +105,17 @@ linters:
             - pkg: "github.com/pkg/errors"
               desc: Should be replaced by standard lib errors package
 
+    # errcheck:
+    #   # Report unchecked type assertion failures, such as `value := raw.(string)`.
+    #   check-type-assertions: true
+    #   # Report errors deliberately assigned to `_`, such as `b, _ := json.Marshal(v)`.
+    #   check-blank: true
+    #   # Consider enabling after auditing current exclusions. The default excludes
+    #   # common cases such as fmt.Print* and io.Copy to stdout/stderr.
+    #   disable-default-exclusions: true
+    #   # exclude-functions:
+    #   #   - io.Copy(os.Stdout)
+
     errorlint:
       errorf: false
     exhaustive:
@@ -148,11 +162,10 @@ linters:
         - sloppyLen
         - underef
         - unslice
-    # TODO: Add this later.
-    # gosec:
-    #   config:
-    #     global:
-    #       audit: true
+    gosec:
+      config:
+        global:
+          audit: true
     govet:
       # The following list includes all the linters that are disabled by default.
       # Uncomment any of these to enable them:
@@ -161,7 +174,9 @@ linters:
         # - atomicalign          # Check for non-64-bits-aligned arguments to sync/atomic functions
         - deepequalerrors      # Check for calls of reflect.DeepEqual on error values
         - defers               # Check for common mistakes in defer statements
-        # - fieldalignment       # Find structs that would use less memory if their fields were sorted (too noisy: 200+ issues)
+        # skip: memory isn't a major problem in the Guardians at the moment, and the work
+        # involved with reordering struct names has a cost in terms of readability and time.
+        # - fieldalignment       # Find structs that would use less memory if their fields were sorted
         # - findcall             # Find calls to a particular function
         - ifaceassert          # Detect impossible interface-to-interface assertions
         - loopclosure          # Check for loop variable capture in goroutines
@@ -222,8 +237,11 @@ linters:
       - path: pkg/txverifier/sui_test.go
         text: 'G101: Potential hardcoded credentials'
       - linters:
+          # The mainnet tokens file contains hard-coded token info, so duplicate words, misspelled words,
+          # and magic numbers are totally fine.
           - dupword
           - misspell
+          - mnd
         path: .*generated_mainnet_tokens\.go$
         text: ".*" # This matches any text in the file
       - linters:
@@ -243,7 +261,7 @@ linters:
       - linters:
           - mnd
         # NOTE: Auto-generated list of exclusions based on which files had magic number violations when this rule was added. Ideally each should be fixed.
-        path: node/cmd/ccq/http\.go|node/cmd/ccq/p2p\.go|node/cmd/ccq/pending_request\.go|node/cmd/ccq/query_server\.go|node/cmd/ccq/status\.go|node/cmd/ccq/utils\.go|node/cmd/guardiand/adminclient\.go|node/cmd/guardiand/adminnodes\.go|node/cmd/guardiand/admintemplate\.go|node/cmd/guardiand/node\.go|node/cmd/spy/spy\.go|node/cmd/txverifier/evm\.go|node/hack/accountant/send_obs\.go|node/hack/encrypt/encrypt\.go|node/hack/evm_test/wstest\.go|node/hack/parse_eth_tx/parse_eth_tx\.go|node/hack/query/ccqlistener/ccqlistener\.go|node/hack/query/send_req\.go|node/hack/query/utils/fetchCurrentGuardianSet\.go|node/hack/release_verification/guardian_vaa_stats\.go|node/hack/repair_eth/repair_eth\.go|node/hack/repair_solana/repair\.go|node/pkg/accountant/watcher\.go|node/pkg/adminrpc/adminserver\.go|node/pkg/altpub/alternate_pub\.go|node/pkg/common/armoredKey\.go|node/pkg/common/chainlock\.go|node/pkg/common/grpc\.go|node/pkg/common/nodekey\.go|node/pkg/common/sysutils\.go|node/pkg/db/db\.go|node/pkg/db/manager\.go|node/pkg/db/open\.go|node/pkg/devnet/hostname\.go|node/pkg/governor/devnet_config\.go|node/pkg/governor/flow_cancel_tokens\.go|node/pkg/governor/generated_mainnet_tokens\.go|node/pkg/governor/governor_monitoring\.go|node/pkg/governor/governor_prices\.go|node/pkg/governor/governor\.go|node/pkg/governor/mainnet_chains\.go|node/pkg/governor/manual_tokens\.go|node/pkg/governor/testnet_config\.go|node/pkg/guardiansigner/amazonkms\.go|node/pkg/guardiansigner/guardiansigner\.go|node/pkg/gwrelayer/gwrelayer\.go|node/pkg/manager/dogecoin/script\.go|node/pkg/manager/dogecoin/transaction\.go|node/pkg/manager/manager\.go|node/pkg/node/adminServiceRunnable\.go|node/pkg/node/publicwebRunnable\.go|node/pkg/notary/admincommands\.go|node/pkg/p2p/ccq_p2p\.go|node/pkg/p2p/netmetrics\.go|node/pkg/p2p/p2p\.go|node/pkg/processor/observation\.go|node/pkg/publicrpc/publicrpcserver\.go|node/pkg/query/query\.go|node/pkg/query/response\.go|node/pkg/supervisor/supervisor_processor\.go|node/pkg/telemetry/loki\.go|node/pkg/telemetry/prom_remote_write/format\.go|node/pkg/txverifier/evm\.go|node/pkg/txverifier/evmtypes\.go|node/pkg/txverifier/suitypes\.go|node/pkg/txverifier/utils\.go|node/pkg/watchers/algorand/watcher\.go|node/pkg/watchers/aptos/watcher\.go|node/pkg/watchers/cosmwasm/watcher\.go|node/pkg/watchers/evm/ccq_backfill\.go|node/pkg/watchers/evm/ccq\.go|node/pkg/watchers/evm/chain_config\.go|node/pkg/watchers/evm/connectors/batch_poller\.go|node/pkg/watchers/evm/connectors/block_utils\.go|node/pkg/watchers/evm/connectors/ethereum\.go|node/pkg/watchers/evm/connectors/instant_finality\.go|node/pkg/watchers/evm/custom_consistency_level\.go|node/pkg/watchers/evm/reobserve\.go|node/pkg/watchers/evm/utils\.go|node/pkg/watchers/evm/verify_chain_config/verify\.go|node/pkg/watchers/evm/watcher\.go|node/pkg/watchers/ibc/watcher\.go|node/pkg/watchers/near/finalizer\.go|node/pkg/watchers/near/nearapi/mock/mock_server\.go|node/pkg/watchers/near/nearapi/nearapi\.go|node/pkg/watchers/near/nearapi/types\.go|node/pkg/watchers/near/tx_processing\.go|node/pkg/watchers/near/watcher\.go|node/pkg/watchers/solana/client\.go|node/pkg/watchers/sui/watcher\.go|node/pkg/wormconn/clientconn\.go|node/pkg/wormconn/send_tx\.go|sdk/chainid_generator\.go|sdk/devnet_consts\.go|sdk/mainnet_consts\.go|sdk/p2p_consts\.go|sdk/testnet_consts\.go|sdk/token_bridge\.go|sdk/vaa/chainid_generated\.go|sdk/vaa/governance\.go|sdk/vaa/payloads\.go|sdk/vaa/quorum\.go|sdk/vaa/structs\.go
+        path: node/cmd/ccq/http\.go|node/cmd/ccq/p2p\.go|node/cmd/ccq/pending_request\.go|node/cmd/ccq/query_server\.go|node/cmd/ccq/status\.go|node/cmd/ccq/utils\.go|node/cmd/guardiand/adminclient\.go|node/cmd/guardiand/adminnodes\.go|node/cmd/guardiand/admintemplate\.go|node/cmd/guardiand/node\.go|node/cmd/spy/spy\.go|node/cmd/txverifier/evm\.go|node/hack/accountant/send_obs\.go|node/hack/encrypt/encrypt\.go|node/hack/evm_test/wstest\.go|node/hack/parse_eth_tx/parse_eth_tx\.go|node/hack/query/ccqlistener/ccqlistener\.go|node/hack/query/send_req\.go|node/hack/query/utils/fetchCurrentGuardianSet\.go|node/hack/release_verification/guardian_vaa_stats\.go|node/hack/repair_eth/repair_eth\.go|node/hack/repair_solana/repair\.go|node/pkg/accountant/watcher\.go|node/pkg/adminrpc/adminserver\.go|node/pkg/altpub/alternate_pub\.go|node/pkg/common/armoredKey\.go|node/pkg/common/chainlock\.go|node/pkg/common/grpc\.go|node/pkg/common/nodekey\.go|node/pkg/common/sysutils\.go|node/pkg/db/db\.go|node/pkg/db/manager\.go|node/pkg/db/open\.go|node/pkg/devnet/hostname\.go|node/pkg/governor/devnet_config\.go|node/pkg/governor/flow_cancel_tokens\.go|node/pkg/governor/governor_monitoring\.go|node/pkg/governor/governor_prices\.go|node/pkg/governor/governor\.go|node/pkg/governor/mainnet_chains\.go|node/pkg/governor/manual_tokens\.go|node/pkg/governor/testnet_config\.go|node/pkg/guardiansigner/amazonkms\.go|node/pkg/guardiansigner/guardiansigner\.go|node/pkg/gwrelayer/gwrelayer\.go|node/pkg/manager/dogecoin/script\.go|node/pkg/manager/dogecoin/transaction\.go|node/pkg/manager/manager\.go|node/pkg/node/adminServiceRunnable\.go|node/pkg/node/publicwebRunnable\.go|node/pkg/notary/admincommands\.go|node/pkg/p2p/ccq_p2p\.go|node/pkg/p2p/netmetrics\.go|node/pkg/p2p/p2p\.go|node/pkg/processor/observation\.go|node/pkg/publicrpc/publicrpcserver\.go|node/pkg/query/query\.go|node/pkg/query/response\.go|node/pkg/supervisor/supervisor_processor\.go|node/pkg/telemetry/loki\.go|node/pkg/telemetry/prom_remote_write/format\.go|node/pkg/txverifier/evm\.go|node/pkg/txverifier/evmtypes\.go|node/pkg/txverifier/suitypes\.go|node/pkg/txverifier/utils\.go|node/pkg/watchers/algorand/watcher\.go|node/pkg/watchers/aptos/watcher\.go|node/pkg/watchers/cosmwasm/watcher\.go|node/pkg/watchers/evm/ccq_backfill\.go|node/pkg/watchers/evm/ccq\.go|node/pkg/watchers/evm/chain_config\.go|node/pkg/watchers/evm/connectors/batch_poller\.go|node/pkg/watchers/evm/connectors/block_utils\.go|node/pkg/watchers/evm/connectors/ethereum\.go|node/pkg/watchers/evm/connectors/instant_finality\.go|node/pkg/watchers/evm/custom_consistency_level\.go|node/pkg/watchers/evm/reobserve\.go|node/pkg/watchers/evm/utils\.go|node/pkg/watchers/evm/verify_chain_config/verify\.go|node/pkg/watchers/evm/watcher\.go|node/pkg/watchers/ibc/watcher\.go|node/pkg/watchers/near/finalizer\.go|node/pkg/watchers/near/nearapi/mock/mock_server\.go|node/pkg/watchers/near/nearapi/nearapi\.go|node/pkg/watchers/near/nearapi/types\.go|node/pkg/watchers/near/tx_processing\.go|node/pkg/watchers/near/watcher\.go|node/pkg/watchers/solana/client\.go|node/pkg/watchers/sui/watcher\.go|node/pkg/wormconn/clientconn\.go|node/pkg/wormconn/send_tx\.go|sdk/chainid_generator\.go|sdk/devnet_consts\.go|sdk/mainnet_consts\.go|sdk/p2p_consts\.go|sdk/testnet_consts\.go|sdk/token_bridge\.go|sdk/vaa/chainid_generated\.go|sdk/vaa/governance\.go|sdk/vaa/payloads\.go|sdk/vaa/quorum\.go|sdk/vaa/structs\.go
       # ST1003 exclusions for packages that need time to migrate to CamelCase naming
       # Exclude test files from ST1003 - they can be fixed separately
       - linters:
