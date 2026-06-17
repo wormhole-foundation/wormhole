@@ -275,12 +275,13 @@ func TestVerifyEventType(t *testing.T) {
 			mutate: nil,
 		},
 		{
-			// Casing of the address is insignificant: guid.account_address is
-			// compared case-insensitively.
-			name: "Happy path casing change",
+			// Casing of the address is significant: the API always returns lowercased
+			// addresses, so an uppercased guid.account_address is a mismatch.
+			name: "Uppercased address fails",
 			mutate: func(m map[string]any) {
 				m["guid"].(map[string]any)["account_address"] = "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625" //nolint:forcetypeassert // test data shape is known
 			},
+			expectError: "event guid.account_address mismatch",
 		},
 		{
 			name:        "Missing 'type' in the JSON",
@@ -390,20 +391,112 @@ func assertLoggedError(t *testing.T, logs *observer.ObservedLogs, want string) {
 	assert.Failf(t, "missing expected log", "expected a logged error containing %q, got %v", want, logs.All())
 }
 
-func TestAptosAddrEqual(t *testing.T) {
-	// Prefix, casing, and leading-zero padding are all ignored.
-	assert.True(t, aptosAddrEqual("0x01", "0x0000000000000000000000000000000000000000000000000000000000000001"))
-	assert.True(t, aptosAddrEqual("0xABCD", "abcd"))
-	assert.True(t, aptosAddrEqual("0X01", "0x01"))             // "0X" prefix
-	assert.True(t, aptosAddrEqual("0x00", "0x00000000000000")) // zero address, any padding
+func TestNewWatcher(t *testing.T) {
+	tests := []struct {
+		name        string
+		account     string
+		handle      string
+		expectError string
+	}{
+		{
+			name:    "valid lowercase",
+			account: testAptosAccount,
+			handle:  testAptosHandle,
+		},
+		{
+			name:        "uppercased account",
+			account:     "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
+			handle:      testAptosHandle,
+			expectError: "aptosAccount",
+		},
+		{
+			name:        "uppercased address in handle",
+			account:     testAptosAccount,
+			handle:      "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessageHandle",
+			expectError: "aptosHandle address segment",
+		},
+		{
+			name:        "handle missing 'Handle' suffix",
+			account:     testAptosAccount,
+			handle:      testExpectedType,
+			expectError: "does not end with 'Handle'",
+		},
+		{
+			name:        "invalid account hex",
+			account:     "0xzz",
+			handle:      testAptosHandle,
+			expectError: "not a valid lowercase Aptos address",
+		},
+	}
 
-	// Distinct addresses must not be equal.
-	assert.False(t, aptosAddrEqual("0x1", "0x2"))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			w, err := NewWatcher(vaa.ChainIDAptos, "aptos", "http://localhost", tc.account, tc.handle, nil, nil)
 
-	// Invalid inputs are never equal: empty, non-hex, and over-32-byte (>64 hex chars).
-	assert.False(t, aptosAddrEqual("", "0x1"))
-	assert.False(t, aptosAddrEqual("0xZZ", "0x1"))
-	assert.False(t, aptosAddrEqual(strings.Repeat("a", 65), strings.Repeat("a", 65)))
+			if tc.expectError == "" {
+				require.NoError(t, err)
+				require.NotNil(t, w)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectError)
+			}
+		})
+	}
+}
+
+func TestValidateAptosHandle(t *testing.T) {
+	tests := []struct {
+		name        string
+		handle      string
+		expectError string
+	}{
+		{
+			name:   "valid handle",
+			handle: testAptosHandle,
+		},
+		{
+			name:        "too few segments",
+			handle:      "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::WormholeMessageHandle",
+			expectError: "must have the form",
+		},
+		{
+			name:        "too many segments",
+			handle:      testAptosHandle + "::extra",
+			expectError: "must have the form",
+		},
+		{
+			name:        "no separators",
+			handle:      "0x5bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625",
+			expectError: "must have the form",
+		},
+		{
+			name:        "uppercased address segment",
+			handle:      "0x5Bc11445584a763c1fa7ed39081f1b920954da14e04b32440cba863d03e19625::state::WormholeMessageHandle",
+			expectError: "is not a valid lowercase Aptos address",
+		},
+		{
+			name:        "invalid hex address segment",
+			handle:      "0xzz::state::WormholeMessageHandle",
+			expectError: "is not a valid lowercase Aptos address",
+		},
+		{
+			name:        "empty address segment",
+			handle:      "::state::WormholeMessageHandle",
+			expectError: "is not a valid lowercase Aptos address",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateAptosHandle(tc.handle)
+			if tc.expectError == "" {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectError)
+			}
+		})
+	}
 }
 
 func TestParseAptosAddrLeftPads(t *testing.T) {
@@ -427,6 +520,12 @@ func TestParseAptosAddrLeftPads(t *testing.T) {
 	want[30] = 0x01
 	want[31] = 0x02
 	assert.Equal(t, want, got)
+
+	// Uppercase hex and the "0X" prefix are rejected: only lowercase is valid.
+	_, ok = parseAptosAddr("0xABCD")
+	assert.False(t, ok, "uppercase hex must be rejected")
+	_, ok = parseAptosAddr("0X01")
+	assert.False(t, ok, "uppercase 0X prefix must be rejected")
 }
 
 func TestProcessPollingBatch(t *testing.T) {
@@ -658,7 +757,7 @@ func TestProcessReobs(t *testing.T) {
 				jsonStr = encodeBatch(t, tc.events...)
 			}
 
-			w.processReobsBatch(logger, gjson.Parse(jsonStr), tc.nativeSeq)
+			w.processReobservationBatch(logger, gjson.Parse(jsonStr), tc.nativeSeq)
 
 			assertLoggedError(t, logs, tc.expectError)
 			assert.Len(t, msgC, tc.expectedMsgCount)
