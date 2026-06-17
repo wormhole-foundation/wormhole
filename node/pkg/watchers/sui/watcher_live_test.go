@@ -22,13 +22,18 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 
 // TestLiveSuiWatcher runs the real Sui watcher against a live gRPC endpoint (mainnet by
 // default) and, for every observed Wormhole message, cross-checks the gRPC/BCS-decoded fields
-// against the node's own JSON-RPC `parsedJson` rendering of the same event. A field mismatch
-// fails the test. It is only compiled with the `integration` build tag.
+// against the node's own JSON-RPC `parsedJson` rendering of the same event. It also issues a
+// real re-observation request for each observed transaction and asserts that the re-observed
+// message has the same VAA hash as the original observation — VAAHash is what the guardian uses
+// to identify a message, so a reobservation that hashed differently would never reach consensus
+// with the original. A field mismatch or hash mismatch fails the test. It is only compiled with
+// the `integration` build tag.
 //
 // Run it (streams logs; Ctrl-C to stop early):
 //
@@ -77,11 +82,17 @@ func TestLiveSuiWatcher(t *testing.T) {
 
 	observed := 0
 	verified := 0
+	reobserved := 0
+	reobsVerified := 0
+	// VAA hash of each original (non-reobservation) message, keyed by its message ID. A
+	// re-observed message is looked up here and its hash compared against the original.
+	originalHashes := make(map[string]string)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		// Drain the message channel; log and cross-check every observation.
+		// Drain the message channel; log and cross-check every observation. Only this goroutine
+		// touches originalHashes / the counters, so no locking is needed.
 		go func() {
 			defer wg.Done()
 			for {
@@ -89,6 +100,28 @@ func TestLiveSuiWatcher(t *testing.T) {
 				case <-ctx.Done():
 					return
 				case msg := <-msgChan:
+					if msg.IsReobservation {
+						reobserved++
+						origHash, ok := originalHashes[msg.MessageIDString()]
+						if !ok {
+							logger.Warn("reobs: no original observation recorded for re-observed message (skipping)",
+								zap.String("msgID", msg.MessageIDString()),
+							)
+							continue
+						}
+						if origHash != msg.VAAHash() {
+							t.Errorf("REOBSERVATION HASH MISMATCH msgID=%s: original=%s reobservation=%s",
+								msg.MessageIDString(), origHash, msg.VAAHash())
+							continue
+						}
+						reobsVerified++
+						logger.Info("VERIFIED reobservation hash matches original",
+							zap.String("msgID", msg.MessageIDString()),
+							zap.String("vaaHash", msg.VAAHash()),
+						)
+						continue
+					}
+
 					observed++
 					logger.Info("OBSERVED WORMHOLE MESSAGE",
 						append([]zap.Field{
@@ -99,6 +132,21 @@ func TestLiveSuiWatcher(t *testing.T) {
 					)
 					if verifyMessageAgainstJSONRPC(ctx, t, logger, jsonRPC, eventType, msg) {
 						verified++
+					}
+
+					// Record the original hash and request a real re-observation of this transaction
+					// so we can confirm the reobservation path produces an identical message hash.
+					originalHashes[msg.MessageIDString()] = msg.VAAHash()
+					req := &gossipv1.ObservationRequest{
+						ChainId: uint32(vaa.ChainIDSui),
+						TxHash:  msg.TxID,
+					}
+					select {
+					case obsvReqC <- req:
+					default:
+						logger.Warn("reobs: observation request channel full, skipping reobservation",
+							zap.String("msgID", msg.MessageIDString()),
+						)
 					}
 				}
 			}
@@ -116,7 +164,12 @@ func TestLiveSuiWatcher(t *testing.T) {
 	// Wait for the drain goroutine to finish any in-flight verification before the test returns,
 	// so it never calls t.Errorf after the test function has returned.
 	wg.Wait()
-	logger.Info("live Sui watcher finished", zap.Int("messagesObserved", observed), zap.Int("messagesVerified", verified))
+	logger.Info("live Sui watcher finished",
+		zap.Int("messagesObserved", observed),
+		zap.Int("messagesVerified", verified),
+		zap.Int("reobservations", reobserved),
+		zap.Int("reobservationsVerified", reobsVerified),
+	)
 }
 
 // suiParsedJson mirrors the `parsedJson` of a WormholeMessage event as rendered by the Sui
