@@ -18,10 +18,12 @@ const (
 // any string, so callers needing a sub-message path (e.g. "contents.value")
 // can pass the literal directly.
 const (
-	TransactionFieldDigest     = "digest"
-	TransactionFieldEvents     = "events"
-	TransactionFieldCheckpoint = "checkpoint"
-	TransactionFieldTimestamp  = "timestamp"
+	TransactionFieldDigest         = "digest"
+	TransactionFieldEvents         = "events"
+	TransactionFieldCheckpoint     = "checkpoint"
+	TransactionFieldTimestamp      = "timestamp"
+	TransactionFieldChangedObjects = "effects.changed_objects"
+	TransactionFieldStatus         = "effects.status"
 )
 
 const (
@@ -70,6 +72,33 @@ type SuiEvent struct {
 	BcsBytes          []byte
 }
 
+// SuiTransactionEvent pairs an event with the digest of the transaction that emitted it.
+// It is produced by the subscription, where events are delivered individually and would
+// otherwise lose their transaction context — the bare gRPC Event carries no digest, so the
+// digest is taken from the parent ExecutedTransaction. Events obtained via GetTransaction do
+// not need this wrapper, since the caller already knows the digest.
+type SuiTransactionEvent struct {
+	TxDigest string
+	Event    SuiEvent
+}
+
+// SuiObjectChange holds basic metadata of an object that changed during the
+// execution of a transaction, such as it's ID, type and versions before and
+// after transaction execution. It is populated from effects.changed_objects; request
+// TransactionFieldChangedObjects to have it populated on SuiTransaction.
+//
+// Callers MUST nil-check every field they read.
+type SuiObjectChange struct {
+	ObjectID   *string
+	ObjectType *string
+	// InputVersion is the object's version before this transaction executed
+	// (i.e. the previous version).
+	InputVersion *uint64
+	// OutputVersion is the object's version after this transaction executed
+	// (i.e. the current version).
+	OutputVersion *uint64
+}
+
 // SuiTransaction holds the flat-primitive fields of an executed transaction.
 // A field is populated only when the caller requested it via the field mask
 // AND the upstream node returned it; otherwise the field is nil/empty.
@@ -77,10 +106,11 @@ type SuiEvent struct {
 // Callers MUST nil-check every field they read. The Get* methods do not
 // enforce per-field presence — that responsibility belongs to the caller.
 type SuiTransaction struct {
-	Digest     *string
-	Events     []SuiEvent
-	Checkpoint *uint64
-	Timestamp  *time.Time
+	TxDigest      *string
+	Events        []SuiEvent
+	Checkpoint    *uint64
+	Timestamp     *time.Time
+	ObjectChanges []SuiObjectChange
 }
 
 // SuiCheckpoint holds the flat-primitive fields of a checkpoint. A field is
@@ -151,14 +181,20 @@ type SuiClient interface {
 	// SuiTransaction; see the TransactionField* constants. At least one field
 	// is required.
 	//
+	// The execution status is always fetched in addition to the requested
+	// fields, and an error is returned unless the transaction executed
+	// successfully — callers never see data from failed transactions.
+	//
 	// Fields not requested (and fields requested but missing from the upstream
 	// response) come back nil/empty. Callers MUST nil-check every field they
 	// read — this method does not enforce per-field presence.
 	GetTransaction(ctx context.Context, digest string, fields []string) (SuiTransaction, error)
 
-	// Subscribe to transaction events of type `eventType`
-	SubscribeToTransactionEvent(ctx context.Context, eventType string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
-	SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiEvent) (SuiSubscription, error)
+	// Subscribe to transaction events of type `eventType`. Each matching event is delivered
+	// on the channel as a SuiTransactionEvent, pairing it with the digest of the transaction
+	// that emitted it. Events from transactions that did not execute successfully are dropped.
+	SubscribeToTransactionEvent(ctx context.Context, eventType string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error)
+	SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- SuiTransactionEvent) (SuiSubscription, error)
 
 	// Close the client
 	Close() error

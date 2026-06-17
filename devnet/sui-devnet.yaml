@@ -9,6 +9,11 @@ spec:
     - name: node
       port: 9000
       targetPort: node
+    # The Sui full node serves the gRPC v2 API (used by the guardian) multiplexed on the same
+    # port as JSON-RPC. Expose it as `sui:443` so the watcher can connect via gRPC.
+    - name: grpc
+      port: 443
+      targetPort: node
     - name: prometheus
       port: 9184
       targetPort: prometheus

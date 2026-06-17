@@ -2,14 +2,13 @@ package txverifier
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
-	"net/http"
-	"strings"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/suiclient"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -48,16 +47,17 @@ type SuiTransferVerifier struct {
 	// Used to match the owning package of native and wrapped asset types.
 	suiTokenBridgePackageId string
 	suiEventType            string
-	suiApiConnection        SuiApiInterface
+	// gRPC client used to fetch transactions and objects.
+	client suiclient.SuiClient
 }
 
-func NewSuiTransferVerifier(suiCoreBridgePackageId, suiTokenBridgeEmitter, suiTokenBridgePackageId string, suiApiConnection SuiApiInterface) *SuiTransferVerifier {
+func NewSuiTransferVerifier(suiCoreBridgePackageId, suiTokenBridgeEmitter, suiTokenBridgePackageId string, client suiclient.SuiClient) *SuiTransferVerifier {
 	return &SuiTransferVerifier{
 		suiCoreBridgePackageId:  suiCoreBridgePackageId,
 		suiTokenBridgeEmitter:   suiTokenBridgeEmitter,
 		suiTokenBridgePackageId: suiTokenBridgePackageId,
 		suiEventType:            fmt.Sprintf("%s::%s::%s", suiCoreBridgePackageId, suiModule, suiEventName),
-		suiApiConnection:        suiApiConnection,
+		client:                  client,
 	}
 }
 
@@ -65,155 +65,161 @@ func (s *SuiTransferVerifier) GetTokenBridgeEmitter() string {
 	return s.suiTokenBridgeEmitter
 }
 
-// Filter to be used for querying events
-// The `MoveEventType` filter doesn't seem to be available in the documentation. However, there is an example
-// showing the inclusion of `type` in the `MoveModule` filter.
-// Reference: https://docs.sui.io/guides/developer/sui-101/using-events#query-events-with-rpc
-func (s *SuiTransferVerifier) GetEventFilter() string {
-	return fmt.Sprintf(`
-	{
-		"MoveModule":{
-			"package":"%s",
-			"module":"%s",
-			"type":"%s"
-		}
-	}`, s.suiCoreBridgePackageId, suiModule, s.suiEventType)
+// GetEventType returns the fully-qualified `WormholeMessage` event type emitted by the core
+// bridge. It can be used to subscribe to the relevant events over gRPC.
+func (s *SuiTransferVerifier) GetEventType() string {
+	return s.suiEventType
 }
 
 // extractBridgeRequestsFromEvents iterates through all events, and tries to identify `WormholeMessage` events emitted by the token bridge.
 // These events are parsed and collected in a `MsgIdToRequestOutOfBridge` object, mapping message IDs to requests out of the bridge. This
 // function does not return errors, as any issues encountered during processing of individual events result in those events being skipped.
-func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []SuiEvent, logger *zap.Logger) MsgIdToRequestOutOfBridge {
+func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient.SuiEvent, logger *zap.Logger) MsgIdToRequestOutOfBridge {
 	requests := make(MsgIdToRequestOutOfBridge)
 
 	for _, event := range events {
-		var wormholeMessage WormholeMessage
-
-		// Parse the ParsedJson field into a WormholeMessage. This is done explicitly to avoid any unnecessary
-		// error logging for events that can't be deserialized into `WormholeMessage` instances. If an event's
-		// ParsedJson cannot be unmarshaled into a WormholeMessage, it is simply skipped.
-		if event.ParsedJson != nil {
-			err := json.Unmarshal(*event.ParsedJson, &wormholeMessage)
-			if err != nil {
-				// If an error ocurrs, the ParsedJson is rejected as an event that is not emitted by the bridge
-				continue
-			}
-		}
-
-		// If any of these event parameters are nil, skip the event
-		if wormholeMessage.Sender == nil || wormholeMessage.Sequence == nil || event.Type == nil {
+		// Only process `WormholeMessage` events emitted by the core bridge.
+		if event.EventType != s.suiEventType {
 			continue
 		}
 
-		// Only process the event if it is a WormholeMessage event from the token bridge emitter
-		if *event.Type == s.suiEventType && *wormholeMessage.Sender == s.suiTokenBridgeEmitter {
+		// BCS-decode the event contents into a WormholeMessage. This is done explicitly to avoid any
+		// unnecessary error logging for events that can't be deserialized into `WormholeMessage`
+		// instances. If the contents cannot be decoded, the event is simply skipped.
+		wormholeMessage, err := suiclient.DecodeBcs[WormholeMessage](event.BcsBytes)
+		if err != nil {
+			// We expect that all events of the correct type can be decoded successfully so error loudly
+			logger.Error("Failed to BCS-decode WormholeMessage event", zap.Error(err))
+			continue
+		}
 
-			// Parse the wormhole message. vaa.IsTransfer can be omitted, since this is done
-			// inside `DecodeTransferPayloadHdr` already.
-			hdr, err := vaa.DecodeTransferPayloadHdr(wormholeMessage.Payload)
+		// The on-chain sender is a 32-byte address. The message ID format and the configured
+		// token bridge emitter both use a hex encoding with a "0x" prefix.
+		sender := hex.EncodeToString(wormholeMessage.Sender[:])
+		senderWith0x := "0x" + sender
 
-			// If there is an error decoding the payload, skip the event. One reason for a potential
-			// failure in decoding is that an attestation of a token was requested.
-			if err != nil {
-				logger.Debug("Error decoding payload", zap.Error(err))
-				continue
-			}
-
-			// The sender address is prefixed with "0x", but the message ID format does not include that prefix.
-			senderWithout0x := strings.TrimPrefix(*wormholeMessage.Sender, "0x")
-
-			msgIDStr := fmt.Sprintf("%d/%s/%s", vaa.ChainIDSui, senderWithout0x, *wormholeMessage.Sequence)
-			assetKey := fmt.Sprintf(KEY_FORMAT, hdr.OriginAddress.String(), hdr.OriginChain)
-
-			logger.Debug("Found request out of bridge",
-				zap.String("msgID", msgIDStr),
-				zap.String("assetKey", assetKey),
-				zap.String("amount", hdr.Amount.String()),
-			)
-
-			requests[msgIDStr] = &RequestOutOfBridge{
-				AssetKey:       assetKey,
-				Amount:         hdr.Amount,
-				DepositMade:    false,
-				DepositSolvent: false,
-			}
-		} else {
+		// Only process the event if it was emitted by the token bridge emitter.
+		if senderWith0x != s.suiTokenBridgeEmitter {
 			logger.Debug("Event does not match the criteria",
-				zap.String("event type", *event.Type),
-				zap.String("event sender", *wormholeMessage.Sender),
+				zap.String("event type", event.EventType),
+				zap.String("event sender", sender),
 				zap.String("expected event type", s.suiEventType),
 				zap.String("expected event sender", s.suiTokenBridgeEmitter),
 			)
+			continue
+		}
+
+		// Parse the wormhole message. vaa.IsTransfer can be omitted, since this is done
+		// inside `DecodeTransferPayloadHdr` already.
+		hdr, err := vaa.DecodeTransferPayloadHdr(wormholeMessage.Payload)
+
+		// If there is an error decoding the payload, skip the event. One reason for a potential
+		// failure in decoding is that an attestation of a token was requested.
+		if err != nil {
+			continue
+		}
+
+		msgIDStr := fmt.Sprintf("%d/%s/%d", vaa.ChainIDSui, sender, wormholeMessage.Sequence)
+		assetKey := fmt.Sprintf(KEY_FORMAT, hdr.OriginAddress.String(), hdr.OriginChain)
+
+		logger.Debug("Found request out of bridge",
+			zap.String("msgID", msgIDStr),
+			zap.String("assetKey", assetKey),
+			zap.String("amount", hdr.Amount.String()),
+		)
+
+		requests[msgIDStr] = &RequestOutOfBridge{
+			AssetKey:       assetKey,
+			Amount:         hdr.Amount,
+			DepositMade:    false,
+			DepositSolvent: false,
 		}
 	}
 
 	return requests
 }
 
-// extractTransfersIntoBridgeFromChanges iterates through all object changes, and tries to identify token transfers into the bridge.
+// extractTransfersIntoBridgeFromObjectChanges iterates through all object changes, and tries to identify token transfers into the bridge.
 // These transfers are accumulated in an `AssetKeyToTransferIntoBridge` object, which is returned to the caller. The default behaviour
 // of this function is to fail-close, meaning that any errors that occur during processing result in the offending object change being ignored.
-func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []ObjectChange, logger *zap.Logger) AssetKeyToTransferIntoBridge {
+func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []suiclient.SuiObjectChange, logger *zap.Logger) AssetKeyToTransferIntoBridge {
 	transfers := make(AssetKeyToTransferIntoBridge)
 
 	for _, objectChange := range objectChanges {
+		// All of these fields are required to look up and decode the object at both versions.
+		if objectChange.ObjectID == nil || objectChange.ObjectType == nil || objectChange.InputVersion == nil || objectChange.OutputVersion == nil {
+			continue
+		}
+
+		objectType := *objectChange.ObjectType
+
 		// Check that the type information is correct. Doing it here means it's not necessary to do it
-		// again, even in the case where `GetObject` is used for a single object instead of getting past
-		// objects.
-		if !objectChange.ValidateTypeInformation(s.suiTokenBridgePackageId) {
+		// again after decoding the object contents.
+		if !validateSuiAssetType(objectType, s.suiTokenBridgePackageId) {
 			continue
 		}
 
-		if objectChange.PreviousVersion == "" {
-			logger.Warn("No previous version of asset available",
-				zap.String("objectId", objectChange.ObjectId),
-				zap.String("currentVersion", objectChange.Version))
-			continue
-		}
-
-		// Get the previous version of the object. This makes a call to the Sui API.
-		resp, err := s.suiApiConnection.TryMultiGetPastObjects(ctx, objectChange.ObjectId, objectChange.Version, objectChange.PreviousVersion)
+		// Fetch the object at the version after this transaction executed (the current version)
+		// and at the version before it executed (the previous version). These calls go to the Sui API.
+		currentObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.OutputVersion, []string{suiclient.ObjectFieldContents})
 		if err != nil {
-			logger.Error("Error getting past objects",
-				zap.String("objectId", objectChange.ObjectId),
-				zap.String("currentVersion", objectChange.Version),
-				zap.String("previousVersion", objectChange.PreviousVersion),
+			logger.Error("Error getting current object version",
+				zap.String("objectId", *objectChange.ObjectID),
+				zap.Uint64("version", *objectChange.OutputVersion),
 				zap.Error(err))
 			continue
 		}
 
-		decimals, err := resp.GetDecimals()
+		previousObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.InputVersion, []string{suiclient.ObjectFieldContents})
 		if err != nil {
-			logger.Error("Error getting decimals", zap.Error(err))
+			logger.Error("Error getting object at previous version",
+				zap.String("objectId", *objectChange.ObjectID),
+				zap.Uint64("version", *objectChange.InputVersion),
+				zap.Error(err))
 			continue
 		}
 
-		address, err := resp.GetTokenAddress()
+		currentInfo, err := decodeSuiAssetObject(objectType, currentObject.ContentsBytes)
 		if err != nil {
-			logger.Error("Error getting token address", zap.Error(err))
+			logger.Error("Error decoding current asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
 			continue
 		}
 
-		chain, err := resp.GetTokenChain()
+		previousInfo, err := decodeSuiAssetObject(objectType, previousObject.ContentsBytes)
 		if err != nil {
-			logger.Error("Error getting token chain", zap.Error(err))
+			logger.Error("Error decoding previous asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
 			continue
 		}
 
-		// Get the change in balance
-		balanceChange, err := resp.GetBalanceChange()
-		if err != nil {
-			logger.Error("Error getting balance difference", zap.Error(err))
+		// The decimals, token address, and token chain are immutable properties of an asset and
+		// must not change across versions. A mismatch indicates malformed or unexpected data.
+		if currentInfo.decimals != previousInfo.decimals {
+			logger.Error("decimals do not match between object versions", zap.String("objectId", *objectChange.ObjectID))
+			continue
+		}
+		if currentInfo.tokenAddress != previousInfo.tokenAddress {
+			logger.Error("token addresses do not match between object versions", zap.String("objectId", *objectChange.ObjectID))
+			continue
+		}
+		if currentInfo.tokenChain != previousInfo.tokenChain {
+			logger.Error("token chains do not match between object versions", zap.String("objectId", *objectChange.ObjectID))
 			continue
 		}
 
-		normalized := normalize(balanceChange, decimals)
+		// Compute the change in balance between the previous and current versions. For wrapped
+		// assets the supply is burned (decreases) when tokens are sent into the bridge, so the
+		// sign is inverted to represent the deposit as a positive amount.
+		balanceChange := new(big.Int).Sub(currentInfo.balance, previousInfo.balance)
+		if currentInfo.isWrapped {
+			balanceChange.Neg(balanceChange)
+		}
+
+		normalized := normalize(balanceChange, currentInfo.decimals)
 
 		// Add the key if it does not exist yet
-		assetKey := fmt.Sprintf(KEY_FORMAT, address, chain)
+		assetKey := fmt.Sprintf(KEY_FORMAT, currentInfo.tokenAddress, currentInfo.tokenChain)
 
 		if _, exists := transfers[assetKey]; !exists {
-			// logger.Debug("First time seeing transfer into bridge for asset", zap.String("assetKey", assetKey))
 			transfers[assetKey] = &TransferIntoBridge{
 				Amount:  big.NewInt(0),
 				Solvent: false,
@@ -251,11 +257,14 @@ func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, 
 func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest string, msgIdStr string, logger *zap.Logger) (bool, error) {
 	logger.Debug("processing digest", zap.String("txDigest", digest), zap.String("msgId", msgIdStr))
 
-	// Get the transaction block
-	txBlock, err := s.suiApiConnection.GetTransactionBlock(ctx, digest)
+	// Get the transaction, including its events and the objects changed by its effects.
+	txn, err := s.client.GetTransaction(ctx, digest, []string{
+		suiclient.TransactionFieldEvents,
+		suiclient.TransactionFieldChangedObjects,
+	})
 
 	if err != nil {
-		logger.Error("failed to retrieve transaction block",
+		logger.Error("failed to retrieve transaction",
 			zap.String("txDigest", digest),
 			zap.Error(err),
 		)
@@ -263,7 +272,7 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 	}
 
 	// Extract bridge requests from events
-	bridgeOutRequests := s.extractBridgeRequestsFromEvents(txBlock.Result.Events, logger)
+	bridgeOutRequests := s.extractBridgeRequestsFromEvents(txn.Events, logger)
 
 	if len(bridgeOutRequests) == 0 {
 		logger.Debug("No relevant events found in transaction block", zap.String("txDigest", digest))
@@ -272,7 +281,7 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 	}
 
 	// Process all object changes, specifically looking for transfers into the token bridge
-	transfersIntoBridge := s.extractTransfersIntoBridgeFromObjectChanges(ctx, txBlock.Result.ObjectChanges, logger)
+	transfersIntoBridge := s.extractTransfersIntoBridgeFromObjectChanges(ctx, txn.ObjectChanges, logger)
 
 	// Validate solvency using the requests out of the bridge vs the transfers into the bridge.
 	resolved, err := validateSolvency(bridgeOutRequests, transfersIntoBridge)
@@ -335,92 +344,4 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 	}
 
 	return true, nil
-}
-
-type SuiApiResponse interface {
-	GetError() error
-}
-
-func suiApiRequest[T SuiApiResponse](ctx context.Context, rpc string, method string, params string) (T, error) {
-	var defaultT T
-
-	// Create the request
-	requestBody := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "%s", "params": %s}`, method, params)
-
-	req, err := http.NewRequestWithContext(ctx, "POST", rpc, strings.NewReader(requestBody))
-	if err != nil {
-		return defaultT, fmt.Errorf("cannot create request: %w", err)
-	}
-
-	// Add headers
-	req.Header.Set("Content-Type", "application/json")
-
-	// Send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return defaultT, fmt.Errorf("cannot send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Read the response
-	body, err := common.SafeRead(resp.Body)
-	if err != nil {
-		return defaultT, fmt.Errorf("cannot read response: %w", err)
-	}
-
-	// Parse the response
-	var res T
-	err = json.Unmarshal(body, &res)
-	if err != nil {
-		return defaultT, fmt.Errorf("cannot parse response: %w", err)
-	}
-
-	// Check if the API returned an error
-	if res.GetError() != nil {
-		return defaultT, fmt.Errorf("error from Sui RPC: %w", res.GetError())
-	}
-
-	return res, nil
-}
-
-type SuiApiConnection struct {
-	rpc string
-}
-
-func NewSuiApiConnection(rpc string) SuiApiInterface {
-	return &SuiApiConnection{rpc: rpc}
-}
-
-func (s *SuiApiConnection) GetTransactionBlock(ctx context.Context, txDigest string) (SuiGetTransactionBlockResponse, error) {
-	method := "sui_getTransactionBlock"
-	params := fmt.Sprintf(`[
-				"%s", 
-				{
-					"showObjectChanges":true,
-					"showEvents": true
-				}
-			]`, txDigest)
-
-	return suiApiRequest[SuiGetTransactionBlockResponse](ctx, s.rpc, method, params)
-}
-
-func (s *SuiApiConnection) QueryEvents(ctx context.Context, filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error) {
-	method := "suix_queryEvents"
-	params := fmt.Sprintf(`[%s, %s, %d, %t]`, filter, cursor, limit, descending)
-
-	return suiApiRequest[SuiQueryEventsResponse](ctx, s.rpc, method, params)
-}
-
-func (s *SuiApiConnection) TryMultiGetPastObjects(ctx context.Context, objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error) {
-	method := "sui_tryMultiGetPastObjects"
-	params := fmt.Sprintf(`[
-			[
-				{"objectId" : "%s", "version" : "%s"},
-				{"objectId" : "%s", "version" : "%s"}
-			],
-			{"showContent": true}
-		]`, objectId, version, objectId, previousVersion)
-
-	return suiApiRequest[SuiTryMultiGetPastObjectsResponse](ctx, s.rpc, method, params)
 }
