@@ -561,7 +561,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					stats.FinalizedHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				default:
 					logger.Error("unexpected finality in block", zap.Stringer("finality", ev.Finality), zap.Any("event", ev))
-					errC <- fmt.Errorf("unexpected finality in block: %v", ev.Finality) //nolint:channelcheck // Error channel. Should never be stuck for long periods of time.
+					errC <- fmt.Errorf("unexpected finality in block: %v", ev.Finality) // Note on channel capacity: Error channel. Should never be stuck for long periods of time.
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 					return nil
 				}

@@ -39,7 +39,7 @@ func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
 		s.pollPrevWormholeSignature, err = s.getPrevWormholeSignature()
 		if err != nil {
 			s.logger.Error("failed to get the last wormhole signature on start up", zap.Error(err))
-			s.errC <- err //nolint:channelcheck // Error channel. Should never be stuck for long periods of time.
+			s.errC <- err // Note on channel capacity: Error channel. Should never be stuck for long periods of time.
 			return err
 		}
 	}
@@ -58,7 +58,7 @@ func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
 			err := s.processNewTransactions()
 			if err != nil {
 				s.logger.Error("failed to get transactions", zap.Error(err))
-				s.errC <- err //nolint:channelcheck // Error channel. Should never be stuck for long periods of time.
+				s.errC <- err // Note on channel capacity: Error channel. Should never be stuck for long periods of time.
 				return err
 			}
 		}
