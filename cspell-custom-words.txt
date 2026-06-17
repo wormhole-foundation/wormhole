@@ -224,6 +224,7 @@ Tendermint
 terrad
 tokenbridge
 tokenfactory
+traceback
 trustlessly
 tsig
 tsproto
