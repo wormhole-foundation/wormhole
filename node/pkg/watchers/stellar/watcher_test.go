@@ -239,8 +239,8 @@ func (m *mockSorobanRPC) methodCount(method string) int {
 // ---------------------------------------------------------------------------
 
 const (
-	testContract  = "CBWQUIB4R65Z2DGC263FQ7BBI7TGIGOLFTYMLE6QPWBD5QDOUVJY3AKR"
-	testNetworkID = "stellar-test"
+	testContract    = "CBWQUIB4R65Z2DGC263FQ7BBI7TGIGOLFTYMLE6QPWBD5QDOUVJY3AKR"
+	testNetworkID   = "stellar-test"
 	testStartLedger = uint64(100)
 )
 
@@ -562,8 +562,8 @@ func TestReobserve_UsesCustomEndpoint(t *testing.T) {
 	txHash := "dead000000000000000000000000000000000000000000000000000000000000"
 	createdAt := int64(1700000000)
 
-	primaryMock := newMockRPC(100)  // primary server: no transactions
-	customMock := newMockRPC(300)   // custom server: has the transaction
+	primaryMock := newMockRPC(100) // primary server: no transactions
+	customMock := newMockRPC(300)  // custom server: has the transaction
 	customMock.transactions[txHash] = mockTx{status: "SUCCESS", ledger: 200, createdAt: createdAt}
 	customMock.events = []mockEvent{
 		{

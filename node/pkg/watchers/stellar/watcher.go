@@ -62,7 +62,7 @@ type WatcherConfig struct {
 	PollInterval time.Duration
 	ReadTimeout  time.Duration
 	StartLedger  uint64
-	MaxPerPoll int
+	MaxPerPoll   int
 }
 
 func (wc *WatcherConfig) Create(
@@ -173,11 +173,8 @@ func (w *watcher) Run(ctx context.Context) error {
 	w.logger = logger
 
 	if w.nextLedger == 0 {
-		seq, err := w.getLatestLedger(ctx)
+		seq, err := w.getInitialLedger(ctx, logger)
 		if err != nil {
-			stellarConnectionErrors.WithLabelValues(w.networkName, "initial_ledger").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			logger.Error("failed to get latest ledger", zap.Error(err))
 			return err
 		}
 		w.nextLedger = seq
@@ -209,6 +206,42 @@ func (w *watcher) Run(ctx context.Context) error {
 				stellarConnectionErrors.WithLabelValues(w.networkName, "poll").Inc()
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				logger.Warn("pollOnce error", zap.Error(err))
+			}
+		}
+	}
+}
+
+// getInitialLedger fetches the starting ledger, retrying with capped exponential
+// backoff. A transient RPC outage at startup (e.g. the Soroban RPC not yet
+// reachable when the guardian boots) must not kill the watcher, mirroring the
+// resilience of the poll loop. Returns an error only when the context is cancelled.
+func (w *watcher) getInitialLedger(ctx context.Context, logger *zap.Logger) (uint64, error) {
+	backoff := w.pollInterval
+	if backoff <= 0 {
+		backoff = 700 * time.Millisecond
+	}
+	const maxBackoff = 60 * time.Second
+
+	for {
+		seq, err := w.getLatestLedger(ctx)
+		if err == nil {
+			return seq, nil
+		}
+
+		stellarConnectionErrors.WithLabelValues(w.networkName, "initial_ledger").Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+		logger.Warn("failed to get latest ledger, retrying", zap.Error(err), zap.Duration("backoff", backoff))
+
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(backoff):
+		}
+
+		if backoff < maxBackoff {
+			backoff *= 2
+			if backoff > maxBackoff {
+				backoff = maxBackoff
 			}
 		}
 	}
