@@ -30,11 +30,10 @@ type (
 		chainID   vaa.ChainID
 		networkID string
 
-		aptosRPC     string
-		aptosAccount string
-		aptosHandle  string
-		// aptosEventType is derived from aptosHandle.
-		aptosEventType string
+		aptosRPC       string
+		aptosAccount   string // Wormhole contract address
+		aptosHandle    string // Event to subscribe to Aptos RPC
+		aptosEventType string // aptosEventType is derived from aptosHandle.
 
 		msgC          chan<- *common.MessagePublication
 		obsvReqC      <-chan *gossipv1.ObservationRequest
@@ -83,10 +82,18 @@ func NewWatcher(
 	if !strings.HasSuffix(aptosHandle, "Handle") {
 		return nil, fmt.Errorf("aptosHandle %q does not end with 'Handle'", aptosHandle)
 	}
-	// Validate the configured contract address
-	if _, ok := parseAptosAddr(aptosAccount); !ok {
-		return nil, fmt.Errorf("aptosAccount %q is not a valid Aptos address", aptosAccount)
+	// Validate the handle's structure (<address>::<module>::<struct>) and its embedded address.
+	if err := validateAptosHandle(aptosHandle); err != nil {
+		return nil, err
 	}
+
+	// Validate the configured contract address. parseAptosAddr requires a valid, lowercase Aptos
+	// address so that verifyEventType can match it against the (always lowercased) event fields with
+	// an exact comparison. Fail fast on misconfiguration.
+	if _, ok := parseAptosAddr(aptosAccount); !ok {
+		return nil, fmt.Errorf("aptosAccount %q is not a valid lowercase Aptos address", aptosAccount)
+	}
+
 	return &Watcher{
 		chainID:        chainID,
 		networkID:      string(networkID),
@@ -187,7 +194,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			outcomes := gjson.ParseBytes(body)
 
-			e.processReobsBatch(logger, outcomes, nativeSeq)
+			e.processReobservationBatch(logger, outcomes, nativeSeq)
 
 		case <-timer.C:
 			s := ""
@@ -300,6 +307,7 @@ func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, n
 		// Consume this slot regardless of outcome so a skipped event is never re-fetched.
 		*nextSequence = eventSeq + 1
 
+		// SECURITY: Aptos event type validation
 		if err := e.verifyEventType(event); err != nil {
 			logger.Error("aptos event failed verification",
 				zap.Error(err),
@@ -332,7 +340,7 @@ func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, n
 
 // processReobsBatch handles the response to a reobservation lookup. The query
 // uses limit=1 so outcomes is expected to be a zero- or one-element array.
-func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, nativeSeq uint64) {
+func (e *Watcher) processReobservationBatch(logger *zap.Logger, outcomes gjson.Result, nativeSeq uint64) {
 	for _, aptosEvent := range outcomes.Array() {
 		newSeq := aptosEvent.Get("sequence_number")
 		if !newSeq.Exists() {
@@ -344,6 +352,7 @@ func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, n
 			break
 		}
 
+		// SECURITY: Aptos event type validation
 		if err := e.verifyEventType(aptosEvent); err != nil {
 			logger.Error("aptos event failed verification",
 				zap.Error(err),
@@ -369,28 +378,37 @@ func (e *Watcher) processReobsBatch(logger *zap.Logger, outcomes gjson.Result, n
 	}
 }
 
-// normalize0x strips an optional leading "0x" prefix so a configured value without it still
+// stripHexadecimalPrefix strips an optional leading "0x" prefix so a configured value without it still
 // matches the chain's 0x-prefixed representation.
-func normalize0x(s string) string {
+func stripHexadecimalPrefix(s string) string {
 	return strings.TrimPrefix(s, "0x")
 }
 
-// aptosAddrEqual reports whether two Aptos account addresses are equal. Each is decoded to its
-// canonical 32-byte form, so the "0x"/"0X" prefix, letter casing, and leading-zero padding are
-// all ignored. Returns false if either side is not a valid address.
-func aptosAddrEqual(actualAddr, expectedAddr string) bool {
-	actual, actualOK := parseAptosAddr(actualAddr)
-	expected, expectedOK := parseAptosAddr(expectedAddr)
-	return actualOK && expectedOK && actual == expected
+// validateAptosHandle checks that the event handle has the canonical
+// "<address>::<module>::<struct>" shape and that its address segment is a valid, lowercase Aptos
+// address. Splitting on "::" must yield exactly three segments; the explicit length check guards the
+// parts[0] access below from an out-of-bounds read.
+func validateAptosHandle(handle string) error {
+	parts := strings.Split(handle, "::")
+	if len(parts) != 3 {
+		return fmt.Errorf("aptosHandle %q must have the form <address>::<module>::<struct>", handle)
+	}
+	if _, ok := parseAptosAddr(parts[0]); !ok {
+		return fmt.Errorf("aptosHandle address segment %q is not a valid lowercase Aptos address", parts[0])
+	}
+	return nil
 }
 
-// parseAptosAddr decodes a hex Aptos address into its canonical 32-byte form.
+// parseAptosAddr decodes a hex Aptos address into its canonical 32-byte form. The address must be
+// lowercase with an optional lowercase "0x" prefix; uppercase hex (or a "0X" prefix) is rejected so
+// that a configured address compares equal to the always-lowercased values returned by the Aptos API.
 func parseAptosAddr(addr string) ([32]byte, bool) {
 	var out [32]byte
-	if len(addr) >= 2 && addr[0] == '0' && (addr[1] == 'x' || addr[1] == 'X') {
-		addr = addr[2:]
-	}
+	addr = stripHexadecimalPrefix(addr)
 	if len(addr) == 0 || len(addr) > 64 {
+		return out, false
+	}
+	if addr != strings.ToLower(addr) {
 		return out, false
 	}
 	decoded, err := hex.DecodeString(addr)
@@ -409,9 +427,9 @@ func (e *Watcher) verifyEventType(event gjson.Result) error {
 		return fmt.Errorf("event missing 'type' field")
 	}
 
-	// The type must match exactly, modulo the optional leading "0x" prefix. Casing is significant:
+	// The type must match exactly.
 	// Aptos returns the canonical type string, and Move module/struct names are case-sensitive.
-	if normalize0x(t.String()) != normalize0x(e.aptosEventType) {
+	if stripHexadecimalPrefix(t.String()) != stripHexadecimalPrefix(e.aptosEventType) {
 		return fmt.Errorf("event type mismatch: got %q, want %q", t.String(), e.aptosEventType)
 	}
 
@@ -421,7 +439,7 @@ func (e *Watcher) verifyEventType(event gjson.Result) error {
 	if !guidAddr.Exists() {
 		return fmt.Errorf("event missing 'guid.account_address' field")
 	}
-	if !aptosAddrEqual(guidAddr.String(), e.aptosAccount) {
+	if stripHexadecimalPrefix(guidAddr.String()) != stripHexadecimalPrefix(e.aptosAccount) {
 		return fmt.Errorf("event guid.account_address mismatch: got %q, want %q", guidAddr.String(), e.aptosAccount)
 	}
 
@@ -461,7 +479,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		return
 	}
 
-	pl, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
+	pl, err := hex.DecodeString(stripHexadecimalPrefix(s))
 	if err != nil {
 		logger.Error("payload decode", zap.Error(err))
 		return
