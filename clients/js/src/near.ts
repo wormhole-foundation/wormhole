@@ -19,6 +19,23 @@ export function keyPairToImplicitAccount(keyPair: KeyPair): string {
   return Buffer.from(keyPair.getPublicKey().data).toString("hex");
 }
 
+// Resolve the NEAR account to act as. If NEAR_ACCOUNT is set, use that named
+// account; otherwise fall back to the implicit account derived from the key.
+// The supplied key must be a full-access key on whichever account is used.
+export function resolveNearAccount(keyPair: KeyPair): string {
+  if (process.env.NEAR_ACCOUNT) {
+    return process.env.NEAR_ACCOUNT;
+  }
+  const implicitAccount = keyPairToImplicitAccount(keyPair);
+  console.warn(
+    `Warning: NEAR_ACCOUNT is not set, falling back to the implicit account derived from your key:\n` +
+      `  ${implicitAccount}\n` +
+      `If your key belongs to a named account (e.g. foo.near), set NEAR_ACCOUNT to that account.\n` +
+      `Otherwise the submission will likely fail with "access key ed25519:... does not exist while viewing".`
+  );
+  return implicitAccount;
+}
+
 export const execute_near = async (
   payload: Payload,
   vaa: string,
@@ -122,7 +139,7 @@ export const execute_near = async (
   }
 
   const keyPair = KeyPair.fromString(key);
-  const deployerAccount = keyPairToImplicitAccount(keyPair);
+  const deployerAccount = resolveNearAccount(keyPair);
   const keyStore = new InMemoryKeyStore();
   keyStore.setKey(networkId, deployerAccount, keyPair);
   const near = await connect({
@@ -182,7 +199,7 @@ export async function transferNear(
     throw Error(`Unknown token bridge contract on ${network} for NEAR`);
   }
   const keyPair = KeyPair.fromString(key);
-  const deployerAccount = keyPairToImplicitAccount(keyPair);
+  const deployerAccount = resolveNearAccount(keyPair);
   const keyStore = new InMemoryKeyStore();
   keyStore.setKey(networkId, deployerAccount, keyPair);
   const near = await connect({

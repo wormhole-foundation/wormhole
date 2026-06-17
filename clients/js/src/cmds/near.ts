@@ -21,9 +21,10 @@ export const builder = function (y: typeof yargs) {
     } as const)
     .option("network", NETWORK_OPTIONS)
     .option("account", {
-      describe: "Near deployment account",
+      describe:
+        "Near deployment account (defaults to the NEAR_ACCOUNT env var)",
       type: "string",
-      demandOption: true,
+      demandOption: false,
     })
     .option("attach", {
       describe: "Attach some near",
@@ -76,6 +77,13 @@ export const builder = function (y: typeof yargs) {
           throw Error(`No ${network} rpc defined for NEAR`);
         }
 
+        const account = argv.account ?? process.env.NEAR_ACCOUNT;
+        if (!account) {
+          throw Error(
+            `No NEAR account defined: pass --account or set the NEAR_ACCOUNT env var`
+          );
+        }
+
         let target = argv.target;
         if (!argv.target && argv.module) {
           if (argv.module === "Core") {
@@ -95,7 +103,7 @@ export const builder = function (y: typeof yargs) {
 
         const masterKey = KeyPair.fromString(key);
         const keyStore = new InMemoryKeyStore();
-        keyStore.setKey(networkId, argv.account, masterKey);
+        keyStore.setKey(networkId, account, masterKey);
         const near = await connect({
           keyStore,
           networkId,
@@ -103,7 +111,7 @@ export const builder = function (y: typeof yargs) {
           headers: {},
         });
 
-        const masterAccount = new Account(near.connection, argv.account);
+        const masterAccount = new Account(near.connection, account);
         const result = await masterAccount.functionCall({
           contractId: target,
           methodName: "update_contract",
@@ -144,6 +152,13 @@ export const builder = function (y: typeof yargs) {
           throw Error(`No ${network} rpc defined for NEAR`);
         }
 
+        const account = argv.account ?? process.env.NEAR_ACCOUNT;
+        if (!account) {
+          throw Error(
+            `No NEAR account defined: pass --account or set the NEAR_ACCOUNT env var`
+          );
+        }
+
         let target = argv.target;
         if (!argv.target && argv.module) {
           if (argv.module === "Core") {
@@ -163,7 +178,7 @@ export const builder = function (y: typeof yargs) {
 
         const masterKey = KeyPair.fromString(key);
         const keyStore = new InMemoryKeyStore();
-        keyStore.setKey(networkId, argv.account, masterKey);
+        keyStore.setKey(networkId, account, masterKey);
         keyStore.setKey(networkId, target, masterKey);
 
         const near = await connect({
@@ -172,13 +187,13 @@ export const builder = function (y: typeof yargs) {
           nodeUrl: rpc,
           headers: {},
         });
-        const masterAccount = new Account(near.connection, argv.account);
+        const masterAccount = new Account(near.connection, account);
         const targetAccount = new Account(near.connection, target);
         console.log({ ...argv, key, rpc, target });
 
         if (argv.attach) {
           console.log(
-            `Sending money: ${target} from ${argv.account} being sent ${argv.attach}`
+            `Sending money: ${target} from ${account} being sent ${argv.attach}`
           );
           console.log(
             await masterAccount.sendMoney(target, new BN(argv.attach))
