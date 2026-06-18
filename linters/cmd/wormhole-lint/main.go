@@ -6,7 +6,7 @@ package main
 import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
-	"github.com/certusone/wormhole/linters/rules/channelcheck"
+	"github.com/wormhole-foundation/wormhole/linters/rules/channelcheck"
 )
 
 func main() {

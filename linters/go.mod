@@ -1,9 +1,9 @@
-module github.com/certusone/wormhole/linters
+module github.com/wormhole-foundation/wormhole/linters
 
 go 1.25.10
 
 require (
-	github.com/certusone/wormhole/linters/rules/channelcheck v0.0.0
+	github.com/wormhole-foundation/wormhole/linters/rules/channelcheck v0.0.0
 	golang.org/x/tools v0.30.0
 )
 
@@ -13,4 +13,4 @@ require (
 	golang.org/x/sync v0.11.0 // indirect
 )
 
-replace github.com/certusone/wormhole/linters/rules/channelcheck => ./rules/channelcheck
+replace github.com/wormhole-foundation/wormhole/linters/rules/channelcheck => ./rules/channelcheck

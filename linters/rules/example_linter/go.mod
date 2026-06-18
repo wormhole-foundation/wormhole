@@ -1,6 +1,6 @@
-module github.com/certusone/wormhole/linters/rules/example_linter
+module github.com/wormhole-foundation/wormhole/linters/rules/example_linter
 
-go 1.25.0
+go 1.25.10
 
 require (
 	github.com/golangci/plugin-module-register v0.1.1

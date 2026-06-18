@@ -21,7 +21,7 @@ make test                  # root + each rules/<linter> module
 ```
 
 `make build-golangci-lint` first installs the pinned upstream
-`golangci-lint` into `bin/` (per `GOLANGCI_LINT_VERSION`), then runs
+`golangci-lint` into `bin/` (per `GOLANGCI_LINT_HASH`), then runs
 `golangci-lint custom`. 
 
 ## Use
@@ -79,7 +79,7 @@ linters:
 1. Scaffold the module:
    ```
    mkdir -p rules/<linter> && cd rules/<linter>
-   go mod init github.com/certusone/wormhole/linters/rules/<linter>
+   go mod init github.com/wormhole-foundation/wormhole/linters/rules/<linter>
    ```
 2. Implement `<linter>.go` following the channelcheck reference
    (`rules/channelcheck/channelcheck.go`):
@@ -94,14 +94,14 @@ linters:
    `rules/channelcheck/channelcheck_test.go`.
 4. Wire it into the root module so the aggregator can import it:
    - In root `go.mod`, add
-     `require github.com/certusone/wormhole/linters/rules/<linter> v0.0.0` and
-     `replace github.com/certusone/wormhole/linters/rules/<linter> => ./rules/<linter>`.
+     `require github.com/wormhole-foundation/wormhole/linters/rules/<linter> v0.0.0` and
+     `replace github.com/wormhole-foundation/wormhole/linters/rules/<linter> => ./rules/<linter>`.
    - In `cmd/wormhole-lint/main.go`, add the import and append
      `<linter>.Analyzer` to the `multichecker.Main` call.
 5. Wire it into `.custom-gcl.yml` so the custom golangci-lint picks it up:
    ```yaml
    plugins:
-     - module: github.com/certusone/wormhole/linters/rules/<linter>
+     - module: github.com/wormhole-foundation/wormhole/linters/rules/<linter>
        path: ./rules/<linter>
    ```
 6. `make test && make build && make build-golangci-lint` to verify.
