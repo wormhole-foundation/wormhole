@@ -51,8 +51,13 @@ module token_bridge::state {
 
     /// Dynamic field key for the `paused` boolean.
     struct PausedKey has copy, drop, store {}
+    /// Dynamic field key for the pause expiry timestamp (ms). The point at
+    /// which an active pause becomes eligible to be lifted permissionlessly.
+    struct PauseExpiryKey has copy, drop, store {}
     /// Dynamic field key for the designated pauser capability id.
     struct PauserKey has copy, drop, store {}
+    /// Dynamic field key for the designated freezer capability id.
+    struct FreezerKey has copy, drop, store {}
     /// Dynamic field key for the designated unpauser capability id.
     struct UnpauserKey has copy, drop, store {}
 
@@ -173,11 +178,33 @@ module token_bridge::state {
         }
     }
 
+    /// Returns the pause expiry timestamp (ms): the point at which an active
+    /// pause becomes eligible to be lifted permissionlessly via
+    /// `pause::unpause_expired`. Returns `0` if unset (also `0` for pre-pause
+    /// state). See `token_bridge::pause`.
+    public fun pause_expiry(self: &State): u64 {
+        if (field::exists_(&self.id, PauseExpiryKey {})) {
+            *field::borrow<PauseExpiryKey, u64>(&self.id, PauseExpiryKey {})
+        } else {
+            0
+        }
+    }
+
     /// Returns the active pauser capability's object id, or `none` if unset
     /// (also `none` for pre-pause state). See `token_bridge::pause`.
     public fun pauser(self: &State): Option<ID> {
         if (field::exists_(&self.id, PauserKey {})) {
             *field::borrow<PauserKey, Option<ID>>(&self.id, PauserKey {})
+        } else {
+            option::none()
+        }
+    }
+
+    /// Returns the active freezer capability's object id, or `none` if unset.
+    /// See `token_bridge::pause`.
+    public fun freezer(self: &State): Option<ID> {
+        if (field::exists_(&self.id, FreezerKey {})) {
+            *field::borrow<FreezerKey, Option<ID>>(&self.id, FreezerKey {})
         } else {
             option::none()
         }
@@ -361,6 +388,22 @@ module token_bridge::state {
         }
     }
 
+    /// Set the pause expiry timestamp (ms). Requires `LatestOnly`.
+    public(friend) fun set_pause_expiry(
+        _: &LatestOnly,
+        self: &mut State,
+        expiry: u64
+    ) {
+        if (field::exists_(&self.id, PauseExpiryKey {})) {
+            *field::borrow_mut<PauseExpiryKey, u64>(
+                &mut self.id,
+                PauseExpiryKey {}
+            ) = expiry;
+        } else {
+            field::add(&mut self.id, PauseExpiryKey {}, expiry);
+        }
+    }
+
     /// Set the active pauser capability id (`none` to unassign).
     /// Requires `LatestOnly`.
     public(friend) fun set_pauser(
@@ -375,6 +418,23 @@ module token_bridge::state {
             ) = new_pauser;
         } else {
             field::add(&mut self.id, PauserKey {}, new_pauser);
+        }
+    }
+
+    /// Set the active freezer capability id (`none` to unassign).
+    /// Requires `LatestOnly`.
+    public(friend) fun set_freezer(
+        _: &LatestOnly,
+        self: &mut State,
+        new_freezer: Option<ID>
+    ) {
+        if (field::exists_(&self.id, FreezerKey {})) {
+            *field::borrow_mut<FreezerKey, Option<ID>>(
+                &mut self.id,
+                FreezerKey {}
+            ) = new_freezer;
+        } else {
+            field::add(&mut self.id, FreezerKey {}, new_freezer);
         }
     }
 
@@ -478,7 +538,7 @@ module token_bridge::state {
     /// to expose this method as a public method.
     public(friend) fun migrate__v__0_3_0(self: &mut State) {
         // Initialize pause dynamic fields with defaults:
-        // paused = false, pauser = none, unpauser = none (roles unassigned).
+        // paused = false, pauseExpiry = 0, pauser/freezer/unpauser = none.
         //
         // The `exists_` guard is required (NOT redundant): `migrate` calls this
         // handler BEFORE bumping the version in `handle_migrate`. So the version
@@ -489,7 +549,9 @@ module token_bridge::state {
         // `migrate_tests::test_cannot_migrate_again`).
         if (!field::exists_(&self.id, PausedKey {})) {
             field::add(&mut self.id, PausedKey {}, false);
+            field::add(&mut self.id, PauseExpiryKey {}, 0u64);
             field::add(&mut self.id, PauserKey {}, option::none<ID>());
+            field::add(&mut self.id, FreezerKey {}, option::none<ID>());
             field::add(&mut self.id, UnpauserKey {}, option::none<ID>());
         };
     }
@@ -510,7 +572,9 @@ module token_bridge::state {
     public fun init_pause_state_test_only(self: &mut State) {
         if (!field::exists_(&self.id, PausedKey {})) {
             field::add(&mut self.id, PausedKey {}, false);
+            field::add(&mut self.id, PauseExpiryKey {}, 0u64);
             field::add(&mut self.id, PauserKey {}, option::none<ID>());
+            field::add(&mut self.id, FreezerKey {}, option::none<ID>());
             field::add(&mut self.id, UnpauserKey {}, option::none<ID>());
         }
     }
