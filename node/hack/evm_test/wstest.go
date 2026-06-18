@@ -24,6 +24,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -77,7 +78,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				case err := <-headerSubscription.Err():
-					errC <- fmt.Errorf("block subscription failed: %w", err) // Note on channel capacity: The watcher will exit anyway
+					common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("block subscription failed: %w", err), "wstest_errc")
 					return
 				case block := <-headSink:
 					// These two pointers should have been checked before the event was placed on the channel, but just being safe.
@@ -114,7 +115,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				case err := <-messageSub.Err():
-					errC <- fmt.Errorf("message subscription failed: %w", err) // Note on channel capacity: The watcher will exit anyway
+					common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("message subscription failed: %w", err), "wstest_errc")
 					return
 				case ev := <-messageC:
 					logger.Info("Received a log event from the contract", zap.Any("ev", ev))

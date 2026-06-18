@@ -266,7 +266,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 
 			if job.hasWormholeMsg {
 				// report how long it took to process this transaction
-				e.eventChanTxProcessedDuration <- time.Since(job.creationTime) // Note on channel capacity: Only pauses this watcher
+				common.WriteToChannelWithoutBlocking(e.eventChanTxProcessedDuration, time.Since(job.creationTime), "near_event_chan_tx_processed_duration") // Non-blocking: eventChanTxProcessedDuration is buffered (cap 10) and metrics-only, so dropping a sample is preferable to stalling the watcher.
 			}
 		}
 
@@ -346,7 +346,7 @@ func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, d
 				select {
 				case <-ctx.Done():
 					return nil
-				case e.transactionProcessingQueue <- job: // Note on channel capacity: Only blocking this go routine.
+				case e.transactionProcessingQueue <- job: //nolint:channelcheck // Buffered channel and we drop the message if over the queue size above.
 				}
 			}
 			return nil

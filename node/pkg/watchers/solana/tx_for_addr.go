@@ -17,6 +17,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"go.uber.org/zap"
@@ -39,7 +40,7 @@ func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
 		s.pollPrevWormholeSignature, err = s.getPrevWormholeSignature()
 		if err != nil {
 			s.logger.Error("failed to get the last wormhole signature on start up", zap.Error(err))
-			s.errC <- err // Note on channel capacity: Error channel. Should never be stuck for long periods of time.
+			common.WriteToChannelWithoutBlocking(s.errC, err, "solana_errc")
 			return err
 		}
 	}
@@ -58,7 +59,7 @@ func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
 			err := s.processNewTransactions()
 			if err != nil {
 				s.logger.Error("failed to get transactions", zap.Error(err))
-				s.errC <- err // Note on channel capacity: Error channel. Should never be stuck for long periods of time.
+				common.WriteToChannelWithoutBlocking(s.errC, err, "solana_errc")
 				return err
 			}
 		}
