@@ -39,8 +39,9 @@ pub struct Config {
     pub wormhole_bridge: Pubkey,
 }
 
-// Hand-rolled `BorshDeserialize` so `try_from_slice` tolerates the pauser tail (bytes 32..97)
-// that the realloc'd Config carries after the first `SetPauserAddresses` governance VAA.
+// Hand-rolled `BorshDeserialize` so `try_from_slice` tolerates the pauser tail (bytes
+// CONFIG_BORSH_LEN..CONFIG_WITH_PAUSER_LEN, i.e. 32..137) that the realloc'd Config carries after
+// the first `SetPauserAddresses` governance VAA.
 // The derived `try_from_slice` rejects any trailing bytes, which would break every handler
 // that peels `ConfigAccount` (transfer, complete, attest, …) on a migrated bridge.
 impl BorshDeserialize for Config {
@@ -85,24 +86,30 @@ impl Owned for Config {
 /// the canonical "role unassigned" encoding, and `api::pause` reverts before comparing the
 /// caller in that case (see whitepapers/0003_token_bridge.md Pausing).
 ///
-/// Tail layout (97-byte total Config account):
-///   bytes 32 .. 33 : `paused` (u8, exactly 0 or 1 — see `write_paused` / `paused()`)
-///   bytes 33 .. 65 : `pauser`   (Pubkey)
-///   bytes 65 .. 97 : `unpauser` (Pubkey)
+/// Tail layout (137-byte total Config account):
+///   bytes  32 ..  33 : `paused`       (u8, exactly 0 or 1 — see `write_paused` / `paused()`)
+///   bytes  33 ..  65 : `pauser`       (Pubkey)
+///   bytes  65 ..  97 : `unpauser`     (Pubkey)
+///   bytes  97 .. 129 : `freezer`      (Pubkey)
+///   bytes 129 .. 137 : `pause_expiry` (i64 LE, unix seconds — matches Clock.unix_timestamp)
 ///
-/// See the "Pausing" section of whitepapers/0003_token_bridge.md.
+/// `freezer` and `pause_expiry` are APPENDED after the original pauser/unpauser tail so the
+/// existing offsets are preserved; the first `SetPauserAddresses` realloc's straight to the full
+/// 137-byte size (see `api::governance`). See whitepapers/0003_token_bridge.md Pausing.
 
-// Account-size sentinels: a Config account is either CONFIG_BORSH_LEN (legacy / un-migrated)
-// or CONFIG_WITH_PAUSER_LEN (post-migration). Any other length on a successfully-deserialized account
-// would indicate corruption.
+// Account-size sentinels. A Config account is either CONFIG_BORSH_LEN (legacy / un-migrated, the
+// size at which the bridge `initialize` creates it) or CONFIG_WITH_PAUSER_LEN (post-migration).
+// Any other length on a successfully-deserialized account would indicate corruption.
 pub const CONFIG_BORSH_LEN: usize = 32;
-pub const PAUSER_TAIL_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES;
+pub const PAUSER_TAIL_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES + PUBKEY_BYTES + 8;
 pub const CONFIG_WITH_PAUSER_LEN: usize = CONFIG_BORSH_LEN + PAUSER_TAIL_LEN;
 
 // Byte offsets inside the tail (relative to the start of the Config account).
 pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
 pub const PAUSER_OFFSET: usize = PAUSED_OFFSET + 1;
 pub const UNPAUSER_OFFSET: usize = PAUSER_OFFSET + PUBKEY_BYTES;
+pub const FREEZER_OFFSET: usize = UNPAUSER_OFFSET + PUBKEY_BYTES;
+pub const PAUSE_EXPIRY_OFFSET: usize = FREEZER_OFFSET + PUBKEY_BYTES;
 
 // Pin offset/length relationships at compile time so a future tweak to the constants can't
 // silently corrupt the tail layout. (Written with `if ... { panic!() }` rather than `assert!`
@@ -114,8 +121,14 @@ const _: () = {
     if PAUSER_OFFSET + PUBKEY_BYTES > CONFIG_WITH_PAUSER_LEN {
         panic!("pauser slot must fit inside CONFIG_WITH_PAUSER_LEN");
     }
-    if UNPAUSER_OFFSET + PUBKEY_BYTES != CONFIG_WITH_PAUSER_LEN {
-        panic!("unpauser slot must end exactly at CONFIG_WITH_PAUSER_LEN");
+    if UNPAUSER_OFFSET + PUBKEY_BYTES > CONFIG_WITH_PAUSER_LEN {
+        panic!("unpauser slot must fit inside CONFIG_WITH_PAUSER_LEN");
+    }
+    if FREEZER_OFFSET + PUBKEY_BYTES > CONFIG_WITH_PAUSER_LEN {
+        panic!("freezer slot must fit inside CONFIG_WITH_PAUSER_LEN");
+    }
+    if PAUSE_EXPIRY_OFFSET + 8 != CONFIG_WITH_PAUSER_LEN {
+        panic!("pause_expiry slot must end exactly at CONFIG_WITH_PAUSER_LEN");
     }
 };
 
@@ -155,12 +168,48 @@ pub fn unpauser(config_data: &[u8]) -> Pubkey {
     Pubkey::new(&config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)])
 }
 
+/// Read the configured freezer. Same legacy / unassigned semantics as [`pauser`].
+#[must_use]
+pub fn freezer(config_data: &[u8]) -> Pubkey {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
+        return Pubkey::default();
+    }
+    Pubkey::new(&config_data[FREEZER_OFFSET..(FREEZER_OFFSET + PUBKEY_BYTES)])
+}
+
+/// Read the pause expiry (unix seconds): the point at which an active pause becomes eligible to
+/// be lifted permissionlessly via `api::pause::unpause_expired`. Returns `0` for legacy
+/// (un-migrated) accounts. See whitepapers/0003_token_bridge.md Pausing.
+#[must_use]
+pub fn pause_expiry(config_data: &[u8]) -> i64 {
+    if config_data.len() < CONFIG_WITH_PAUSER_LEN {
+        return 0;
+    }
+    let mut buf = [0u8; 8];
+    buf.copy_from_slice(&config_data[PAUSE_EXPIRY_OFFSET..(PAUSE_EXPIRY_OFFSET + 8)]);
+    i64::from_le_bytes(buf)
+}
+
 pub(crate) fn write_paused(config_data: &mut [u8], paused: bool) {
     config_data[PAUSED_OFFSET] = u8::from(paused);
 }
 
-pub(crate) fn write_pauser_addresses(config_data: &mut [u8], pauser: &Pubkey, unpauser: &Pubkey) {
+pub(crate) fn write_pause_expiry(config_data: &mut [u8], expiry: i64) {
+    config_data[PAUSE_EXPIRY_OFFSET..(PAUSE_EXPIRY_OFFSET + 8)]
+        .copy_from_slice(&expiry.to_le_bytes());
+}
+
+/// Write all three pause-authority roles (pauser, freezer, unpauser) atomically. Leaves `paused`
+/// and `pause_expiry` untouched so a governance rotation does not change the live pause state.
+pub(crate) fn write_pause_authorities(
+    config_data: &mut [u8],
+    pauser: &Pubkey,
+    freezer: &Pubkey,
+    unpauser: &Pubkey,
+) {
     config_data[PAUSER_OFFSET..(PAUSER_OFFSET + PUBKEY_BYTES)].copy_from_slice(&pauser.to_bytes());
+    config_data[FREEZER_OFFSET..(FREEZER_OFFSET + PUBKEY_BYTES)]
+        .copy_from_slice(&freezer.to_bytes());
     config_data[UNPAUSER_OFFSET..(UNPAUSER_OFFSET + PUBKEY_BYTES)]
         .copy_from_slice(&unpauser.to_bytes());
 }

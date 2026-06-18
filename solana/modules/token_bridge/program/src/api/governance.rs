@@ -10,7 +10,7 @@ use crate::{
         PayloadSetPauserAddresses,
     },
     types::{
-        write_pauser_addresses,
+        write_pause_authorities,
         CONFIG_WITH_PAUSER_LEN,
     },
     TokenBridgeError::{
@@ -173,8 +173,8 @@ pub fn register_chain(
 }
 
 /// Event discriminator: `SHA256("event:PauserAddressesSet")[0..8]`. Emitted via Anchor-style
-/// self-CPI when `set_pauser_addresses` succeeds. Payload: 32-byte pauser pubkey followed by the
-/// 32-byte unpauser pubkey, in that order.
+/// self-CPI when `set_pauser_addresses` succeeds. Payload (96 bytes): 32-byte pauser pubkey, then
+/// the 32-byte freezer pubkey, then the 32-byte unpauser pubkey, in that order.
 pub const PAUSER_ADDRESSES_SET_EVENT_DISCRIMINATOR: [u8; 8] =
     [0xb9, 0xcf, 0x4f, 0x8f, 0x6c, 0x76, 0xdf, 0x6d];
 
@@ -214,10 +214,11 @@ pub fn set_pauser_addresses(
     verify_governance(&accs.vaa)?;
     claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
-    // One-time migration: legacy 32-byte Config accounts grow to 97 bytes the first time this
-    // VAA is processed. Subsequent VAAs reuse the already-extended layout. The `paused` flag
-    // is preserved across updates — rotating the pauser/unpauser keys does not implicitly
-    // unpause the bridge.
+    // One-time migration: the Config account is created by the bridge `initialize` at its
+    // original 32-byte size; the first time this VAA is processed it grows straight to the full
+    // CONFIG_WITH_PAUSER_LEN (137) bytes. Subsequent VAAs reuse the already-extended layout. The
+    // `paused` flag and `pause_expiry` are preserved across updates — rotating the
+    // pauser/freezer/unpauser keys does not implicitly unpause the bridge.
     //
     // Borsh back-compat: the first 32 bytes of the account (the original `Config` struct) are
     // never moved or rewritten, and the `Config::BorshDeserialize` impl in `types.rs` is
@@ -247,18 +248,33 @@ pub fn set_pauser_addresses(
         config_info.realloc(CONFIG_WITH_PAUSER_LEN, true)?;
     }
 
+    // Invariant the tail writers rely on: the account is now exactly the full pauser layout. The
+    // only legitimate sizes reaching this point are the 32-byte legacy account (just realloc'd
+    // above) and an already-migrated 137-byte account. Assert it explicitly so a corrupted /
+    // unexpected intermediate size reverts cleanly here instead of panicking on an out-of-bounds
+    // slice inside `write_pause_authorities`.
+    if config_info.data_len() != CONFIG_WITH_PAUSER_LEN {
+        return Err(InvalidVAA.into());
+    }
+
     {
         let mut data = config_info.data.borrow_mut();
-        write_pauser_addresses(&mut data, &accs.vaa.pauser, &accs.vaa.unpauser);
+        write_pause_authorities(
+            &mut data,
+            &accs.vaa.pauser,
+            &accs.vaa.freezer,
+            &accs.vaa.unpauser,
+        );
         // `data` borrow dropped here so the self-CPI below can re-borrow the account.
     }
 
     if accs.self_program.key != ctx.program_id {
         return Err(InvalidSelfProgram.into());
     }
-    let mut payload = [0u8; 64];
+    let mut payload = [0u8; 96];
     payload[..32].copy_from_slice(&accs.vaa.pauser.to_bytes());
-    payload[32..].copy_from_slice(&accs.vaa.unpauser.to_bytes());
+    payload[32..64].copy_from_slice(&accs.vaa.freezer.to_bytes());
+    payload[64..].copy_from_slice(&accs.vaa.unpauser.to_bytes());
     emit_event_cpi(
         ctx,
         &accs.event_authority,

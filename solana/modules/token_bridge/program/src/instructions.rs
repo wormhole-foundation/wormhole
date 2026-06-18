@@ -23,6 +23,7 @@ use crate::{
         },
         AttestTokenData,
         CreateWrappedData,
+        FreezeData,
         PauseData,
         RegisterChainData,
         SenderAccount,
@@ -30,6 +31,7 @@ use crate::{
         TransferNativeData,
         TransferWrappedData,
         UnpauseData,
+        UnpauseExpiredData,
         UpgradeContractData,
     },
     messages::{
@@ -919,8 +921,9 @@ pub fn upgrade_contract(
 }
 
 /// Builder for the `SetPauserAddresses` (action 4) governance instruction. Realloc's the existing
-/// `Config` PDA from its legacy 32-byte layout to the 97-byte layout the first time it is called.
-/// Emits a `PauserAddressesSet` Anchor-style event via self-CPI (see `api::governance`).
+/// `Config` PDA from its legacy 32-byte layout to the full `CONFIG_WITH_PAUSER_LEN` (137-byte)
+/// layout the first time it is called. Emits a `PauserAddressesSet` Anchor-style event via
+/// self-CPI (see `api::governance`).
 pub fn set_pauser_addresses(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -960,8 +963,8 @@ pub fn set_pauser_addresses(
 }
 
 /// Builder for the `Pause` instruction. Caller must equal the configured pauser stored in the
-/// `Config` tail (set via a `SetPauserAddresses` governance VAA). Emits a `Paused` Anchor-style
-/// event via self-CPI.
+/// `Config` tail (set via a `SetPauserAddresses` governance VAA). Sets a 5-day pause expiry. Emits
+/// a `Paused` Anchor-style event via self-CPI.
 pub fn pause(program_id: Pubkey, pauser: Pubkey) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &program_id);
     let (event_authority, _) =
@@ -972,6 +975,7 @@ pub fn pause(program_id: Pubkey, pauser: Pubkey) -> solitaire::Result<Instructio
         accounts: vec![
             AccountMeta::new_readonly(pauser, true),
             AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
             AccountMeta::new_readonly(event_authority, false),
             AccountMeta::new_readonly(program_id, false),
         ],
@@ -979,9 +983,30 @@ pub fn pause(program_id: Pubkey, pauser: Pubkey) -> solitaire::Result<Instructio
     })
 }
 
-/// Builder for the `Unpause` instruction. Caller must equal the configured unpauser stored in the
-/// `Config` tail (set via a `SetPauserAddresses` governance VAA). Emits an `Unpaused` Anchor-style
+/// Builder for the `Freeze` instruction. Caller must equal the configured freezer stored in the
+/// `Config` tail. Sets the pause expiry to the maximum timestamp. Emits a `Frozen` Anchor-style
 /// event via self-CPI.
+pub fn freeze(program_id: Pubkey, freezer: Pubkey) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &program_id);
+    let (event_authority, _) =
+        Pubkey::find_program_address(&[solitaire::EVENT_AUTHORITY_SEED], &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new_readonly(freezer, true),
+            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(event_authority, false),
+            AccountMeta::new_readonly(program_id, false),
+        ],
+        data: (crate::instruction::Instruction::Freeze, FreezeData {}).try_to_vec()?,
+    })
+}
+
+/// Builder for the `Unpause` instruction. Caller must equal the configured unpauser stored in the
+/// `Config` tail (set via a `SetPauserAddresses` governance VAA). Records the unpause timestamp
+/// into `pause_expiry` (hence the Clock sysvar) and emits an `Unpaused` Anchor-style event via
+/// self-CPI.
 pub fn unpause(program_id: Pubkey, unpauser: Pubkey) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &program_id);
     let (event_authority, _) =
@@ -992,9 +1017,35 @@ pub fn unpause(program_id: Pubkey, unpauser: Pubkey) -> solitaire::Result<Instru
         accounts: vec![
             AccountMeta::new_readonly(unpauser, true),
             AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
             AccountMeta::new_readonly(event_authority, false),
             AccountMeta::new_readonly(program_id, false),
         ],
         data: (crate::instruction::Instruction::Unpause, UnpauseData {}).try_to_vec()?,
+    })
+}
+
+/// Builder for the permissionless `UnpauseExpired` instruction. Callable by anyone (the `payer`
+/// only pays fees and carries no authority) once the current pause has expired. Emits an
+/// `UnpauseExpired` Anchor-style event via self-CPI.
+pub fn unpause_expired(program_id: Pubkey, payer: Pubkey) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Initialized }>::key(None, &program_id);
+    let (event_authority, _) =
+        Pubkey::find_program_address(&[solitaire::EVENT_AUTHORITY_SEED], &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
+            AccountMeta::new_readonly(event_authority, false),
+            AccountMeta::new_readonly(program_id, false),
+        ],
+        data: (
+            crate::instruction::Instruction::UnpauseExpired,
+            UnpauseExpiredData {},
+        )
+            .try_to_vec()?,
     })
 }

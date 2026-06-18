@@ -488,6 +488,48 @@ mod helpers {
         .await
     }
 
+    #[allow(dead_code)]
+    pub async fn freeze(
+        client: &mut BanksClient,
+        program: Pubkey,
+        freezer: &Keypair,
+        payer: &Keypair,
+    ) -> Result<(), BanksClientError> {
+        let instruction = instructions::freeze(program, freezer.pubkey())
+            .expect("Could not create Freeze instruction");
+
+        execute(
+            client,
+            payer,
+            &[payer, freezer],
+            &[instruction],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
+    #[allow(dead_code)]
+    pub async fn unpause_expired(
+        client: &mut BanksClient,
+        program: Pubkey,
+        caller: &Keypair,
+        payer: &Keypair,
+    ) -> Result<(), BanksClientError> {
+        // `unpause_expired` is permissionless: the caller only pays fees. We pass `caller` as the
+        // fee-payer account so tests can exercise it from an arbitrary signer.
+        let instruction = instructions::unpause_expired(program, caller.pubkey())
+            .expect("Could not create UnpauseExpired instruction");
+
+        execute(
+            client,
+            payer,
+            &[payer, caller],
+            &[instruction],
+            CommitmentLevel::Processed,
+        )
+        .await
+    }
+
     pub async fn complete_native(
         client: &mut BanksClient,
         program: Pubkey,

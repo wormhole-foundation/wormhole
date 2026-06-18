@@ -27,6 +27,7 @@ pub use api::{
     complete_wrapped,
     complete_wrapped_with_payload,
     create_wrapped,
+    freeze,
     initialize,
     pause,
     register_chain,
@@ -36,6 +37,7 @@ pub use api::{
     transfer_wrapped,
     transfer_wrapped_with_payload,
     unpause,
+    unpause_expired,
     upgrade_contract,
     AttestToken,
     AttestTokenData,
@@ -49,6 +51,8 @@ pub use api::{
     CompleteWrappedWithPayloadData,
     CreateWrapped,
     CreateWrappedData,
+    Freeze,
+    FreezeData,
     Initialize,
     InitializeData,
     Pause,
@@ -67,6 +71,8 @@ pub use api::{
     TransferWrappedWithPayloadData,
     Unpause,
     UnpauseData,
+    UnpauseExpired,
+    UnpauseExpiredData,
     UpgradeContract,
     UpgradeContractData,
 };
@@ -101,7 +107,7 @@ pub enum TokenBridgeError {
     NonexistentTokenMetadataAccount,
     NotMetadataV1Account,
     WrongMetadataAccount,
-    /// `paused == true`. Lifted only by a successful `unpause` call from the configured unpauser.
+    /// `paused == true`. Lifted only by a successful `unpause` / `unpause_expired` call.
     Paused,
     /// Caller of `pause` / `unpause` is not the configured pauser / unpauser.
     InvalidPauser,
@@ -110,6 +116,15 @@ pub enum TokenBridgeError {
     /// `self_program` account passed by the caller does not match this program's `program_id`.
     /// Only used to defensively guard the self-CPI that emits Anchor-style events.
     InvalidSelfProgram,
+    // NOTE: new variants are APPENDED below — `From<TokenBridgeError>` maps each variant to its
+    // numeric position (`t as u64`), so inserting in the middle would renumber existing error
+    // codes. Always append.
+    /// Caller of `freeze` is not the configured freezer (or the freezer role is unassigned).
+    NotFreezer,
+    /// `unpause` / `unpause_expired` was called while the bridge is not paused.
+    NotPaused,
+    /// `unpause_expired` was called before the current pause has expired (`now < pause_expiry`).
+    NotExpired,
 }
 
 impl From<TokenBridgeError> for SolitaireError {
@@ -136,4 +151,8 @@ solitaire! {
     SetPauserAddresses => set_pauser_addresses,
     Pause => pause,
     Unpause => unpause,
+    // Appended after the existing instructions so their dispatch indices (the on-chain
+    // instruction discriminators) stay stable.
+    Freeze => freeze,
+    UnpauseExpired => unpause_expired,
 }
