@@ -230,6 +230,29 @@ Places to find out more about existing test coverage and how to run those tests:
 
 The best place to understand how we invoke these tests via GitHub Actions on every commit can be found via `./.github/workflows/*.yml` and the best place to observe the results of these builds can be found via [https://github.com/wormhole-foundation/wormhole/actions](https://github.com/wormhole-foundation/wormhole/actions).
 
+### Writing Tests
+
+Tests should be written to be extensible and to cover as much of the expected behavior as possible, especially failure cases.
+Tests added to the repo are expected to prove their error cases, not just the happy path.
+
+Where possible, real example data should be used as the test input rather than hand-crafted data. For example,
+a real RPC response with on-chain can be saved in-line and tested against a parser.
+
+For Go specifically:
+- Use [table-driven tests](https://go.dev/wiki/TableDrivenTests#example-of-a-table-driven-test) to test multiple inputs in an extensible way.
+- Be intentional when using require vs assert. 
+  - Require halts the test and hides all subsequent logging, whereas multiple failing asserts will be logged.
+  - So, require should be used carefully for setting up e.g. a mock or a test database that is required for the test to run. Asserts should be used for checking actual properties and business logic.
+- Use `t.Parallel()` for tests that can safely be run in parallel.
+- Use `testing.Short()` to gate  tests that are more integration-like or that otherwise are slow.
+- Use `t.Helper()` for any utility/helper functions that are not themselves explicitly tests that you do not want to see in the error traceback.
+
+
+### Unit tests anti-patterns
+
+- Hard-coded sleeps
+- Live, external network calls
+
 ### Code Coverage
 
 Refer to [Makefile] for instructions on checking on and updating code coverage.
