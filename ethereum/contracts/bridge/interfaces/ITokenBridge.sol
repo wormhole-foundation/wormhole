@@ -66,16 +66,23 @@ interface ITokenBridge {
 
     event TransferRedeemed(uint16 indexed emitterChainId, bytes32 indexed emitterAddress, uint64 indexed sequence);
 
-    event PauserAddressesSet(address indexed pauser, address indexed unpauser);
+    event PauserAddressesSet(address indexed pauser, address indexed freezer, address indexed unpauser);
 
-    event Paused(address indexed by);
+    event Paused(address indexed by, uint256 pauseExpiry);
+
+    event Frozen(address indexed by, uint256 pauseExpiry);
 
     event Unpaused(address indexed by);
+
+    event UnpauseExpired(address indexed by);
 
     // Pauser-related (declared in Bridge contract).
     error BridgePaused();
     error NotPauser();
     error NotUnpauser();
+    error NotFreezer();
+    error NotPaused();
+    error NotExpired();
 
     // Transfer/wrap-related (declared in Bridge contract).
     error InsufficientFee();
@@ -108,6 +115,8 @@ interface ITokenBridge {
     error WrongGovernanceContract();
     error GovernanceActionConsumed();
     error InitializeFailed(bytes reason);
+    /// @notice Reverts when a `SetPauserAddresses` payload encodes a pauser/freezer/unpauser length
+    ///         that is neither 0 (unassigned) nor 20 (the EVM native address size).
     error InvalidAddressLength();
 
     // Setter / initializer (declared in BridgeSetters / BridgeImplementation).
@@ -187,9 +196,13 @@ interface ITokenBridge {
 
     function pauser() external view returns (address);
 
+    function freezer() external view returns (address);
+
     function unpauser() external view returns (address);
 
     function paused() external view returns (bool);
+
+    function pauseExpiry() external view returns (uint64);
 
     function implementation() external view returns (address);
 
@@ -205,7 +218,11 @@ interface ITokenBridge {
 
     function pause() external;
 
+    function freeze() external;
+
     function unpause() external;
+
+    function unpauseExpired() external;
 
     function parseRegisterChain(bytes memory encoded) external pure returns (RegisterChain memory chain);
 

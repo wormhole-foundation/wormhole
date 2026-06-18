@@ -32,11 +32,22 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint64 indexed sequence
     );
 
-    /// @notice Emitted when the bridge is paused.
-    event Paused(address indexed by);
+    /// @notice Emitted when the bridge is temporarily paused via `pause`.
+    /// @param by The pauser that paused the bridge.
+    /// @param pauseExpiry The timestamp (unix seconds) at which the pause becomes permissionlessly
+    ///        liftable via `unpauseExpired`.
+    event Paused(address indexed by, uint256 pauseExpiry);
 
-    /// @notice Emitted when the bridge is unpaused.
+    /// @notice Emitted when the bridge is frozen via `freeze`.
+    /// @param by The freezer that froze the bridge.
+    /// @param pauseExpiry The pause expiry, set to the maximum timestamp by `freeze`.
+    event Frozen(address indexed by, uint256 pauseExpiry);
+
+    /// @notice Emitted when the bridge is unpaused via `unpause`.
     event Unpaused(address indexed by);
+
+    /// @notice Emitted when an expired pause is lifted permissionlessly via `unpauseExpired`.
+    event UnpauseExpired(address indexed by);
 
     /// @dev Custom errors are used in place of revert strings to keep `BridgeImplementation` under
     ///      the 24,576-byte EIP-170 limit.
@@ -51,6 +62,15 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     ///         anyone other than the configured unpauser. The "unassigned" branch is checked first
     ///         so that an all-zero `unpauser` is never treated as an authorized caller.
     error NotUnpauser();
+    /// @notice Reverts when `freeze()` is called while the freezer role is unassigned, or by anyone
+    ///         other than the configured freezer. The "unassigned" branch is checked first so that
+    ///         an all-zero `freezer` is never treated as an authorized caller.
+    error NotFreezer();
+    /// @notice Reverts when `unpause()` / `unpauseExpired()` is called while the bridge is not paused.
+    error NotPaused();
+    /// @notice Reverts when `unpauseExpired()` is called before the current pause has expired
+    ///         (`block.timestamp < pauseExpiry`).
+    error NotExpired();
     /// @notice Reverts when `msg.value` does not cover the wormhole message fee.
     error InsufficientFee();
     /// @notice Reverts when an arbiter / relayer fee exceeds the transfer amount.
@@ -95,34 +115,97 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         _;
     }
 
-    /// @notice Pause the bridge. Only callable by the configured pauser. The pauser is configured
-    ///         via the `SetPauserAddresses` (action 4) governance VAA and may be left unassigned;
-    ///         when unassigned this entry point reverts before comparing `msg.sender`, so an
-    ///         all-zero `pauser` is never authorized.
+    /// @dev Temporary-pause duration: 5 days, in seconds (`block.timestamp` is seconds). A `pause`
+    ///      holds the bridge for this long; the pauser must re-`pause` to extend it (a dead-man's
+    ///      switch — the hold lapses if the pauser stops acting). See
+    ///      whitepapers/0003_token_bridge.md.
+    uint64 constant PAUSE_DURATION = 5 days;
+
+    /// @dev Authorize `msg.sender` against a configured role address, reverting `err` (a 4-byte
+    ///      custom-error selector) if the role is unassigned (all-zero) or the caller does not
+    ///      match. The unassigned check is first so an all-zero role is never authorized. Shared by
+    ///      pause/freeze/unpause and reverts via assembly so the three callsites collapse to one
+    ///      body — keeping `BridgeImplementation` under the EIP-170 limit.
+    function _requireRole(address role, bytes4 err) internal view {
+        if (role == address(0) || msg.sender != role) {
+            assembly {
+                mstore(0x0, err)
+                revert(0x0, 0x4)
+            }
+        }
+    }
+
+    /// @notice Temporarily pause the bridge. Only callable by the configured pauser. Sets `paused`
+    ///         and pushes `pauseExpiry` to `block.timestamp + PAUSE_DURATION` (5 days), but NEVER
+    ///         reduces a `pauseExpiry` already further in the future — so a lower-trust pauser
+    ///         cannot curtail a `freeze`. Not idempotent: each call extends the window.
+    /// @dev The pauser is configured via the `SetPauserAddresses` (action 4) governance VAA and may
+    ///      be left unassigned; when unassigned this entry point reverts before comparing
+    ///      `msg.sender`, so an all-zero `pauser` is never authorized.
     /// @dev Intentionally does not check `isFork()`. On a forked chain the pre-fork pauser can
     ///      still pause the bridge without first waiting for a `submitRecoverChainId` governance
     ///      VAA — letting whoever holds the pauser key shut the bridge down on the fork
     ///      immediately, before chain-id recovery completes.
     function pause() external {
-        address p = pauser();
-        if (p == address(0)) revert NotPauser();
-        if (msg.sender != p) revert NotPauser();
+        _requireRole(pauser(), NotPauser.selector);
+        uint64 newExpiry = uint64(block.timestamp) + PAUSE_DURATION;
+        // Never reduce an expiry already further out (e.g. one set by `freeze`).
+        if (newExpiry > pauseExpiry()) {
+            setPauseExpiry(newExpiry);
+        }
         setPaused(true);
-        emit Paused(msg.sender);
+        emit Paused(msg.sender, pauseExpiry());
     }
 
-    /// @notice Unpause the bridge. Only callable by the configured unpauser. The unpauser is
-    ///         configured via the `SetPauserAddresses` (action 4) governance VAA and may be left
-    ///         unassigned; when unassigned this entry point reverts before comparing `msg.sender`,
-    ///         so an all-zero `unpauser` is never authorized. Note that `unpause` is intentionally
-    ///         exempt from the `notPaused` modifier so it remains callable while paused.
+    /// @notice Freeze the bridge for the maximum duration. Only callable by the configured freezer.
+    ///         Sets `paused` and `pauseExpiry` to the maximum timestamp. The higher-trust
+    ///         counterpart to the temporary, self-expiring `pause`: a frozen bridge will not become
+    ///         permissionlessly unpausable in practice and can only be lifted by the `unpauser`.
+    ///         Idempotent.
+    /// @dev The freezer may be left unassigned; when unassigned this reverts before comparing
+    ///      `msg.sender`, so an all-zero `freezer` is never authorized.
     /// @dev Intentionally does not check `isFork()`; see the matching note on `pause()`.
+    function freeze() external {
+        _requireRole(freezer(), NotFreezer.selector);
+        setPauseExpiry(type(uint64).max);
+        setPaused(true);
+        emit Frozen(msg.sender, type(uint64).max);
+    }
+
+    /// @notice Unpause the bridge. Only callable by the configured unpauser. Clears `paused` and
+    ///         sets `pauseExpiry` to `block.timestamp`. The privileged path to lift any pause
+    ///         (including a `freeze`) early. Reverts if the unpauser is unassigned or the bridge is
+    ///         not currently paused.
+    /// @dev Setting `pauseExpiry` to the current time (rather than 0) leaves on-chain evidence of
+    ///      the last unpause while bringing any stale `freeze` expiry down to the present, so it
+    ///      cannot block a later `pause`. Exempt from `notPaused` so it remains callable while
+    ///      paused. Does not check `isFork()`; see the note on `pause()`.
     function unpause() external {
-        address u = unpauser();
-        if (u == address(0)) revert NotUnpauser();
-        if (msg.sender != u) revert NotUnpauser();
-        setPaused(false);
+        _requireRole(unpauser(), NotUnpauser.selector);
+        if (!paused()) revert NotPaused();
+        _clearPauseToNow();
         emit Unpaused(msg.sender);
+    }
+
+    /// @dev Shared tail of `unpause`/`unpauseExpired`: clear `paused` and bring `pauseExpiry` down
+    ///      to now (so a stale `freeze` expiry cannot block a later `pause`). Emitted once and
+    ///      JUMPed to from both callsites to keep `BridgeImplementation` under the EIP-170 limit.
+    function _clearPauseToNow() internal {
+        setPauseExpiry(uint64(block.timestamp));
+        setPaused(false);
+    }
+
+    /// @notice Permissionlessly unpause the bridge once its pause has expired. Clears `paused` and
+    ///         sets `pauseExpiry` to `block.timestamp`. No role required. Reverts if the bridge is
+    ///         not currently paused or `block.timestamp < pauseExpiry`.
+    /// @dev Bounds a `pauser`-initiated pause to `PAUSE_DURATION` without requiring the `unpauser`
+    ///      to act. The boolean `paused` remains authoritative — a pause is only lifted by an
+    ///      explicit `unpause`/`unpauseExpired` call, never silently by the passage of time.
+    function unpauseExpired() external {
+        if (!paused()) revert NotPaused();
+        if (block.timestamp < pauseExpiry()) revert NotExpired();
+        _clearPauseToNow();
+        emit UnpauseExpired(msg.sender);
     }
 
     /*

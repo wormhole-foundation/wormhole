@@ -39,8 +39,8 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     error WrongGovernanceContract();
     error GovernanceActionConsumed();
     error InitializeFailed(bytes reason);
-    /// @notice Reverts when a `SetPauserAddresses` payload encodes a pauser/unpauser length that is
-    ///         neither 0 (unassigned) nor 20 (the EVM native address size).
+    /// @notice Reverts when a `SetPauserAddresses` payload encodes a pauser/freezer/unpauser length
+    ///         that is neither 0 (unassigned) nor 20 (the EVM native address size).
     error InvalidAddressLength();
 
     // Execute a RegisterChain governance message
@@ -72,15 +72,22 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         upgradeImplementation(address(uint160(uint256(implementation.newContract))));
     }
 
-    /// @notice Emitted when the pauser/unpauser addresses are updated via governance.
+    /// @notice Emitted when the pauser/freezer/unpauser addresses are updated via governance.
     /// @param pauser The address authorized to call pause().
+    /// @param freezer The address authorized to call freeze().
     /// @param unpauser The address authorized to call unpause().
-    event PauserAddressesSet(address indexed pauser, address indexed unpauser);
+    event PauserAddressesSet(
+        address indexed pauser,
+        address indexed freezer,
+        address indexed unpauser
+    );
 
-    /// @notice Set the pauser and unpauser addresses via a `SetPauserAddresses` (action 4) governance VAA.
+    /// @notice Set the pauser, freezer, and unpauser addresses via a `SetPauserAddresses`
+    ///         (action 4) governance VAA.
     /// @dev Payload layout:
     ///        module(32) | action(1)=4 | chainId(2)
     ///      | pauserLen(1) | pauser[pauserLen]
+    ///      | freezerLen(1) | freezer[freezerLen]
     ///      | unpauserLen(1) | unpauser[unpauserLen]
     ///
     ///      Each length must be either 20 (the EVM native address size) or 0 (role left
@@ -99,33 +106,40 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         if (payload.toUint16(33) != chainId()) revert WrongChainId();
 
         uint index = 35;
-
-        uint8 pauserLen = payload.toUint8(index);
-        index += 1;
         address newPauser;
-        if (pauserLen == 20) {
-            newPauser = payload.toAddress(index);
-            index += 20;
-        } else if (pauserLen != 0) {
-            revert InvalidAddressLength();
-        }
-
-        uint8 unpauserLen = payload.toUint8(index);
-        index += 1;
+        address newFreezer;
         address newUnpauser;
-        if (unpauserLen == 20) {
-            newUnpauser = payload.toAddress(index);
-            index += 20;
-        } else if (unpauserLen != 0) {
-            revert InvalidAddressLength();
-        }
+        (newPauser, index) = _parsePauserAddress(payload, index);
+        (newFreezer, index) = _parsePauserAddress(payload, index);
+        (newUnpauser, index) = _parsePauserAddress(payload, index);
 
         if (payload.length != index) revert WrongLength();
 
         setPauser(newPauser);
+        setFreezer(newFreezer);
         setUnpauser(newUnpauser);
 
-        emit PauserAddressesSet(newPauser, newUnpauser);
+        emit PauserAddressesSet(newPauser, newFreezer, newUnpauser);
+    }
+
+    /// @dev Parse one length-prefixed address from a `SetPauserAddresses` payload at `index`.
+    ///      Length must be 20 (EVM address) or 0 (unassigned → address(0)); any other length
+    ///      reverts. Returns the parsed address and the advanced index. Shared by the three role
+    ///      fields to keep `BridgeImplementation` under the EIP-170 limit.
+    function _parsePauserAddress(bytes memory payload, uint index)
+        internal
+        pure
+        returns (address addr, uint newIndex)
+    {
+        uint8 len = payload.toUint8(index);
+        index += 1;
+        if (len == 20) {
+            addr = payload.toAddress(index);
+            index += 20;
+        } else if (len != 0) {
+            revert InvalidAddressLength();
+        }
+        return (addr, index);
     }
 
     /**

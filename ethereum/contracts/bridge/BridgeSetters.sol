@@ -73,11 +73,19 @@ contract BridgeSetters is BridgeState {
         BridgePauserStorage.data().pauser = pauser;
     }
 
+    function setFreezer(address freezer) internal {
+        BridgePauserStorage.data().freezer = freezer;
+    }
+
     function setUnpauser(address unpauser) internal {
         BridgePauserStorage.data().unpauser = unpauser;
     }
 
     function setPaused(bool paused) internal {
         _state.provider.paused = paused;
+    }
+
+    function setPauseExpiry(uint64 pauseExpiry) internal {
+        BridgePauserStorage.data().pauseExpiry = pauseExpiry;
     }
 }
