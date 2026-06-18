@@ -256,7 +256,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	// tell everyone about it
 	job.hasWormholeMsg = true
 
-	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED // Note on channel capacity: Only pauses this watcher
+	common.WriteToChannelWithoutBlocking(e.eventChan, EVENT_NEAR_MESSAGE_CONFIRMED, "near_event_chan") // Non-blocking: eventChan is buffered (cap 10) and metrics-only, so dropping an event is preferable to stalling the watcher.
 
 	logger.Info("message observed",
 		zap.String("log_msg_type", "wormhole_event_success"),

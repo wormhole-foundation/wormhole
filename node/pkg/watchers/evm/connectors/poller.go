@@ -93,11 +93,11 @@ func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 
 	for idx, block := range lastBlocks {
 		p.logger.Info(fmt.Sprintf("publishing initial %s block", p.batchData[idx].finality), zap.Uint64("initial_block", block.Number.Uint64()))
-		sink <- block
+		sink <- block // //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 		if p.generateSafe && p.batchData[idx].finality == Finalized {
 			safe := block.Copy(Safe)
 			p.logger.Info("publishing generated initial safe block", zap.Uint64("initial_block", safe.Number.Uint64()))
-			sink <- safe
+			sink <- safe //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 		}
 	}
 
@@ -234,7 +234,7 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 							p.logger.Error("log poller failed to parse log", zap.Error(err))
 							continue
 						}
-						sink <- ev
+						sink <- ev //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 					}
 
 					fromBlock = toBlock + 1

@@ -8,7 +8,7 @@ linters:
     # Ensure that the body is closed on HTTP and websocket conns
     - bodyclose
     # Blocking channel sends
-    # - channelcheck
+    - channelcheck
     - contextcheck
     - depguard
     # Duplicate word usage, such as 'and and' in a comment.
