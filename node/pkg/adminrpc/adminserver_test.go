@@ -589,25 +589,27 @@ func TestCoreBridgeTransferFeesToVaa_Errors(t *testing.T) {
 
 func TestTokenBridgeSetPauserAddresses(t *testing.T) {
 	evmPauser := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	evmFreezer := "dddddddddddddddddddddddddddddddddddddddd"
 	evmUnpauser := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	svmAddr := "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 
-	t.Run("EVM both addresses set", func(t *testing.T) {
+	t.Run("EVM all three addresses set", func(t *testing.T) {
 		req := &nodev1.BridgeSetPauserAddresses{
 			Module:        "TokenBridge",
 			TargetChainId: uint32(vaa.ChainIDEthereum),
 			Pauser:        evmPauser,
+			Freezer:       evmFreezer,
 			Unpauser:      evmUnpauser,
 		}
 		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
 		require.NoError(t, err)
-		// module(32) || action(04) || chain(0002) || pauserLen(14) || pauser || unpauserLen(14) || unpauser
+		// module(32) || action(04) || chain(0002) || pauserLen(14) || pauser || freezerLen(14) || freezer || unpauserLen(14) || unpauser
 		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
-			"04" + "0002" + "14" + evmPauser + "14" + evmUnpauser
+			"04" + "0002" + "14" + evmPauser + "14" + evmFreezer + "14" + evmUnpauser
 		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
 	})
 
-	t.Run("Solana single address", func(t *testing.T) {
+	t.Run("Solana single address (freezer and unpauser unassigned)", func(t *testing.T) {
 		req := &nodev1.BridgeSetPauserAddresses{
 			Module:        "TokenBridge",
 			TargetChainId: uint32(vaa.ChainIDSolana),
@@ -616,11 +618,24 @@ func TestTokenBridgeSetPauserAddresses(t *testing.T) {
 		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
 		require.NoError(t, err)
 		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
-			"04" + "0001" + "20" + svmAddr + "00"
+			"04" + "0001" + "20" + svmAddr + "00" + "00"
 		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
 	})
 
-	t.Run("Both unassigned", func(t *testing.T) {
+	t.Run("Freezer set, pauser and unpauser unassigned", func(t *testing.T) {
+		req := &nodev1.BridgeSetPauserAddresses{
+			Module:        "TokenBridge",
+			TargetChainId: uint32(vaa.ChainIDEthereum),
+			Freezer:       evmFreezer,
+		}
+		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
+		require.NoError(t, err)
+		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
+			"04" + "0002" + "00" + "14" + evmFreezer + "00"
+		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
+	})
+
+	t.Run("All unassigned", func(t *testing.T) {
 		req := &nodev1.BridgeSetPauserAddresses{
 			Module:        "TokenBridge",
 			TargetChainId: uint32(vaa.ChainIDEthereum),
@@ -628,7 +643,7 @@ func TestTokenBridgeSetPauserAddresses(t *testing.T) {
 		v, err := tokenBridgeSetPauserAddresses(req, time.Unix(0, 0), 4, 1, 1)
 		require.NoError(t, err)
 		expected := "000000000000000000000000000000000000000000546f6b656e427269646765" +
-			"04" + "0002" + "00" + "00"
+			"04" + "0002" + "00" + "00" + "00"
 		assert.Equal(t, expected, common.Bytes2Hex(v.Payload))
 	})
 
@@ -651,6 +666,7 @@ func TestTokenBridgeSetPauserAddresses(t *testing.T) {
 			{"UnknownChain", func(r *nodev1.BridgeSetPauserAddresses) { r.TargetChainId = 0xffff }, "convert target_chain_id"},
 			{"ChainOutOfRange", func(r *nodev1.BridgeSetPauserAddresses) { r.TargetChainId = 0x10000 }, "convert target_chain_id"},
 			{"BadPauserHex", func(r *nodev1.BridgeSetPauserAddresses) { r.Pauser = "zz" }, "invalid pauser address encoding"},
+			{"BadFreezerHex", func(r *nodev1.BridgeSetPauserAddresses) { r.Freezer = "zz" }, "invalid freezer address encoding"},
 			{"BadUnpauserHex", func(r *nodev1.BridgeSetPauserAddresses) { r.Unpauser = "zz" }, "invalid unpauser address encoding"},
 		}
 		for _, tc := range cases {
@@ -674,6 +690,7 @@ func TestGovMsgToVaa_DispatchesBridgeSetPauserAddresses(t *testing.T) {
 				Module:        "TokenBridge",
 				TargetChainId: uint32(vaa.ChainIDEthereum),
 				Pauser:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				Freezer:       "dddddddddddddddddddddddddddddddddddddddd",
 				Unpauser:      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 			},
 		},

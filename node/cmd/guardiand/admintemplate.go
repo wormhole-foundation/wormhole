@@ -96,6 +96,7 @@ var delegatedManagerPublicKeys *string
 
 var tokenBridgeSetPauserAddressesTargetChainId *string
 var tokenBridgeSetPauserAddressesPauser *string
+var tokenBridgeSetPauserAddressesFreezer *string
 var tokenBridgeSetPauserAddressesUnpauser *string
 
 func init() {
@@ -278,6 +279,7 @@ func init() {
 	tokenBridgeSetPauserAddressesFlagSet := pflag.NewFlagSet("token-bridge-set-pauser-addresses", pflag.ExitOnError)
 	tokenBridgeSetPauserAddressesTargetChainId = tokenBridgeSetPauserAddressesFlagSet.String("target-chain-id", "", "Target chain ID (name or uint16) where the pauser addresses should be set")
 	tokenBridgeSetPauserAddressesPauser = tokenBridgeSetPauserAddressesFlagSet.String("pauser", "", "Pauser address as hex (with or without 0x prefix), in the target chain's native size. Leave empty to unassign the role.")
+	tokenBridgeSetPauserAddressesFreezer = tokenBridgeSetPauserAddressesFlagSet.String("freezer", "", "Freezer address as hex (with or without 0x prefix), in the target chain's native size. Leave empty to unassign the role.")
 	tokenBridgeSetPauserAddressesUnpauser = tokenBridgeSetPauserAddressesFlagSet.String("unpauser", "", "Unpauser address as hex (with or without 0x prefix), in the target chain's native size. Leave empty to unassign the role.")
 	AdminClientTokenBridgeSetPauserAddressesCmd.Flags().AddFlagSet(tokenBridgeSetPauserAddressesFlagSet)
 	AdminClientTokenBridgeSetPauserAddressesCmd.Flags().AddFlagSet(moduleFlagSet)
@@ -613,17 +615,29 @@ func runTokenBridgeSetPauserAddressesTemplate(cmd *cobra.Command, args []string)
 	if err != nil {
 		log.Fatal("failed to parse pauser: ", err)
 	}
+	freezer, err := parsePauserAddressHex(*tokenBridgeSetPauserAddressesFreezer)
+	if err != nil {
+		log.Fatal("failed to parse freezer: ", err)
+	}
 	unpauser, err := parsePauserAddressHex(*tokenBridgeSetPauserAddressesUnpauser)
 	if err != nil {
 		log.Fatal("failed to parse unpauser: ", err)
 	}
 
-	// The pauser/unpauser are kept as separate roles to allow asymmetric
-	// authority (whitepaper 0003). Setting them to the same value collapses
-	// that asymmetry and removes the higher-trust unpause path, so flag it -
-	// but the design permits it for flexibility.
+	// The pauser/freezer/unpauser are kept as separate roles to allow asymmetric
+	// authority (whitepaper 0003). Setting them to the same value collapses that
+	// asymmetry and removes a higher-trust path, so flag it - but the design
+	// permits it for flexibility.
 	if pauser != "" && pauser == unpauser {
 		log.Println("WARNING: --pauser and --unpauser are the same address. This removes the intended higher-trust unpause path. Use only if symmetric pause/unpause authority is intentional.")
+	}
+	// The freezer is a higher-trust role than the pauser (a freeze can only be
+	// lifted by the unpauser, not permissionlessly). Sharing its key with the
+	// lower-trust pauser collapses that separation. We intentionally do NOT warn
+	// on freezer == unpauser: both are higher-trust roles, and a single key
+	// holding both is a plausible operational setup rather than a footgun.
+	if pauser != "" && pauser == freezer {
+		log.Println("WARNING: --pauser and --freezer are the same address. This collapses the higher-trust freeze role into the pauser. Use only if intentional.")
 	}
 
 	seq, nonce := randSeqNonce()
@@ -638,6 +652,7 @@ func runTokenBridgeSetPauserAddressesTemplate(cmd *cobra.Command, args []string)
 						Module:        *module,
 						TargetChainId: uint32(targetChainID),
 						Pauser:        pauser,
+						Freezer:       freezer,
 						Unpauser:      unpauser,
 					},
 				},
@@ -652,9 +667,10 @@ func runTokenBridgeSetPauserAddressesTemplate(cmd *cobra.Command, args []string)
 	fmt.Print(string(b))
 }
 
-// parsePauserAddressHex parses a pauser/unpauser address argument and returns
-// the hex encoding used on the wire (no 0x prefix). An empty input returns an
-// empty string, which the admin server interprets as the role being unassigned.
+// parsePauserAddressHex parses a pauser/freezer/unpauser address argument and
+// returns the hex encoding used on the wire (no 0x prefix). An empty input
+// returns an empty string, which the admin server interprets as the role being
+// unassigned.
 //
 // The on-chain contract enforces that non-empty addresses match the target
 // chain's native address size, so this helper preserves the caller-supplied

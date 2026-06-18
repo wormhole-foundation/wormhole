@@ -171,17 +171,19 @@ type (
 		NewContract   Address
 	}
 
-	// BodyTokenBridgeSetPauserAddresses is a governance message to set the pauser
-	// and unpauser addresses on a token bridge (whitepaper 0003).
+	// BodyTokenBridgeSetPauserAddresses is a governance message to set the pauser,
+	// freezer, and unpauser addresses on a token bridge (whitepaper 0003).
 	//
-	// Each address is length-prefixed (uint8). A zero-length address leaves the
-	// role unassigned. Non-empty addresses must match the target chain's native
-	// address size (e.g. 20 bytes on EVM, 32 bytes on Solana); the receiving
-	// contract is authoritative for that check.
+	// Each address is length-prefixed (uint8) and serialized in the order pauser,
+	// freezer, unpauser. A zero-length address leaves that role unassigned.
+	// Non-empty addresses must match the target chain's native address size (e.g.
+	// 20 bytes on EVM, 32 bytes on Solana); the receiving contract is
+	// authoritative for that check.
 	BodyTokenBridgeSetPauserAddresses struct {
 		Module        string
 		TargetChainID ChainID
 		Pauser        []byte
+		Freezer       []byte
 		Unpauser      []byte
 	}
 
@@ -437,12 +439,19 @@ func (r BodyTokenBridgeSetPauserAddresses) Serialize() ([]byte, error) {
 	if len(r.Pauser) > math.MaxUint8 {
 		return nil, fmt.Errorf("pauser too long: %d bytes (max %d)", len(r.Pauser), math.MaxUint8)
 	}
+	if len(r.Freezer) > math.MaxUint8 {
+		return nil, fmt.Errorf("freezer too long: %d bytes (max %d)", len(r.Freezer), math.MaxUint8)
+	}
 	if len(r.Unpauser) > math.MaxUint8 {
 		return nil, fmt.Errorf("unpauser too long: %d bytes (max %d)", len(r.Unpauser), math.MaxUint8)
 	}
+	// Addresses are written in the order pauser, freezer, unpauser. All runtimes
+	// must parse them in this same order (whitepaper 0003).
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, uint8(len(r.Pauser))) // #nosec G115 -- checked above
 	payload.Write(r.Pauser)
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Freezer))) // #nosec G115 -- checked above
+	payload.Write(r.Freezer)
 	MustWrite(payload, binary.BigEndian, uint8(len(r.Unpauser))) // #nosec G115 -- checked above
 	payload.Write(r.Unpauser)
 	return serializeBridgeGovernanceVaa(r.Module, ActionTokenBridgeSetPauserAddresses, r.TargetChainID, payload.Bytes())
