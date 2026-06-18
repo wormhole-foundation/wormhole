@@ -208,7 +208,7 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 			}
 
 			// Write to Loki in a blocking manner unless we are signaled to shutdown.
-			// The write to `localC` above skips the write if the buffered channel is full. So, we can block on this channel.
+			// The write to `localC` above skips the write if the buffered channel is full. So, we can block on this channel write.
 			select {
 			case c.Chan() <- entry: //nolint:channelcheck // We want to block on the Loki client write once we have received the log.
 				pendingEntry = nil
