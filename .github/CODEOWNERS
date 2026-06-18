@@ -135,9 +135,11 @@
 
 /node/pkg/suiclient @djb15 @mdulin2 @pleasew8t
 
-## Guardian Dependency Upgrades (go.mod) 
+## Guardian Dependency Upgrades (go.mod + go.sum)
 /node/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/go.sum @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 /sdk/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/sdk/go.sum @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Node (package)
 
