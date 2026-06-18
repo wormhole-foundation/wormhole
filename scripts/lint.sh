@@ -8,14 +8,11 @@ DOCKERFILE="$ROOT/scripts/Dockerfile.lint"
 
 # The custom golangci-lint (with our linters/ module plugins baked in) is built
 # from source under linters/ via `make -C linters build-golangci-lint`. The
-# golangci-lint version is owned by linters/ (GOLANGCI_LINT_VERSION in
-# linters/Makefile, which must match `version:` in linters/.custom-gcl.yml).
-#
-# Built binaries are cached, content-addressed by a hash of the linters/ source
-# tree (which includes .custom-gcl.yml and the Makefile, so a version bump flips
-# the hash). We build once and only rebuild when the linter source changes.
+# golangci-lint version is owned by linters/ (GOLANGCI_LINT_HASH in
+# linters/Makefile, whose tag comment must match `version:` in
+# linters/.custom-gcl.yml). The Go build cache makes rebuilds a near-no-op after
+# the first build, so we just rebuild every run rather than caching the binary.
 LINTERS_DIR="$ROOT/linters"
-WORMHOLE_GOLANGCI_LINT_CACHE="$ROOT/.wormhole-lint-cache"
 
 VALID_COMMANDS=("lint" "format")
 
@@ -65,20 +62,7 @@ format(){
     fi
 }
 
-# Content hash of the linters/ source, used to decide whether a rebuild is needed.
-# Hashes every file under linters/ (regardless of git tracking) except the
-# bin/ and build/ build outputs, so any source edit triggers exactly one rebuild.
-# Runs find from inside LINTERS_DIR so paths are relative: sha256sum embeds the
-# path, so an absolute one would make the hash checkout-path dependent.
-linters_source_hash() {
-    ( cd "$LINTERS_DIR" && find . -type f \
-        -not -path '*/bin/*' -not -path '*/build/*' \
-        -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1 )
-}
-
 ensure_wormhole_golangci_lint() {
-    local hash dir bin tmp
-
     # In the -c docker image the custom linter is already built from source and
     # placed on PATH; run that instead of rebuilding (the repo mount is read-only).
     if command -v wormhole-golangci-lint >/dev/null 2>&1; then
@@ -86,30 +70,12 @@ ensure_wormhole_golangci_lint() {
         return
     fi
 
-    hash="$(linters_source_hash)"
-    dir="$WORMHOLE_GOLANGCI_LINT_CACHE/$hash"
-    bin="$dir/wormhole-golangci-lint"
-
-    if [ ! -x "$bin" ]; then
-        echo "Building wormhole-golangci-lint (source ${hash:0:12})..." >&2
-        make -C "$LINTERS_DIR" build-golangci-lint >&2
-        mkdir -p "$dir"
-        tmp="$(mktemp "$dir/.build.XXXXXX")"
-        cp "$LINTERS_DIR/bin/wormhole-golangci-lint" "$tmp"
-        chmod +x "$tmp"
-        mv "$tmp" "$bin"  # atomic publish; safe under concurrent runs
-    fi
-
-    # Delete old cache entries. (stderr only — stdout is the binary path.)
-    for old in "$WORMHOLE_GOLANGCI_LINT_CACHE"/*/; do
-        [ -d "$old" ] || continue  # no subdirs yet: glob stayed literal
-        if [ "$(basename "$old")" != "$hash" ]; then
-            echo "Removing stale wormhole-golangci-lint ($(basename "$old" | cut -c1-12))..." >&2
-            rm -rf "$old"
-        fi
-    done
-
-    echo "$bin"
+    # Build the custom golangci-lint. The Go build cache makes this a near-no-op
+    # once it's been built once, so we don't cache the binary ourselves.
+    # (stderr only — stdout is the binary path.)
+    echo "Building wormhole-golangci-lint..." >&2
+    make -C "$LINTERS_DIR" build-golangci-lint >&2
+    echo "$LINTERS_DIR/bin/wormhole-golangci-lint"
 }
 
 lint(){
@@ -124,10 +90,11 @@ lint(){
     local LINT_BIN
     LINT_BIN="$(ensure_wormhole_golangci_lint)"
 
-    # Lint each Go module root. linters/ is the custom linter's own code; its
+    # Lint node, sdk, and linters/ is the custom linter's own code; its
     # rules/<name>/ are separate modules (mirroring `make -C linters test`), so
     # lint each one too. Run in a subshell so a failure still halts under
     # `set -e` without leaking the working directory between modules.
+    # NOTE this does NOT lint the wormchain directory.
     lint_module() {
         ( cd "$1" && "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./... )
     }
