@@ -31,12 +31,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -358,10 +358,14 @@ func (s *SolanaWatcher) shimProcessRest(
 		}
 		return nil
 	}
+	timestamp, err := vaa.TimeFromUnix(messageEvent.Timestamp)
+	if err != nil {
+		return fmt.Errorf("invalid shim message timestamp: %w", err)
+	}
 
 	observation := &common.MessagePublication{
 		TxID:             tx.Signatures[0][:],
-		Timestamp:        time.Unix(int64(messageEvent.Timestamp), 0),
+		Timestamp:        timestamp,
 		Nonce:            postMessage.Nonce,
 		Sequence:         messageEvent.Sequence,
 		EmitterChain:     s.chainID,

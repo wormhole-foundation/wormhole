@@ -188,10 +188,14 @@ func (e *Watcher) processEvent(ctx context.Context, logger *zap.Logger, event su
 	}
 
 	txHashEthFormat := eth_common.BytesToHash(txHashBytes)
+	timestamp, err := vaa.TimeFromUnix(msg.Timestamp)
+	if err != nil {
+		return fmt.Errorf("processEvent failed to parse timestamp: %w", err)
+	}
 
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
-		Timestamp:        time.Unix(int64(msg.Timestamp), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Timestamp:        timestamp,
 		Nonce:            msg.Nonce,
 		Sequence:         msg.Sequence,
 		EmitterChain:     vaa.ChainIDSui,

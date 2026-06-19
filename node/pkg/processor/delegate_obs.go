@@ -80,10 +80,14 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 	if d.VerificationState >= node_common.NumVariantsVerificationState {
 		return nil, fmt.Errorf("invalid verification state: %d", d.VerificationState)
 	}
+	timestamp, err := vaa.TimeFromUnix(d.Timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("invalid delegate observation timestamp: %w", err)
+	}
 
 	mp := &node_common.MessagePublication{
 		TxID:             d.TxHash,
-		Timestamp:        time.Unix(int64(d.Timestamp), 0), // Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert.
+		Timestamp:        timestamp,
 		Nonce:            d.Nonce,
 		Sequence:         d.Sequence,
 		ConsistencyLevel: uint8(d.ConsistencyLevel),

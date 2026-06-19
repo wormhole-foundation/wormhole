@@ -6,13 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/dgraph-io/badger/v3"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
 func (d *Database) rowExistsInDB(key []byte) error {
@@ -35,7 +37,7 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -67,7 +69,7 @@ func TestPendingMsgIDV5(t *testing.T) {
 
 	msg1 := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -92,7 +94,7 @@ func TestTransferMsgIDV5(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -121,7 +123,7 @@ func TestTransferMsgIDV4(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -451,7 +453,7 @@ func TestStoreTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -484,7 +486,7 @@ func TestDeleteTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -521,7 +523,7 @@ func TestStorePendingMsg(t *testing.T) {
 
 	msg := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -548,7 +550,7 @@ func TestDeletePendingMsg(t *testing.T) {
 
 	msg := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -580,7 +582,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 
 	msg := common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -593,7 +595,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 	require.NoError(t, vStateErr)
 
 	pending1 := &PendingTransfer{
-		ReleaseTime: time.Unix(int64(1654516425+72*60*60), 0),
+		ReleaseTime: testutils.MustTimeFromUnix(t, 1654516425+72*60*60),
 		Msg:         msg,
 	}
 
@@ -627,7 +629,7 @@ func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -643,7 +645,7 @@ func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 	assert.Nil(t, err)
 
 	xfer2 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516430), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516430),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -659,10 +661,10 @@ func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 	assert.Nil(t, err)
 
 	pending1 := &PendingTransfer{
-		ReleaseTime: time.Unix(int64(1654516435+72*60*60), 0),
+		ReleaseTime: testutils.MustTimeFromUnix(t, 1654516435+72*60*60),
 		Msg: common.MessagePublication{
 			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-			Timestamp:        time.Unix(int64(1654516435), 0),
+			Timestamp:        testutils.MustTimeFromUnix(t, 1654516435),
 			Nonce:            123456,
 			Sequence:         789101112131417,
 			EmitterChain:     vaa.ChainIDEthereum,
@@ -676,10 +678,10 @@ func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 	assert.Nil(t, err)
 
 	pending2 := &PendingTransfer{
-		ReleaseTime: time.Unix(int64(1654516440+72*60*60), 0),
+		ReleaseTime: testutils.MustTimeFromUnix(t, 1654516440+72*60*60),
 		Msg: common.MessagePublication{
 			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-			Timestamp:        time.Unix(int64(1654516440), 0),
+			Timestamp:        testutils.MustTimeFromUnix(t, 1654516440),
 			Nonce:            123456,
 			Sequence:         789101112131418,
 			EmitterChain:     vaa.ChainIDEthereum,
@@ -718,7 +720,7 @@ func TestMarshalUnmarshalNoMsgIdOrHash(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -752,7 +754,7 @@ func TestUnmarshalTransferFailures(t *testing.T) {
 	require.NoError(t, err)
 
 	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
+		Timestamp:      testutils.MustTimeFromUnix(t, 1654516425),
 		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
@@ -831,7 +833,7 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 
 	msg := common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -842,7 +844,7 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 	}
 
 	pending1 := &PendingTransfer{
-		ReleaseTime: time.Unix(int64(1654516425+72*60*60), 0),
+		ReleaseTime: testutils.MustTimeFromUnix(t, 1654516425+72*60*60),
 		Msg:         msg,
 	}
 
