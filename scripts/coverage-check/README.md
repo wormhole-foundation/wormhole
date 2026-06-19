@@ -35,6 +35,7 @@ The following are **excluded** from new package checks (but can still be in the 
 - `tools/` - Tooling packages
 - `proto/` - Generated protobuf code
 - `mock/` - Mock packages
+- `testutils/` - Test helper packages
 - `*abi` - Generated ABI bindings
 
 ## Usage
