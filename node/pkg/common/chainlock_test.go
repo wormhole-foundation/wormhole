@@ -8,12 +8,13 @@ import (
 	"math/big"
 	"os"
 	"testing"
-	"time"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
 // The following constants are used to calculate the offset of each field in the serialized message publication.
@@ -77,7 +78,7 @@ func makeTestMsgPub(t *testing.T) *MessagePublication {
 	// Use a non-default value for each field to ensure that the unmarshalled values are represented correctly.
 	return &MessagePublication{
 		TxID:              eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:         time.Unix(int64(1654516425), 0),
+		Timestamp:         testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:             123456,
 		Sequence:          789101112131415,
 		EmitterChain:      vaa.ChainIDEthereum,
@@ -300,7 +301,7 @@ func FuzzMessagePublicationUnmarshalBinary(f *testing.F) {
 	// Create a valid message publication for seeding
 	orig := &MessagePublication{
 		TxID:              make([]byte, TxIDLenMin), // Use minimum valid TxID length
-		Timestamp:         time.Unix(int64(1654516425), 0),
+		Timestamp:         testutils.MustTimeFromUnix(f, 1654516425),
 		Nonce:             123456,
 		Sequence:          789101112131415,
 		EmitterChain:      vaa.ChainIDEthereum,
@@ -392,7 +393,7 @@ func TestDeprecatedSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 
 	msg1 := &MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -454,7 +455,7 @@ func TestSerializeAndDeserializeOfMessagePublicationWithEmptyTxID(t *testing.T) 
 
 	msg1 := &MessagePublication{
 		TxID:             []byte{},
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -501,7 +502,7 @@ func TestSerializeAndDeserializeOfMessagePublicationWithArbitraryTxID(t *testing
 
 	msg1 := &MessagePublication{
 		TxID:             []byte("This is some arbitrary string with just some random junk in it. This is to prove that the TxID does not have to be a ethCommon.Hash"),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -534,7 +535,7 @@ func TestTxIDStringTooLongShouldFail(t *testing.T) {
 
 	msg := &MessagePublication{
 		TxID:             txID,
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -562,7 +563,7 @@ func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T)
 
 	msg1 := &MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -603,7 +604,7 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 
 	msg1 := &MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -649,7 +650,7 @@ func TestMarshalUnmarshalJSONOfMessagePublicationWithArbitraryTxID(t *testing.T)
 
 	msg1 := &MessagePublication{
 		TxID:             []byte("This is some arbitrary string with just some random junk in it. This is to prove that the TxID does not have to be a ethCommon.Hash"),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -750,7 +751,7 @@ func TestTxIDStringMatchesHashToString(t *testing.T) {
 
 	msg := &MessagePublication{
 		TxID:             eth_common.HexToHash(expectedHashID).Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -975,7 +976,7 @@ func TestNormalizeForDelegateConsensus(t *testing.T) {
 
 	mp := &MessagePublication{
 		TxID:              eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
-		Timestamp:         time.Unix(1746026862, 0),
+		Timestamp:         testutils.MustTimeFromUnix(t, 1746026862),
 		Nonce:             42,
 		Sequence:          95838,
 		ConsistencyLevel:  1,
@@ -1015,7 +1016,7 @@ func TestIsReobservationDoesNotSplitDelegateQuorumBucket(t *testing.T) {
 		require.NoError(t, err)
 		return &MessagePublication{
 			TxID:             eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
-			Timestamp:        time.Unix(1746026862, 0), // 2026-04-28T15:27:42Z, from the field case
+			Timestamp:        testutils.MustTimeFromUnix(t, 1746026862), // 2026-04-28T15:27:42Z, from the field case
 			Nonce:            0,
 			Sequence:         95838,
 			ConsistencyLevel: 1,
@@ -1056,7 +1057,7 @@ func TestDelegateQuorumIsReobservationDoesNotPreventQuorum(t *testing.T) {
 	base := func(isReobs bool) *MessagePublication {
 		return &MessagePublication{
 			TxID:             eth_common.HexToHash("0x39c2f7f67fbce903d49bb24147668095f1b726acef3c19460da39e83c6929a2b").Bytes(),
-			Timestamp:        time.Unix(1746026862, 0),
+			Timestamp:        testutils.MustTimeFromUnix(t, 1746026862),
 			Sequence:         95838,
 			ConsistencyLevel: 1,
 			EmitterChain:     vaa.ChainIDMoonbeam,
