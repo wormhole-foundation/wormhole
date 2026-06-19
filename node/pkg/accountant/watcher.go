@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -177,10 +176,15 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 		zap.Uint8("consistency_level", xfer.ConsistencyLevel),
 		zap.String("payload", hex.EncodeToString(xfer.Payload)),
 	)
+	timestamp, err := vaa.TimeFromUnix(xfer.Timestamp)
+	if err != nil {
+		acct.logger.Error("acctwatch: invalid transfer timestamp", zap.Error(err), zap.Uint32("timestamp", xfer.Timestamp))
+		return
+	}
 
 	msg := &common.MessagePublication{
 		TxID:             xfer.TxHash,
-		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
+		Timestamp:        timestamp,
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,
 		EmitterChain:     vaa.ChainID(xfer.EmitterChain),

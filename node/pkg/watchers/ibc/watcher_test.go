@@ -10,15 +10,16 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
 func TestParseIbcReceivePublishEvent(t *testing.T) {
@@ -63,7 +64,7 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 			EmitterChain:   vaa.ChainIDCosmoshub,
 			Nonce:          1,
 			Sequence:       2,
-			Timestamp:      time.Unix(1680099814, 0),
+			Timestamp:      testutils.MustTimeFromUnix(t, 1680099814),
 			Payload:        expectedPayload,
 		},
 	}
