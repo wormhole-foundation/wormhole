@@ -238,6 +238,10 @@ linters:
           - prealloc
         path: _test\.go
       - linters:
+          - gosec
+        path: _test\.go
+        text: 'G101'
+      - linters:
           - exhaustruct
         path: (?i).*mock.*
       - linters:
