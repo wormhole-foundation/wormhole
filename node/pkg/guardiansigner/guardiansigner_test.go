@@ -3,8 +3,10 @@ package guardiansigner
 import (
 	"context"
 	"encoding/hex"
+	"os"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -61,8 +63,12 @@ func TestFileSignerNonExistentFile(t *testing.T) {
 
 func TestFileSigner(t *testing.T) {
 	ctx := context.Background()
-	fileUri := "file://../query/dev.guardian.key"
-	expectedEthAddress := "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	keyPath := t.TempDir() + "/guardian.key"
+	require.NoError(t, common.WriteArmoredKey(key, "test key", keyPath, GuardianKeyArmoredBlock, false))
+	fileUri := "file://" + keyPath
+	expectedEthAddress := ethcrypto.PubkeyToAddress(key.PublicKey).Hex()
 
 	// For each file signer generation attempt, check:
 	//	That the signer returned is not nil
@@ -100,6 +106,43 @@ func TestFileSigner(t *testing.T) {
 	valid, _ = fileSigner1.Verify(ctx, sig, arbitraryHash.Bytes())
 	assert.False(t, valid)
 
+}
+
+func TestFileSignerRejectsUnsafePermissions(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	keyPath := t.TempDir() + "/guardian.key"
+	require.NoError(t, common.WriteArmoredKey(key, "test key", keyPath, GuardianKeyArmoredBlock, false))
+	require.NoError(t, os.Chmod(keyPath, 0644))
+
+	fileSigner, err := NewFileSigner(context.Background(), true, keyPath)
+
+	require.Error(t, err)
+	assert.Nil(t, fileSigner)
+	assert.Contains(t, err.Error(), "insecure permissions")
+}
+
+func TestGeneratedSigner(t *testing.T) {
+	ctx := context.Background()
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	signer, err := GenerateSignerWithPrivatekeyUnsafe(key)
+	require.NoError(t, err)
+	assert.Equal(t, "generated", signer.TypeAsString())
+	assert.Equal(t, key.PublicKey, signer.PublicKey(ctx))
+
+	hash := crypto.Keccak256Hash([]byte("data"))
+	sig, err := signer.Sign(ctx, hash.Bytes())
+	require.NoError(t, err)
+
+	valid, err := signer.Verify(ctx, sig, hash.Bytes())
+	require.NoError(t, err)
+	assert.True(t, valid)
+
+	valid, err = signer.Verify(ctx, sig, crypto.Keccak256Hash([]byte("other data")).Bytes())
+	require.NoError(t, err)
+	assert.False(t, valid)
 }
 
 func TestAmazonKmsAdjustBufferSize(t *testing.T) {
