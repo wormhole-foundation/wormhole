@@ -65,12 +65,12 @@ func StartRunnable(ctx context.Context, errC chan error, catchPanics bool, name 
 					default:
 						err = fmt.Errorf("%s: %v", name, x)
 					}
+					ScissorsPanicsCaught.WithLabelValues(name).Inc()
 					// We don't want this to hang if the listener has already gone away.
 					select {
 					case errC <- err:
 					default:
 					}
-					ScissorsPanicsCaught.WithLabelValues(name).Inc()
 
 				}
 			}()
@@ -83,11 +83,11 @@ func StartRunnable(ctx context.Context, errC chan error, catchPanics bool, name 
 func startRunnable(ctx context.Context, errC chan error, name string, runnable supervisor.Runnable) {
 	err := runnable(ctx)
 	if err != nil {
+		ScissorsErrorsCaught.WithLabelValues(name).Inc()
 		// We don't want this to hang if the listener has already gone away.
 		select {
 		case errC <- err:
 		default:
 		}
-		ScissorsErrorsCaught.WithLabelValues(name).Inc()
 	}
 }
