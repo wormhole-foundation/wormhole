@@ -10,11 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
 func TestPendingMessageQueue_Push(t *testing.T) {
@@ -86,7 +88,7 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 			label: "txID too short",
 			input: common.MessagePublication{
 				TxID:             []byte{},
-				Timestamp:        time.Unix(int64(1654516425), 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 				Nonce:            123456,
 				Sequence:         789101112131415,
 				EmitterChain:     vaa.ChainIDEthereum,
@@ -398,7 +400,7 @@ func makeUniquePendingMessage(t *testing.T) *common.PendingMessage {
 	var sequence = rand.Uint64()
 	msgpub := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -412,7 +414,7 @@ func makeUniquePendingMessage(t *testing.T) *common.PendingMessage {
 	require.NoError(t, setErr)
 
 	// The nanoseconds are not important to us and are not serialized.
-	releaseTime := time.Unix(int64(1654516425), 0)
+	releaseTime := testutils.MustTimeFromUnix(t, 1654516425)
 	return &common.PendingMessage{
 		ReleaseTime: releaseTime,
 		Msg:         *msgpub,

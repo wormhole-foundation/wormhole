@@ -14,12 +14,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
@@ -534,7 +536,7 @@ func TestProcessMessageAccount(t *testing.T) {
 			msg := <-msgC
 			require.NotNil(t, msg)
 			assert.Equal(t, acc.Bytes(), msg.TxID)
-			assert.Equal(t, time.Unix(int64(proposal.SubmissionTime), 0), msg.Timestamp)
+			assert.Equal(t, testutils.MustTimeFromUnix(t, proposal.SubmissionTime), msg.Timestamp)
 			assert.Equal(t, proposal.Nonce, msg.Nonce)
 			assert.Equal(t, proposal.Sequence, msg.Sequence)
 			assert.Equal(t, tc.chainID, msg.EmitterChain)

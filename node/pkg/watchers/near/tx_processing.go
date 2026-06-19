@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers"
@@ -235,10 +234,14 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 
 	// SECURITY the timestamp of an observation is the timestamp of the block in which the wormhole core receipt has been finalized.
 	ts := outcomeBlockHeader.Timestamp
+	timestamp, err := vaa.TimeFromUnix(ts)
+	if err != nil {
+		return fmt.Errorf("invalid block timestamp: %w", err)
+	}
 
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
-		Timestamp:        time.Unix(int64(ts), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Timestamp:        timestamp,
 		Nonce:            pubEvent.Nonce,
 		Sequence:         pubEvent.Seq,
 		EmitterChain:     vaa.ChainIDNear,
