@@ -5,13 +5,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"testing"
-	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -418,7 +419,7 @@ func TestShimDirect(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedTxID, msg.TxID)
-	assert.Equal(t, time.Unix(int64(1736530812), 0), msg.Timestamp)
+	assert.Equal(t, testutils.MustTimeFromUnix(t, 1736530812), msg.Timestamp)
 	assert.Equal(t, uint32(42), msg.Nonce)
 	assert.Equal(t, uint64(0), msg.Sequence)
 	assert.Equal(t, vaa.ChainIDSolana, msg.EmitterChain)
@@ -594,7 +595,7 @@ func TestShimFromIntegrator(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedTxID, msg.TxID)
-	assert.Equal(t, time.Unix(int64(1736542615), 0), msg.Timestamp)
+	assert.Equal(t, testutils.MustTimeFromUnix(t, 1736542615), msg.Timestamp)
 	assert.Equal(t, uint32(0), msg.Nonce)
 	assert.Equal(t, uint64(1), msg.Sequence)
 	assert.Equal(t, vaa.ChainIDSolana, msg.EmitterChain)
@@ -836,7 +837,7 @@ func TestShimDirectWithMultipleShimTransactions(t *testing.T) {
 	require.NotNil(t, msg)
 
 	assert.Equal(t, expectedTxID, msg.TxID)
-	assert.Equal(t, time.Unix(int64(1736530812), 0), msg.Timestamp)
+	assert.Equal(t, testutils.MustTimeFromUnix(t, 1736530812), msg.Timestamp)
 	assert.Equal(t, uint32(42), msg.Nonce)
 	assert.Equal(t, uint64(0), msg.Sequence)
 	assert.Equal(t, vaa.ChainIDSolana, msg.EmitterChain)
@@ -857,7 +858,7 @@ func TestShimDirectWithMultipleShimTransactions(t *testing.T) {
 	require.NotNil(t, msg)
 
 	assert.Equal(t, expectedTxID, msg.TxID)
-	assert.Equal(t, time.Unix(int64(1736530813), 0), msg.Timestamp)
+	assert.Equal(t, testutils.MustTimeFromUnix(t, 1736530813), msg.Timestamp)
 	assert.Equal(t, uint32(43), msg.Nonce)
 	assert.Equal(t, uint64(1), msg.Sequence)
 	assert.Equal(t, vaa.ChainIDSolana, msg.EmitterChain)
@@ -1053,7 +1054,7 @@ func TestShimFromIntegratorWithMultipleShimTransactions(t *testing.T) {
 	require.NotNil(t, msg)
 
 	assert.Equal(t, expectedTxID, msg.TxID)
-	assert.Equal(t, time.Unix(int64(1736542615), 0), msg.Timestamp)
+	assert.Equal(t, testutils.MustTimeFromUnix(t, 1736542615), msg.Timestamp)
 	assert.Equal(t, uint32(0), msg.Nonce)
 	assert.Equal(t, uint64(1), msg.Sequence)
 	assert.Equal(t, vaa.ChainIDSolana, msg.EmitterChain)
@@ -1074,7 +1075,7 @@ func TestShimFromIntegratorWithMultipleShimTransactions(t *testing.T) {
 	require.NotNil(t, msg)
 
 	assert.Equal(t, expectedTxID, msg.TxID)
-	assert.Equal(t, time.Unix(int64(1736542616), 0), msg.Timestamp)
+	assert.Equal(t, testutils.MustTimeFromUnix(t, 1736542616), msg.Timestamp)
 	assert.Equal(t, uint32(42), msg.Nonce)
 	assert.Equal(t, uint64(2), msg.Sequence)
 	assert.Equal(t, vaa.ChainIDSolana, msg.EmitterChain)

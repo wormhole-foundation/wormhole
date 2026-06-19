@@ -945,10 +945,19 @@ func (w *Watcher) postMessage(
 		)
 		return
 	}
+	timestamp, err := vaa.TimeFromUnix(blockTime)
+	if err != nil {
+		w.logger.Error("subscription delivered message with invalid block timestamp",
+			zap.String("txHash", ev.Raw.TxHash.Hex()),
+			zap.Uint64("blockTime", blockTime),
+			zap.Error(err),
+		)
+		return
+	}
 
 	msg := &common.MessagePublication{
 		TxID:             ev.Raw.TxHash.Bytes(),
-		Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Timestamp:        timestamp,
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
 		EmitterChain:     w.chainID, // SECURITY: Hardcoded chain id from watcher

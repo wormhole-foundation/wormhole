@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"go.uber.org/zap"
@@ -70,7 +71,7 @@ func Test_shouldPublishToIbcTranslator(t *testing.T) {
 				Version:          uint8(1),
 				GuardianSetIndex: uint32(1),
 				Signatures:       []*vaa.Signature{},
-				Timestamp:        time.Unix(0, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 0),
 				Nonce:            uint32(1),
 				Sequence:         uint64(seqNum), // #nosec G115 -- We're iterating over a fixed length array defined above
 				ConsistencyLevel: uint8(32),
@@ -116,7 +117,7 @@ func Test_shouldPublishToTokenBridge(t *testing.T) {
 				Version:          uint8(1),
 				GuardianSetIndex: uint32(1),
 				Signatures:       []*vaa.Signature{},
-				Timestamp:        time.Unix(0, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 0),
 				Nonce:            uint32(1),
 				Sequence:         uint64(1),
 				ConsistencyLevel: uint8(32),

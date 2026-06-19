@@ -8,11 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	guardianNotary "github.com/certusone/wormhole/node/pkg/notary"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -20,9 +15,18 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	guardianNotary "github.com/certusone/wormhole/node/pkg/notary"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
-func getVAA() vaa.VAA {
+func getVAA(t testing.TB) vaa.VAA {
+	t.Helper()
+
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -30,7 +34,7 @@ func getVAA() vaa.VAA {
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		ConsistencyLevel: uint8(32),
@@ -41,7 +45,7 @@ func getVAA() vaa.VAA {
 }
 
 func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
-	testVAA := getVAA()
+	testVAA := getVAA(t)
 	marshalVAA, _ := testVAA.Marshal()
 
 	// Stub out the minimum to get processor to dance
@@ -88,7 +92,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.label, func(t *testing.T) {
-			testVAA := getVAA()
+			testVAA := getVAA(t)
 
 			// Define a GuardianSet from test addrs
 			guardianSet := common.GuardianSet{
@@ -453,7 +457,7 @@ func TestCheckForDelegateQuorum_ConsensusPathContract(t *testing.T) {
 	// to overwrite mp.TxID would leave the minority value in place.
 	mp := &common.MessagePublication{
 		TxID:             txMin,
-		Timestamp:        time.Unix(1746026862, 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1746026862),
 		Nonce:            0,
 		Sequence:         95838,
 		ConsistencyLevel: 1,
