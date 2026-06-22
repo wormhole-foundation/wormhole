@@ -5,3 +5,4 @@ export * from "./publish";
 export * from "./submit";
 export * from "./types";
 export * from "./utils";
+export * from "./wrappedCoinBytecode";
