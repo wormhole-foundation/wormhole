@@ -5,10 +5,10 @@ import {
   getOriginalAssetEth,
   getOriginalAssetNear,
   getOriginalAssetSolana,
-  getOriginalAssetSui,
   getOriginalAssetTerra,
   getOriginalAssetXpla,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getOriginalAsset";
+import { getOriginalAssetSui } from "../../sdk/sui";
 import { getOriginalAssetInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
 import { impossible } from "../../vaa";
 import { getOriginalAssetSei } from "../sei/sdk";
@@ -115,11 +115,11 @@ export const getOriginalAsset = async (
     }
     case "Sui": {
       const provider = getProviderForChain(chainName, network, { rpc });
-      return getOriginalAssetSui(
-        provider as any,
+      return (await getOriginalAssetSui(
+        provider,
         tokenBridgeAddress,
         assetAddress
-      );
+      )) as WormholeWrappedInfo;
     }
     case "Btc":
     case "Osmosis":

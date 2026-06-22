@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "comment": "Used only by the esbuild bundler. The base tsconfig maps @mysten/sui subpaths to their .d.mts type declarations so `tsc` can resolve the ESM-only v2 package under classic node resolution; esbuild must NOT follow those mappings (it would try to bundle the declaration files), so paths are cleared here. esbuild resolves the package natively via its exports map.",
+  "compilerOptions": {
+    "paths": {}
+  }
+}
