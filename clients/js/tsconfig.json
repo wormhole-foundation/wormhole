@@ -8,7 +8,16 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true
+    "strict": true,
+    "paths": {
+      "@mysten/sui/grpc": ["./node_modules/@mysten/sui/dist/grpc/index.d.mts"],
+      "@mysten/sui/graphql": ["./node_modules/@mysten/sui/dist/graphql/index.d.mts"],
+      "@mysten/sui/transactions": ["./node_modules/@mysten/sui/dist/transactions/index.d.mts"],
+      "@mysten/sui/keypairs/ed25519": ["./node_modules/@mysten/sui/dist/keypairs/ed25519/index.d.mts"],
+      "@mysten/sui/utils": ["./node_modules/@mysten/sui/dist/utils/index.d.mts"],
+      "@mysten/sui/bcs": ["./node_modules/@mysten/sui/dist/bcs/index.d.mts"],
+      "@mysten/sui/client": ["./node_modules/@mysten/sui/dist/client/index.d.mts"]
+    }
   },
   "include": ["src", "types"]
 }

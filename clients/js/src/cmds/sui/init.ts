@@ -1,4 +1,3 @@
-import { SuiTransactionBlockResponse } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import yargs from "yargs";
 import {
@@ -13,6 +12,7 @@ import {
   logTransactionDigest,
   logTransactionSender,
   setMaxGasBudgetDevnet,
+  SuiTransactionResult,
 } from "../../chains/sui";
 import {
   DEBUG_OPTIONS,
@@ -220,7 +220,7 @@ export const initExampleApp = async (
   wormholeStateObjectId: string,
   rpc?: string,
   privateKey?: string
-): Promise<SuiTransactionBlockResponse> => {
+): Promise<SuiTransactionResult> => {
   rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const client = getProvider(network, rpc);
   const signer = getSigner(client, network, privateKey);
@@ -242,7 +242,7 @@ export const initTokenBridge = async (
   governanceContract: string,
   rpc?: string,
   privateKey?: string
-): Promise<SuiTransactionBlockResponse> => {
+): Promise<SuiTransactionResult> => {
   rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const client = getProvider(network, rpc);
   const signer = getSigner(client, network, privateKey);
@@ -302,7 +302,7 @@ export const initWormhole = async (
   governanceContract: string,
   rpc?: string,
   privateKey?: string
-): Promise<SuiTransactionBlockResponse> => {
+): Promise<SuiTransactionResult> => {
   rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const client = getProvider(network, rpc);
   const signer = getSigner(client, network, privateKey);

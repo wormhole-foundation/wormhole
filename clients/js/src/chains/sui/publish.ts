@@ -1,14 +1,14 @@
-import { SuiTransactionBlockResponse } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
-import { fromB64 } from "@mysten/bcs";
+import { fromBase64 } from "@mysten/sui/utils";
 import { execSync } from "child_process";
 import fs from "fs";
 import { SuiBuildOutput } from "./types";
 import {
   executeTransactionBlock,
-  isSuiPublishEvent,
+  getPublishedPackageId,
   normalizeSuiAddress,
   SuiSigner,
+  SuiTransactionResult,
 } from "./utils";
 import { Network } from "@wormhole-foundation/sdk";
 
@@ -111,7 +111,7 @@ const publishPackageTestPublish = async (packagePath: string) => {
     const mainPackage = publishedChanges[publishedChanges.length - 1];
     console.log(`Published package ID: ${mainPackage.packageId}`);
 
-    return result;
+    return fromCliJson(result);
   } catch (e: any) {
     // Print full error details
     console.error(`test-publish error:`);
@@ -139,7 +139,7 @@ const publishPackageSDK = async (
 
   const tx = new Transaction();
   const [upgradeCap] = tx.publish({
-    modules: build.modules.map((m) => Array.from(fromB64(m))),
+    modules: build.modules.map((m) => Array.from(fromBase64(m))),
     dependencies: build.dependencies.map((d) => normalizeSuiAddress(d)),
   });
 
@@ -150,17 +150,57 @@ const publishPackageSDK = async (
 
   const res = await executeTransactionBlock(signer, tx);
 
-  console.log(`Transaction status: ${JSON.stringify(res.effects?.status)}`);
+  console.log(`Transaction status: ${res.success ? "success" : res.error}`);
 
-  const publishEvents = res.objectChanges?.filter(isSuiPublishEvent) ?? [];
-  if (publishEvents.length !== 1) {
-    throw new Error(
-      "No publish event found in transaction:" +
-        JSON.stringify(res.objectChanges, null, 2)
-    );
-  }
-
-  console.log(`Published package ID: ${publishEvents[0].packageId}`);
+  // getPublishedPackageId throws if there isn't exactly one published package.
+  console.log(`Published package ID: ${getPublishedPackageId(res)}`);
 
   return res;
+};
+
+/**
+ * Convert the `sui client test-publish --json` CLI output (which still uses the
+ * legacy JSON-RPC `objectChanges` shape) into the normalized SuiTransactionResult
+ * the rest of the CLI consumes.
+ */
+const fromCliJson = (result: any): SuiTransactionResult => {
+  const ownerToString = (owner: any): string => {
+    if (typeof owner === "string") return owner;
+    if (owner?.AddressOwner) return owner.AddressOwner;
+    if (owner?.ObjectOwner) return owner.ObjectOwner;
+    if (owner?.Shared) return "Shared";
+    return "Unknown";
+  };
+
+  const changes: any[] = result.objectChanges ?? [];
+  // `--publish-unpublished-deps` can emit a `published` change for each
+  // co-published dependency in addition to the main package, which is always
+  // the last one published. Treat only that one as the package so downstream
+  // `getPublishedPackageId` (which requires exactly one) resolves correctly.
+  const publishedIds = changes
+    .filter((c) => c.type === "published")
+    .map((c) => c.packageId);
+  const mainPackageId = publishedIds[publishedIds.length - 1];
+  return {
+    digest: result.digest,
+    success: result.effects?.status?.status === "success",
+    error: result.effects?.status?.error,
+    sender: result.transaction?.data?.sender,
+    changedObjects: changes
+      .filter((c) => c.type === "created" || c.type === "published")
+      .map((c) => ({
+        objectId: c.type === "published" ? c.packageId : c.objectId,
+        type: c.objectType,
+        owner: ownerToString(c.owner),
+        created: true,
+        isPackage: c.type === "published" && c.packageId === mainPackageId,
+      })),
+    events: (result.events ?? []).map((e: any) => ({
+      packageId: e.packageId,
+      module: e.transactionModule ?? "",
+      sender: e.sender,
+      eventType: e.type,
+      json: e.parsedJson ?? null,
+    })),
+  };
 };

@@ -86,7 +86,7 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       const event = res.events?.find(
         (e) =>
           normalizeSuiAddress(e.packageId) === normalizeSuiAddress(packageId) &&
-          e.type.includes("publish_message::WormholeMessage")
+          e.eventType.includes("publish_message::WormholeMessage")
       );
       if (!event) {
         throw new Error(
@@ -97,13 +97,14 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
 
       logTransactionDigest(res);
       logTransactionSender(res);
+      const parsed = event.json as any;
       console.log("Publish message succeeded:", {
         sender: event.sender,
-        type: event.type,
-        payload: Buffer.from((event.parsedJson as any)?.payload).toString(),
-        emitter: Buffer.from((event.parsedJson as any)?.sender).toString("hex"),
-        sequence: (event.parsedJson as any)?.sequence,
-        nonce: (event.parsedJson as any)?.nonce,
+        type: event.eventType,
+        payload: Buffer.from(parsed?.payload, "base64").toString(),
+        emitter: Buffer.from(parsed?.sender, "base64").toString("hex"),
+        sequence: parsed?.sequence,
+        nonce: parsed?.nonce,
       });
     }
   );
