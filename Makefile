@@ -53,11 +53,14 @@ $(BIN)/guardiand: dirs generate
 	  github.com/certusone/wormhole/node
 
 .PHONY: test-coverage
-## Run tests with coverage for node and sdk (matches CI)
+## Run tests with coverage for node, sdk, and the custom linters (matches CI)
 test-coverage:
-	@echo "Running tests with coverage for node and sdk..."
+	@echo "Running tests with coverage for node, sdk, and linters..."
 	@set -o pipefail && (cd node && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
 	@set -o pipefail && (cd sdk && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
+	@for mod in $$(find linters -name go.mod); do \
+	  set -o pipefail && (cd $$(dirname $$mod) && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt || exit $$?; \
+	done
 
 .PHONY: test-fast
 ## Run fast tests for node and sdk, skipping tests gated by testing.Short() and fuzz smoke tests
