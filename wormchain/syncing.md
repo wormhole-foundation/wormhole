@@ -25,9 +25,9 @@ make build/wormchaind
 
 Please ask the Wormhole contributors for a recent Wormchain snapshot to use.
 
-You can also use daily snapshots exported by various teams:
-- Polkachu: [https://polkachu.com/tendermint_snapshots/wormchain/](https://polkachu.com/tendermint_snapshots/wormchain/)
-- CryptoCrew: [https://github.com/clemensgg/CryptoCrew-Validators/blob/main/chains/wormchain/service_Node_Snapshot.md](https://github.com/clemensgg/CryptoCrew-Validators/blob/main/chains/wormchain/service_Node_Snapshot.md)
+You can also use regular snapshots exported by various teams:
+- [MCF](https://mcf.rocks/mcf-wormchain-snapshots.rpy)
+- [Polkachu](https://polkachu.com/tendermint_snapshots/wormchain/)
 
 ## Download and Clean Snapshot
 
@@ -43,7 +43,7 @@ Now you should be able to successfully start your node!
 ### Troubleshooting
 
 > We were just able to successfully statesync when retaining the `wasm` folder and deleting the wasm cache, just fyi:
-> 
+>
 > - you need the `wasm` folder from a synced node
 > - then configure statesync + `unsafe-reset-all`
 > - then copy in wasm state `cp -r <your-wasm-folder-location> $DAEMON_HOME/data`
@@ -141,7 +141,7 @@ cp ../mainnet/* config/
 ./build/wormchaind-v2.18.1 start --home . --moniker <your-moniker> --halt-height 4411562
 # check sync status
 ./wormchaind-v2.18.1 status | jq ".SyncInfo.latest_block_height"
-# sync until block 4411562 
+# sync until block 4411562
 ```
 
 ## Sync with v2.18.1.1
