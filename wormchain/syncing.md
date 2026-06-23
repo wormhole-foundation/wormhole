@@ -138,7 +138,7 @@ cp ../mainnet/* config/
 ## Sync with v2.18.1
 
 ```bash
-./build/wormchaind-v2.18.1 start --home . --moniker <your-moniker> --halt-height 4411562
+./wormchaind-v2.18.1 start --home . --moniker <your-moniker> --halt-height 4411562
 # check sync status
 ./wormchaind-v2.18.1 status | jq ".SyncInfo.latest_block_height"
 # sync until block 4411562
@@ -147,8 +147,8 @@ cp ../mainnet/* config/
 ## Sync with v2.18.1.1
 
 ```bash
-./build/wormchaind-v2.18.1.1 rollback --home .
-./build/wormchaind-v2.18.1.1 start --home . --moniker <your-moniker>
+./wormchaind-v2.18.1.1 rollback --home .
+./wormchaind-v2.18.1.1 start --home . --moniker <your-moniker>
 # sync will stop automatically on block 4449129
 # after this stops, you just need to restart your wormchain node with v2.23.0
 # no rollback is required.
@@ -157,9 +157,9 @@ cp ../mainnet/* config/
 ## Sync with v2.23.0
 
 ```bash
-./build/wormchaind-v2.23.0 start --home . --moniker <your-moniker>
+./wormchaind-v2.23.0 start --home . --moniker <your-moniker>
 # check sync status
-./build/wormchaind-v2.23.0 status | jq ".SyncInfo.latest_block_height"
+./wormchaind-v2.23.0 status | jq ".SyncInfo.latest_block_height"
 # Error in validation err="wrong Block.Header.LastResultsHash.  Expected 4C349D91FFFC2B84588E703A5459CBB29D6053D788C32B8AF1445F44CFCD988B, got D2D3EBC9D1249733EE2CBD7CA9C9A63509BB28436BFF200CEB6162BCBA282EC3" module=blockchain
 # Block 8630308
 ```
@@ -167,7 +167,7 @@ cp ../mainnet/* config/
 ## Sync with v2.24.2-wormchaind
 
 ```bash
-./build/wormchaind-v2.24.2-wormchaind rollback --home .
-./build/wormchaind-v2.24.2-wormchaind start --home . --moniker <your-moniker>
+./wormchaind-v2.24.2-wormchaind rollback --home .
+./wormchaind-v2.24.2-wormchaind start --home . --moniker <your-moniker>
 # this will sync until the latest block!
 ```
