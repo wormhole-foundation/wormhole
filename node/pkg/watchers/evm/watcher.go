@@ -387,7 +387,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return nil
 			case <-t.C:
 				if pollErr := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); pollErr != nil {
-					errC <- fmt.Errorf("failed to request guardian set: %v", pollErr) // Note on channel capacity: The watcher will exit anyway
+					common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("failed to request guardian set: %v", pollErr), "evm_errc")
 					return nil
 				}
 			}
@@ -413,7 +413,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					return nil
 				case <-t.C:
 					if pollErr := w.fetchAndUpdateDelegatedGuardianConfig(ctx); pollErr != nil {
-						errC <- fmt.Errorf("failed to request delegated guardian config: %v", pollErr) // Note on channel capacity: The watcher will exit anyway
+						common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("failed to request delegated guardian config: %v", pollErr), "evm_errc")
 						return nil
 					}
 				}
@@ -476,7 +476,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return nil
 			case subErr := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing message publication subscription: %w", subErr) // The watcher will exit anyway
+				common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("error while processing message publication subscription: %w", subErr), "evm_errc")
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-messageC:
@@ -488,7 +488,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), blockErr) // The watcher will exit anyway
+					common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), blockErr), "evm_errc")
 					return nil
 				}
 
@@ -516,7 +516,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case err := <-headerSubscription.Err():
 				logger.Error("error while processing header subscription", zap.Error(err))
 				ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing header subscription: %w", err) // Note on channel capacity: The watcher will exit anyway
+				common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("error while processing header subscription: %w", err), "evm_errc")
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-headSink:
@@ -561,7 +561,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					stats.FinalizedHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				default:
 					logger.Error("unexpected finality in block", zap.Stringer("finality", ev.Finality), zap.Any("event", ev))
-					errC <- fmt.Errorf("unexpected finality in block: %v", ev.Finality)
+					common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("unexpected finality in block: %v", ev.Finality), "evm_errc")
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 					return nil
 				}
@@ -761,7 +761,11 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 	w.currentGuardianSet = &idx
 
 	if w.setC != nil {
-		w.setC <- common.NewGuardianSet(gs.Keys, idx) // Note on channel capacity: Will only block the guardian set update routine
+		select {
+		case w.setC <- common.NewGuardianSet(gs.Keys, idx): //nolint:channelcheck // Shutdown is safe. Should block until consumable or context is closed.
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 
 	return nil
@@ -851,7 +855,11 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 				zap.Uint32("timestamp", cfg.Timestamp))
 		}
 
-		w.dgConfigC <- dgConfig // Note on channel capacity: Will only block the delegated guardian config update routine
+		select {
+		case w.dgConfigC <- dgConfig: //nolint:channelcheck // Shutdown is safe. Should block until consumable or context is closed.
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 		w.logger.Info("sent delegated guardian config update to processor")
 	}
 
@@ -1157,7 +1165,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, errC chan error, ev *eth
 			ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
 			if !canRetryGetBlockTime(err) {
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err) // Note on channel capacity: The watcher will exit anyway
+				common.WriteToChannelWithoutBlocking(errC, fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err), "evm_errc")
 				return
 			}
 			if retries >= MaxRetries {

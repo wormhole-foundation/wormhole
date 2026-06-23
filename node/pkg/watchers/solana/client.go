@@ -413,7 +413,11 @@ func (s *SolanaWatcher) setupWebSocket(ctx context.Context) error {
 					logger.Error("failed to read from account web socket", zap.Error(err))
 					return err
 				} else {
-					s.pumpData <- msg // Note on channel capacity: Only pauses this watcher
+					select {
+					case s.pumpData <- msg: //nolint:channelcheck // Pauses on backpressure from consumer. Allows for shutdown if consumer no longer exists.
+					case <-ctx.Done():
+						return nil
+					}
 				}
 			}
 		}
@@ -498,7 +502,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_subscription_data").Inc()
-					s.errC <- err // Note on channel capacity: The watcher will exit anyway
+					common.WriteToChannelWithoutBlocking(s.errC, err, "solana_errc")
 					return err
 				}
 			case m := <-s.obsvReqC:
@@ -537,7 +541,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_slot_error").Inc()
-					s.errC <- err // Note on channel capacity: The watcher will exit anyway
+					common.WriteToChannelWithoutBlocking(s.errC, err, "solana_errc")
 					return err
 				}
 

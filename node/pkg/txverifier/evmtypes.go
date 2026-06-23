@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"time"
 
+	node_common "github.com/certusone/wormhole/node/pkg/common"
 	connectors "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/ethereum/go-ethereum"
@@ -275,8 +276,8 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 				)
 
 				if err != nil {
-					s.errC <- fmt.Errorf("failed to subscribe to logs: %w", err) // Note on channel capacity: Will only block this subscriber routine
-					time.Sleep(RECONNECT_DELAY)                                  //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // Wait before retrying
+					node_common.WriteToChannelWithoutBlocking(s.errC, fmt.Errorf("failed to subscribe to logs: %w", err), "txverifier_errc")
+					time.Sleep(RECONNECT_DELAY) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // Wait before retrying
 					continue
 				}
 
@@ -286,7 +287,7 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 				err = s.handleSubscription(ctx, subscription)
 
 				if err != nil {
-					s.errC <- err               // Note on channel capacity: Will only block this subscriber routine
+					node_common.WriteToChannelWithoutBlocking(s.errC, err, "txverifier_errc")
 					time.Sleep(RECONNECT_DELAY) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep; // Wait before retrying
 				}
 			}

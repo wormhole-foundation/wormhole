@@ -258,7 +258,7 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 				}
 
 				// An RPC communication error occurred. Note that this terminates the goroutine.
-				errorChannel <- err
+				errorChannel <- err //nolint:channelcheck // A single write occurs and then exits. Because it's buffered above, this is safe.
 				return
 			}
 
@@ -323,7 +323,7 @@ func (s *SuiGrpcClient) SubscribeToTransactionEvents(ctx context.Context, eventT
 					// Writing to eventWriteChannel could be blocking if there are no readers. Use a select to include
 					// a simultaneous check to bail out if the context is cancelled.
 					select {
-					case eventWriteChannel <- SuiTransactionEvent{TxDigest: txDigest, Event: *suiEvent}:
+					case eventWriteChannel <- SuiTransactionEvent{TxDigest: txDigest, Event: *suiEvent}: //nolint:channelcheck // Don't want to drop RPC events. Continuous producer should block when the consumer isn't able to handle more.
 					case <-ctx.Done():
 						return
 					}

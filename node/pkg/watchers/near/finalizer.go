@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
 	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"
@@ -64,7 +65,7 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 	}
 
 	logger.Debug("block finalization cache miss", zap.String("method", "isFinalized"), zap.String("parameters", queriedBlockHash))
-	f.eventChan <- EVENT_FINALIZED_CACHE_MISS // Note on channel capacity: Only pauses this watcher
+	common.WriteToChannelWithoutBlocking(f.eventChan, EVENT_FINALIZED_CACHE_MISS, "near_event_chan") // Non-blocking: eventChan is buffered (cap 10) and metrics-only, so dropping an event is preferable to stalling the watcher.
 
 	queriedBlock, err := f.nearAPI.GetBlock(ctx, queriedBlockHash)
 	if err != nil {
