@@ -140,29 +140,30 @@ export const assertSuccess = (
   }
 };
 
-export const executeTransactionBlock = async (
-  signer: SuiSigner,
-  transaction: Transaction
-): Promise<SuiTransactionResult> => {
-  await assertSuiNetwork(signer.client, signer.network);
-  const res = await signer.client.signAndExecuteTransaction({
-    signer: signer.keypair,
-    transaction,
-    include: {
-      effects: true,
-      events: true,
-      objectTypes: true,
-      transaction: true,
-    },
-  });
+// Fields requested from the gRPC transport whenever a transaction result is
+// flattened into a `SuiTransactionResult`. `objectTypes` is required to populate
+// the per-object `type`, which the effects' `changedObjects` do not carry.
+const TX_RESULT_INCLUDE = {
+  effects: true,
+  events: true,
+  objectTypes: true,
+  transaction: true,
+} as const;
 
-  const tx = res.Transaction ?? res.FailedTransaction;
-  if (!tx) {
-    throw new Error(
-      `Unexpected empty transaction response: ${JSON.stringify(res)}`
-    );
-  }
+// The gRPC transaction envelope (the `Transaction`/`FailedTransaction` arm of a
+// `TransactionResult`), parameterized by the fields we request so the
+// include-gated members (`effects`, `objectTypes`, ...) are present on the type.
+type GrpcTransaction = SuiClientTypes.Transaction<typeof TX_RESULT_INCLUDE>;
 
+/**
+ * Flatten a gRPC transaction envelope into the CLI's `SuiTransactionResult`.
+ * The gRPC transport exposes mutations as `effects.changedObjects` (with
+ * `outputState`/`idOperation` enums) plus a separate `objectId -> type` map;
+ * this reassembles the two into the single shape the rest of the CLI consumes.
+ */
+export const toSuiTransactionResult = (
+  tx: GrpcTransaction
+): SuiTransactionResult => {
   const objectTypes = tx.objectTypes ?? {};
   return {
     digest: tx.digest,
@@ -186,6 +187,54 @@ export const executeTransactionBlock = async (
       json: e.json,
     })),
   };
+};
+
+export const executeTransactionBlock = async (
+  signer: SuiSigner,
+  transaction: Transaction
+): Promise<SuiTransactionResult> => {
+  await assertSuiNetwork(signer.client, signer.network);
+  const res = await signer.client.signAndExecuteTransaction({
+    signer: signer.keypair,
+    transaction,
+    include: TX_RESULT_INCLUDE,
+  });
+
+  const tx = res.Transaction ?? res.FailedTransaction;
+  if (!tx) {
+    throw new Error(
+      `Unexpected empty transaction response: ${JSON.stringify(res)}`
+    );
+  }
+
+  return toSuiTransactionResult(tx);
+};
+
+/**
+ * Read an already-committed transaction's effects over gRPC and flatten them
+ * into a `SuiTransactionResult`. Used for transactions executed outside the SDK
+ * (e.g. `sui client test-publish`, which signs with the local CLI keystore and
+ * commits on-chain) so their results can be consumed without parsing the CLI's
+ * deprecated JSON-RPC `objectChanges` payload.
+ */
+export const fetchTransactionResult = async (
+  client: SuiGrpcClient,
+  digest: string
+): Promise<SuiTransactionResult> => {
+  // The transaction may not be queryable the instant the CLI returns; block
+  // until the node has indexed it before reading effects.
+  await client.waitForTransaction({ digest });
+  const res = await client.getTransaction({
+    digest,
+    include: TX_RESULT_INCLUDE,
+  });
+
+  const tx = res.Transaction ?? res.FailedTransaction;
+  if (!tx) {
+    throw new Error(`Transaction ${digest} not found`);
+  }
+
+  return toSuiTransactionResult(tx);
 };
 
 /**

@@ -5,6 +5,7 @@ import fs from "fs";
 import { SuiBuildOutput } from "./types";
 import {
   executeTransactionBlock,
+  fetchTransactionResult,
   getPublishedPackageId,
   normalizeSuiAddress,
   SuiSigner,
@@ -59,68 +60,62 @@ export const publishPackage = async (
   signer: SuiSigner,
   network: Network,
   packagePath: string
-) => {
+): Promise<SuiTransactionResult> => {
   if (network === "Devnet") {
-    // test-publish uses the locally configured CLI signer, not the passed signer
-    return publishPackageTestPublish(packagePath);
-  } else {
-    return publishPackageSDK(signer, network, packagePath);
+    return publishPackageTestPublish(signer, packagePath);
   }
+  return publishPackageSDK(signer, network, packagePath);
 };
 
 /**
- * Use `sui client test-publish` for ephemeral/local deployments.
- * This handles dependencies automatically and doesn't require Published.toml manipulation.
- * Note: Uses the locally configured Sui CLI signer, not a programmatic signer.
+ * Extract the transaction digest from `sui client test-publish --json` output.
+ * The CLI prepends human-readable build lines before the JSON object, so the
+ * payload is sliced from the first brace. Only the digest is read here; the
+ * transaction's effects are fetched separately over gRPC.
  */
-const publishPackageTestPublish = async (packagePath: string) => {
-  // Use test-publish with --publish-unpublished-deps to handle dependencies
-  // --build-env testnet tells it to use testnet dependency resolution
+export const parseTestPublishDigest = (output: string): string => {
+  const jsonStart = output.indexOf("{");
+  if (jsonStart === -1) {
+    throw new Error(`No JSON output from test-publish: ${output}`);
+  }
+  const digest = JSON.parse(output.slice(jsonStart))?.digest;
+  if (typeof digest !== "string") {
+    throw new Error(`No transaction digest in test-publish output: ${output}`);
+  }
+  return digest;
+};
+
+/**
+ * Publish via `sui client test-publish` for Devnet/localnet.
+ *
+ * The Sui package system resolves local, not-yet-published dependencies (e.g.
+ * the core bridge imported by the token bridge) per chain id. `test-publish`
+ * performs that resolution together with `--publish-unpublished-deps` without
+ * requiring Published.toml management — something a plain SDK `tx.publish`
+ * cannot reproduce on an ephemeral local network. It signs with the locally
+ * configured CLI keystore and commits on-chain, so the resulting transaction is
+ * read back over gRPC rather than parsed from the CLI's deprecated JSON-RPC
+ * `objectChanges` payload.
+ */
+const publishPackageTestPublish = async (
+  signer: SuiSigner,
+  packagePath: string
+): Promise<SuiTransactionResult> => {
+  // `--build-env testnet` selects testnet dependency pins (localnet is not a
+  // pinned environment); `--publish-unpublished-deps` publishes dependencies
+  // that are not yet on-chain for this network.
   const cmd = `sui client test-publish ${packagePath} --publish-unpublished-deps --build-env testnet --json 2>&1`;
 
-  console.log(`Running: ${cmd}`);
-
+  let output: string;
   try {
-    const output = execSync(cmd, { encoding: "utf-8" });
-    console.log(`test-publish output:\n${output}`);
-
-    // Parse JSON output
-    const jsonStart = output.indexOf("{");
-    if (jsonStart === -1) {
-      throw new Error(`No JSON output from test-publish: ${output}`);
-    }
-
-    const result = JSON.parse(output.slice(jsonStart));
-
-    // Extract published package ID from the result
-    const publishedChanges = result.objectChanges?.filter(
-      (change: any) => change.type === "published"
-    );
-
-    if (!publishedChanges || publishedChanges.length === 0) {
-      throw new Error(
-        `No published package found in test-publish output: ${JSON.stringify(
-          result.objectChanges,
-          null,
-          2
-        )}`
-      );
-    }
-
-    // Find the main package (not dependencies) - it's typically the last one published
-    const mainPackage = publishedChanges[publishedChanges.length - 1];
-    console.log(`Published package ID: ${mainPackage.packageId}`);
-
-    return fromCliJson(result);
+    output = execSync(cmd, { encoding: "utf-8" });
   } catch (e: any) {
-    // Print full error details
-    console.error(`test-publish error:`);
-    if (e.stdout) console.error(`stdout: ${e.stdout}`);
-    if (e.stderr) console.error(`stderr: ${e.stderr}`);
-    if (e.status) console.error(`exit code: ${e.status}`);
-    console.error(`message: ${e.message}`);
-    throw new Error(`test-publish failed: ${e.message}`);
+    const detail = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");
+    throw new Error(`test-publish failed:\n${detail}`);
   }
+
+  const digest = parseTestPublishDigest(output);
+  return fetchTransactionResult(signer.client, digest);
 };
 
 /**
@@ -156,51 +151,4 @@ const publishPackageSDK = async (
   console.log(`Published package ID: ${getPublishedPackageId(res)}`);
 
   return res;
-};
-
-/**
- * Convert the `sui client test-publish --json` CLI output (which still uses the
- * legacy JSON-RPC `objectChanges` shape) into the normalized SuiTransactionResult
- * the rest of the CLI consumes.
- */
-const fromCliJson = (result: any): SuiTransactionResult => {
-  const ownerToString = (owner: any): string => {
-    if (typeof owner === "string") return owner;
-    if (owner?.AddressOwner) return owner.AddressOwner;
-    if (owner?.ObjectOwner) return owner.ObjectOwner;
-    if (owner?.Shared) return "Shared";
-    return "Unknown";
-  };
-
-  const changes: any[] = result.objectChanges ?? [];
-  // `--publish-unpublished-deps` can emit a `published` change for each
-  // co-published dependency in addition to the main package, which is always
-  // the last one published. Treat only that one as the package so downstream
-  // `getPublishedPackageId` (which requires exactly one) resolves correctly.
-  const publishedIds = changes
-    .filter((c) => c.type === "published")
-    .map((c) => c.packageId);
-  const mainPackageId = publishedIds[publishedIds.length - 1];
-  return {
-    digest: result.digest,
-    success: result.effects?.status?.status === "success",
-    error: result.effects?.status?.error,
-    sender: result.transaction?.data?.sender,
-    changedObjects: changes
-      .filter((c) => c.type === "created" || c.type === "published")
-      .map((c) => ({
-        objectId: c.type === "published" ? c.packageId : c.objectId,
-        type: c.objectType,
-        owner: ownerToString(c.owner),
-        created: true,
-        isPackage: c.type === "published" && c.packageId === mainPackageId,
-      })),
-    events: (result.events ?? []).map((e: any) => ({
-      packageId: e.packageId,
-      module: e.transactionModule ?? "",
-      sender: e.sender,
-      eventType: e.type,
-      json: e.parsedJson ?? null,
-    })),
-  };
 };
