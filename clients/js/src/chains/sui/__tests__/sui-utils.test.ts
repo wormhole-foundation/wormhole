@@ -5,6 +5,7 @@ import {
   normalizeSuiAddress,
   normalizeSuiType,
   SuiTransactionResult,
+  toSuiTransactionResult,
 } from "../utils";
 import {
   CoinTypeKeyBcs,
@@ -76,6 +77,104 @@ describe("Sui transaction-result transforms", () => {
 
   it("getPublishedPackageId throws when the package count is not exactly one", () => {
     expect(() => getPublishedPackageId(baseResult([]))).toThrow();
+  });
+});
+
+// The gRPC envelope shape consumed by toSuiTransactionResult. Cast at the call
+// site since hand-building the SDK's include-parameterized type is unnecessary
+// for exercising the mapping.
+const grpcTx = (tx: unknown) =>
+  toSuiTransactionResult(tx as Parameters<typeof toSuiTransactionResult>[0]);
+
+describe("toSuiTransactionResult (gRPC effects -> SuiTransactionResult)", () => {
+  it("maps changedObjects, owners, created/package flags, and events", () => {
+    const res = grpcTx({
+      digest: "DIGEST1",
+      status: { success: true, error: null },
+      transaction: { sender: "0xsender" },
+      objectTypes: { "0xstate": "0xpkg::state::State" },
+      effects: {
+        changedObjects: [
+          {
+            objectId: "0xpkg",
+            outputOwner: { $kind: "Immutable" },
+            idOperation: "Created",
+            outputState: "PackageWrite",
+          },
+          {
+            objectId: "0xstate",
+            outputOwner: { $kind: "Shared" },
+            idOperation: "Created",
+            outputState: "ObjectWrite",
+          },
+          {
+            objectId: "0xgas",
+            outputOwner: { $kind: "AddressOwner", AddressOwner: "0xowner" },
+            idOperation: "None",
+            outputState: "ObjectWrite",
+          },
+        ],
+      },
+      events: [
+        {
+          packageId: "0xpkg",
+          module: "publish_message",
+          sender: "0xsender",
+          eventType: "0xpkg::m::E",
+          json: { a: 1 },
+        },
+      ],
+    });
+
+    expect(res.digest).toBe("DIGEST1");
+    expect(res.success).toBe(true);
+    expect(res.error).toBeUndefined();
+    expect(res.sender).toBe("0xsender");
+    expect(res.changedObjects).toEqual([
+      {
+        objectId: "0xpkg",
+        type: undefined,
+        owner: "Immutable",
+        created: true,
+        isPackage: true,
+      },
+      {
+        objectId: "0xstate",
+        type: "0xpkg::state::State",
+        owner: "Shared",
+        created: true,
+        isPackage: false,
+      },
+      {
+        objectId: "0xgas",
+        type: undefined,
+        owner: "0xowner",
+        created: false,
+        isPackage: false,
+      },
+    ]);
+    expect(res.events).toEqual([
+      {
+        packageId: "0xpkg",
+        module: "publish_message",
+        sender: "0xsender",
+        eventType: "0xpkg::m::E",
+        json: { a: 1 },
+      },
+    ]);
+    // The single PackageWrite is resolvable as the published package.
+    expect(getPublishedPackageId(res)).toBe("0xpkg");
+  });
+
+  it("surfaces the failure status message as the error", () => {
+    const res = grpcTx({
+      digest: "DIGEST2",
+      status: { success: false, error: { message: "MoveAbort" } },
+      effects: { changedObjects: [] },
+      events: [],
+    });
+    expect(res.success).toBe(false);
+    expect(res.error).toBe("MoveAbort");
   });
 });
 
