@@ -242,6 +242,10 @@ wormchaind tx bank send <sending wormchain public key> <new validator public key
 	--node tcp://127.0.0.1:26657
 ```
 
+#### Sync from a snapshot
+
+The easiest way to sync your wormchain node is via a snapshot. Follow [these instructions](../wormchain/syncing.md#sync-from-snapshot) to sync from a snapshot.
+
 #### Create your validator via a transaction
 
 The final step before the governance VAA to add your new validator into the guardian set is the `create-validator` wormchain command. Replace `<validator name>` with the `<key name>` from when the `.info` file was created above and run this command:
