@@ -30,10 +30,15 @@ type (
 		chainID   vaa.ChainID
 		networkID string
 
-		aptosRPC       string
-		aptosAccount   string // Wormhole contract address
-		aptosHandle    string // Event to subscribe to Aptos RPC
-		aptosEventType string // aptosEventType is derived from aptosHandle.
+		aptosRPC     string
+		aptosAccount string // Wormhole contract address
+		aptosHandle  string // Event to subscribe to Aptos RPC
+
+		// Cached canonical event values to compare against, computed at startup.
+		accountAddr     [32]byte
+		eventTypeAddr   [32]byte
+		eventTypeModule string
+		eventTypeStruct string
 
 		msgC          chan<- *common.MessagePublication
 		obsvReqC      <-chan *gossipv1.ObservationRequest
@@ -88,22 +93,33 @@ func NewWatcher(
 	}
 
 	// Validate the configured contract address. parseAptosAddr requires a valid, lowercase Aptos
-	// address so that verifyEventType can match it against the (always lowercased) event fields with
-	// an exact comparison. Fail fast on misconfiguration.
-	if _, ok := parseAptosAddr(aptosAccount); !ok {
+	// address so that verifyEventType can match it against the (always lowercased) event fields.
+	// Fail fast on misconfiguration. The canonical bytes are cached for later comparison.
+	accountAddr, ok := parseAptosAddr(aptosAccount)
+	if !ok {
 		return nil, fmt.Errorf("aptosAccount %q is not a valid lowercase Aptos address", aptosAccount)
 	}
 
+	// Cache the canonical pieces of the event type for comparison in verifyEventType.
+	eventType := strings.TrimSuffix(aptosHandle, "Handle")
+	eventTypeAddr, eventTypeModule, eventTypeStruct, ok := parseAptosEventType(eventType)
+	if !ok {
+		return nil, fmt.Errorf("derived aptosEventType %q is not a valid Move type tag", eventType)
+	}
+
 	return &Watcher{
-		chainID:        chainID,
-		networkID:      string(networkID),
-		aptosRPC:       aptosRPC,
-		aptosAccount:   aptosAccount,
-		aptosHandle:    aptosHandle,
-		aptosEventType: strings.TrimSuffix(aptosHandle, "Handle"),
-		msgC:           msgC,
-		obsvReqC:       obsvReqC,
-		readinessSync:  common.MustConvertChainIdToReadinessSyncing(chainID),
+		chainID:         chainID,
+		networkID:       string(networkID),
+		aptosRPC:        aptosRPC,
+		aptosAccount:    aptosAccount,
+		aptosHandle:     aptosHandle,
+		accountAddr:     accountAddr,
+		eventTypeAddr:   eventTypeAddr,
+		eventTypeModule: eventTypeModule,
+		eventTypeStruct: eventTypeStruct,
+		msgC:            msgC,
+		obsvReqC:        obsvReqC,
+		readinessSync:   common.MustConvertChainIdToReadinessSyncing(chainID),
 	}, nil
 }
 
@@ -315,7 +331,6 @@ func (e *Watcher) processPollingBatch(logger *zap.Logger, events gjson.Result, n
 				zap.String("eventType", event.Get("type").String()),
 				zap.String("guidAccountAddress", event.Get("guid.account_address").String()),
 				zap.String("guidCreationNumber", event.Get("guid.creation_number").String()),
-				zap.String("expectedType", e.aptosEventType),
 				zap.String("account", e.aptosAccount),
 				zap.String("handle", e.aptosHandle),
 			)
@@ -360,7 +375,6 @@ func (e *Watcher) processReobservationBatch(logger *zap.Logger, outcomes gjson.R
 				zap.String("eventType", aptosEvent.Get("type").String()),
 				zap.String("guidAccountAddress", aptosEvent.Get("guid.account_address").String()),
 				zap.String("guidCreationNumber", aptosEvent.Get("guid.creation_number").String()),
-				zap.String("expectedType", e.aptosEventType),
 				zap.String("account", e.aptosAccount),
 				zap.String("handle", e.aptosHandle),
 			)
@@ -411,12 +425,32 @@ func parseAptosAddr(addr string) ([32]byte, bool) {
 	if addr != strings.ToLower(addr) {
 		return out, false
 	}
+	// The Aptos API returns special addresses in short form on a 4-bit nibble boundary
+	// (e.g. "0x1", "0x0"), which is odd-length hex. Pad so it decodes.
+	if len(addr)%2 == 1 {
+		addr = "0" + addr
+	}
 	decoded, err := hex.DecodeString(addr)
 	if err != nil {
 		return out, false
 	}
 	copy(out[32-len(decoded):], decoded)
 	return out, true
+}
+
+// parseAptosEventType splits a Move type tag "<address>::<module>::<struct>" into its canonical
+// address bytes and its module/struct names. ok is false if the tag does not have exactly three
+// "::"-separated segments or its address segment is not a valid Aptos address.
+func parseAptosEventType(t string) (addr [32]byte, module, structName string, ok bool) {
+	parts := strings.Split(t, "::")
+	if len(parts) != 3 {
+		return addr, "", "", false
+	}
+	addr, ok = parseAptosAddr(parts[0])
+	if !ok {
+		return addr, "", "", false
+	}
+	return addr, parts[1], parts[2], true
 }
 
 // Verify that the event on the response lines up with the
@@ -427,10 +461,11 @@ func (e *Watcher) verifyEventType(event gjson.Result) error {
 		return fmt.Errorf("event missing 'type' field")
 	}
 
-	// The type must match exactly.
-	// Aptos returns the canonical type string, and Move module/struct names are case-sensitive.
-	if stripHexadecimalPrefix(t.String()) != stripHexadecimalPrefix(e.aptosEventType) {
-		return fmt.Errorf("event type mismatch: got %q, want %q", t.String(), e.aptosEventType)
+	// Compare the address segment by canonical bytes, since the API may strip leading zeros.
+	// Move module/struct names are case-sensitive and must match exactly.
+	addr, module, structName, ok := parseAptosEventType(t.String())
+	if !ok || addr != e.eventTypeAddr || module != e.eventTypeModule || structName != e.eventTypeStruct {
+		return fmt.Errorf("event type mismatch: got %q, want handle %q", t.String(), e.aptosHandle)
 	}
 
 	// The GUID identifies the on-chain EventHandle that emitted the event;
@@ -439,7 +474,8 @@ func (e *Watcher) verifyEventType(event gjson.Result) error {
 	if !guidAddr.Exists() {
 		return fmt.Errorf("event missing 'guid.account_address' field")
 	}
-	if stripHexadecimalPrefix(guidAddr.String()) != stripHexadecimalPrefix(e.aptosAccount) {
+	gAddr, ok := parseAptosAddr(guidAddr.String())
+	if !ok || gAddr != e.accountAddr {
 		return fmt.Errorf("event guid.account_address mismatch: got %q, want %q", guidAddr.String(), e.aptosAccount)
 	}
 
