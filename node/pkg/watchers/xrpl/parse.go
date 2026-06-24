@@ -41,6 +41,13 @@ var xtcfPrefix = [4]byte{'X', 'T', 'C', 'F'}
 // xackPrefix is the 4-byte prefix for XRPL transaction acknowledgement payloads
 var xackPrefix = [4]byte{'X', 'A', 'C', 'K'}
 
+// generatedEmitterPrefix is the 4-byte "XRPL" marker placed at the start of the emitter
+// address for watcher-generated messages (XACK, XTCF). Integrator core bridge messages use
+// the raw account ID as their emitter (the 20-byte account left-padded with 12 zero bytes), so
+// prepending this non-zero prefix makes it impossible to forge a generated message by sending a
+// payment to the core account. The 20-byte account ID remains recoverable in the last 20 bytes.
+var generatedEmitterPrefix = [4]byte{'X', 'R', 'P', 'L'}
+
 // xackPayloadLen is the length of an XACK payload (14 bytes):
 // prefix(4) + ticket_id(8) + success(1) + tx_type(1)
 const xackPayloadLen = 14
@@ -563,8 +570,7 @@ func (p *Parser) parseTicketCreateTransaction(tx GenericTx) (*common.MessagePubl
 		return nil, err
 	}
 
-	// Emitter is the managed account (left-padded to 32 bytes)
-	emitterAddress, err := p.addressToEmitter(account)
+	emitterAddress, err := p.calculateGeneratedEmitterAddress(account)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert account to emitter: %w", err)
 	}
@@ -674,8 +680,7 @@ func (p *Parser) parseXACKTransaction(tx GenericTx) (*common.MessagePublication,
 		return nil, err
 	}
 
-	// Emitter is the managed account (left-padded to 32 bytes)
-	emitterAddress, err := p.addressToEmitter(account)
+	emitterAddress, err := p.calculateGeneratedEmitterAddress(account)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert account to emitter: %w", err)
 	}
@@ -1290,6 +1295,32 @@ func (p *Parser) calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte)
 	var emitter vaa.Address
 	copy(emitter[:], hash)
 	return emitter
+}
+
+// calculateGeneratedEmitterAddress derives the emitter address for watcher-generated
+// messages (XACK, XTCF) from a managed account. The emitter layout is:
+//
+//	[4]byte  "XRPL" prefix
+//	[8]byte  zero padding
+//	[20]byte XRPL account ID
+//
+// The non-zero "XRPL" prefix ensures these emitters cannot collide with integrator-emitted
+// core bridge messages, which use the raw account ID as their emitter (the 20-byte account
+// left-padded with 12 zero bytes). This makes it impossible to forge a generated message by
+// sending a payment to the core account. The account ID stays in the last 20 bytes so that
+// consumers can still recover it from the emitter.
+//
+// XACK and XTCF messages from the same account share this emitter; they are distinguished by
+// their respective payload prefixes.
+func (p *Parser) calculateGeneratedEmitterAddress(account string) (vaa.Address, error) {
+	// addressToEmitter left-pads the 20-byte account ID with 12 zero bytes. Overlaying the
+	// "XRPL" prefix onto the leading bytes yields "XRPL" + 8 zero bytes + account ID.
+	emitter, err := p.addressToEmitter(account)
+	if err != nil {
+		return vaa.Address{}, err
+	}
+	copy(emitter[:len(generatedEmitterPrefix)], generatedEmitterPrefix[:])
+	return emitter, nil
 }
 
 // buildNTTPayload builds the full NTT TransceiverMessage payload (217 bytes).
