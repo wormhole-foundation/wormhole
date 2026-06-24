@@ -63,6 +63,8 @@ type Connector interface {
 	RawBatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 	Client() *ethClient.Client
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
+	// Close releases the underlying rpc.Client and its goroutines.
+	Close()
 }
 
 type PollSubscription struct {
@@ -89,7 +91,7 @@ func (sub *PollSubscription) Err() <-chan error {
 func (sub *PollSubscription) Unsubscribe() {
 	sub.errOnce.Do(func() {
 		select {
-		case sub.quit <- ErrUnsubscribed: //nolint:channelcheck // We only do a single write.
+		case sub.quit <- ErrUnsubscribed: // Note on channel capacity: We only do a single write.
 			<-sub.unsubDone
 		case <-sub.unsubDone:
 		}

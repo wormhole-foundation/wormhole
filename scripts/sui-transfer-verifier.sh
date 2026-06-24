@@ -8,6 +8,7 @@ TOKEN_BRIDGE_CONTRACT="0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0
 
 TOKEN_BRIDGE_EMITTER="0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5"
 
+# gRPC endpoint, host:port (e.g. fullnode.mainnet.sui.io:443)
 RPC=<RPC_HERE>
 
 LOG_LEVEL="info"

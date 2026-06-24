@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ const (
 )
 
 var (
-	nonce = uint32(0)
+	nonce atomic.Uint32
 
 	watcherChainsForTest = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC, vaa.ChainIDArbitrum}
 )
@@ -139,9 +140,8 @@ func createSignedQueryRequestForTesting(
 	perChainQueries []*PerChainQueryRequest,
 ) (*gossipv1.SignedQueryRequest, *QueryRequest) {
 	t.Helper()
-	nonce += 1
 	queryRequest := &QueryRequest{
-		Nonce:           nonce,
+		Nonce:           nonce.Add(1),
 		PerChainQueries: perChainQueries,
 	}
 
@@ -259,6 +259,8 @@ func validateResponseForTest(
 }
 
 func TestParseAllowedRequestersSuccess(t *testing.T) {
+	t.Parallel()
+
 	ccqAllowedRequestersList, err := parseAllowedRequesters(testSigner)
 	require.NoError(t, err)
 	require.NotNil(t, ccqAllowedRequestersList)
@@ -281,6 +283,8 @@ func TestParseAllowedRequestersSuccess(t *testing.T) {
 }
 
 func TestParseAllowedRequestersFailsIfParameterEmpty(t *testing.T) {
+	t.Parallel()
+
 	ccqAllowedRequestersList, err := parseAllowedRequesters("")
 	require.Error(t, err)
 	require.Nil(t, ccqAllowedRequestersList)
@@ -291,6 +295,8 @@ func TestParseAllowedRequestersFailsIfParameterEmpty(t *testing.T) {
 }
 
 func TestParseAllowedRequestersFailsIfInvalidParameter(t *testing.T) {
+	t.Parallel()
+
 	ccqAllowedRequestersList, err := parseAllowedRequesters("Hello")
 	require.Error(t, err)
 	require.Nil(t, ccqAllowedRequestersList)
@@ -502,6 +508,10 @@ func (md *mockData) waitForResponse() *QueryResponsePublication {
 
 // TestInvalidQueries tests all the obvious reasons why a query may fail (aside from watcher failures).
 func TestInvalidQueries(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping async query handler negative test in short mode")
+	}
+
 	ctx := context.Background()
 	logger := zap.NewNop()
 
@@ -685,6 +695,10 @@ func TestQueryWithRetryDueToTimeoutShouldSucceed(t *testing.T) {
 }
 
 func TestQueryWithTooManyRetriesShouldFail(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping async query handler timeout test in short mode")
+	}
+
 	ctx := context.Background()
 	logger := zap.NewNop()
 
@@ -751,6 +765,10 @@ func TestQueryWithLimitedRetriesOnMultipleChainsShouldSucceed(t *testing.T) {
 }
 
 func TestFatalErrorOnPerChainQueryShouldCauseRequestToFail(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping async query handler fatal-error test in short mode")
+	}
+
 	ctx := context.Background()
 	logger := zap.NewNop()
 
@@ -812,6 +830,8 @@ func TestPublishRetrySucceeds(t *testing.T) {
 }
 
 func TestPerChainConfigValid(t *testing.T) {
+	t.Parallel()
+
 	for chainID, config := range perChainConfig {
 		if config.NumWorkers <= 0 {
 			assert.Equal(t, "", fmt.Sprintf(`perChainConfig for "%s" has an invalid NumWorkers: %d`, chainID.String(), config.NumWorkers))

@@ -2,20 +2,102 @@ package sui
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
 	"testing"
 	"time"
 
+	mystenbcs "github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/certusone/wormhole/node/pkg/common"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/suiclient"
 	txverifier "github.com/certusone/wormhole/node/pkg/txverifier"
-	"github.com/stretchr/testify/assert"
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
+
+// A `WormholeMessage` event captured from mainnet transaction
+// 3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin. The base64 string is the BCS-serialized
+// event contents (the `contents` of the gRPC event), and the remaining constants are the
+// values it decodes to, taken from the JSON-RPC `parsedJson` rendering of the same event.
+const (
+	sampleWormholeMessageBcsB64 = "zM7rKTSPcb3SL/70OioZwfW14XxcylQRUpEgGCZyreW/OAMAAAAAAEyGAQCFAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACjm6FyXsyJ/MIvDRPeNoi5T6FtZKIgeRhqlBkUKAxnEB/3VCY8ABUAAAAAAAAAAAAAAABlqPB72ahZjhtbbAqI9HedvAd2dQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMmMkaAAAAAA="
+	sampleTxDigest              = "3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin"
+	sampleSenderHex             = "ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5"
+	samplePayloadHex            = "01000000000000000000000000000000000000000000000000000000a39ba1725ecc89fcc22f0d13de3688b94fa16d64a22079186a941914280c67101ff754263c001500000000000000000000000065a8f07bd9a8598e1b5b6c0a88f4779dbc07767500040000000000000000000000000000000000000000000000000000000000000000"
+	sampleSequence              = uint64(211135)
+	sampleNonce                 = uint32(99916)
+	sampleConsistencyLevel      = uint8(0)
+	sampleTimestamp             = uint64(1747215154)
+)
+
+// sampleWormholeMessageBcs is the BCS-serialized contents of the sample WormholeMessage event,
+// decoded once from sampleWormholeMessageBcsB64.
+var sampleWormholeMessageBcs = func() []byte {
+	b, err := base64.StdEncoding.DecodeString(sampleWormholeMessageBcsB64)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}()
+
+// mockSuiClient is a minimal suiclient.SuiClient implementation for exercising the watcher's
+// gRPC-facing logic. Only the methods used by the tests return meaningful data. Object versions
+// are served from `objects`, keyed by "objectId@version".
+type mockSuiClient struct {
+	transactions map[string]suiclient.SuiTransaction
+	objects      map[string][]byte
+}
+
+func mockObjectKey(objectID string, version uint64) string {
+	return fmt.Sprintf("%s@%d", objectID, version)
+}
+
+func (m *mockSuiClient) GetObject(ctx context.Context, objectID string, fields []string) (suiclient.SuiObject, error) {
+	return m.GetObjectAtVersion(ctx, objectID, nil, fields)
+}
+
+func (m *mockSuiClient) GetObjectAtVersion(ctx context.Context, objectID string, version *uint64, fields []string) (suiclient.SuiObject, error) {
+	if version == nil {
+		return suiclient.SuiObject{}, errors.New("nil version")
+	}
+	contents, ok := m.objects[mockObjectKey(objectID, *version)]
+	if !ok {
+		return suiclient.SuiObject{}, fmt.Errorf("object %s@%d not found", objectID, *version)
+	}
+	return suiclient.SuiObject{ContentsBytes: contents}, nil
+}
+
+func (m *mockSuiClient) GetLatestCheckpoint(ctx context.Context, fields []string) (suiclient.SuiCheckpoint, error) {
+	sn := uint64(145024142)
+	return suiclient.SuiCheckpoint{SequenceNumber: &sn}, nil
+}
+
+func (m *mockSuiClient) GetTransaction(ctx context.Context, digest string, fields []string) (suiclient.SuiTransaction, error) {
+	txn, ok := m.transactions[digest]
+	if !ok {
+		return suiclient.SuiTransaction{}, fmt.Errorf("transaction not found: %s", digest)
+	}
+	return txn, nil
+}
+
+func (m *mockSuiClient) SubscribeToTransactionEvent(ctx context.Context, eventType string, eventWriteChannel chan<- suiclient.SuiTransactionEvent) (suiclient.SuiSubscription, error) {
+	return suiclient.SuiSubscription{}, nil
+}
+
+func (m *mockSuiClient) SubscribeToTransactionEvents(ctx context.Context, eventTypes []string, eventWriteChannel chan<- suiclient.SuiTransactionEvent) (suiclient.SuiSubscription, error) {
+	return suiclient.SuiSubscription{}, nil
+}
+
+func (m *mockSuiClient) Close() error {
+	return nil
+}
 
 func NewSuiWatcherForTest(msgChan chan *common.MessagePublication, suiTxVerifier *txverifier.SuiTransferVerifier, suiEventType string) *Watcher {
 	return &Watcher{
@@ -26,92 +108,115 @@ func NewSuiWatcherForTest(msgChan chan *common.MessagePublication, suiTxVerifier
 	}
 }
 
-type MockSuiApiConnection struct {
-	transactionBlockResponses      map[string]txverifier.SuiGetTransactionBlockResponse
-	tryMultiGetPastObjectsResponse map[string]txverifier.SuiTryMultiGetPastObjectsResponse
-}
+// Test_DecodeWormholeMessage checks that the BCS-serialized contents of a `WormholeMessage`
+// gRPC event decode into the expected fields.
+func Test_DecodeWormholeMessage(t *testing.T) {
+	bcsBytes := sampleWormholeMessageBcs
 
-func (m *MockSuiApiConnection) QueryEvents(ctx context.Context, filter string, cursor string, limit int, descending bool) (txverifier.SuiQueryEventsResponse, error) {
-	return txverifier.SuiQueryEventsResponse{}, errors.New("Not supported")
-}
-
-func (m *MockSuiApiConnection) SetTransactionBlock(txDigest string, transactionBlockResponse txverifier.SuiGetTransactionBlockResponse) {
-	m.transactionBlockResponses[txDigest] = transactionBlockResponse
-}
-
-func (m *MockSuiApiConnection) GetTransactionBlock(ctx context.Context, txDigest string) (txverifier.SuiGetTransactionBlockResponse, error) {
-	if _, exists := m.transactionBlockResponses[txDigest]; !exists {
-		return txverifier.SuiGetTransactionBlockResponse{}, errors.New("Could not find transaction block")
-	}
-
-	return m.transactionBlockResponses[txDigest], nil
-}
-
-func (m *MockSuiApiConnection) SetPastObjects(objectId string, version string, previousVersion string, pastObjectsResponse txverifier.SuiTryMultiGetPastObjectsResponse) {
-	key := fmt.Sprintf("%s-%s-%s", objectId, version, previousVersion)
-	m.tryMultiGetPastObjectsResponse[key] = pastObjectsResponse
-}
-
-func (m *MockSuiApiConnection) TryMultiGetPastObjects(ctx context.Context, objectId string, version string, previousVersion string) (txverifier.SuiTryMultiGetPastObjectsResponse, error) {
-	key := fmt.Sprintf("%s-%s-%s", objectId, version, previousVersion)
-
-	if _, exists := m.tryMultiGetPastObjectsResponse[key]; !exists {
-		return txverifier.SuiTryMultiGetPastObjectsResponse{}, errors.New("Could not find past objects")
-	}
-
-	return m.tryMultiGetPastObjectsResponse[key], nil
-}
-
-func Test_JSONParseOneWHMSg(t *testing.T) {
-	// JSON with only the first result (contains all of the fields in `FieldsData` - parses successfully)
-	msg := []byte("{\"jsonrpc\":\"2.0\",\"result\":[{\"id\":{\"txDigest\":\"2Z4A1ND5JL8c5ma9WMzFXUvpVqnwoQdYuaX4RwnLyMXU\",\"eventSeq\":\"0\"},\"packageId\":\"0x826915f8ca6d11597dfe6599b8aa02a4c08bd8d39674855254a06ee83fe7220e\",\"transactionModule\":\"lending_portal_v2\",\"sender\":\"0xccce7bbffaf1b9e9e8ca88a68a08fec11f568a697023f475f99efb7bcee951cf\",\"type\":\"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage\",\"parsedJson\":{\"consistency_level\":0,\"nonce\":0,\"payload\":[0,1,0,34,0,0,204,206,123,191,250,241,185,233,232,202,136,166,138,8,254,193,31,86,138,105,112,35,244,117,249,158,251,123,206,233,81,207,2,0,133,0,0,0,0,0,0,0,0,10,202,0,0,0,10,122,53,130,0,0,76,0,0,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,50,58,58,115,117,105,58,58,83,85,73,0,34,0,0,204,206,123,191,250,241,185,233,232,202,136,166,138,8,254,193,31,86,138,105,112,35,244,117,249,158,251,123,206,233,81,207,2],\"sender\":\"0xdd1ca0bd0b9e449ff55259e5bcf7e0fc1b8b7ab49aabad218681ccce7b202bd6\",\"sequence\":\"2768\",\"timestamp\":\"1693091880\"},\"bcs\":\"J8cfJrtMWT2kg6uBgWQmd8T9k9cSibQg65ufpgxugVM2ghgC8bb1vvqoXmETiMvfb9DJLEDKy2pnvAYivyWJfz8zKSn5u7EfDbMntpszG7D4gsNNu9cU2rMUi4aF7DXnv6QAp5hoaHvJymehRwXkncHfjZ7zKsZ8cUtSKJh6S6YjHMRZ67s1PPwGEVwUdQt5S3WhQdag3tuySe8FDrUWgJfbBawyUKLdbNcR1aXFtBiPu6jQ51BF7sv13x9hp2nbs5EUMYjnN1ykK4YQaKx55eY7TQcxVCRzPrEARSkMjB8VgqefLNpwiCRdq\"}],\"id\":1}")
-	expectedPayload := []byte{0, 1, 0, 34, 0, 0, 204, 206, 123, 191, 250, 241, 185, 233, 232, 202, 136, 166, 138, 8, 254, 193, 31, 86, 138, 105, 112, 35, 244, 117, 249, 158, 251, 123, 206, 233, 81, 207, 2, 0, 133, 0, 0, 0, 0, 0, 0, 0, 0, 10, 202, 0, 0, 0, 10, 122, 53, 130, 0, 0, 76, 0, 0, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 50, 58, 58, 115, 117, 105, 58, 58, 83, 85, 73, 0, 34, 0, 0, 204, 206, 123, 191, 250, 241, 185, 233, 232, 202, 136, 166, 138, 8, 254, 193, 31, 86, 138, 105, 112, 35, 244, 117, 249, 158, 251, 123, 206, 233, 81, 207, 2}
-
-	var res SuiTxnQuery
-	err := json.Unmarshal(msg, &res)
+	msg, err := suiclient.DecodeBcs[txverifier.WormholeMessage](bcsBytes)
 	require.NoError(t, err)
-	for _, chunk := range res.Result {
-		// chunk is a SuiResult
-		// fmt.Println("body.Type", *chunk.Type)
-		assert.Equal(t, "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage", *chunk.Type)
-		var fields FieldsData
-		err := json.Unmarshal(*chunk.Fields, &fields)
-		require.NoError(t, err)
+	require.NotNil(t, msg)
 
-		assert.Equal(t, uint8(0), *fields.ConsistencyLevel)
-		assert.Equal(t, uint32(0), *fields.Nonce)
-		assert.Equal(t, expectedPayload, fields.Payload)
-		assert.Equal(t, "0xdd1ca0bd0b9e449ff55259e5bcf7e0fc1b8b7ab49aabad218681ccce7b202bd6", *fields.Sender)
-		assert.Equal(t, uint64(2768), *fields.Sequence)
-		assert.Equal(t, uint64(1693091880), *fields.Timestamp)
-	}
+	require.Equal(t, sampleSenderHex, hex.EncodeToString(msg.Sender[:]))
+	require.Equal(t, sampleSequence, msg.Sequence)
+	require.Equal(t, sampleNonce, msg.Nonce)
+	require.Equal(t, decodeStringNoError(samplePayloadHex), msg.Payload)
+	require.Equal(t, sampleConsistencyLevel, msg.ConsistencyLevel)
+	require.Equal(t, sampleTimestamp, msg.Timestamp)
 }
 
-func Test_JSONParseMultipleMsgs(t *testing.T) {
-	// Original JSON (fails to parse)
-	msg := []byte("{\"jsonrpc\":\"2.0\",\"result\":[{\"id\":{\"txDigest\":\"2Z4A1ND5JL8c5ma9WMzFXUvpVqnwoQdYuaX4RwnLyMXU\",\"eventSeq\":\"0\"},\"packageId\":\"0x826915f8ca6d11597dfe6599b8aa02a4c08bd8d39674855254a06ee83fe7220e\",\"transactionModule\":\"lending_portal_v2\",\"sender\":\"0xccce7bbffaf1b9e9e8ca88a68a08fec11f568a697023f475f99efb7bcee951cf\",\"type\":\"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage\",\"parsedJson\":{\"consistency_level\":0,\"nonce\":0,\"payload\":[0,1,0,34,0,0,204,206,123,191,250,241,185,233,232,202,136,166,138,8,254,193,31,86,138,105,112,35,244,117,249,158,251,123,206,233,81,207,2,0,133,0,0,0,0,0,0,0,0,10,202,0,0,0,10,122,53,130,0,0,76,0,0,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,50,58,58,115,117,105,58,58,83,85,73,0,34,0,0,204,206,123,191,250,241,185,233,232,202,136,166,138,8,254,193,31,86,138,105,112,35,244,117,249,158,251,123,206,233,81,207,2],\"sender\":\"0xdd1ca0bd0b9e449ff55259e5bcf7e0fc1b8b7ab49aabad218681ccce7b202bd6\",\"sequence\":\"2768\",\"timestamp\":\"1693091880\"},\"bcs\":\"J8cfJrtMWT2kg6uBgWQmd8T9k9cSibQg65ufpgxugVM2ghgC8bb1vvqoXmETiMvfb9DJLEDKy2pnvAYivyWJfz8zKSn5u7EfDbMntpszG7D4gsNNu9cU2rMUi4aF7DXnv6QAp5hoaHvJymehRwXkncHfjZ7zKsZ8cUtSKJh6S6YjHMRZ67s1PPwGEVwUdQt5S3WhQdag3tuySe8FDrUWgJfbBawyUKLdbNcR1aXFtBiPu6jQ51BF7sv13x9hp2nbs5EUMYjnN1ykK4YQaKx55eY7TQcxVCRzPrEARSkMjB8VgqefLNpwiCRdq\"},{\"id\":{\"txDigest\":\"2Z4A1ND5JL8c5ma9WMzFXUvpVqnwoQdYuaX4RwnLyMXU\",\"eventSeq\":\"1\"},\"packageId\":\"0x826915f8ca6d11597dfe6599b8aa02a4c08bd8d39674855254a06ee83fe7220e\",\"transactionModule\":\"lending_portal_v2\",\"sender\":\"0xccce7bbffaf1b9e9e8ca88a68a08fec11f568a697023f475f99efb7bcee951cf\",\"type\":\"0x826915f8ca6d11597dfe6599b8aa02a4c08bd8d39674855254a06ee83fe7220e::wormhole_adapter_pool::RelayEvent\",\"parsedJson\":{\"app_id\":1,\"call_type\":2,\"fee_amount\":\"57821069\",\"nonce\":\"2762\",\"sequence\":\"2768\"},\"bcs\":\"V7pAXEvqBvtV5ps2fetket9wYhsoQT1Y8X6bT\"},{\"id\":{\"txDigest\":\"2Z4A1ND5JL8c5ma9WMzFXUvpVqnwoQdYuaX4RwnLyMXU\",\"eventSeq\":\"2\"},\"packageId\":\"0x826915f8ca6d11597dfe6599b8aa02a4c08bd8d39674855254a06ee83fe7220e\",\"transactionModule\":\"lending_portal_v2\",\"sender\":\"0xccce7bbffaf1b9e9e8ca88a68a08fec11f568a697023f475f99efb7bcee951cf\",\"type\":\"0x826915f8ca6d11597dfe6599b8aa02a4c08bd8d39674855254a06ee83fe7220e::lending_portal_v2::LendingPortalEvent\",\"parsedJson\":{\"amount\":\"45000000000\",\"call_type\":2,\"dola_pool_address\":[48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,50,58,58,115,117,105,58,58,83,85,73],\"dst_chain_id\":0,\"nonce\":\"2762\",\"receiver\":[204,206,123,191,250,241,185,233,232,202,136,166,138,8,254,193,31,86,138,105,112,35,244,117,249,158,251,123,206,233,81,207],\"sender\":\"0xccce7bbffaf1b9e9e8ca88a68a08fec11f568a697023f475f99efb7bcee951cf\",\"source_chain_id\":0},\"bcs\":\"U7Gg8eey15TjPBGfZcKPCnYHJ84s3pL2BYUaw4r3NjK8AcWfzgKqsgW9F27yhPBtQdytETbAVqfx6b2Xsw7Ypprnbym5UEzyLHzuS79PMaAbGrXtVmdDYeHnoQ3DjfCSVZ5fZEaENLmmhe5m4iEYdkrjjaujoVQtuoFqjzaXYbMj89oksCE3E19PWsKzP7DVDcC99JjphepJgtGjQhCvdtzLd8kR\"}],\"id\":1}")
-	expectedPayload := []byte{0, 1, 0, 34, 0, 0, 204, 206, 123, 191, 250, 241, 185, 233, 232, 202, 136, 166, 138, 8, 254, 193, 31, 86, 138, 105, 112, 35, 244, 117, 249, 158, 251, 123, 206, 233, 81, 207, 2, 0, 133, 0, 0, 0, 0, 0, 0, 0, 0, 10, 202, 0, 0, 0, 10, 122, 53, 130, 0, 0, 76, 0, 0, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 50, 58, 58, 115, 117, 105, 58, 58, 83, 85, 73, 0, 34, 0, 0, 204, 206, 123, 191, 250, 241, 185, 233, 232, 202, 136, 166, 138, 8, 254, 193, 31, 86, 138, 105, 112, 35, 244, 117, 249, 158, 251, 123, 206, 233, 81, 207, 2}
+// Test_processEvent checks that a `WormholeMessage` gRPC event is decoded and published as a
+// MessagePublication with the expected fields when no transfer verifier is configured.
+func Test_processEvent(t *testing.T) {
+	eventType := "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage"
 
-	var res SuiTxnQuery
-	err := json.Unmarshal(msg, &res)
+	msgChan := make(chan *common.MessagePublication, 1)
+	// No verifier configured, so processEvent should publish the message directly.
+	watcher := &Watcher{
+		msgChan:          msgChan,
+		suiMoveEventType: eventType,
+	}
+
+	event := suiclient.SuiEvent{
+		EventType: eventType,
+		BcsBytes:  sampleWormholeMessageBcs,
+	}
+
+	err := watcher.processEvent(context.TODO(), zap.NewNop(), event, sampleTxDigest, false)
 	require.NoError(t, err)
 
-	for _, chunk := range res.Result {
-		// chunk is a SuiResult
-		if *chunk.Type != "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage" {
-			continue
-		}
-		var fields FieldsData
-		err := json.Unmarshal(*chunk.Fields, &fields)
-		require.NoError(t, err)
+	published := <-msgChan
+	expectedTxID, err := base58.Decode(sampleTxDigest)
+	require.NoError(t, err)
+	require.Len(t, expectedTxID, 32)
 
-		assert.Equal(t, uint8(0), *fields.ConsistencyLevel)
-		assert.Equal(t, uint32(0), *fields.Nonce)
-		assert.Equal(t, expectedPayload, fields.Payload)
-		assert.Equal(t, "0xdd1ca0bd0b9e449ff55259e5bcf7e0fc1b8b7ab49aabad218681ccce7b202bd6", *fields.Sender)
-		assert.Equal(t, uint64(2768), *fields.Sequence)
-		assert.Equal(t, uint64(1693091880), *fields.Timestamp)
+	require.Equal(t, expectedTxID, published.TxID)
+	require.Equal(t, vaa.ChainIDSui, published.EmitterChain)
+	require.Equal(t, sampleSenderHex, published.EmitterAddress.String())
+	require.Equal(t, sampleSequence, published.Sequence)
+	require.Equal(t, sampleNonce, published.Nonce)
+	require.Equal(t, decodeStringNoError(samplePayloadHex), published.Payload)
+	require.Equal(t, sampleConsistencyLevel, published.ConsistencyLevel)
+	require.Equal(t, time.Unix(int64(sampleTimestamp), 0), published.Timestamp)
+	require.False(t, published.IsReobservation)
+}
+
+// Test_processEvent_IgnoresOtherEventTypes checks that events whose type does not match the
+// configured Wormhole message event type are skipped without publishing.
+func Test_processEvent_IgnoresOtherEventTypes(t *testing.T) {
+	msgChan := make(chan *common.MessagePublication, 1)
+	watcher := &Watcher{
+		msgChan:          msgChan,
+		suiMoveEventType: "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage",
 	}
+
+	event := suiclient.SuiEvent{
+		EventType: "0xabc::some_module::SomeOtherEvent",
+		BcsBytes:  sampleWormholeMessageBcs,
+	}
+
+	err := watcher.processEvent(context.TODO(), zap.NewNop(), event, sampleTxDigest, false)
+	require.NoError(t, err)
+	require.Empty(t, msgChan)
+}
+
+// Test_handleReobservation checks that a re-observation request fetches the transaction via the
+// gRPC client and publishes its Wormhole message events with IsReobservation set.
+func Test_handleReobservation(t *testing.T) {
+	eventType := "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage"
+
+	txHash, err := base58.Decode(sampleTxDigest)
+	require.NoError(t, err)
+
+	mockClient := &mockSuiClient{
+		transactions: map[string]suiclient.SuiTransaction{
+			sampleTxDigest: {
+				Events: []suiclient.SuiEvent{
+					{
+						EventType: eventType,
+						BcsBytes:  sampleWormholeMessageBcs,
+					},
+				},
+			},
+		},
+	}
+
+	msgChan := make(chan *common.MessagePublication, 1)
+	watcher := &Watcher{
+		msgChan:          msgChan,
+		suiMoveEventType: eventType,
+		suiClient:        mockClient,
+	}
+
+	watcher.handleReobservation(context.TODO(), zap.NewNop(), mockClient, &gossipv1.ObservationRequest{
+		ChainId: uint32(vaa.ChainIDSui),
+		TxHash:  txHash,
+	})
+
+	published := <-msgChan
+	require.Equal(t, txHash, published.TxID)
+	require.Equal(t, sampleSequence, published.Sequence)
+	require.True(t, published.IsReobservation)
 }
 
 func decodeStringNoError(s string) []byte {
@@ -119,178 +224,134 @@ func decodeStringNoError(s string) []byte {
 	return b
 }
 
-var (
-	Samples = []struct {
-		description        string
-		expectedState      common.VerificationState
-		txDigest           string
-		transactionBlock   []byte
-		pastObjects        []byte
-		messagePublication common.MessagePublication
-	}{
-		// native
-		{
-			description:      "NativeStandard",
-			expectedState:    common.Valid,
-			txDigest:         "3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin",
-			transactionBlock: []byte(`{"jsonrpc":"2.0","id":1,"result":{"digest":"3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin","events":[{"id":{"txDigest":"3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin","eventSeq":"0"},"packageId":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a","transactionModule":"publish_message","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage","parsedJson":{"consistency_level":0,"nonce":99916,"payload":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,163,155,161,114,94,204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60,0,21,0,0,0,0,0,0,0,0,0,0,0,0,101,168,240,123,217,168,89,142,27,91,108,10,136,244,119,157,188,7,118,117,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sender":"0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5","sequence":"211135","timestamp":"1747215154"},"bcsEncoding":"base64","bcs":"zM7rKTSPcb3SL/70OioZwfW14XxcylQRUpEgGCZyreW/OAMAAAAAAEyGAQCFAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACjm6FyXsyJ/MIvDRPeNoi5T6FtZKIgeRhqlBkUKAxnEB/3VCY8ABUAAAAAAAAAAAAAAABlqPB72ahZjhtbbAqI9HedvAd2dQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMmMkaAAAAAA="}],"objectChanges":[{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x2::sui::SUI>","objectId":"0x06c1e8523e69f625f4fc1482dd42f8db436ec7607197e0671f5baa39684d4370","version":"556965531","previousVersion":"556965171","digest":"99BZLA3UVxr9XqmTQzakQ8uTmk35R6JyWBa1eiCgpJgx"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","objectId":"0x147df1a75dff16a5e7ee966d41b966e718cc27177e67855a876fb780fde7d43e","version":"556965531","previousVersion":"556965171","digest":"Gp6qVFxHzTc8rm5TCQPxhCpBoWprPh2StLHfH1NTG3es"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"ObjectOwner":"0x334881831bd89287554a6121087e498fa023ce52c037001b53a4563a00a281a5"},"objectType":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556965531","previousVersion":"556963430","digest":"3tAkXi77Dui24ShRNvzSdjnfk4HabjQpfYKvEDrnm5JQ"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"Shared":{"initial_shared_version":64}},"objectType":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::state::State","objectId":"0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c","version":"556965531","previousVersion":"556965530","digest":"FYtqG5uY7ymFB3BYn9jGArQ6xppEsC4VfhQxR6qGAT3s"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"Shared":{"initial_shared_version":66}},"objectType":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::state::State","objectId":"0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9","version":"556965531","previousVersion":"556964077","digest":"MoQndo45yEjj1bQeDXUyCnC75Sd4SGoaMhuZRR4XpCF"},{"type":"created","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","objectId":"0xc0339b6a32e521cd689f5b74a8d2b1b9fad1f72c292c0ed81ef18c20b1847541","version":"556965531","digest":"AHQAsewynGkrB3iNmaaN7uCYeRnFXagKWucXKhcv5pEC"}],"timestampMs":"1747215154277","checkpoint":"145024142"}}`),
-			pastObjects:      []byte(`{"jsonrpc":"2.0","id":1,"result":[{"status":"VersionFound","details":{"objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556965531","digest":"3tAkXi77Dui24ShRNvzSdjnfk4HabjQpfYKvEDrnm5JQ","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","hasPublicTransfer":false,"fields":{"id":{"id":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"custody":"49570703852513680","decimals":9,"token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60]}}}}}}}}}},{"status":"VersionFound","details":{"objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556963430","digest":"CTtUsqT2kGCFJ9AWYkKEYSLxN1J68Hj1M92iaX2bS4sm","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","hasPublicTransfer":false,"fields":{"id":{"id":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"custody":"49563676945330660","decimals":9,"token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60]}}}}}}}}}}]}`),
-			messagePublication: common.MessagePublication{
-				TxID:             []byte("3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin"),
-				Timestamp:        time.UnixMilli(1747215154),
-				Nonce:            99916,
-				Sequence:         211135,
-				ConsistencyLevel: 0,
-				EmitterChain:     21,
-				EmitterAddress:   vaa.Address(decodeStringNoError("ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5")),
-				Payload:          decodeStringNoError("01000000000000000000000000000000000000000000000000000000a39ba1725ecc89fcc22f0d13de3688b94fa16d64a22079186a941914280c67101ff754263c001500000000000000000000000065a8f07bd9a8598e1b5b6c0a88f4779dbc07767500040000000000000000000000000000000000000000000000000000000000000000"),
-			},
-		},
-		{
-			description:      "NativeLowerDepositThanRequired",
-			expectedState:    common.Anomalous,
-			txDigest:         "3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin",
-			transactionBlock: []byte(`{"jsonrpc":"2.0","id":1,"result":{"digest":"3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin","events":[{"id":{"txDigest":"3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin","eventSeq":"0"},"packageId":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a","transactionModule":"publish_message","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage","parsedJson":{"consistency_level":0,"nonce":99916,"payload":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,163,155,161,114,94,204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60,0,21,0,0,0,0,0,0,0,0,0,0,0,0,101,168,240,123,217,168,89,142,27,91,108,10,136,244,119,157,188,7,118,117,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sender":"0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5","sequence":"211135","timestamp":"1747215154"},"bcsEncoding":"base64","bcs":"zM7rKTSPcb3SL/70OioZwfW14XxcylQRUpEgGCZyreW/OAMAAAAAAEyGAQCFAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACjm6FyXsyJ/MIvDRPeNoi5T6FtZKIgeRhqlBkUKAxnEB/3VCY8ABUAAAAAAAAAAAAAAABlqPB72ahZjhtbbAqI9HedvAd2dQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMmMkaAAAAAA="}],"objectChanges":[{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x2::sui::SUI>","objectId":"0x06c1e8523e69f625f4fc1482dd42f8db436ec7607197e0671f5baa39684d4370","version":"556965531","previousVersion":"556965171","digest":"99BZLA3UVxr9XqmTQzakQ8uTmk35R6JyWBa1eiCgpJgx"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","objectId":"0x147df1a75dff16a5e7ee966d41b966e718cc27177e67855a876fb780fde7d43e","version":"556965531","previousVersion":"556965171","digest":"Gp6qVFxHzTc8rm5TCQPxhCpBoWprPh2StLHfH1NTG3es"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"ObjectOwner":"0x334881831bd89287554a6121087e498fa023ce52c037001b53a4563a00a281a5"},"objectType":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556965531","previousVersion":"556963430","digest":"3tAkXi77Dui24ShRNvzSdjnfk4HabjQpfYKvEDrnm5JQ"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"Shared":{"initial_shared_version":64}},"objectType":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::state::State","objectId":"0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c","version":"556965531","previousVersion":"556965530","digest":"FYtqG5uY7ymFB3BYn9jGArQ6xppEsC4VfhQxR6qGAT3s"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"Shared":{"initial_shared_version":66}},"objectType":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::state::State","objectId":"0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9","version":"556965531","previousVersion":"556964077","digest":"MoQndo45yEjj1bQeDXUyCnC75Sd4SGoaMhuZRR4XpCF"},{"type":"created","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","objectId":"0xc0339b6a32e521cd689f5b74a8d2b1b9fad1f72c292c0ed81ef18c20b1847541","version":"556965531","digest":"AHQAsewynGkrB3iNmaaN7uCYeRnFXagKWucXKhcv5pEC"}],"timestampMs":"1747215154277","checkpoint":"145024142"}}`),
-			pastObjects:      []byte(`{"jsonrpc":"2.0","id":1,"result":[{"status":"VersionFound","details":{"objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556965531","digest":"3tAkXi77Dui24ShRNvzSdjnfk4HabjQpfYKvEDrnm5JQ","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","hasPublicTransfer":false,"fields":{"id":{"id":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"custody":"49570703852513680","decimals":9,"token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60]}}}}}}}}}},{"status":"VersionFound","details":{"objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556963430","digest":"CTtUsqT2kGCFJ9AWYkKEYSLxN1J68Hj1M92iaX2bS4sm","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","hasPublicTransfer":false,"fields":{"id":{"id":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"custody":"49563676945331660","decimals":9,"token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60]}}}}}}}}}}]}`),
-			messagePublication: common.MessagePublication{
-				TxID:             []byte("3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin"),
-				Timestamp:        time.UnixMilli(1747215154),
-				Nonce:            99916,
-				Sequence:         211135,
-				ConsistencyLevel: 0,
-				EmitterChain:     21,
-				EmitterAddress:   vaa.Address(decodeStringNoError("ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5")),
-				Payload:          decodeStringNoError("01000000000000000000000000000000000000000000000000000000a39ba1725ecc89fcc22f0d13de3688b94fa16d64a22079186a941914280c67101ff754263c001500000000000000000000000065a8f07bd9a8598e1b5b6c0a88f4779dbc07767500040000000000000000000000000000000000000000000000000000000000000000"),
-			},
-		},
-		{
-			description:      "NativeHigherDepositThanRequired",
-			expectedState:    common.Valid,
-			txDigest:         "3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin",
-			transactionBlock: []byte(`{"jsonrpc":"2.0","id":1,"result":{"digest":"3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin","events":[{"id":{"txDigest":"3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin","eventSeq":"0"},"packageId":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a","transactionModule":"publish_message","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage","parsedJson":{"consistency_level":0,"nonce":99916,"payload":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,163,155,161,114,94,204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60,0,21,0,0,0,0,0,0,0,0,0,0,0,0,101,168,240,123,217,168,89,142,27,91,108,10,136,244,119,157,188,7,118,117,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sender":"0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5","sequence":"211135","timestamp":"1747215154"},"bcsEncoding":"base64","bcs":"zM7rKTSPcb3SL/70OioZwfW14XxcylQRUpEgGCZyreW/OAMAAAAAAEyGAQCFAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACjm6FyXsyJ/MIvDRPeNoi5T6FtZKIgeRhqlBkUKAxnEB/3VCY8ABUAAAAAAAAAAAAAAABlqPB72ahZjhtbbAqI9HedvAd2dQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMmMkaAAAAAA="}],"objectChanges":[{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x2::sui::SUI>","objectId":"0x06c1e8523e69f625f4fc1482dd42f8db436ec7607197e0671f5baa39684d4370","version":"556965531","previousVersion":"556965171","digest":"99BZLA3UVxr9XqmTQzakQ8uTmk35R6JyWBa1eiCgpJgx"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","objectId":"0x147df1a75dff16a5e7ee966d41b966e718cc27177e67855a876fb780fde7d43e","version":"556965531","previousVersion":"556965171","digest":"Gp6qVFxHzTc8rm5TCQPxhCpBoWprPh2StLHfH1NTG3es"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"ObjectOwner":"0x334881831bd89287554a6121087e498fa023ce52c037001b53a4563a00a281a5"},"objectType":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556965531","previousVersion":"556963430","digest":"3tAkXi77Dui24ShRNvzSdjnfk4HabjQpfYKvEDrnm5JQ"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"Shared":{"initial_shared_version":64}},"objectType":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::state::State","objectId":"0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c","version":"556965531","previousVersion":"556965530","digest":"FYtqG5uY7ymFB3BYn9jGArQ6xppEsC4VfhQxR6qGAT3s"},{"type":"mutated","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"Shared":{"initial_shared_version":66}},"objectType":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::state::State","objectId":"0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9","version":"556965531","previousVersion":"556964077","digest":"MoQndo45yEjj1bQeDXUyCnC75Sd4SGoaMhuZRR4XpCF"},{"type":"created","sender":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1","owner":{"AddressOwner":"0x53221ea79a11e3a6046282e7a246ef8472fdb31727018cb048d72e541d67e6f1"},"objectType":"0x2::coin::Coin<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","objectId":"0xc0339b6a32e521cd689f5b74a8d2b1b9fad1f72c292c0ed81ef18c20b1847541","version":"556965531","digest":"AHQAsewynGkrB3iNmaaN7uCYeRnFXagKWucXKhcv5pEC"}],"timestampMs":"1747215154277","checkpoint":"145024142"}}`),
-			pastObjects:      []byte(`{"jsonrpc":"2.0","id":1,"result":[{"status":"VersionFound","details":{"objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556965531","digest":"3tAkXi77Dui24ShRNvzSdjnfk4HabjQpfYKvEDrnm5JQ","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","hasPublicTransfer":false,"fields":{"id":{"id":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"custody":"49570703852513680","decimals":9,"token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60]}}}}}}}}}},{"status":"VersionFound","details":{"objectId":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12","version":"556963430","digest":"CTtUsqT2kGCFJ9AWYkKEYSLxN1J68Hj1M92iaX2bS4sm","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>>","hasPublicTransfer":false,"fields":{"id":{"id":"0x42b272eb5cf166861245cb82c0adc98fc9982c496cc8869a141031d3c4fe3b12"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x3a304c7feba2d819ea57c3542d68439ca2c386ba02159c740f7b406e592c62ea::haedal::HAEDAL>","fields":{"custody":"49563676945320660","decimals":9,"token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[204,137,252,194,47,13,19,222,54,136,185,79,161,109,100,162,32,121,24,106,148,25,20,40,12,103,16,31,247,84,38,60]}}}}}}}}}}]}`),
-			messagePublication: common.MessagePublication{
-				TxID:             []byte("3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin"),
-				Timestamp:        time.UnixMilli(1747215154),
-				Nonce:            99916,
-				Sequence:         211135,
-				ConsistencyLevel: 0,
-				EmitterChain:     21,
-				EmitterAddress:   vaa.Address(decodeStringNoError("ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5")),
-				Payload:          decodeStringNoError("01000000000000000000000000000000000000000000000000000000a39ba1725ecc89fcc22f0d13de3688b94fa16d64a22079186a941914280c67101ff754263c001500000000000000000000000065a8f07bd9a8598e1b5b6c0a88f4779dbc07767500040000000000000000000000000000000000000000000000000000000000000000"),
-			},
-		},
-		// wrapped
-		{
-			description:      "WwrappedStandard",
-			expectedState:    common.Valid,
-			txDigest:         "3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw",
-			transactionBlock: []byte(`{"jsonrpc":"2.0","id":1,"result":{"digest":"3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw","events":[{"id":{"txDigest":"3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw","eventSeq":"0"},"packageId":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a","transactionModule":"publish_message","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage","parsedJson":{"consistency_level":0,"nonce":0,"payload":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,246,192,201,139,206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100,0,1,47,30,154,29,89,37,174,13,50,143,132,52,155,181,179,234,150,230,32,17,198,224,209,83,147,55,227,252,25,113,159,134,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sender":"0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5","sequence":"211162","timestamp":"1747278630"},"bcsEncoding":"base64","bcs":"zM7rKTSPcb3SL/70OioZwfW14XxcylQRUpEgGCZyreXaOAMAAAAAAAAAAACFAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9sDJi84BDmCv7bInF71jGS9UFFo/llozu4LSxwKess4eIIJkAAEvHpodWSWuDTKPhDSbtbPqluYgEcbg0VOTN+P8GXGfhgABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJlslaAAAAAA="}],"objectChanges":[{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"AddressOwner":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01"},"objectType":"0x2::coin::Coin<0x2::sui::SUI>","objectId":"0x58e20782ae501807df528e19d43b8c5a1838cfd1f48a33597be4619c18c24f80","version":"557493695","previousVersion":"557350969","digest":"2vNHn2448gNgHWWzsKz1bZ7K4SfgWd4s7zRfCCVSdMM1"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"Shared":{"initial_shared_version":64}},"objectType":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::state::State","objectId":"0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c","version":"557493695","previousVersion":"557493694","digest":"7JB9FuS1jJcP79PmwQhFu3s78JmJ1XPCj6CbXJhwziQk"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"ObjectOwner":"0x334881831bd89287554a6121087e498fa023ce52c037001b53a4563a00a281a5"},"objectType":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557493695","previousVersion":"557350964","digest":"62XV5uQbzZgGvxp9tD5TdVLSaMetnksTcuxnZzxqSxF1"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"Shared":{"initial_shared_version":66}},"objectType":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::state::State","objectId":"0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9","version":"557493695","previousVersion":"557486576","digest":"3khyLTP7S2Qp5pUnvuPPsWSjcRu2TAPWFycSAq47Jp9o"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"AddressOwner":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01"},"objectType":"0x2::coin::Coin<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","objectId":"0xef5b706f1fe9e2c6b42a43dc03daa741599a6d79f1e8ea030a8747ee3c6ba7e6","version":"557493695","previousVersion":"557350969","digest":"3ayiNB8sRCACWTVsnHp8efiPvZz22ZBhk1U7a1MbvvFt"}],"timestampMs":"1747278630259","checkpoint":"145311248"}}`),
-			pastObjects:      []byte(`{"jsonrpc":"2.0","id":1,"result":[{"status":"VersionFound","details":{"objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557493695","digest":"62XV5uQbzZgGvxp9tD5TdVLSaMetnksTcuxnZzxqSxF1","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","hasPublicTransfer":false,"fields":{"id":{"id":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"decimals":6,"info":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::ForeignInfo<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"native_decimals":6,"symbol":"USDT","token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100]}}}},"token_chain":1}},"treasury_cap":{"type":"0x2::coin::TreasuryCap<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"id":{"id":"0x220c42d8c6a2b1f9d2cd8a265607d07ecf1858f55d07cfca7ebeabe51fc7298a"},"total_supply":{"type":"0x2::balance::Supply<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"value":"5477949690"}}}},"upgrade_cap":{"type":"0x2::package::UpgradeCap","fields":{"id":{"id":"0x4231bc583a7768d1886f437b805da3b3178fd5ca8918c09eb36a46d4d2809c5d"},"package":"0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651","policy":0,"version":"1"}}}}}}}},{"status":"VersionFound","details":{"objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557350964","digest":"DLeLDr1cu6M1rxWuMbhiv2uGTGYDHm7JuPztbQyqQrsM","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","hasPublicTransfer":false,"fields":{"id":{"id":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"decimals":6,"info":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::ForeignInfo<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"native_decimals":6,"symbol":"USDT","token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100]}}}},"token_chain":1}},"treasury_cap":{"type":"0x2::coin::TreasuryCap<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"id":{"id":"0x220c42d8c6a2b1f9d2cd8a265607d07ecf1858f55d07cfca7ebeabe51fc7298a"},"total_supply":{"type":"0x2::balance::Supply<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"value":"9617779333"}}}},"upgrade_cap":{"type":"0x2::package::UpgradeCap","fields":{"id":{"id":"0x4231bc583a7768d1886f437b805da3b3178fd5ca8918c09eb36a46d4d2809c5d"},"package":"0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651","policy":0,"version":"1"}}}}}}}}]}`),
-			messagePublication: common.MessagePublication{
-				TxID:             []byte("3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw"),
-				Timestamp:        time.UnixMilli(1747278630),
-				Nonce:            0,
-				Sequence:         211162,
-				ConsistencyLevel: 0,
-				EmitterChain:     21,
-				EmitterAddress:   vaa.Address(decodeStringNoError("ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5")),
-				Payload:          decodeStringNoError("0100000000000000000000000000000000000000000000000000000000f6c0c98bce010e60afedb22717bd63192f54145a3f965a33bb82d2c7029eb2ce1e20826400012f1e9a1d5925ae0d328f84349bb5b3ea96e62011c6e0d1539337e3fc19719f8600010000000000000000000000000000000000000000000000000000000000000000"),
-			},
-		},
-		{
-			description:      "WrappedLowerDepositThanRequired",
-			expectedState:    common.Anomalous,
-			txDigest:         "3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw",
-			transactionBlock: []byte(`{"jsonrpc":"2.0","id":1,"result":{"digest":"3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw","events":[{"id":{"txDigest":"3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw","eventSeq":"0"},"packageId":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a","transactionModule":"publish_message","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage","parsedJson":{"consistency_level":0,"nonce":0,"payload":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,246,192,201,139,206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100,0,1,47,30,154,29,89,37,174,13,50,143,132,52,155,181,179,234,150,230,32,17,198,224,209,83,147,55,227,252,25,113,159,134,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sender":"0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5","sequence":"211162","timestamp":"1747278630"},"bcsEncoding":"base64","bcs":"zM7rKTSPcb3SL/70OioZwfW14XxcylQRUpEgGCZyreXaOAMAAAAAAAAAAACFAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9sDJi84BDmCv7bInF71jGS9UFFo/llozu4LSxwKess4eIIJkAAEvHpodWSWuDTKPhDSbtbPqluYgEcbg0VOTN+P8GXGfhgABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJlslaAAAAAA="}],"objectChanges":[{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"AddressOwner":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01"},"objectType":"0x2::coin::Coin<0x2::sui::SUI>","objectId":"0x58e20782ae501807df528e19d43b8c5a1838cfd1f48a33597be4619c18c24f80","version":"557493695","previousVersion":"557350969","digest":"2vNHn2448gNgHWWzsKz1bZ7K4SfgWd4s7zRfCCVSdMM1"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"Shared":{"initial_shared_version":64}},"objectType":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::state::State","objectId":"0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c","version":"557493695","previousVersion":"557493694","digest":"7JB9FuS1jJcP79PmwQhFu3s78JmJ1XPCj6CbXJhwziQk"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"ObjectOwner":"0x334881831bd89287554a6121087e498fa023ce52c037001b53a4563a00a281a5"},"objectType":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557493695","previousVersion":"557350964","digest":"62XV5uQbzZgGvxp9tD5TdVLSaMetnksTcuxnZzxqSxF1"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"Shared":{"initial_shared_version":66}},"objectType":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::state::State","objectId":"0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9","version":"557493695","previousVersion":"557486576","digest":"3khyLTP7S2Qp5pUnvuPPsWSjcRu2TAPWFycSAq47Jp9o"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"AddressOwner":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01"},"objectType":"0x2::coin::Coin<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","objectId":"0xef5b706f1fe9e2c6b42a43dc03daa741599a6d79f1e8ea030a8747ee3c6ba7e6","version":"557493695","previousVersion":"557350969","digest":"3ayiNB8sRCACWTVsnHp8efiPvZz22ZBhk1U7a1MbvvFt"}],"timestampMs":"1747278630259","checkpoint":"145311248"}}`),
-			pastObjects:      []byte(`{"jsonrpc":"2.0","id":1,"result":[{"status":"VersionFound","details":{"objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557493695","digest":"62XV5uQbzZgGvxp9tD5TdVLSaMetnksTcuxnZzxqSxF1","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","hasPublicTransfer":false,"fields":{"id":{"id":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"decimals":6,"info":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::ForeignInfo<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"native_decimals":6,"symbol":"USDT","token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100]}}}},"token_chain":1}},"treasury_cap":{"type":"0x2::coin::TreasuryCap<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"id":{"id":"0x220c42d8c6a2b1f9d2cd8a265607d07ecf1858f55d07cfca7ebeabe51fc7298a"},"total_supply":{"type":"0x2::balance::Supply<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"value":"5477949690"}}}},"upgrade_cap":{"type":"0x2::package::UpgradeCap","fields":{"id":{"id":"0x4231bc583a7768d1886f437b805da3b3178fd5ca8918c09eb36a46d4d2809c5d"},"package":"0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651","policy":0,"version":"1"}}}}}}}},{"status":"VersionFound","details":{"objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557350964","digest":"DLeLDr1cu6M1rxWuMbhiv2uGTGYDHm7JuPztbQyqQrsM","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","hasPublicTransfer":false,"fields":{"id":{"id":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"decimals":6,"info":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::ForeignInfo<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"native_decimals":6,"symbol":"USDT","token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100]}}}},"token_chain":1}},"treasury_cap":{"type":"0x2::coin::TreasuryCap<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"id":{"id":"0x220c42d8c6a2b1f9d2cd8a265607d07ecf1858f55d07cfca7ebeabe51fc7298a"},"total_supply":{"type":"0x2::balance::Supply<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"value":"9617779233"}}}},"upgrade_cap":{"type":"0x2::package::UpgradeCap","fields":{"id":{"id":"0x4231bc583a7768d1886f437b805da3b3178fd5ca8918c09eb36a46d4d2809c5d"},"package":"0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651","policy":0,"version":"1"}}}}}}}}]}`),
-			messagePublication: common.MessagePublication{
-				TxID:             []byte("3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw"),
-				Timestamp:        time.UnixMilli(1747278630),
-				Nonce:            0,
-				Sequence:         211162,
-				ConsistencyLevel: 0,
-				EmitterChain:     21,
-				EmitterAddress:   vaa.Address(decodeStringNoError("ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5")),
-				Payload:          decodeStringNoError("0100000000000000000000000000000000000000000000000000000000f6c0c98bce010e60afedb22717bd63192f54145a3f965a33bb82d2c7029eb2ce1e20826400012f1e9a1d5925ae0d328f84349bb5b3ea96e62011c6e0d1539337e3fc19719f8600010000000000000000000000000000000000000000000000000000000000000000"),
-			},
-		},
-		{
-			description:      "WrappedHigherDepositThanRequired",
-			expectedState:    common.Valid,
-			txDigest:         "3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw",
-			transactionBlock: []byte(`{"jsonrpc":"2.0","id":1,"result":{"digest":"3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw","events":[{"id":{"txDigest":"3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw","eventSeq":"0"},"packageId":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a","transactionModule":"publish_message","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage","parsedJson":{"consistency_level":0,"nonce":0,"payload":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,246,192,201,139,206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100,0,1,47,30,154,29,89,37,174,13,50,143,132,52,155,181,179,234,150,230,32,17,198,224,209,83,147,55,227,252,25,113,159,134,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sender":"0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5","sequence":"211162","timestamp":"1747278630"},"bcsEncoding":"base64","bcs":"zM7rKTSPcb3SL/70OioZwfW14XxcylQRUpEgGCZyreXaOAMAAAAAAAAAAACFAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9sDJi84BDmCv7bInF71jGS9UFFo/llozu4LSxwKess4eIIJkAAEvHpodWSWuDTKPhDSbtbPqluYgEcbg0VOTN+P8GXGfhgABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJlslaAAAAAA="}],"objectChanges":[{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"AddressOwner":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01"},"objectType":"0x2::coin::Coin<0x2::sui::SUI>","objectId":"0x58e20782ae501807df528e19d43b8c5a1838cfd1f48a33597be4619c18c24f80","version":"557493695","previousVersion":"557350969","digest":"2vNHn2448gNgHWWzsKz1bZ7K4SfgWd4s7zRfCCVSdMM1"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"Shared":{"initial_shared_version":64}},"objectType":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::state::State","objectId":"0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c","version":"557493695","previousVersion":"557493694","digest":"7JB9FuS1jJcP79PmwQhFu3s78JmJ1XPCj6CbXJhwziQk"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"ObjectOwner":"0x334881831bd89287554a6121087e498fa023ce52c037001b53a4563a00a281a5"},"objectType":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557493695","previousVersion":"557350964","digest":"62XV5uQbzZgGvxp9tD5TdVLSaMetnksTcuxnZzxqSxF1"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"Shared":{"initial_shared_version":66}},"objectType":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::state::State","objectId":"0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9","version":"557493695","previousVersion":"557486576","digest":"3khyLTP7S2Qp5pUnvuPPsWSjcRu2TAPWFycSAq47Jp9o"},{"type":"mutated","sender":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01","owner":{"AddressOwner":"0x6a0055cef8a44840cea847ca53bfa269194dc1ec6739383e431822617f95bc01"},"objectType":"0x2::coin::Coin<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","objectId":"0xef5b706f1fe9e2c6b42a43dc03daa741599a6d79f1e8ea030a8747ee3c6ba7e6","version":"557493695","previousVersion":"557350969","digest":"3ayiNB8sRCACWTVsnHp8efiPvZz22ZBhk1U7a1MbvvFt"}],"timestampMs":"1747278630259","checkpoint":"145311248"}}`),
-			pastObjects:      []byte(`{"jsonrpc":"2.0","id":1,"result":[{"status":"VersionFound","details":{"objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557493695","digest":"62XV5uQbzZgGvxp9tD5TdVLSaMetnksTcuxnZzxqSxF1","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","hasPublicTransfer":false,"fields":{"id":{"id":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"decimals":6,"info":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::ForeignInfo<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"native_decimals":6,"symbol":"USDT","token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100]}}}},"token_chain":1}},"treasury_cap":{"type":"0x2::coin::TreasuryCap<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"id":{"id":"0x220c42d8c6a2b1f9d2cd8a265607d07ecf1858f55d07cfca7ebeabe51fc7298a"},"total_supply":{"type":"0x2::balance::Supply<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"value":"5477949690"}}}},"upgrade_cap":{"type":"0x2::package::UpgradeCap","fields":{"id":{"id":"0x4231bc583a7768d1886f437b805da3b3178fd5ca8918c09eb36a46d4d2809c5d"},"package":"0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651","policy":0,"version":"1"}}}}}}}},{"status":"VersionFound","details":{"objectId":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd","version":"557350964","digest":"DLeLDr1cu6M1rxWuMbhiv2uGTGYDHm7JuPztbQyqQrsM","content":{"dataType":"moveObject","type":"0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>>","hasPublicTransfer":false,"fields":{"id":{"id":"0xb4a85646ee0f7c22d54c57a06329c67f46e17420bf3654de7dec30ef9a7f18fd"},"name":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"dummy_field":false}},"value":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::WrappedAsset<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"decimals":6,"info":{"type":"0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::wrapped_asset::ForeignInfo<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"native_decimals":6,"symbol":"USDT","token_address":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::external_address::ExternalAddress","fields":{"value":{"type":"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::bytes32::Bytes32","fields":{"data":[206,1,14,96,175,237,178,39,23,189,99,25,47,84,20,90,63,150,90,51,187,130,210,199,2,158,178,206,30,32,130,100]}}}},"token_chain":1}},"treasury_cap":{"type":"0x2::coin::TreasuryCap<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"id":{"id":"0x220c42d8c6a2b1f9d2cd8a265607d07ecf1858f55d07cfca7ebeabe51fc7298a"},"total_supply":{"type":"0x2::balance::Supply<0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651::coin::COIN>","fields":{"value":"9617779433"}}}},"upgrade_cap":{"type":"0x2::package::UpgradeCap","fields":{"id":{"id":"0x4231bc583a7768d1886f437b805da3b3178fd5ca8918c09eb36a46d4d2809c5d"},"package":"0xa69d563d6ff583e8171a7807b4c8c09434e0782aef8b849adb5c8609e9312651","policy":0,"version":"1"}}}}}}}}]}`),
-			messagePublication: common.MessagePublication{
-				TxID:             []byte("3YTfDnRtnLTx1wKR669jjFHznAxCXLHQZkshwk7K2oTw"),
-				Timestamp:        time.UnixMilli(1747278630),
-				Nonce:            0,
-				Sequence:         211162,
-				ConsistencyLevel: 0,
-				EmitterChain:     21,
-				EmitterAddress:   vaa.Address(decodeStringNoError("ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5")),
-				Payload:          decodeStringNoError("0100000000000000000000000000000000000000000000000000000000f6c0c98bce010e60afedb22717bd63192f54145a3f965a33bb82d2c7029eb2ce1e20826400012f1e9a1d5925ae0d328f84349bb5b3ea96e62011c6e0d1539337e3fc19719f8600010000000000000000000000000000000000000000000000000000000000000000"),
-			},
-		},
-	}
-)
+// hexTo32 decodes a 32-byte hex string (with or without a 0x prefix) into a [32]byte.
+func hexTo32(s string) [32]byte {
+	raw := decodeStringNoError(strings.TrimPrefix(s, "0x"))
+	var out [32]byte
+	copy(out[:], raw)
+	return out
+}
 
+func strPtr(s string) *string { return &s }
+func u64Ptr(v uint64) *uint64 { return &v }
+
+// Local BCS mirrors of the on-chain native asset dynamic field, used to synthesize object
+// contents for the verifier. The layout mirrors the txverifier package's internal structs
+// (BCS only depends on field order/types, not the declaring package).
+type bcsBytes32T struct{ Data []byte }
+type bcsExternalAddressT struct{ Value bcsBytes32T }
+type bcsNativeAssetT struct {
+	Custody      uint64
+	TokenAddress bcsExternalAddressT
+	Decimals     uint8
+}
+type bcsNativeAssetFieldT struct {
+	ID    [32]byte
+	Name  bool
+	Value bcsNativeAssetT
+}
+
+func bcsNativeObjectForTest(custody uint64, tokenAddress []byte, decimals uint8) []byte {
+	return mystenbcs.MustMarshal(bcsNativeAssetFieldT{
+		Value: bcsNativeAssetT{
+			Custody:      custody,
+			TokenAddress: bcsExternalAddressT{Value: bcsBytes32T{Data: tokenAddress}},
+			Decimals:     decimals,
+		},
+	})
+}
+
+// transferPayloadForTest builds a minimal Wormhole token-transfer payload (type 1).
+func transferPayloadForTest(amount *big.Int, originAddress []byte, originChain uint16) []byte {
+	p := make([]byte, 0, 101)
+	p = append(p, 1) // payload type 1 == transfer
+	p = append(p, amount.FillBytes(make([]byte, 32))...)
+	p = append(p, originAddress...)
+	p = append(p, byte(originChain>>8), byte(originChain&0xff))
+	p = append(p, make([]byte, 101-len(p))...)
+	return p
+}
+
+// TestVerifyAndPublish_Samples checks that verifyAndPublish runs the transfer verifier and
+// propagates the resulting verification state to the published message. The verifier is driven
+// by a mock gRPC client serving a synthesized native-asset transfer; the exhaustive verifier
+// scenario coverage lives in the txverifier package.
 func TestVerifyAndPublish_Samples(t *testing.T) {
-	// This test runs verifyAndPublish against historical bridge transfers which should
-	// be verified as valid.
-
-	// This test uses mainnet values, since the samples come from mainnet transactions
+	// Mainnet values.
 	suiCoreContract := "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a"
 	//nolint:gosec
 	suiTokenBridgeEmitter := "0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5"
 	//nolint:gosec
 	suiTokenBridgeContract := "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d"
-	transactionModule := "publish_message"
-	eventType := fmt.Sprintf("%s::%s::WormholeMessage", suiCoreContract, transactionModule)
+	eventType := fmt.Sprintf("%s::publish_message::WormholeMessage", suiCoreContract)
 
-	// Create mock API connection
-	mockApiConnection := &MockSuiApiConnection{
-		transactionBlockResponses:      make(map[string]txverifier.SuiGetTransactionBlockResponse),
-		tryMultiGetPastObjectsResponse: make(map[string]txverifier.SuiTryMultiGetPastObjectsResponse),
+	emitter32 := hexTo32(suiTokenBridgeEmitter)
+	tokenAddress := decodeStringNoError("9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3")
+	nativeObjectType := fmt.Sprintf("0x2::dynamic_field::Field<%s::token_registry::Key<0x2::sui::SUI>, %s::native_asset::NativeAsset<0x2::sui::SUI>>", suiTokenBridgeContract, suiTokenBridgeContract)
+	objectId := "0x831c45a8d512c9cf46e7a8a947f7cbbb5e0a59829aa72450ff26fb1873fd0e94"
+	txDigest := "3dFwinvN8cxotrbHmisT1zMnFiFeR5nowo9zzZw7akin"
+	curVersion := uint64(100)
+	prevVersion := uint64(99)
+
+	tests := []struct {
+		description   string
+		expectedState common.VerificationState
+		sequence      uint64
+		amount        *big.Int
+		custodyAfter  uint64
+		custodyBefore uint64
+	}{
+		// Deposit (custody delta 990) covers the 990 requested out of the bridge.
+		{"NativeStandard", common.Valid, 1, big.NewInt(990), 1000, 10},
+		// Deposit (custody delta 50) is far short of the 100000 requested out of the bridge.
+		{"NativeInsufficientDeposit", common.Anomalous, 2, big.NewInt(100000), 1050, 1000},
 	}
 
-	suiTxVerifier := txverifier.NewSuiTransferVerifier(suiCoreContract, suiTokenBridgeEmitter, suiTokenBridgeContract, mockApiConnection)
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			payload := transferPayloadForTest(tt.amount, tokenAddress, uint16(vaa.ChainIDSui))
 
-	// Create message publication channel
-	msgChan := make(chan *common.MessagePublication, 10)
+			event := suiclient.SuiEvent{
+				EventType: eventType,
+				BcsBytes:  mystenbcs.MustMarshal(txverifier.WormholeMessage{Sender: emitter32, Sequence: tt.sequence, Payload: payload}),
+			}
+			change := suiclient.SuiObjectChange{
+				ObjectID:      strPtr(objectId),
+				ObjectType:    strPtr(nativeObjectType),
+				OutputVersion: u64Ptr(curVersion),
+				InputVersion:  u64Ptr(prevVersion),
+			}
 
-	// Create watcher
-	testWatcher := NewSuiWatcherForTest(msgChan, suiTxVerifier, eventType)
+			mock := &mockSuiClient{
+				transactions: map[string]suiclient.SuiTransaction{
+					txDigest: {Events: []suiclient.SuiEvent{event}, ObjectChanges: []suiclient.SuiObjectChange{change}},
+				},
+				objects: map[string][]byte{
+					mockObjectKey(objectId, curVersion):  bcsNativeObjectForTest(tt.custodyAfter, tokenAddress, 8),
+					mockObjectKey(objectId, prevVersion): bcsNativeObjectForTest(tt.custodyBefore, tokenAddress, 8),
+				},
+			}
 
-	// Create empty logger and context
-	testCtx := context.TODO()
-	testLogger := zap.NewNop()
+			suiTxVerifier := txverifier.NewSuiTransferVerifier(suiCoreContract, suiTokenBridgeEmitter, suiTokenBridgeContract, mock)
 
-	// Run verifyAndPublish on samples
-	for _, sample := range Samples {
+			msgChan := make(chan *common.MessagePublication, 1)
+			testWatcher := NewSuiWatcherForTest(msgChan, suiTxVerifier, eventType)
 
-		t.Run(sample.description, func(t *testing.T) {
-			// Set sample data in mock api
-			var transactionBlockResponse txverifier.SuiGetTransactionBlockResponse
-			_ = json.Unmarshal(sample.transactionBlock, &transactionBlockResponse)
+			msg := &common.MessagePublication{
+				TxID:             []byte(txDigest),
+				Timestamp:        time.Unix(1747215154, 0),
+				Sequence:         tt.sequence,
+				EmitterChain:     vaa.ChainIDSui,
+				EmitterAddress:   vaa.Address(emitter32),
+				Payload:          payload,
+				ConsistencyLevel: 0,
+			}
 
-			mockApiConnection.SetTransactionBlock(sample.txDigest, transactionBlockResponse)
+			err := testWatcher.verifyAndPublish(context.TODO(), msg, txDigest, zap.NewNop())
+			require.NoError(t, err)
 
-			var pastObjects txverifier.SuiTryMultiGetPastObjectsResponse
-			_ = json.Unmarshal(sample.pastObjects, &pastObjects)
-
-			objectId, _ := pastObjects.GetObjectId()
-			version, _ := pastObjects.Result[0].GetVersion()
-			previousVersion, _ := pastObjects.Result[1].GetVersion()
-
-			mockApiConnection.SetPastObjects(objectId, version, previousVersion, pastObjects)
-
-			// call verify and publish
-			_ = testWatcher.verifyAndPublish(testCtx, &sample.messagePublication, sample.txDigest, testLogger)
-
-			newMessagePublication := <-msgChan
-			require.Equal(t, sample.expectedState, newMessagePublication.VerificationState())
+			published := <-msgChan
+			require.Equal(t, tt.expectedState, published.VerificationState())
 		})
-
 	}
 }

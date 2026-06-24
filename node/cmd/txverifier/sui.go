@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/suiclient"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	txverifier "github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -20,17 +19,13 @@ import (
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-)
-
-const (
-	InitialEventFetchLimit = 25
-	EventQueryInterval     = 2 * time.Second
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // CLI args
 var (
 	suiRPC                       *string
-	suiProcessOnChainEvents      *bool
 	suiProcessWormholeScanEvents *bool
 	suiEnvironment               *string
 	suiDigest                    *string
@@ -49,8 +44,7 @@ var TransferVerifierCmdSui = &cobra.Command{
 
 // CLI parameters
 func init() {
-	suiRPC = TransferVerifierCmdSui.Flags().String("suiRPC", "", "Sui RPC url")
-	suiProcessOnChainEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessOnChainEvents", false, "Indicate whether the Sui transfer verifier should process on-chain events")
+	suiRPC = TransferVerifierCmdSui.Flags().String("suiRPC", "", "Sui gRPC endpoint, host:port (e.g. fullnode.mainnet.sui.io:443, or sui:443 in devnet)")
 	suiProcessWormholeScanEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessWormholeScanEvents", false, "Indicate whether the Sui transfer verifier should process WormholeScan events")
 	suiDigest = TransferVerifierCmdSui.Flags().String("suiDigest", "", "If provided, perform transaction verification on this single digest")
 	suiEnvironment = TransferVerifierCmdSui.Flags().String("suiEnvironment", "mainnet", "The Sui environment to connect to. Supported values: mainnet, testnet and devnet")
@@ -141,13 +135,25 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	logger.Debug("Sui core bridge package ID", zap.String("packageId", *suiCoreBridgePackageId))
 	logger.Debug("Sui token bridge package ID", zap.String("packageId", *suiTokenBridgePackageId))
 	logger.Debug("Sui token bridge emitter", zap.String("address", *suiTokenBridgeEmitter))
-	logger.Debug("process on-chain events", zap.Bool("processOnChainEvents", *suiProcessOnChainEvents))
 	logger.Debug("process WormholeScan events", zap.Bool("processWormholeScanEvents", *suiProcessWormholeScanEvents))
 
-	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
+	// Create the Sui gRPC client. A local devnet node serves plaintext gRPC, so disable TLS there.
+	var dialOpts []grpc.DialOption
+	if *suiEnvironment == "devnet" {
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+	client, err := suiclient.NewSuiGrpcClient(*suiRPC, logger, dialOpts...)
+	if err != nil {
+		logger.Fatal("Failed to create Sui gRPC client", zap.Error(err))
+	}
+	defer func() {
+		if cerr := client.Close(); cerr != nil {
+			logger.Error("Failed to close Sui gRPC client", zap.Error(cerr))
+		}
+	}()
 
 	// Create a new SuiTransferVerifier
-	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreBridgePackageId, *suiTokenBridgeEmitter, *suiTokenBridgePackageId, suiApiConnection)
+	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreBridgePackageId, *suiTokenBridgeEmitter, *suiTokenBridgePackageId, client)
 
 	// Process a single digest and exit
 	if *suiDigest != "" {
@@ -178,100 +184,35 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Get the event filter
-	eventFilter := suiTransferVerifier.GetEventFilter()
-
-	// Initial event fetching
-	resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", InitialEventFetchLimit, true)
+	// Live processing: subscribe to WormholeMessage events emitted by the core bridge and
+	// verify each transaction as its events arrive. The gRPC subscription streams events
+	// going forward, replacing the previous JSON-RPC poll-and-diff-by-timestamp approach.
+	const eventChannelBufferSize = 64
+	eventChan := make(chan suiclient.SuiTransactionEvent, eventChannelBufferSize)
+	subscription, err := client.SubscribeToTransactionEvent(ctx, suiTransferVerifier.GetEventType(), eventChan)
 	if err != nil {
-		logger.Fatal("Error in querying initial events", zap.Error(err))
+		logger.Fatal("Error subscribing to events", zap.Error(err))
 	}
+	defer subscription.Unsubscribe()
 
-	initialEvents := resp.Result.Data
-
-	// Use the latest timestamp to determine the starting point for live processing
-	var latestTimestamp int
-	for _, event := range initialEvents {
-		if event.Timestamp != nil {
-			timestampInt, atoiErr := strconv.Atoi(*event.Timestamp)
-			if atoiErr != nil {
-				logger.Error("Error converting timestamp to int", zap.Error(atoiErr))
-				continue
-			}
-			if timestampInt > latestTimestamp {
-				latestTimestamp = timestampInt
-			}
-		}
-	}
-	logger.Info("Initial events fetched", zap.Int("number of initial events", len(initialEvents)), zap.Int("latestTimestamp", latestTimestamp))
-
-	// If specified, process the initial events. This is useful for running a number of digests
-	// through the verifier before starting live processing.
-	if *suiProcessOnChainEvents {
-		logger.Info("Processing on-chain events")
-		for _, event := range initialEvents {
-			if event.ID.TxDigest != nil {
-				_, err = suiTransferVerifier.ProcessDigest(ctx, *event.ID.TxDigest, "", logger)
-				if err != nil {
-					logger.Error(err.Error())
-				}
-			}
-		}
-		logger.Info("Finished processing initial events")
-	}
-
-	// Ticker for live processing
-	ticker := time.NewTicker(EventQueryInterval)
-	defer ticker.Stop()
+	logger.Info("Subscribed to WormholeMessage events", zap.String("eventType", suiTransferVerifier.GetEventType()))
 
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Info("Context cancelled")
-		case <-ticker.C:
-			// Fetch new events
-			resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", InitialEventFetchLimit, true)
-			if err != nil {
-				logger.Error("Error in querying new events", zap.Error(err))
+			return
+		case subErr := <-subscription.Err():
+			logger.Fatal("Subscription error", zap.Error(subErr))
+		case txEvent := <-eventChan:
+			if txEvent.TxDigest == "" {
 				continue
 			}
 
-			newEvents := resp.Result.Data
-
-			// List of transaction digests for transactions in which the WormholeMessage
-			// event was emitted.
-			var txDigests []string
-
-			// Iterate over all events and get the transaction digests for events younger
-			// than latestTimestamp. Also update latestTimestamp.
-			for _, event := range newEvents {
-				if event.Timestamp != nil {
-					timestampInt, err := strconv.Atoi(*event.Timestamp)
-					if err != nil {
-						logger.Error("Error converting timestamp to int", zap.Error(err))
-						continue
-					}
-					if timestampInt > latestTimestamp {
-						latestTimestamp = timestampInt
-						if event.ID.TxDigest != nil {
-							txDigests = append(txDigests, *event.ID.TxDigest)
-						}
-					}
-				}
+			if _, err := suiTransferVerifier.ProcessDigest(ctx, txEvent.TxDigest, "", logger); err != nil {
+				logger.Error(err.Error())
 			}
-
-			for _, txDigest := range txDigests {
-				_, err := suiTransferVerifier.ProcessDigest(ctx, txDigest, "", logger)
-				if err != nil {
-					logger.Error(err.Error())
-				}
-				logger.Info("Processed new event", zap.String("txDigest", txDigest))
-			}
-
-			if len(txDigests) > 0 {
-				logger.Info("New events processed", zap.Int("latestTimestamp", latestTimestamp), zap.Int("txDigestCount", len(txDigests)))
-			}
-
+			logger.Info("Processed new event", zap.String("txDigest", txEvent.TxDigest))
 		}
 	}
 }
@@ -297,6 +238,7 @@ func pullDigestsFromWormholeScan(ctx context.Context, logger *zap.Logger) ([]str
 	}
 
 	req.Header.Set("Accept", "application/json")
+	// #nosec G704 -- Hardcoded WormholeScan API URL
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {

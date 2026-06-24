@@ -207,7 +207,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 			zap.Uint8("consistency_level", observation.ConsistencyLevel),
 		)
 
-		e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+		e.msgC <- observation // Note on channel capacity: The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	}
 }
 

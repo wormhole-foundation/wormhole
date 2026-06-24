@@ -417,7 +417,7 @@ func init() {
 	movementAccount = NodeCmd.Flags().String("movementAccount", "", "movement account")
 	movementHandle = NodeCmd.Flags().String("movementHandle", "", "movement handle")
 
-	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
+	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui gRPC endpoint", "sui:443", []string{""})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
 	solanaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
@@ -794,8 +794,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Node's main lifecycle context.
-	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
-	defer rootCtxCancel()
+	// Keep the cancel func in a local var so linters can see
+	// that the WithCancel return value is actually invoked.
+	var cancel context.CancelFunc
+	rootCtx, cancel = context.WithCancel(context.Background())
+	rootCtxCancel = cancel
+	defer cancel()
 
 	// Create the Guardian Signer
 	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(rootCtx, *guardianSignerUri, env == common.UnsafeDevNet)

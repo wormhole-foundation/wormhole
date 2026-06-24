@@ -23,6 +23,8 @@ import (
 )
 
 func TestAcctPendingTransferMsgID(t *testing.T) {
+	t.Parallel()
+
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
@@ -42,6 +44,8 @@ func TestAcctPendingTransferMsgID(t *testing.T) {
 }
 
 func TestAcctIsPendingTransfer(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, true, acctIsPendingTransfer([]byte("ACCT:PXFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, acctIsPendingTransfer([]byte("ACCT:PXFER3:")))
 	assert.Equal(t, false, acctIsPendingTransfer([]byte("ACCT:PXFER3:1")))
@@ -56,6 +60,8 @@ func TestAcctIsPendingTransfer(t *testing.T) {
 }
 
 func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -119,6 +125,8 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 }
 
 func TestAcctGetEmptyData(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 	dbPath := t.TempDir()
 	db := OpenDb(logger, &dbPath)
@@ -130,6 +138,8 @@ func TestAcctGetEmptyData(t *testing.T) {
 }
 
 func TestAcctGetData(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 	dbPath := t.TempDir()
 	db := OpenDb(logger, &dbPath)
@@ -194,6 +204,8 @@ func TestAcctGetData(t *testing.T) {
 }
 
 func TestAcctLoadingWhereOldPendingGetsUpdated(t *testing.T) {
+	t.Parallel()
+
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -325,6 +337,8 @@ func (msg *OldMessagePublication) MessageIDString() string {
 }
 
 func TestUnmarshalOldJSON(t *testing.T) {
+	t.Parallel()
+
 	jsn := `
 	{
 	  "TxID": "SGVsbG8=",

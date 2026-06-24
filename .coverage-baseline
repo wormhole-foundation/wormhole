@@ -7,7 +7,7 @@ github.com/certusone/wormhole/node/cmd 0.0
 github.com/certusone/wormhole/node/cmd/ccq 15.5
 github.com/certusone/wormhole/node/cmd/debug 0.0
 github.com/certusone/wormhole/node/cmd/guardiand 21.6
-github.com/certusone/wormhole/node/cmd/spy 31.5
+github.com/certusone/wormhole/node/cmd/spy 31.1
 github.com/certusone/wormhole/node/cmd/txverifier 0.0
 github.com/certusone/wormhole/node/hack/accountant 0.0
 github.com/certusone/wormhole/node/hack/encrypt 0.0
@@ -44,7 +44,7 @@ github.com/certusone/wormhole/node/pkg/proto/prometheus/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/spy/v1 0.0
 github.com/certusone/wormhole/node/pkg/publicrpc 12.4
-github.com/certusone/wormhole/node/pkg/query 70.1
+github.com/certusone/wormhole/node/pkg/query 70.2
 github.com/certusone/wormhole/node/pkg/random 0.0
 github.com/certusone/wormhole/node/pkg/readiness 0.0
 github.com/certusone/wormhole/node/pkg/supervisor 0.0

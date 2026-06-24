@@ -26,6 +26,18 @@ func TestTokenListSize(t *testing.T) {
 	assert.Less(t, len(tokenList), 10000)
 }
 
+func TestTokenListLengthIsSumOfComponentTokenLists(t *testing.T) {
+	t.Parallel()
+
+	// Property: The length of the token list must be equal to the sum of the lengths
+	// of the component token lists.
+	// This helps us quickly prove uniqueness of tokens and that no tokens from the components
+	// lists are discarded.
+	manualTokens := manualTokenList()
+	generatedTokens := generatedMainnetTokenList()
+	assert.Equal(t, len(manualTokens)+len(generatedTokens), len(tokenList), fmt.Sprintf("Manual tokens: %v, Generated tokens: %v, TokenList: %v", len(manualTokens), len(generatedTokens), len(tokenList)))
+}
+
 func TestTokenListAddressSize(t *testing.T) {
 	/* Assume that token addresses must always be 32 bytes (64 chars) */
 	for _, tokenConfigEntry := range tokenList {
@@ -115,14 +127,30 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 
 func TestTokenListTokenAddressDuplicates(t *testing.T) {
 	/* Assume that all governed token entry addresses won't include duplicates */
-	addrs := make(map[string]string)
+	addrs := make(map[tokenKey]string)
+	duplicates := []string{}
 	for _, e := range tokenList {
-		// In a few cases, the same address exists on multiple chains, so we need to compare both the chain and the address.
+		// In a few cases, the same address exists on multiple chains, so we need to compare the runtime token identity.
 		// Also using that as the map payload so if we do have a duplicate, we can print out something meaningful.
-		key := fmt.Sprintf("%v:%v", e.Chain, e.Addr)
-		assert.Equal(t, "", addrs[key])
-		addrs[key] = key + ":" + e.Symbol
+		key := tokenListKey(t, e)
+		if previous, exists := addrs[key]; exists {
+			duplicates = append(duplicates, fmt.Sprintf("%s:%s duplicate symbols: %s, %s", key.chain, key.addr, previous, e.Symbol))
+			continue
+		}
+		addrs[key] = e.Symbol
 	}
+	if len(duplicates) > 0 {
+		require.Failf(t, "TokenList() contains duplicate chain/address identities", "%s", strings.Join(duplicates, "\n"))
+	}
+}
+
+func tokenListKey(t *testing.T, token TokenConfigEntry) tokenKey {
+	t.Helper()
+
+	addr, err := vaa.StringToAddress(token.Addr)
+	require.NoError(t, err)
+
+	return tokenKey{chain: vaa.ChainID(token.Chain), addr: addr}
 }
 
 func TestTokenListEmptySymbols(t *testing.T) {

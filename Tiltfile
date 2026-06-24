@@ -281,7 +281,7 @@ def build_node_yaml():
             if sui:
                 container["command"] += [
                     "--suiRPC",
-                    "http://sui:9000",
+                    "sui:443",
                     "--suiMoveEventType",
                     "0xf82ef05c95ebafcbeb1cce2b636448b8cd1c6daad201f7d04ecddcda15c19d52::publish_message::WormholeMessage",
                 ]

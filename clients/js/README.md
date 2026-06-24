@@ -212,7 +212,8 @@ Options:
       --version   Show version number                                  [boolean]
   -m, --module    Module to query  [choices: "Core", "NFTBridge", "TokenBridge"]
   -n, --network   Network   [required] [choices: "mainnet", "testnet", "devnet"]
-      --account   Near deployment account                    [string] [required]
+      --account   Near deployment account (defaults to the NEAR_ACCOUNT env var)
+                                                                        [string]
       --attach    Attach some near                                      [string]
       --target    Near account to upgrade                               [string]
       --mnemonic  Near private keys                                     [string]
