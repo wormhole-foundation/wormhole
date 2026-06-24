@@ -257,13 +257,8 @@ func TestObserveDataNonceTooLargeFails(t *testing.T) {
 }
 
 func TestVerifyEventType(t *testing.T) {
-	w := &Watcher{
-		chainID:        vaa.ChainIDAptos,
-		networkID:      "aptos-test",
-		aptosAccount:   testAptosAccount,
-		aptosHandle:    testAptosHandle,
-		aptosEventType: testExpectedType,
-	}
+	w, err := NewWatcher(vaa.ChainIDAptos, "aptos-test", "http://localhost", testAptosAccount, testAptosHandle, nil, nil)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name        string
@@ -325,6 +320,17 @@ func TestVerifyEventType(t *testing.T) {
 			name:   "0x prefix stripped on type",
 			mutate: func(m map[string]any) { m["type"] = strings.TrimPrefix(testExpectedType, "0x") },
 		},
+		{
+			// A type tag without exactly three "::" segments is malformed.
+			name:        "Malformed type: too few segments",
+			mutate:      func(m map[string]any) { m["type"] = testAptosAccount + "::WormholeMessage" },
+			expectError: "event type mismatch",
+		},
+		{
+			name:        "Malformed type: too many segments",
+			mutate:      func(m map[string]any) { m["type"] = testExpectedType + "::extra" },
+			expectError: "event type mismatch",
+		},
 	}
 
 	for _, tc := range tests {
@@ -341,6 +347,43 @@ func TestVerifyEventType(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectError)
 			}
+		})
+	}
+}
+
+// TestVerifyEventTypeShortFormAddress confirms the byte comparison treats the Aptos API's
+// short-form addresses (leading zeros stripped) as equal to the zero-padded configured form.
+// The watcher is configured with the full 64-char address; the event uses the stripped form.
+func TestVerifyEventTypeShortFormAddress(t *testing.T) {
+	tests := []struct {
+		name      string
+		fullAddr  string // configured, zero-padded 64-char form
+		shortAddr string // form returned by the API, leading zeros stripped
+	}{
+		{
+			// Special address collapsed to a single nibble.
+			name:      "single nibble (0x1)",
+			fullAddr:  "0x0000000000000000000000000000000000000000000000000000000000000001",
+			shortAddr: "0x1",
+		},
+		{
+			// One full leading zero byte (two nibbles) stripped; remainder is even-length.
+			name:      "leading zero byte stripped",
+			fullAddr:  "0x007730cd28ee1cdc9e999336cbc430f99e7c44397c0aa77516f6f23a78559bb5",
+			shortAddr: "0x7730cd28ee1cdc9e999336cbc430f99e7c44397c0aa77516f6f23a78559bb5",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			w, err := NewWatcher(vaa.ChainIDAptos, "aptos-test", "http://localhost", tc.fullAddr, tc.fullAddr+"::module::EventHandle", nil, nil)
+			require.NoError(t, err)
+
+			event := map[string]any{
+				"guid": map[string]any{"creation_number": "0", "account_address": tc.shortAddr},
+				"type": tc.shortAddr + "::module::Event",
+			}
+			require.NoError(t, w.verifyEventType(gjson.Parse(marshalJSON(t, event))))
 		})
 	}
 }
@@ -513,6 +556,22 @@ func TestParseAptosAddrLeftPads(t *testing.T) {
 	wrong[0] = 0x01
 	assert.NotEqual(t, wrong, got)
 
+	// Odd-length (single-nibble) short form, as the Aptos API returns special addresses
+	// like "0x1"/"0x0", must be padded and land in the rightmost byte.
+	got, ok = parseAptosAddr("0x1")
+	require.True(t, ok)
+	want = [32]byte{}
+	want[31] = 0x01
+	assert.Equal(t, want, got)
+
+	// A stripped leading zero byte (two nibbles) yields the same canonical bytes as the
+	// full zero-padded form.
+	stripped, ok := parseAptosAddr("0x7730cd28ee1cdc9e999336cbc430f99e7c44397c0aa77516f6f23a78559bb5")
+	require.True(t, ok)
+	padded, ok := parseAptosAddr("0x007730cd28ee1cdc9e999336cbc430f99e7c44397c0aa77516f6f23a78559bb5")
+	require.True(t, ok)
+	assert.Equal(t, padded, stripped)
+
 	// Multi-byte values stay big-endian and right-aligned.
 	got, ok = parseAptosAddr("0x0102")
 	require.True(t, ok)
@@ -648,14 +707,8 @@ func TestProcessPollingBatch(t *testing.T) {
 			core, logs := observer.New(zapcore.ErrorLevel)
 			logger := zap.New(core)
 			msgC := make(chan *common.MessagePublication, 16)
-			w := &Watcher{
-				chainID:        vaa.ChainIDAptos,
-				networkID:      "aptos-test",
-				msgC:           msgC,
-				aptosAccount:   testAptosAccount,
-				aptosHandle:    testAptosHandle,
-				aptosEventType: testExpectedType,
-			}
+			w, err := NewWatcher(vaa.ChainIDAptos, "aptos-test", "http://localhost", testAptosAccount, testAptosHandle, msgC, nil)
+			require.NoError(t, err)
 
 			jsonStr := tc.rawJSON
 			if jsonStr == "" {
@@ -743,14 +796,8 @@ func TestProcessReobs(t *testing.T) {
 			core, logs := observer.New(zapcore.ErrorLevel)
 			logger := zap.New(core)
 			msgC := make(chan *common.MessagePublication, 16)
-			w := &Watcher{
-				chainID:        vaa.ChainIDAptos,
-				networkID:      "aptos-test",
-				msgC:           msgC,
-				aptosAccount:   testAptosAccount,
-				aptosHandle:    testAptosHandle,
-				aptosEventType: testExpectedType,
-			}
+			w, err := NewWatcher(vaa.ChainIDAptos, "aptos-test", "http://localhost", testAptosAccount, testAptosHandle, msgC, nil)
+			require.NoError(t, err)
 
 			jsonStr := tc.rawJSON
 			if jsonStr == "" {
