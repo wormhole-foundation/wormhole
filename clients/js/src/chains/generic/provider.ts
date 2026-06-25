@@ -137,6 +137,8 @@ export const getProviderForChain = <T extends Chain>(
     case "Plasma":
     case "CreditCoin":
     case "Noble":
+    case "Stacks":
+    case "Moca":
       throw new Error(`${chain} not supported`);
     default:
       impossible(chain);

@@ -296,6 +296,16 @@ const Mainnet = {
     key: undefined,
     chain_id: undefined,
   },
+  Stacks: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  Moca: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
 };
 
 const Testnet = {
@@ -590,6 +600,16 @@ const Testnet = {
     key: undefined,
     chain_id: undefined,
   },
+  Stacks: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  Moca: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
 };
 
 const Devnet = {
@@ -853,6 +873,16 @@ const Devnet = {
     chain_id: undefined,
   },
   Noble: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  Stacks: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
+  },
+  Moca: {
     rpc: undefined,
     key: undefined,
     chain_id: undefined,

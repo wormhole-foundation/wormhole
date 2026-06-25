@@ -163,6 +163,8 @@ export const getWrappedAssetAddress = async (
     case "Plasma":
     case "CreditCoin":
     case "Noble":
+    case "Stacks":
+    case "Moca":
       throw new Error(`${chainName} not supported`);
     default:
       impossible(chainName);
