@@ -205,6 +205,9 @@ func (m *mockConnector) Client() *ethclient.Client {
 func (m *mockConnector) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
 	panic("not implemented")
 }
+func (m *mockConnector) Close() {
+	panic("not implemented")
+}
 
 // newBlock creates a *connectors.NewBlock with sensible defaults for testing.
 // Hash is deterministically derived from the block number.
