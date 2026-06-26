@@ -587,6 +587,63 @@ func TestParseAptosAddrLeftPads(t *testing.T) {
 	assert.False(t, ok, "uppercase 0X prefix must be rejected")
 }
 
+// TestParseAptosAddrLengths exercises the full spectrum of input lengths the RPC could
+// conceivably return, since verifyEventType feeds it untrusted address strings. Aptos addresses
+// are 32 bytes (64 hex nibbles); the parser accepts any non-empty hex string up to 64 nibbles
+// (odd or even, since the API strips leading zeros, including down to a single nibble) and rejects
+// empty input or anything longer than 64 nibbles. Every accepted value left-pads into the canonical
+// 32-byte form.
+func TestParseAptosAddrLengths(t *testing.T) {
+	// hexN returns a value of n hex nibbles (without the "0x" prefix), e.g. "1212...".
+	hexN := func(n int) string {
+		return strings.Repeat("12", n/2) + strings.Repeat("1", n%2)
+	}
+
+	tests := []struct {
+		name   string
+		addr   string
+		wantOK bool
+	}{
+		// Empty / prefix-only: nothing to decode.
+		{name: "empty string", addr: "", wantOK: false},
+		{name: "prefix only", addr: "0x", wantOK: false},
+
+		// Minimum-length short forms the API returns for special addresses (e.g. 0x0, 0x1).
+		{name: "single nibble", addr: "0x1", wantOK: true},
+		{name: "single zero nibble", addr: "0x0", wantOK: true},
+
+		// Odd-length values in range: the parser pads them to an even nibble count.
+		{name: "odd length 3", addr: "0x" + hexN(3), wantOK: true},
+		{name: "odd length 63", addr: "0x" + hexN(63), wantOK: true},
+
+		// Even-length values in range.
+		{name: "even length 2", addr: "0x" + hexN(2), wantOK: true},
+		{name: "even length 62", addr: "0x" + hexN(62), wantOK: true},
+
+		// Boundary at the 64-nibble (32-byte) maximum.
+		{name: "max length 64", addr: "0x" + hexN(64), wantOK: true},
+		{name: "one over max (65)", addr: "0x" + hexN(65), wantOK: false},
+		{name: "two over max (66)", addr: "0x" + hexN(66), wantOK: false},
+
+		// Length is measured after stripping "0x", so an unprefixed 64-nibble value is still valid.
+		{name: "max length 64 no prefix", addr: hexN(64), wantOK: true},
+
+		// Length is in range but the content is not valid hex.
+		{name: "non-hex in range", addr: "0xzz", wantOK: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out, ok := parseAptosAddr(tc.addr)
+			require.Equal(t, tc.wantOK, ok)
+			if !ok {
+				// Rejected inputs must yield the zero value and never a partially-decoded address.
+				assert.Equal(t, [32]byte{}, out)
+			}
+		})
+	}
+}
+
 func TestProcessPollingBatch(t *testing.T) {
 	// happy path: two consecutive events. Built by mutating pollEvent() defaults.
 	happyFirst := pollEvent()
