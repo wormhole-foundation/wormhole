@@ -90,6 +90,30 @@ fractions of a cent. If an attacker tries to subvert the limits
 by sending many transfers of extremely small value to abuse truncation, the gas cost 
 will make this extremely unprofitable.
 
+### Replay protection or database poisoning claims against the Governor and Notary
+
+**Justification:**
+
+The Governor and Notary do not implement replay protection beyond the natural lifecycle of
+when observations, transfers, or related state are stored in their databases. Findings that
+assume additional replay protection should exist outside of that storage lifecycle are out
+of scope.
+
+This also applies to claims that replayed or otherwise malicious messages can permanently
+poison those databases. Delayed and pending messages are periodically processed and removed
+when they become ready, and Governor transfer records are pruned from the database as they
+fall outside the active rate-limit window, including during reload after restart.
+
+We are also aware that a message may be delayed by the Notary and then delayed again by
+the Governor after the Notary releases it. This possible "double delay" is part of the
+current lifecycle when both mechanisms are enabled, not a separate replay-protection issue.
+
+Guardians also have operational tools, including admin commands, to inspect and update
+relevant local database state. If necessary, operators could also perform manual operations
+on the underlying BadgerDB storage directly. Because these entries can be modified or
+removed, database poisoning claims must demonstrate an impact beyond temporary local
+operator intervention.
+
 ### Fee-related vulnerabilities in contracts where fees are disabled in production
 
 **Justification:**
