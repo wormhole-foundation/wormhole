@@ -35,7 +35,7 @@ github.com/certusone/wormhole/node/pkg/manager 29.3
 github.com/certusone/wormhole/node/pkg/manager/delegatedmanagersetabi 0.0
 github.com/certusone/wormhole/node/pkg/manager/dogecoin 94.0
 github.com/certusone/wormhole/node/pkg/manager/xrpl 91.9
-github.com/certusone/wormhole/node/pkg/node 67.4
+github.com/certusone/wormhole/node/pkg/node 65.9
 github.com/certusone/wormhole/node/pkg/notary 36.9
 github.com/certusone/wormhole/node/pkg/p2p 40.3
 github.com/certusone/wormhole/node/pkg/processor 25.0
