@@ -246,6 +246,8 @@ wormchaind tx bank send <sender-address> <new-validator-address> 1utest \
 
 The easiest way to sync your wormchain node is via a snapshot. Follow [these instructions](../wormchain/syncing.md#sync-from-snapshot) to sync from a snapshot.
 
+**NOTE**: past tx might be held up in the governor if you sync wormchain while running an active guardian. Disable the governor feature before syncing in existing guardians. In general, this should only *ever* happen for initial new guardian setup prior to entering the active set via the vote to update the guardian set.
+
 #### Create your validator via a transaction
 
 The final step before the governance VAA to add your new validator into the guardian set is the `create-validator` wormchain command. Use `<key-name>` from when the `.info` file was created above and run this command:
@@ -267,6 +269,8 @@ wormchaind tx staking create-validator \
   --home=/path/to/wormchain \
   --node=<wormchain-rpc-endpoint>
 ```
+
+The native wormchain gas token is `utest` and it is denominated in `uworm`, much like ETH vs gwei. Since wormchain is a permissioned blockchain, these tokens have no inherent value and are solely for submitting transactions.
 
 <!-- cspell:enable -->
 
