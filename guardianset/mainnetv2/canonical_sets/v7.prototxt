@@ -1,0 +1,85 @@
+# do not modify timestamp
+timestamp: 1783669263
+
+messages:  {
+  sequence:  3592627530068872360
+  nonce:  862925496
+  guardian_set: {
+    guardians: {
+      pubkey: "0x5893B5A76c3f739645648885bDCcC06cd70a3Cd3"
+      name: "RockawayX"
+    }
+    guardians: {
+      pubkey: "0xfF6CB952589BDE862c25Ef4392132fb9D4A42157"
+      name: "Staked"
+    }
+    guardians: {
+      pubkey: "0x114De8460193bdf3A2fCf81f86a09765F4762fD1"
+      name: "Figment"
+    }
+    guardians: {
+      pubkey: "0x107A0086b32d7A0977926A205131d8731D39cbEB"
+      name: "ChainodeTech"
+    }
+    guardians: {
+      pubkey: "0x8C82B2fd82FaeD2711d59AF0F2499D16e726f6b2"
+      name: "Inotel"
+    }
+    guardians: {
+      pubkey: "0x42579bFFbCF4276E290aB8E4C162bd4052b97970"
+      name: "HashQuark"
+    }
+    guardians: {
+      pubkey: "0x938f104AEb5581293216ce97d771e0CB721221B1"
+      name: "Chainlayer"
+    }
+    guardians: {
+      pubkey: "0xF3ea0AD4FFB5a178AE4EBc21861651B25BdcbB91"
+      name: "Chainstack"
+    }
+    guardians: {
+      pubkey: "0x9D16870160e703324D057c3361c34C5beFBa2c34"
+      name: "Liquify"
+    }
+    guardians: {
+      pubkey: "0x000aC0076727b35FBea2dAc28fEE5cCB0fEA768e"
+      name: "Staking Fund"
+    }
+    guardians: {
+      pubkey: "0xAF45Ced136b9D9e24903464AE889F5C8a723FC14"
+      name: "MoonletWallet"
+    }
+    guardians: {
+      pubkey: "0xf93124b7c738843CBB89E864c862c38cddCccF95"
+      name: "P2P.ORG Validator"
+    }
+    guardians: {
+      pubkey: "0xD2CC37A4dc036a8D232b48f62cDD4731412f4890"
+      name: "01Node"
+    }
+    guardians: {
+      pubkey: "0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811"
+      name: "MCF"
+    }
+    guardians: {
+      pubkey: "0xaE565927Bb8dB25CD8Bf3e7BB663D70023e4Ea78"
+      name: "Firstset"
+    }
+    guardians: {
+      pubkey: "0x3F851Ad586A47ceF8d04748f33ab0D71395f06b4"
+      name: "DSRV"
+    }
+    guardians: {
+      pubkey: "0x178e21ad2E77AE06711549CFBB1f9c7a9d8096e8"
+      name: "Syncnode"
+    }
+    guardians: {
+      pubkey: "0x7899cEAB1DC961Dae9defDB7A4f521269a5448FC"
+      name: "Google Cloud"
+    }
+    guardians: {
+      pubkey: "0x61D9800f9FCb4160FB0C6cf3A0902592bAC2B434"
+      name: "Senseinode"
+    }
+  }
+}
