@@ -202,7 +202,7 @@ To generate wormchain keys, run the following command:
 This command will create a `<key-name>.info` file. To extract the key, run the following command:
 
 ```bash
-wormchaind keys export <key_name> --home /path/to/wormchain/directory --keyring-dir . --keyring-backend file
+wormchaind keys export <key-name> --home /path/to/wormchain/directory --keyring-dir . --keyring-backend file
 ```
 
 This command will ask for a passphrase to be created for it. Both `wormchain.key` and `passphrase` will be used by the following `guardiand` flags:
@@ -210,8 +210,119 @@ This command will ask for a passphrase to be created for it. Both `wormchain.key
 - `--accountantKeyPath`
 - `--accountantKeyPassPhrase`
 
-**Note**
-These steps could be executed directly on the `guardiand` node, having previously built the `wormchaind` binary.
+Feel free to run these directly on the `guardiand` node, having previously built the `wormchaind` binary.
+
+**NOTE**: Share the wormchain public key for your validator with the Wormhole Foundation. It should be in the format: `wormhole1xxx`.
+
+#### Allowlist your new validator
+
+Work with the Wormhole Foundation to have another guardian add your new wormchain validator to the allowlist.
+
+For transparency, the guardian adding your key to the allowlist would run a command like this (`<allowlisting-guardian-key-name>` is from the `.info` file created previously):
+
+```bash
+wormchaind tx wormhole create-allowed-address "<new-validator-address>" "<new-validator-name>" \
+	--home /path/to/wormchain/directory \
+	--from <allowlisting-guardian-key-name> \
+	--keyring-backend file \
+	--chain-id wormchain \
+	--broadcast-mode block \
+	--node tcp://127.0.0.1:26657
+```
+
+They will also need to send you at least 1 `utest` token which is the native gas token for wormchain (and has no inherent value). This is an example command they run to do this for you:
+
+```bash
+wormchaind tx bank send <sender-address> <new-validator-address> 1utest \
+	--home /path/to/wormchain/directory \
+	--from <key-name> \
+	--keyring-backend file \
+	--chain-id wormchain \
+	--broadcast-mode block \
+	--node tcp://127.0.0.1:26657
+```
+
+#### Sync from a snapshot
+
+The easiest way to sync your wormchain node is via a snapshot. Follow [these instructions](../wormchain/syncing.md#sync-from-snapshot) to sync from a snapshot.
+
+**NOTE**: past tx might be held up in the governor if you sync wormchain while running an active guardian. Disable the governor feature before syncing in existing guardians. In general, this should only *ever* happen for initial new guardian setup prior to entering the active set via the vote to update the guardian set.
+
+#### Create your validator via a transaction
+
+The final step before the governance VAA to add your new validator into the guardian set is the `create-validator` wormchain command. Use `<key-name>` from when the `.info` file was created above and run this command:
+
+<!-- cspell:disable -->
+
+```bash
+wormchaind tx staking create-validator \
+  --amount=1000000uworm \
+  --pubkey=$(wormchaind tendermint show-validator --home /path/to/wormchain) \
+  --moniker="<your-validator-name>" \
+  --chain-id=wormchain \
+  --commission-rate="0.00" \
+  --commission-max-rate="0.20" \
+  --commission-max-change-rate="0.02" \
+  --min-self-delegation="1" \
+  --from=<key-name> \
+  --keyring-backend=file \
+  --home=/path/to/wormchain \
+  --node=<wormchain-rpc-endpoint>
+```
+
+The native wormchain gas token is `utest` and it is denominated in `uworm`, much like ETH vs gwei. Since wormchain is a permissioned blockchain, these tokens have no inherent value and are solely for submitting transactions.
+
+<!-- cspell:enable -->
+
+After this, all that remains to add your node to the active set is a governance VAA that the existing guardian set must vote on.
+
+##### Creating your validator via an offline transaction
+
+Get the `key` for the `--pubkey` flag from `consensus_pubkey` via `wormchaind q staking validators`.
+
+Generate the offline transaction to sign:
+
+<!-- cspell:disable -->
+
+```bash
+wormchaind tx staking create-validator \
+  --from <key-name> \
+  --amount 0uworm \
+  --min-self-delegation 0 \
+  --pubkey '{"@type":"/cosmos.crypto.ed25519.PubKey","key":"<your-consensus-pubkey>"}' \
+  --moniker "<your-validator-name>" \
+  --commission-rate 0.0 \
+  --commission-max-rate 0.2 \
+  --commission-max-change-rate 0.01 \
+  --chain-id wormchain \
+  --home /path/to/wormchain \
+  --generate-only > tx.json
+```
+
+<!-- cspell:enable -->
+
+Sign the offline transaction:
+
+```bash
+wormchaind tx sign tx.json \
+  --from <key-name> \
+  --offline \
+  --account-number 0 \
+  --sequence 0 \
+  --chain-id wormchain \
+  --keyring-backend file \
+  --home /path/to/wormchain > tx-signed.json
+```
+
+Broadcast the signed transaction out to the network:
+
+```bash
+wormchaind tx broadcast tx-signed.json \
+  --node tcp://localhost:26657 \
+  -o json
+```
+
+Once the governance VAA vote passes, your guardian and wormchain will be added into the active set.
 
 #### Wormchain Useful Commands
 
