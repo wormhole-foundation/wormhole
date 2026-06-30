@@ -155,15 +155,19 @@ func (acct *Accountant) audit(ctx context.Context) error {
 
 // runAudit is the entry point for the audit of the pending transfer map. It creates a temporary map of all pending transfers and invokes the main audit function.
 func (acct *Accountant) runAudit(ctx context.Context) {
-	knownPendingTransferMap := acct.createAuditMap(false)
-	acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", numPendingEntries(knownPendingTransferMap)))
-	acct.performAudit(ctx, knownPendingTransferMap, acct.wormchainConn, acct.contract)
-	acct.logger.Debug("in AuditPendingTransfers: finished base audit")
+	if acct.baseEnabled() {
+		knownPendingTransferMap := acct.createAuditMap(false)
+		acct.logger.Debug("in AuditPendingTransfers: starting base audit", zap.Int("numPending", numPendingEntries(knownPendingTransferMap)))
+		acct.performAudit(ctx, knownPendingTransferMap, acct.wormchainConn, acct.contract)
+		acct.logger.Debug("in AuditPendingTransfers: finished base audit")
+	}
 
-	knownPendingNttTransferMap := acct.createAuditMap(true)
-	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", numPendingEntries(knownPendingNttTransferMap)))
-	acct.performAudit(ctx, knownPendingNttTransferMap, acct.nttWormchainConn, acct.nttContract)
-	acct.logger.Debug("in AuditPendingTransfers: finished ntt audit")
+	if acct.nttEnabled() {
+		knownPendingNttTransferMap := acct.createAuditMap(true)
+		acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", numPendingEntries(knownPendingNttTransferMap)))
+		acct.performAudit(ctx, knownPendingNttTransferMap, acct.nttWormchainConn, acct.nttContract)
+		acct.logger.Debug("in AuditPendingTransfers: finished ntt audit")
+	}
 }
 
 // numPendingEntries returns the total number of non-nil pending entries across all keys

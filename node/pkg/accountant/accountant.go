@@ -225,9 +225,13 @@ func (acct *Accountant) Start(ctx context.Context) error {
 				return fmt.Errorf("failed to start watcher: %w", err)
 			}
 
-			if err := supervisor.Run(ctx, "acctaudit", common.WrapWithScissors(acct.audit, "acctaudit")); err != nil {
-				return fmt.Errorf("failed to start audit worker: %w", err)
-			}
+		}
+	}
+
+	// Start the audit worker if not mocking/testing and either Global or NTT accountant are enabled
+	if acct.env != common.AccountantMock && acct.env != common.GoTest && (acct.baseEnabled() || acct.nttEnabled()) {
+		if err := supervisor.Run(ctx, "acctaudit", common.WrapWithScissors(acct.audit, "acctaudit")); err != nil {
+			return fmt.Errorf("failed to start audit worker: %w", err)
 		}
 	}
 

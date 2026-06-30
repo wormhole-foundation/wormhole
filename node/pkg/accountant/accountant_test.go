@@ -102,10 +102,19 @@ type AuditMockWormchainConn struct {
 	allPendingTransfersErr  error
 	batchTransferStatusResp []byte
 	batchTransferStatusErr  error
+
+	queryLock         sync.Mutex
+	queries           []string
+	contractAddresses []string
 }
 
 func (c *AuditMockWormchainConn) SubmitQuery(ctx context.Context, contractAddress string, query []byte) ([]byte, error) {
 	queryStr := string(query)
+	c.queryLock.Lock()
+	c.queries = append(c.queries, queryStr)
+	c.contractAddresses = append(c.contractAddresses, contractAddress)
+	c.queryLock.Unlock()
+
 	if strings.Contains(queryStr, "all_pending_transfers") {
 		return c.allPendingTransfersResp, c.allPendingTransfersErr
 	}
@@ -113,6 +122,12 @@ func (c *AuditMockWormchainConn) SubmitQuery(ctx context.Context, contractAddres
 		return c.batchTransferStatusResp, c.batchTransferStatusErr
 	}
 	return []byte{}, nil
+}
+
+func (c *AuditMockWormchainConn) QueryCount() int {
+	c.queryLock.Lock()
+	defer c.queryLock.Unlock()
+	return len(c.queries)
 }
 
 func newAccountantForTest(
@@ -740,6 +755,20 @@ func newAccountantForAuditTest(
 	acctWriteC chan *common.MessagePublication,
 	wormchainConn *AuditMockWormchainConn,
 ) *Accountant {
+	return newAccountantForAuditModeTest(t, logger, ctx, obsvReqWriteC, acctWriteC, "0xdeadbeef", wormchainConn, "", nil)
+}
+
+func newAccountantForAuditModeTest(
+	t *testing.T,
+	logger *zap.Logger,
+	ctx context.Context,
+	obsvReqWriteC chan *gossipv1.ObservationRequest,
+	acctWriteC chan *common.MessagePublication,
+	contract string,
+	wormchainConn *AuditMockWormchainConn,
+	nttContract string,
+	nttWormchainConn *AuditMockWormchainConn,
+) *Accountant {
 	var db guardianDB.MockAccountantDB
 
 	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(0))
@@ -759,12 +788,12 @@ func newAccountantForAuditTest(
 		logger,
 		&db,
 		obsvReqWriteC,
-		"0xdeadbeef",
+		contract,
 		"none",
 		wormchainConn,
 		true, // enforceFlag
-		"",
-		nil,
+		nttContract,
+		nttWormchainConn,
 		guardianSigner,
 		gst,
 		acctWriteC,
@@ -784,6 +813,42 @@ var (
 	testSequence       = uint64(1674568234)
 	testTxHash         = []byte{0x06, 0xf5, 0x41, 0xf5, 0xec, 0xfc, 0x43, 0x40, 0x7c, 0x31, 0x58, 0x7a, 0xa6, 0xac, 0x3a, 0x68, 0x9e, 0x89, 0x60, 0xf3, 0x6d, 0xc2, 0x3c, 0x33, 0x2d, 0xb5, 0x51, 0x0d, 0xfc, 0x6a, 0x40, 0x64}
 )
+
+func TestRunAuditBaseOnlySkipsNttAudit(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: []byte(`{"pending":[]}`),
+	}
+
+	acct := newAccountantForAuditModeTest(t, logger, ctx, obsvReqWriteC, acctChan, "base-contract", wormchainConn, "", nil)
+
+	require.NotPanics(t, func() {
+		acct.runAudit(ctx)
+	})
+	assert.Equal(t, 1, wormchainConn.QueryCount(), "expected base audit query")
+	assert.Equal(t, []string{"base-contract"}, wormchainConn.contractAddresses)
+}
+
+func TestRunAuditNttOnlySkipsBaseAudit(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+	nttWormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: []byte(`{"pending":[]}`),
+	}
+
+	acct := newAccountantForAuditModeTest(t, logger, ctx, obsvReqWriteC, acctChan, "", nil, "ntt-contract", nttWormchainConn)
+
+	require.NotPanics(t, func() {
+		acct.runAudit(ctx)
+	})
+	assert.Equal(t, 1, nttWormchainConn.QueryCount(), "expected NTT audit query")
+	assert.Equal(t, []string{"ntt-contract"}, nttWormchainConn.contractAddresses)
+}
 
 func TestPerformAuditResubmitsUnsignedTransfer(t *testing.T) {
 	ctx := context.Background()
