@@ -30,7 +30,7 @@ import (
 
 // MsgChannelCapacity specifies the capacity of the message channel used to publish messages released from the accountant.
 // This channel should not back up, but if it does, the accountant will start dropping messages, which would require reobservations.
-const MsgChannelCapacity = 5 * batchSize
+const MsgChannelCapacity = 5 * DefaultSubmitObservationBatchSize
 
 type (
 	AccountantWormchainConn interface {
@@ -75,23 +75,24 @@ type (
 
 // Accountant is the object that manages the interface to the wormchain accountant smart contract.
 type Accountant struct {
-	ctx                  context.Context
-	logger               *zap.Logger
-	db                   guardianDB.AccountantDB
-	obsvReqWriteC        chan<- *gossipv1.ObservationRequest
-	contract             string
-	wsUrl                string
-	wormchainConn        AccountantWormchainConn
-	enforceFlag          bool
-	guardianSigner       guardiansigner.GuardianSigner
-	gst                  *common.GuardianSetState
-	guardianAddr         ethCommon.Address
-	msgChan              chan<- *common.MessagePublication
-	tokenBridges         validEmitters
-	pendingTransfersLock sync.Mutex
-	pendingTransfers     map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
-	subChan              chan *common.MessagePublication
-	env                  common.Environment
+	ctx                        context.Context
+	logger                     *zap.Logger
+	db                         guardianDB.AccountantDB
+	obsvReqWriteC              chan<- *gossipv1.ObservationRequest
+	contract                   string
+	wsUrl                      string
+	wormchainConn              AccountantWormchainConn
+	enforceFlag                bool
+	guardianSigner             guardiansigner.GuardianSigner
+	gst                        *common.GuardianSetState
+	guardianAddr               ethCommon.Address
+	msgChan                    chan<- *common.MessagePublication
+	tokenBridges               validEmitters
+	pendingTransfersLock       sync.Mutex
+	pendingTransfers           map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
+	subChan                    chan *common.MessagePublication
+	submitObservationBatchSize int
+	env                        common.Environment
 
 	nttContract       string
 	nttWormchainConn  AccountantWormchainConn
@@ -126,25 +127,31 @@ func NewAccountant(
 	guardianSigner guardiansigner.GuardianSigner, // the guardian signer used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
+	submitObservationBatchSize int, // maximum number of observations to submit to the contract in one transaction
 	env common.Environment, // Controls the set of token bridges to be monitored
 ) *Accountant {
+	if submitObservationBatchSize <= 0 {
+		submitObservationBatchSize = DefaultSubmitObservationBatchSize
+	}
+
 	return &Accountant{
-		ctx:              ctx,
-		logger:           logger.With(zap.String("component", "gacct")),
-		db:               db,
-		obsvReqWriteC:    obsvReqWriteC,
-		contract:         contract,
-		wsUrl:            wsUrl,
-		wormchainConn:    wormchainConn,
-		enforceFlag:      enforceFlag,
-		guardianSigner:   guardianSigner,
-		gst:              gst,
-		guardianAddr:     ethCrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
-		msgChan:          msgChan,
-		tokenBridges:     make(validEmitters),
-		pendingTransfers: make(map[string]*pendingEntry),
-		subChan:          make(chan *common.MessagePublication, subChanSize),
-		env:              env,
+		ctx:                        ctx,
+		logger:                     logger.With(zap.String("component", "gacct")),
+		db:                         db,
+		obsvReqWriteC:              obsvReqWriteC,
+		contract:                   contract,
+		wsUrl:                      wsUrl,
+		wormchainConn:              wormchainConn,
+		enforceFlag:                enforceFlag,
+		guardianSigner:             guardianSigner,
+		gst:                        gst,
+		guardianAddr:               ethCrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
+		msgChan:                    msgChan,
+		tokenBridges:               make(validEmitters),
+		pendingTransfers:           make(map[string]*pendingEntry),
+		subChan:                    make(chan *common.MessagePublication, subChanSize),
+		submitObservationBatchSize: submitObservationBatchSize,
+		env:                        env,
 
 		nttContract:       nttContract,
 		nttWormchainConn:  nttWormchainConn,
@@ -156,7 +163,7 @@ func NewAccountant(
 
 // Start initializes the accountant and starts the worker and watcher runnables.
 func (acct *Accountant) Start(ctx context.Context) error {
-	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("baseEnabled", acct.baseEnabled()), zap.Bool("nttEnabled", acct.nttEnabled()))
+	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("baseEnabled", acct.baseEnabled()), zap.Bool("nttEnabled", acct.nttEnabled()), zap.Int("submitObservationBatchSize", acct.submitObservationBatchSize))
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 

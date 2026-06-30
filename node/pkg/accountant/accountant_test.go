@@ -153,6 +153,7 @@ func newAccountantForTest(
 		guardianSigner,
 		gst,
 		acctWriteC,
+		DefaultSubmitObservationBatchSize,
 		env,
 	)
 
@@ -767,6 +768,7 @@ func newAccountantForAuditTest(
 		guardianSigner,
 		gst,
 		acctWriteC,
+		DefaultSubmitObservationBatchSize,
 		common.GoTest, // Use GoTest to avoid starting worker goroutines that consume from subChan
 	)
 
