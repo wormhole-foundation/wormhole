@@ -169,7 +169,7 @@ func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *Guar
 		}}
 }
 
-// GuardianOptionNoAccountant disables the accountant. It is a shorthand for GuardianOptionAccountant("", "", false, nil)
+// GuardianOptionNoAccountant disables the accountant.
 // Dependencies: none
 func GuardianOptionNoAccountant() *GuardianOption {
 	return &GuardianOption{
@@ -189,11 +189,16 @@ func GuardianOptionAccountant(
 	wormchainConn *wormconn.ClientConn,
 	nttContract string,
 	nttWormchainConn *wormconn.ClientConn,
+	submitObservationBatchSize int,
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "accountant",
 		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			if submitObservationBatchSize <= 0 {
+				return errors.New("accountantSubmitObservationBatchSize must be greater than zero")
+			}
+
 			// Set up the accountant. If the accountant smart contract is configured, we will instantiate the accountant and VAAs
 			// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
 			// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
@@ -237,6 +242,7 @@ func GuardianOptionAccountant(
 				g.guardianSigner,
 				g.gst,
 				g.acctC.writeC,
+				submitObservationBatchSize,
 				g.env,
 			)
 

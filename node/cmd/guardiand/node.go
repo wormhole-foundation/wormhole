@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
@@ -129,11 +130,12 @@ var (
 	ibcBlockHeightURL *string
 	ibcContract       *string
 
-	accountantContract      *string
-	accountantWS            *string
-	accountantCheckEnabled  *bool
-	accountantKeyPath       *string
-	accountantKeyPassPhrase *string
+	accountantContract                   *string
+	accountantWS                         *string
+	accountantCheckEnabled               *bool
+	accountantKeyPath                    *string
+	accountantKeyPassPhrase              *string
+	accountantSubmitObservationBatchSize *int
 
 	accountantNttContract      *string
 	accountantNttKeyPath       *string
@@ -404,6 +406,7 @@ func init() {
 	accountantKeyPath = NodeCmd.Flags().String("accountantKeyPath", "", "path to accountant private key for signing transactions")
 	accountantKeyPassPhrase = NodeCmd.Flags().String("accountantKeyPassPhrase", "", "pass phrase used to unarmor the accountant key file")
 	accountantCheckEnabled = NodeCmd.Flags().Bool("accountantCheckEnabled", false, "Should accountant be enforced on transfers")
+	accountantSubmitObservationBatchSize = NodeCmd.Flags().Int("accountantSubmitObservationBatchSize", accountant.DefaultSubmitObservationBatchSize, "maximum number of observations to submit to the accountant contract in one transaction")
 
 	accountantNttContract = NodeCmd.Flags().String("accountantNttContract", "", "Address of the NTT accountant smart contract on wormchain")
 	accountantNttKeyPath = NodeCmd.Flags().String("accountantNttKeyPath", "", "path to NTT accountant private key for signing transactions")
@@ -2055,7 +2058,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
-		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
+		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn, *accountantSubmitObservationBatchSize),
 		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
 		node.GuardianOptionNotary(*notaryEnabled),
 		node.GuardianOptionManagerService(*managerServiceEnabled, managerSigners, *ethRPC),

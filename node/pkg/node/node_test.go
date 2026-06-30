@@ -926,9 +926,26 @@ func TestGuardianConfigs(t *testing.T) {
 					nil,   // wormchainConn
 					"",    // nttContract
 					nil,   // nttWormchainConn
+					100,   // submitObservationBatchSize
 				),
 			},
 			err: ComponentDependencyError{componentName: "accountant", dependencyName: "db"}.Error(),
+		},
+		{
+			name: "invalid-accountant-submit-observation-batch-size",
+			opts: []*GuardianOption{
+				GuardianOptionDatabase(nil),
+				GuardianOptionAccountant(
+					"",    // websocket
+					"",    // contract
+					false, // enforcing
+					nil,   // wormchainConn
+					"",    // nttContract
+					nil,   // nttWormchainConn
+					0,     // submitObservationBatchSize
+				),
+			},
+			err: "accountantSubmitObservationBatchSize must be greater than zero",
 		},
 		{
 			name: "double-configuration",
