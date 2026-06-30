@@ -37,7 +37,7 @@ import (
 //
 // Run it (streams logs; Ctrl-C to stop early):
 //
-//	go test -tags integration ./pkg/watchers/sui -run TestLiveSuiWatcher -v -timeout 0
+//	go test -tags integration ./pkg/watchers/sui -run TestLiveSuiWatcher -v -timeout 0 -count 1
 //
 // Optional environment variables:
 //
