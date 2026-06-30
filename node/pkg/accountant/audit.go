@@ -160,9 +160,9 @@ func (acct *Accountant) runAudit(ctx context.Context) {
 	acct.performAudit(ctx, knownPendingTransferMap, acct.wormchainConn, acct.contract)
 	acct.logger.Debug("in AuditPendingTransfers: finished base audit")
 
-	knownPendingTransferMap = acct.createAuditMap(true)
-	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", numPendingEntries(knownPendingTransferMap)))
-	acct.performAudit(ctx, knownPendingTransferMap, acct.nttWormchainConn, acct.nttContract)
+	knownPendingNttTransferMap := acct.createAuditMap(true)
+	acct.logger.Debug("in AuditPendingTransfers: starting ntt audit", zap.Int("numPending", numPendingEntries(knownPendingNttTransferMap)))
+	acct.performAudit(ctx, knownPendingNttTransferMap, acct.nttWormchainConn, acct.nttContract)
 	acct.logger.Debug("in AuditPendingTransfers: finished ntt audit")
 }
 
@@ -295,7 +295,7 @@ func (acct *Accountant) performAudit(ctx context.Context, knownPendingTransferMa
 	}
 
 	if len(knownPendingTransferMap) == 0 {
-		acct.logger.Debug("exiting performAudit")
+		acct.logger.Debug("exiting performAudit with no known pending transfers left")
 		return
 	}
 

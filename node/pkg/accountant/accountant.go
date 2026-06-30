@@ -490,13 +490,13 @@ func (acct *Accountant) submitToChannel(ctx context.Context, pe *pendingEntry, s
 			pe.state.submitPending = false
 			pe.stateLock.Unlock()
 		case <-ctx.Done():
-			acct.logger.Debug(fmt.Sprintf("context cancelled while submitting to %s channel", tag), zap.String("msgId", pe.msgId))
+			acct.logger.Warn(fmt.Sprintf("context cancelled while submitting to %s channel", tag), zap.String("msgId", pe.msgId))
 			pe.stateLock.Lock()
 			pe.state.submitPending = false
 			pe.stateLock.Unlock()
 		}
 	} else {
-		// Non-blocking write (existing behavior for processor)
+		// Non-blocking write
 		select {
 		case subChan <- pe.msg:
 			acct.logger.Debug(fmt.Sprintf("submitted observation to channel for %s", tag), zap.String("msgId", pe.msgId))
