@@ -86,16 +86,16 @@ impl Owned for Config {
 /// the canonical "role unassigned" encoding, and `api::pause` reverts before comparing the
 /// caller in that case (see whitepapers/0003_token_bridge.md Pausing).
 ///
-/// Tail layout (137-byte total Config account):
+/// Tail layout (137-byte total Config account). The three roles are stored in the same order as
+/// the `SetPauserAddresses` wire format — pauser, freezer, unpauser:
 ///   bytes  32 ..  33 : `paused`       (u8, exactly 0 or 1 — see `write_paused` / `paused()`)
 ///   bytes  33 ..  65 : `pauser`       (Pubkey)
-///   bytes  65 ..  97 : `unpauser`     (Pubkey)
-///   bytes  97 .. 129 : `freezer`      (Pubkey)
+///   bytes  65 ..  97 : `freezer`      (Pubkey)
+///   bytes  97 .. 129 : `unpauser`     (Pubkey)
 ///   bytes 129 .. 137 : `pause_expiry` (i64 LE, unix seconds — matches Clock.unix_timestamp)
 ///
-/// `freezer` and `pause_expiry` are APPENDED after the original pauser/unpauser tail so the
-/// existing offsets are preserved; the first `SetPauserAddresses` realloc's straight to the full
-/// 137-byte size (see `api::governance`). See whitepapers/0003_token_bridge.md Pausing.
+/// The first `SetPauserAddresses` realloc's straight to the full 137-byte size (see
+/// `api::governance`). See whitepapers/0003_token_bridge.md Pausing.
 
 // Account-size sentinels. A Config account is either CONFIG_BORSH_LEN (legacy / un-migrated, the
 // size at which the bridge `initialize` creates it) or CONFIG_WITH_PAUSER_LEN (post-migration).
@@ -104,12 +104,13 @@ pub const CONFIG_BORSH_LEN: usize = 32;
 pub const PAUSER_TAIL_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES + PUBKEY_BYTES + 8;
 pub const CONFIG_WITH_PAUSER_LEN: usize = CONFIG_BORSH_LEN + PAUSER_TAIL_LEN;
 
-// Byte offsets inside the tail (relative to the start of the Config account).
+// Byte offsets inside the tail (relative to the start of the Config account). Roles are laid out
+// in the same order as the `SetPauserAddresses` wire format: pauser, freezer, unpauser.
 pub const PAUSED_OFFSET: usize = CONFIG_BORSH_LEN;
 pub const PAUSER_OFFSET: usize = PAUSED_OFFSET + 1;
-pub const UNPAUSER_OFFSET: usize = PAUSER_OFFSET + PUBKEY_BYTES;
-pub const FREEZER_OFFSET: usize = UNPAUSER_OFFSET + PUBKEY_BYTES;
-pub const PAUSE_EXPIRY_OFFSET: usize = FREEZER_OFFSET + PUBKEY_BYTES;
+pub const FREEZER_OFFSET: usize = PAUSER_OFFSET + PUBKEY_BYTES;
+pub const UNPAUSER_OFFSET: usize = FREEZER_OFFSET + PUBKEY_BYTES;
+pub const PAUSE_EXPIRY_OFFSET: usize = UNPAUSER_OFFSET + PUBKEY_BYTES;
 
 // Pin offset/length relationships at compile time so a future tweak to the constants can't
 // silently corrupt the tail layout. (Written with `if ... { panic!() }` rather than `assert!`
