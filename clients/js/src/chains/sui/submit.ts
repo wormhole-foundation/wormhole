@@ -1,5 +1,9 @@
 import { Transaction } from "@mysten/sui/transactions";
-import { fromBase64 } from "@mysten/sui/utils";
+import {
+  fromBase64,
+  normalizeStructTag,
+  parseStructTag,
+} from "@mysten/sui/utils";
 import { Payload, impossible } from "../../vaa";
 import {
   assertSuccess,
@@ -357,7 +361,9 @@ const createWrappedOnSui = async (
 
   // WrappedAssetSetup is parametrized by <CoinType, VersionType>; the version
   // type is the second type argument.
-  const versionType = wrappedAssetSetupType.split(", ")[1].replace(">", "");
+  const versionType = normalizeStructTag(
+    parseStructTag(wrappedAssetSetupType).typeParams[1]
+  );
   tx.moveCall({
     target: `${tokenBridgePackageId}::create_wrapped::complete_registration`,
     arguments: [
