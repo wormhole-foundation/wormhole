@@ -237,32 +237,6 @@ export const fetchTransactionResult = async (
   return toSuiTransactionResult(tx);
 };
 
-/**
- * Paginate an owner's objects, optionally filtered by struct type, returning
- * the first object whose type matches exactly. Used as a fallback where the
- * server-side type filter is insufficient.
- */
-export const findOwnedObjectByType = async (
-  client: SuiGrpcClient,
-  owner: string,
-  type: string,
-  cursor?: string | null
-): Promise<string | null> => {
-  const res = await client.listOwnedObjects({
-    owner,
-    cursor: cursor ?? null,
-  });
-
-  const object = res.objects.find((o) => o.type === type);
-  if (object) {
-    return object.objectId;
-  }
-  if (res.hasNextPage) {
-    return findOwnedObjectByType(client, owner, type, res.cursor);
-  }
-  return null;
-};
-
 export const getCreatedObjects = (
   res: SuiTransactionResult
 ): { type: string; objectId: string; owner: string }[] =>
