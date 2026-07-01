@@ -158,7 +158,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     }
 
     /// @notice Freeze the bridge for the maximum duration. Only callable by the configured freezer.
-    ///         Sets `paused` and `pauseExpiry` to the maximum timestamp. The higher-trust
+    ///         Sets `paused` to `true` and `pauseExpiry` to the maximum timestamp. The higher-trust
     ///         counterpart to the temporary, self-expiring `pause`: a frozen bridge will not become
     ///         permissionlessly unpausable in practice and can only be lifted by the `unpauser`.
     ///         Idempotent.
