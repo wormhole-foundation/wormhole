@@ -11,10 +11,10 @@ use crate::{
         CONFIG_WITH_PAUSER_LEN,
     },
     TokenBridgeError::{
+        InvalidFreezer,
         InvalidPauser,
         InvalidSelfProgram,
         NotExpired,
-        NotFreezer,
         NotPaused,
         PauserNotConfigured,
     },
@@ -104,7 +104,7 @@ pub fn pause(ctx: &ExecutionContext, accs: &mut Pause, _data: PauseData) -> Resu
 
 #[derive(FromAccounts)]
 pub struct Freeze<'b> {
-    /// Caller must equal the configured freezer stored in the Config tail.
+    /// Caller must equal the freezer stored in Config.
     pub freezer: Signer<AccountInfo<'b>>,
 
     pub config: Mut<ConfigAccount<'b, { AccountState::Initialized }>>,
@@ -119,9 +119,9 @@ pub struct Freeze<'b> {
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct FreezeData {}
 
-/// Freeze the bridge for the maximum duration. Only callable by the configured freezer. Sets
-/// `paused` and `pause_expiry` to the maximum timestamp. The higher-trust counterpart to the
-/// temporary, self-expiring `pause`: a frozen bridge will not become permissionlessly unpausable
+/// Freeze the bridge. Only callable by the configured freezer. Sets
+/// `paused` to `true` and `pause_expiry` to the maximum timestamp. The higher-trust counterpart to the
+/// temporary `pause`: a frozen bridge will not become permissionlessly unpausable
 /// in practice and can only be lifted by the `unpauser`. Idempotent. Takes no Clock — it assigns a
 /// constant expiry.
 pub fn freeze(ctx: &ExecutionContext, accs: &mut Freeze, _data: FreezeData) -> Result<()> {
@@ -275,7 +275,7 @@ fn require_role(config_info: &AccountInfo, signer: &Pubkey, role: Role) -> Resul
     // Reject if the Config account hasn't been migrated yet (legacy layout → role unassigned).
     if config_info.data_len() < CONFIG_WITH_PAUSER_LEN {
         return match role {
-            Role::Freezer => Err(NotFreezer.into()),
+            Role::Freezer => Err(InvalidFreezer.into()),
             Role::Pauser | Role::Unpauser => Err(PauserNotConfigured.into()),
         };
     }
@@ -291,13 +291,13 @@ fn require_role(config_info: &AccountInfo, signer: &Pubkey, role: Role) -> Resul
     // requires the explicit check before comparing the caller).
     if configured == Pubkey::default() {
         return match role {
-            Role::Freezer => Err(NotFreezer.into()),
+            Role::Freezer => Err(InvalidFreezer.into()),
             Role::Pauser | Role::Unpauser => Err(PauserNotConfigured.into()),
         };
     }
     if &configured != signer {
         return match role {
-            Role::Freezer => Err(NotFreezer.into()),
+            Role::Freezer => Err(InvalidFreezer.into()),
             Role::Pauser | Role::Unpauser => Err(InvalidPauser.into()),
         };
     }

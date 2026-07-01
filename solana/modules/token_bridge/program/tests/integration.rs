@@ -1052,7 +1052,7 @@ async fn legacy_unmigrated_compat() {
         &context.payer,
     )
     .await
-    .expect_err("freeze must fail on un-migrated Config (NotFreezer)");
+    .expect_err("freeze must fail on un-migrated Config (InvalidFreezer)");
     // unpause_expired is permissionless but still requires `paused`; a legacy account is unpaused.
     common::unpause_expired(
         &mut context.client,
@@ -1268,16 +1268,16 @@ async fn set_pauser_addresses_all_zero_32_byte_is_unassigned() {
 async fn set_pauser_addresses_rejects_legacy_action_id() {
     let mut context = set_up().await.unwrap();
 
-    // The pre-merge SVM design used action 5. The whitepaper now mandates a single action 4
-    // shared across runtimes (the per-runtime split was explicitly rejected in the
-    // "Alternatives Considered" section). A VAA carrying the old action 5 must be rejected.
+    // Whitepaper 0003 mandates a single action 4 for `SetPauserAddresses`, shared across runtimes
+    // (a per-runtime action split was explicitly rejected in "Alternatives Considered"). A VAA
+    // carrying any other action — e.g. 5 — must be rejected even if otherwise well-formed.
     let mut payload =
         build_set_pauser_addresses_payload(32, &[0u8; 32], 32, &[0u8; 32], 32, &[0u8; 32]);
-    payload[32] = 5; // overwrite action byte (otherwise a well-formed 3-address payload)
+    payload[32] = 5; // overwrite the action byte (otherwise a well-formed 3-address payload)
 
     submit_raw_set_pauser_addresses(&mut context, payload)
         .await
-        .expect_err("legacy action 5 must be rejected (current spec is action 4)");
+        .expect_err("action 5 must be rejected (only action 4 is valid)");
 }
 
 // ==================== Paused gate coverage across user entry points ====================
@@ -1783,8 +1783,7 @@ async fn pause_on_already_paused_succeeds() {
 #[tokio::test]
 async fn unpause_reverts_when_not_paused() {
     // Per whitepaper 0003, `unpause` is NOT a no-op on an unpaused bridge — it reverts with
-    // `NotPaused`. (This is the behavior change from the pre-expiry design, matching EVM/SUI:
-    // `unpause`/`unpause_expired` both require the bridge to actually be paused.)
+    // `NotPaused`. Both `unpause` and `unpause_expired` require the bridge to actually be paused.
     let mut context = set_up().await.unwrap();
 
     let pauser = Keypair::new();
@@ -1943,7 +1942,7 @@ async fn freeze_blocks_transfer_and_unpause_restores() {
         &context.payer,
     )
     .await
-    .expect_err("freeze from wrong signer must fail with NotFreezer");
+    .expect_err("freeze from wrong signer must fail with InvalidFreezer");
 
     // Configured freezer freezes: paused = true, expiry = i64::MAX.
     common::freeze(
@@ -2289,7 +2288,7 @@ async fn pause_freeze_unpause_roles_are_distinct() {
         &context.payer,
     )
     .await
-    .expect_err("pauser must not be able to freeze (NotFreezer)");
+    .expect_err("pauser must not be able to freeze (InvalidFreezer)");
 
     // freezer cannot pause.
     common::pause(
