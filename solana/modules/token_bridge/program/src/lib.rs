@@ -120,7 +120,7 @@ pub enum TokenBridgeError {
     // numeric position (`t as u64`), so inserting in the middle would renumber existing error
     // codes. Always append.
     /// Caller of `freeze` is not the configured freezer (or the freezer role is unassigned).
-    NotFreezer,
+    InvalidFreezer,
     /// `unpause` / `unpause_expired` was called while the bridge is not paused.
     NotPaused,
     /// `unpause_expired` was called before the current pause has expired (`now < pause_expiry`).
@@ -151,8 +151,6 @@ solitaire! {
     SetPauserAddresses => set_pauser_addresses,
     Pause => pause,
     Unpause => unpause,
-    // Appended after the existing instructions so their dispatch indices (the on-chain
-    // instruction discriminators) stay stable.
     Freeze => freeze,
     UnpauseExpired => unpause_expired,
 }

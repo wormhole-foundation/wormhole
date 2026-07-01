@@ -216,7 +216,7 @@ pub fn set_pauser_addresses(
 
     // One-time migration: the Config account is created by the bridge `initialize` at its
     // original 32-byte size; the first time this VAA is processed it grows straight to the full
-    // CONFIG_WITH_PAUSER_LEN (137) bytes. Subsequent VAAs reuse the already-extended layout. The
+    // [`CONFIG_WITH_PAUSER_LEN`] bytes. Subsequent VAAs reuse the already-extended layout. The
     // `paused` flag and `pause_expiry` are preserved across updates — rotating the
     // pauser/freezer/unpauser keys does not implicitly unpause the bridge.
     //
