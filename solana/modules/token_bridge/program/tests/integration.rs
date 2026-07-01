@@ -2196,7 +2196,9 @@ async fn unpause_expired_rejects_before_expiry() {
     )
     .await
     .unwrap();
-    assert!(read_paused(&fetch_config_data(&mut context).await));
+    let paused_data = fetch_config_data(&mut context).await;
+    assert!(read_paused(&paused_data));
+    let expiry_before = read_pause_expiry(&paused_data);
 
     // Any fee payer may attempt unpause_expired — here a random stranger.
     let stranger = Keypair::new();
@@ -2216,9 +2218,16 @@ async fn unpause_expired_rejects_before_expiry() {
     )
     .await
     .expect_err("unpause_expired before expiry must revert with NotExpired");
+    // The rejected call must leave state untouched: still paused, same expiry.
+    let after = fetch_config_data(&mut context).await;
     assert!(
-        read_paused(&fetch_config_data(&mut context).await),
+        read_paused(&after),
         "bridge must remain paused after a rejected unpause_expired",
+    );
+    assert_eq!(
+        read_pause_expiry(&after),
+        expiry_before,
+        "a rejected unpause_expired must not change pause_expiry",
     );
 }
 
