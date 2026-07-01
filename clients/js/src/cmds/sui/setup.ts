@@ -235,7 +235,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 const getEmitterCapObjectId = async (
   client: SuiGrpcClient,
   tokenBridgeStateObjectId: string
-): Promise<string> => {
+): Promise<string | undefined> => {
   const fields = await getObjectFields(client, tokenBridgeStateObjectId);
   return fields?.emitter_cap?.id;
 };
