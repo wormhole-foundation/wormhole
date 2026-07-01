@@ -76,6 +76,9 @@ pub struct PauseData {}
 pub fn pause(ctx: &ExecutionContext, accs: &mut Pause, _data: PauseData) -> Result<()> {
     let config_info = accs.config.info();
     require_role(config_info, accs.pauser.key, Role::Pauser)?;
+    if accs.self_program.key != ctx.program_id {
+        return Err(InvalidSelfProgram.into());
+    }
 
     let new_expiry = accs.clock.unix_timestamp.saturating_add(PAUSE_DURATION);
     {
@@ -87,9 +90,6 @@ pub fn pause(ctx: &ExecutionContext, accs: &mut Pause, _data: PauseData) -> Resu
         write_paused(&mut data, true);
     }
 
-    if accs.self_program.key != ctx.program_id {
-        return Err(InvalidSelfProgram.into());
-    }
     let expiry = pause_expiry(&config_info.data.borrow());
     let mut payload = [0u8; 40];
     payload[..32].copy_from_slice(&accs.pauser.key.to_bytes());
@@ -127,6 +127,9 @@ pub struct FreezeData {}
 pub fn freeze(ctx: &ExecutionContext, accs: &mut Freeze, _data: FreezeData) -> Result<()> {
     let config_info = accs.config.info();
     require_role(config_info, accs.freezer.key, Role::Freezer)?;
+    if accs.self_program.key != ctx.program_id {
+        return Err(InvalidSelfProgram.into());
+    }
 
     {
         let mut data = config_info.data.borrow_mut();
@@ -134,9 +137,6 @@ pub fn freeze(ctx: &ExecutionContext, accs: &mut Freeze, _data: FreezeData) -> R
         write_paused(&mut data, true);
     }
 
-    if accs.self_program.key != ctx.program_id {
-        return Err(InvalidSelfProgram.into());
-    }
     let mut payload = [0u8; 40];
     payload[..32].copy_from_slice(&accs.freezer.key.to_bytes());
     payload[32..].copy_from_slice(&i64::MAX.to_le_bytes());
@@ -177,6 +177,9 @@ pub struct UnpauseData {}
 pub fn unpause(ctx: &ExecutionContext, accs: &mut Unpause, _data: UnpauseData) -> Result<()> {
     let config_info = accs.config.info();
     require_role(config_info, accs.unpauser.key, Role::Unpauser)?;
+    if accs.self_program.key != ctx.program_id {
+        return Err(InvalidSelfProgram.into());
+    }
 
     {
         let mut data = config_info.data.borrow_mut();
@@ -187,9 +190,6 @@ pub fn unpause(ctx: &ExecutionContext, accs: &mut Unpause, _data: UnpauseData) -
         write_paused(&mut data, false);
     }
 
-    if accs.self_program.key != ctx.program_id {
-        return Err(InvalidSelfProgram.into());
-    }
     emit_event_cpi(
         ctx,
         &accs.event_authority,
@@ -234,7 +234,10 @@ pub fn unpause_expired(
 
     // Migration check: a legacy (un-extended) Config can never be paused, but guard explicitly.
     if config_info.data_len() < CONFIG_WITH_PAUSER_LEN {
-        return Err(NotPaused.into());
+        return Err(PauserNotConfigured.into());
+    }
+    if accs.self_program.key != ctx.program_id {
+        return Err(InvalidSelfProgram.into());
     }
 
     {
@@ -249,9 +252,6 @@ pub fn unpause_expired(
         write_paused(&mut data, false);
     }
 
-    if accs.self_program.key != ctx.program_id {
-        return Err(InvalidSelfProgram.into());
-    }
     emit_event_cpi(
         ctx,
         &accs.event_authority,
@@ -274,10 +274,7 @@ enum Role {
 fn require_role(config_info: &AccountInfo, signer: &Pubkey, role: Role) -> Result<()> {
     // Reject if the Config account hasn't been migrated yet (legacy layout → role unassigned).
     if config_info.data_len() < CONFIG_WITH_PAUSER_LEN {
-        return match role {
-            Role::Freezer => Err(InvalidFreezer.into()),
-            Role::Pauser | Role::Unpauser => Err(PauserNotConfigured.into()),
-        };
+        return Err(PauserNotConfigured.into());
     }
 
     let data = config_info.data.borrow();
@@ -290,10 +287,7 @@ fn require_role(config_info: &AccountInfo, signer: &Pubkey, role: Role) -> Resul
     // Unassigned-role check first (the zero pubkey can't be a Signer in practice, but the spec
     // requires the explicit check before comparing the caller).
     if configured == Pubkey::default() {
-        return match role {
-            Role::Freezer => Err(InvalidFreezer.into()),
-            Role::Pauser | Role::Unpauser => Err(PauserNotConfigured.into()),
-        };
+        return Err(PauserNotConfigured.into());
     }
     if &configured != signer {
         return match role {
