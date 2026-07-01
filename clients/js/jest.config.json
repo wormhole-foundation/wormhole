@@ -16,9 +16,7 @@
       }
     ]
   },
-  "transformIgnorePatterns": [
-    "node_modules/(?!(?:@mysten|@noble|@scure)/)"
-  ],
+  "transformIgnorePatterns": ["node_modules/(?!(?:@mysten|@noble|@scure)/)"],
   "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
   "testPathIgnorePatterns": ["__tests__/utils"],
   "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node"],
