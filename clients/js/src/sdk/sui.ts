@@ -143,9 +143,14 @@ export const getTokenCoinType = async (
     // The dynamic-field value is an `ascii::String` holding the coin type.
     const coinType = bcs.string().parse(res.dynamicField.value.bcs);
     return coinType ? trimSuiType(ensureHexPrefix(coinType)) : null;
-  } catch {
-    // Field not found -> the asset is not registered.
-    return null;
+  } catch (e) {
+    // The gRPC transport reports a missing dynamic field as a plain
+    // "Object 0x... not found" error, meaning the asset is not registered.
+    // Anything else (transport failure, malformed data) must propagate.
+    if (e instanceof Error && e.message.endsWith("not found")) {
+      return null;
+    }
+    throw e;
   }
 };
 
