@@ -777,6 +777,86 @@ func TestCalculateEmitterAddress_DifferentTokens(t *testing.T) {
 }
 
 // =============================================================================
+// calculateGeneratedEmitterAddress tests
+// =============================================================================
+
+func TestCalculateGeneratedEmitterAddress_Layout(t *testing.T) {
+	p := NewParser("", nil, nil)
+
+	emitter, err := p.calculateGeneratedEmitterAddress(testManagedAccount)
+	require.NoError(t, err)
+
+	// First 4 bytes are the "XRPL" prefix.
+	assert.Equal(t, generatedEmitterPrefix[:], emitter[0:4])
+	// Bytes 4..12 are zero padding.
+	assert.Equal(t, make([]byte, 8), emitter[4:12])
+	// Last 20 bytes are the raw account ID, recoverable from the emitter.
+	rawEmitter, err := p.addressToEmitter(testManagedAccount)
+	require.NoError(t, err)
+	assert.Equal(t, rawEmitter[12:32], emitter[12:32])
+}
+
+func TestCalculateGeneratedEmitterAddress_Deterministic(t *testing.T) {
+	p := NewParser("", nil, nil)
+
+	emitter1, err := p.calculateGeneratedEmitterAddress(testManagedAccount)
+	require.NoError(t, err)
+	emitter2, err := p.calculateGeneratedEmitterAddress(testManagedAccount)
+	require.NoError(t, err)
+
+	assert.Equal(t, emitter1, emitter2)
+}
+
+func TestCalculateGeneratedEmitterAddress_DifferentFromCoreEmitter(t *testing.T) {
+	// The generated emitter must differ from the raw account emitter used by core bridge
+	// messages, so that a generated message cannot be forged by paying the core account.
+	p := NewParser("", nil, nil)
+
+	rawEmitter, err := p.addressToEmitter(testManagedAccount)
+	require.NoError(t, err)
+	generatedEmitter, err := p.calculateGeneratedEmitterAddress(testManagedAccount)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, rawEmitter, generatedEmitter, "generated emitter must differ from raw core emitter")
+	// The raw core emitter has 12 leading zero bytes; the generated emitter must not.
+	assert.NotEqual(t, make([]byte, 12), generatedEmitter[0:12], "generated emitter must not have a zero 12-byte prefix")
+}
+
+func TestCalculateGeneratedEmitterAddress_DifferentAccounts(t *testing.T) {
+	p := NewParser("", nil, nil)
+
+	emitter1, err := p.calculateGeneratedEmitterAddress(testManagedAccount)
+	require.NoError(t, err)
+	emitter2, err := p.calculateGeneratedEmitterAddress(testCoreAccount)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, emitter1, emitter2, "different accounts must produce different emitters")
+}
+
+func TestCalculateGeneratedEmitterAddress_InvalidAddress(t *testing.T) {
+	p := NewParser("", nil, nil)
+
+	_, err := p.calculateGeneratedEmitterAddress("not-a-valid-xrpl-address")
+	assert.Error(t, err)
+}
+
+func TestGeneratedEmitter_XACKAndXTCFShareEmitter(t *testing.T) {
+	// XACK and XTCF messages from the same account intentionally share one emitter address;
+	// they are distinguished by their payload prefix, not the emitter.
+	p := NewParser("", []string{testManagedAccount}, nil)
+
+	xtcfMsg, err := p.parseTicketCreateTransaction(createTicketCreateTx(testManagedAccount, []float64{100, 101}))
+	require.NoError(t, err)
+	require.NotNil(t, xtcfMsg)
+
+	xackMsg, err := p.parseXACKTransaction(createXACKTx(testManagedAccount, "Payment", 42, "tesSUCCESS"))
+	require.NoError(t, err)
+	require.NotNil(t, xackMsg)
+
+	assert.Equal(t, xtcfMsg.EmitterAddress, xackMsg.EmitterAddress, "XACK and XTCF from the same account share an emitter")
+}
+
+// =============================================================================
 // buildNTTPayload tests
 // =============================================================================
 
@@ -2554,6 +2634,15 @@ func TestParseTicketCreateTransaction_Success(t *testing.T) {
 	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
 	expectedSequence := (uint64(50000) << 32) | 3
 	assert.Equal(t, expectedSequence, msg.Sequence)
+
+	// Verify emitter uses the generated-message derivation ("XRPL" prefix), not the raw
+	// account emitter used by core bridge messages.
+	expectedEmitter, err := p.calculateGeneratedEmitterAddress(testManagedAccount)
+	require.NoError(t, err)
+	assert.Equal(t, expectedEmitter, msg.EmitterAddress)
+	rawEmitter, err := p.addressToEmitter(testManagedAccount)
+	require.NoError(t, err)
+	assert.NotEqual(t, rawEmitter, msg.EmitterAddress, "XTCF emitter must differ from raw account emitter")
 }
 
 func TestParseTicketCreateTransaction_NotManagedAccount(t *testing.T) {
@@ -3401,6 +3490,15 @@ func TestParseXACKTransaction_ReleasePaymentSuccess(t *testing.T) {
 	// Verify nonce and consistency level
 	assert.Equal(t, uint32(0), msg.Nonce)
 	assert.Equal(t, uint8(0), msg.ConsistencyLevel)
+
+	// Verify emitter uses the generated-message derivation ("XRPL" prefix), not the raw
+	// account emitter used by core bridge messages.
+	expectedEmitter, err := p.calculateGeneratedEmitterAddress(testManagedAccount)
+	require.NoError(t, err)
+	assert.Equal(t, expectedEmitter, msg.EmitterAddress)
+	rawEmitter, err := p.addressToEmitter(testManagedAccount)
+	require.NoError(t, err)
+	assert.NotEqual(t, rawEmitter, msg.EmitterAddress, "XACK emitter must differ from raw account emitter")
 }
 
 func TestParseXACKTransaction_ReleasePaymentFailure(t *testing.T) {
