@@ -1052,7 +1052,7 @@ async fn legacy_unmigrated_compat() {
         &context.payer,
     )
     .await
-    .expect_err("freeze must fail on un-migrated Config (InvalidFreezer)");
+    .expect_err("freeze must fail on un-migrated Config (PauserNotConfigured)");
     // unpause_expired is permissionless but still requires `paused`; a legacy account is unpaused.
     common::unpause_expired(
         &mut context.client,
