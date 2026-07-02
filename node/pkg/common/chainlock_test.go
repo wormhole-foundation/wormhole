@@ -136,6 +136,19 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 			},
 		},
 		{
+			name: "data too short - after non-empty TxID",
+			errorChecker: func(t *testing.T, err error) {
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "data too short after reading TxID")
+			},
+			setupData: func() []byte {
+				data := make([]byte, 1+1+fixedFieldsLen-1)
+				data[offsetTxIDLength] = 1
+				return data
+			},
+		},
+		{
 			name:        "invalid IsReobservation boolean - value 0x02",
 			expectedErr: ErrInvalidBinaryBool,
 			setupData: func() []byte {
@@ -299,7 +312,7 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 func FuzzMessagePublicationUnmarshalBinary(f *testing.F) {
 	// Create a valid message publication for seeding
 	orig := &MessagePublication{
-		TxID:              make([]byte, TxIDLenMin), // Use minimum valid TxID length
+		TxID:              make([]byte, 32), // 32-byte tx hash (typical Ethereum hash)
 		Timestamp:         time.Unix(int64(1654516425), 0),
 		Nonce:             123456,
 		Sequence:          789101112131415,
@@ -348,9 +361,6 @@ func FuzzMessagePublicationUnmarshalBinary(f *testing.F) {
 			// Basic sanity checks on the unmarshaled data
 			if len(mp.TxID) > 255 {
 				t.Errorf("TxID length %d exceeds maximum of 255", len(mp.TxID))
-			}
-			if len(mp.TxID) < TxIDLenMin && len(mp.TxID) > 0 {
-				t.Errorf("TxID length %d is less than minimum of %d (unless empty)", len(mp.TxID), TxIDLenMin)
 			}
 
 			// Verify that a successful unmarshal can be marshaled back
