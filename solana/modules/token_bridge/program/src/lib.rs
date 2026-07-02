@@ -125,6 +125,10 @@ pub enum TokenBridgeError {
     NotPaused,
     /// `unpause_expired` was called before the current pause has expired (`now < pause_expiry`).
     NotExpired,
+    /// `pause` would not push `pause_expiry` strictly forward — the bridge already has an
+    /// equal-or-later expiry (e.g. it is frozen, or a same-slot re-pause). A pauser must not be
+    /// able to reduce a `freeze`, and a no-op call reverts rather than emitting a misleading event.
+    PauseNotExtended,
 }
 
 impl From<TokenBridgeError> for SolitaireError {

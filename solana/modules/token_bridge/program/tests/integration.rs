@@ -1727,58 +1727,16 @@ async fn rotate_pauser_addresses_while_paused() {
     assert!(!read_paused(&fetch_config_data(&mut context).await));
 }
 
-// ==================== Idempotency tests ====================
+// ==================== pause extend / revert semantics ====================
 //
-// whitepaper 0003 "Pausing" specifies that while paused, every user entry point reverts except for
-// governance handlers, `pause`, `freeze`, and `unpause`/`unpause_expired`. Re-`pause`ing an
-// already-paused bridge succeeds (it only ever extends the expiry forward). In contrast,
-// `unpause`/`unpause_expired` REQUIRE the bridge to be paused — calling them on an unpaused bridge
-// reverts with `NotPaused` (see `unpause_reverts_when_not_paused`). `SetPauserAddresses` is governed
-// by VAA replay protection (the Claim PDA), so re-submitting the same payload via a *fresh* VAA
-// succeeds and rewrites the tail with identical bytes.
-
-#[tokio::test]
-async fn pause_on_already_paused_succeeds() {
-    // `pause` is intentionally NOT a strict no-op on an already-paused bridge: a second call
-    // refreshes the expiry window forward (never reduces it). What must hold is that a repeat
-    // pause always succeeds and the bridge stays paused.
-    let mut context = set_up().await.unwrap();
-
-    let pauser = Keypair::new();
-    let freezer = Pubkey::new_unique();
-    let unpauser = Keypair::new();
-    common::transfer(
-        &mut context.client,
-        &context.payer,
-        &pauser.pubkey(),
-        1_000_000_000,
-    )
-    .await
-    .unwrap();
-    submit_set_pauser_addresses(&mut context, pauser.pubkey(), freezer, unpauser.pubkey()).await;
-
-    // First pause: false -> true.
-    common::pause(
-        &mut context.client,
-        context.token_bridge,
-        &pauser,
-        &context.payer,
-    )
-    .await
-    .unwrap();
-    assert!(read_paused(&fetch_config_data(&mut context).await));
-
-    // Second pause on an already-paused bridge: succeeds, stays paused.
-    common::pause(
-        &mut context.client,
-        context.token_bridge,
-        &pauser,
-        &context.payer,
-    )
-    .await
-    .expect("pause on already-paused bridge must succeed");
-    assert!(read_paused(&fetch_config_data(&mut context).await));
-}
+// whitepaper 0003 "Pausing": `pause` must push `pause_expiry` strictly forward (a fresh pause is
+// covered by `pause_sets_timed_expiry`); a `pause` that cannot move the expiry forward — e.g. the
+// bridge is already frozen — reverts with `PauseNotExtended` (see `pause_reverts_when_frozen`)
+// rather than emitting a misleading success, so `pause` is NOT idempotent. In contrast,
+// `unpause`/`unpause_expired` REQUIRE the bridge to be paused — calling
+// them on an unpaused bridge reverts with `NotPaused` (see `unpause_reverts_when_not_paused`).
+// `SetPauserAddresses` is governed by VAA replay protection (the Claim PDA), so re-submitting the
+// same payload via a *fresh* VAA succeeds and rewrites the tail with identical bytes.
 
 #[tokio::test]
 async fn unpause_reverts_when_not_paused() {
@@ -2051,10 +2009,11 @@ async fn freeze_is_idempotent() {
 }
 
 #[tokio::test]
-async fn pause_does_not_curtail_freeze() {
+async fn pause_reverts_when_frozen() {
     // A `pause` must never reduce a `pause_expiry` that is already further in the future. After a
-    // `freeze` (expiry = i64::MAX), a subsequent `pause` keeps the expiry at i64::MAX — a
-    // lower-trust pauser cannot shorten a freeze into a 5-day window.
+    // `freeze` (expiry = i64::MAX), a subsequent `pause` cannot push the expiry forward, so it
+    // reverts with `PauseNotExtended` — a lower-trust pauser cannot shorten a freeze into a 5-day
+    // window, and the freeze's expiry is left untouched.
     let mut context = set_up().await.unwrap();
 
     let pauser = Keypair::new();
@@ -2091,7 +2050,8 @@ async fn pause_does_not_curtail_freeze() {
         i64::MAX
     );
 
-    // Pause while frozen: still paused, expiry still i64::MAX (never curtailed).
+    // Pause while frozen: cannot extend past i64::MAX, so it reverts. Still paused, expiry
+    // unchanged at i64::MAX (never curtailed).
     common::pause(
         &mut context.client,
         context.token_bridge,
@@ -2099,7 +2059,7 @@ async fn pause_does_not_curtail_freeze() {
         &context.payer,
     )
     .await
-    .unwrap();
+    .expect_err("pause on a frozen bridge must revert with PauseNotExtended");
     let data = fetch_config_data(&mut context).await;
     assert!(read_paused(&data));
     assert_eq!(
