@@ -80,11 +80,19 @@ contract BridgeGetters is BridgeState {
         return BridgePauserStorage.data().pauser;
     }
 
+    function freezer() public view returns (address) {
+        return BridgePauserStorage.data().freezer;
+    }
+
     function unpauser() public view returns (address) {
         return BridgePauserStorage.data().unpauser;
     }
 
     function paused() public view returns (bool) {
         return _state.provider.paused;
+    }
+
+    function pauseExpiry() public view returns (uint64) {
+        return BridgePauserStorage.data().pauseExpiry;
     }
 }
