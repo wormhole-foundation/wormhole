@@ -429,7 +429,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	// This value is later converted to uint32 for use in protobuf, but before that
 	// we should make sure it fits into uint16 to disallow numbers > max.Uint16
 	// from being serialized.
-	chainId, err := strconv.ParseUint(args[0], 10, 16)
+	chainID, err := strconv.ParseUint(args[0], 10, 16)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
@@ -446,7 +446,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	defer conn.Close()
 
 	msg := nodev1.FindMissingMessagesRequest{
-		EmitterChain:   uint32(chainId),
+		EmitterChain:   uint32(chainID),
 		EmitterAddress: emitterAddress,
 		RpcBackfill:    *shouldBackfill,
 		BackfillNodes:  sdk.PublicRPCEndpoints,
@@ -467,22 +467,12 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 // runDumpVAAByMessageID uses GetSignedVAA to request the given message,
 // then decode and dump the VAA.
 func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
-	// Parse the {chain,emitter,seq} string.
-	parts := strings.Split(args[0], "/")
-	if len(parts) != 3 {
-		log.Fatalf("invalid message ID: %s", args[0])
-	}
 	// Parse string ChainID as uint16 to ensure it fits the vaa.ChainID type.
 	// There is no "known" check here as Guardians may want to dump messages
 	// even for deprecated chains.
-	chainId, err := strconv.ParseUint(parts[0], 10, 16)
+	vaaID, err := vaa.VAAIDFromString(args[0])
 	if err != nil {
-		log.Fatalf("invalid chain ID: %v", err)
-	}
-	emitterAddress := parts[1]
-	seq, err := strconv.ParseUint(parts[2], 10, 64)
-	if err != nil {
-		log.Fatalf("invalid sequence number: %v", err)
+		log.Fatalf("invalid message ID %q: %v", args[0], err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -496,9 +486,9 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 
 	msg := publicrpcv1.GetSignedVAARequest{
 		MessageId: &publicrpcv1.MessageID{
-			EmitterChain:   publicrpcv1.ChainID(chainId),
-			EmitterAddress: emitterAddress,
-			Sequence:       seq,
+			EmitterChain:   publicrpcv1.ChainID(vaaID.EmitterChain),
+			EmitterAddress: vaaID.EmitterAddress.String(),
+			Sequence:       vaaID.Sequence,
 		},
 	}
 	resp, err := c.GetSignedVAA(ctx, &msg)
@@ -520,7 +510,7 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 }
 
 func runSendObservationRequest(cmd *cobra.Command, args []string) {
-	chainID, err := parseChainID(args[0])
+	chainID, err := vaa.StringToChainID(args[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
@@ -557,7 +547,7 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 }
 
 func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
-	chainID, err := parseChainID(args[0])
+	chainID, err := vaa.StringToChainID(args[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
@@ -706,14 +696,18 @@ func delegateObservationVAAHash(obs *wormholescanDelegateObservation) (string, e
 // broadcast per unique message publication. This is necessary because a DelegateSignaturesBroadcast
 // carries common fields (including TxHash) that must be identical for all signatures in a batch.
 func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholescanDelegateObservation) ([]*gossipv1.DelegateSignaturesBroadcast, error) {
-	parts := strings.Split(vaaID, "/")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("vaa_id must be in format chain/emitter/sequence")
-	}
-	chainID := parts[0]
-
 	if len(apiObservations) == 0 {
 		return nil, fmt.Errorf("no delegate observations provided")
+	}
+
+	parsedVAAID, err := vaa.VAAIDFromString(vaaID)
+	if err != nil {
+		return nil, fmt.Errorf("vaa_id must be in format chain/emitter/sequence: %w", err)
+	}
+
+	chainID, err := vaa.KnownChainIDFromNumber(parsedVAAID.EmitterChain)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain ID: %v", err)
 	}
 
 	// Step 1: Group observations by VAA body hash — pick the group with the most signatures.
@@ -761,11 +755,6 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 			mpGroups[h] = g
 		}
 		g.observations = append(g.observations, obs)
-	}
-
-	chainIDParsed, err := vaa.StringToKnownChainID(chainID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid chain ID: %v", err)
 	}
 
 	// Step 3: Build one broadcast per MessagePublicationHash sub-group.
@@ -839,15 +828,15 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 			d := &gossipv1.DelegateObservation{
 				Timestamp:         timestamp,
 				Nonce:             ref.Nonce,
-				EmitterChain:      uint32(chainIDParsed), // #nosec G115
+				EmitterChain:      uint32(chainID),
 				EmitterAddress:    emitterAddrBytes,
 				Sequence:          ref.Sequence,
-				ConsistencyLevel:  uint32(ref.ConsistencyLevel), // #nosec G115
+				ConsistencyLevel:  uint32(ref.ConsistencyLevel),
 				Payload:           payloadBytes,
 				TxHash:            txHashBytes,
 				Unreliable:        obs.Unreliable,
 				IsReobservation:   obs.IsReobservation,
-				VerificationState: uint32(obs.VerificationState), // #nosec G115
+				VerificationState: uint32(obs.VerificationState),
 				GuardianAddr:      guardianAddrBytes,
 				SentTimestamp:     sentTimestamp,
 			}
@@ -882,15 +871,15 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 		broadcasts = append(broadcasts, &gossipv1.DelegateSignaturesBroadcast{
 			Timestamp:          timestamp,
 			Nonce:              ref.Nonce,
-			EmitterChain:       uint32(chainIDParsed), // #nosec G115
+			EmitterChain:       uint32(chainID),
 			EmitterAddress:     emitterAddrBytes,
 			Sequence:           ref.Sequence,
-			ConsistencyLevel:   uint32(ref.ConsistencyLevel), // #nosec G115
+			ConsistencyLevel:   uint32(ref.ConsistencyLevel),
 			Payload:            payloadBytes,
 			TxHash:             txHashBytes,
 			Unreliable:         ref.Unreliable,
 			IsReobservation:    ref.IsReobservation,
-			VerificationState:  uint32(ref.VerificationState), // #nosec G115
+			VerificationState:  uint32(ref.VerificationState),
 			Signatures:         signatures,
 			BroadcastTimestamp: time.Now().Unix(),
 		})
@@ -906,21 +895,13 @@ func buildDelegateSignaturesBroadcasts(vaaID string, apiObservations []wormholes
 func runBroadcastDelegateSignatures(cmd *cobra.Command, args []string) {
 	vaaID := args[0]
 
-	// Parse VAA ID: chain/emitter/sequence
-	parts := strings.Split(vaaID, "/")
-	if len(parts) != 3 {
-		log.Fatalf("vaa_id must be in format chain/emitter/sequence")
-	}
-	chainID := parts[0]
-	emitterAddr := parts[1]
-	sequence := parts[2]
-
-	if _, err := vaa.StringToKnownChainID(chainID); err != nil {
-		log.Fatalf("invalid chain ID %q: %v", chainID, err)
+	parsedVAAID, err := vaa.VAAIDFromString(vaaID)
+	if err != nil {
+		log.Fatalf("invalid vaa_id %q: %v", vaaID, err)
 	}
 
 	// Fetch delegate observations from wormholescan API.
-	apiURL := fmt.Sprintf("https://api.wormholescan.io/api/v1/observations/delegate/%s/%s/%s", chainID, emitterAddr, sequence)
+	apiURL := fmt.Sprintf("https://api.wormholescan.io/api/v1/observations/delegate/%s", parsedVAAID.String())
 	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, apiURL, nil)
 	if err != nil {
 		log.Fatalf("failed to create HTTP request: %v", err)

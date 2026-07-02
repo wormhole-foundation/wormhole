@@ -502,7 +502,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					return err
 				}
 			case m := <-s.obsvReqC:
-				chainId, err := vaa.KnownChainIDFromNumber[uint32](m.ChainId)
+				chainID, err := vaa.KnownChainIDFromNumber[uint32](m.ChainId)
 				if err != nil {
 					logger.Error("invalid chain id for observation request",
 						zap.Uint32("chainID", m.ChainId),
@@ -513,16 +513,16 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				}
 
 				//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
-				numObservations, err := s.handleReobservationRequest(chainId, m.TxHash, s.rpcClient)
+				numObservations, err := s.handleReobservationRequest(chainID, m.TxHash, s.rpcClient)
 				if err != nil {
 					logger.Error("failed to process observation request",
-						zap.Uint32("chainID", m.ChainId),
+						zap.Uint16("chainID", uint16(chainID)),
 						zap.String("identifier", base58.Encode(m.TxHash)),
 						zap.Error(err),
 					)
 				} else {
 					logger.Info("reobserved transactions",
-						zap.Uint32("chainID", m.ChainId),
+						zap.Uint16("chainID", uint16(chainID)),
 						zap.String("identifier", base58.Encode(m.TxHash)),
 						zap.Uint32("numObservations", numObservations),
 					)

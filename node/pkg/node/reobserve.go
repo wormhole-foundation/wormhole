@@ -62,7 +62,7 @@ func handleReobservationRequests(
 				}
 			}
 		case req := <-obsvReqC:
-			chainId, err := vaa.KnownChainIDFromNumber[uint32](req.ChainId)
+			chainID, err := vaa.KnownChainIDFromNumber[uint32](req.ChainId)
 			if err != nil {
 				logger.Error("invalid chain id in reobservation request",
 					zap.Uint32("chain_id", req.ChainId),
@@ -72,7 +72,7 @@ func handleReobservationRequests(
 			}
 
 			r := cachedRequest{
-				chainId: chainId,
+				chainId: chainID,
 				txHash:  hex.EncodeToString(req.TxHash),
 			}
 
