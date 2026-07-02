@@ -625,7 +625,7 @@ var adminCommandTest = []adminCommandTestEntry{
 				}`,
 	},
 
-	// build/bin/guardiand template bridge-set-pauser-addresses --target-chain-id ethereum --pauser aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --unpauser bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+	// build/bin/guardiand template bridge-set-pauser-addresses --target-chain-id ethereum --pauser aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --freezer dddddddddddddddddddddddddddddddddddddddd --unpauser bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 	{
 		label:   "BridgeSetPauserAddresses success EVM",
 		errText: "",
@@ -638,6 +638,7 @@ var adminCommandTest = []adminCommandTestEntry{
 						module: "TokenBridge"
 						target_chain_id: 2
 						pauser: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+						freezer: "dddddddddddddddddddddddddddddddddddddddd"
 						unpauser: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 					}
 				}`,
@@ -760,6 +761,21 @@ var adminCommandTest = []adminCommandTestEntry{
 						module: "TokenBridge"
 						target_chain_id: 2
 						pauser: "Hello, World!"
+					}
+				}`,
+	},
+	{
+		label:   "BridgeSetPauserAddresses invalid freezer hex",
+		errText: "invalid freezer address encoding",
+		prototext: `
+				current_set_index: 4
+				messages: {
+					sequence: 1
+					nonce: 2
+					bridge_set_pauser_addresses: {
+						module: "TokenBridge"
+						target_chain_id: 2
+						freezer: "Hello, World!"
 					}
 				}`,
 	},

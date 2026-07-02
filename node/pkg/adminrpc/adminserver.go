@@ -326,6 +326,10 @@ func tokenBridgeSetPauserAddresses(req *nodev1.BridgeSetPauserAddresses, timesta
 	if err != nil {
 		return nil, err
 	}
+	freezer, err := decodePauserAddress("freezer", req.Freezer)
+	if err != nil {
+		return nil, err
+	}
 	unpauser, err := decodePauserAddress("unpauser", req.Unpauser)
 	if err != nil {
 		return nil, err
@@ -335,6 +339,7 @@ func tokenBridgeSetPauserAddresses(req *nodev1.BridgeSetPauserAddresses, timesta
 		Module:        req.Module,
 		TargetChainID: chainID,
 		Pauser:        pauser,
+		Freezer:       freezer,
 		Unpauser:      unpauser,
 	}.Serialize()
 	if err != nil {
@@ -344,8 +349,8 @@ func tokenBridgeSetPauserAddresses(req *nodev1.BridgeSetPauserAddresses, timesta
 	return vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body), nil
 }
 
-// decodePauserAddress decodes a hex pauser/unpauser address string. An empty
-// string decodes to an empty slice, which the serializer encodes as a
+// decodePauserAddress decodes a hex pauser/freezer/unpauser address string. An
+// empty string decodes to an empty slice, which the serializer encodes as a
 // zero-length address - i.e. the role being unassigned.
 func decodePauserAddress(field, s string) ([]byte, error) {
 	b, err := hex.DecodeString(s)

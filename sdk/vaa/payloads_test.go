@@ -123,6 +123,7 @@ func TestBodyTokenBridgeSetPauserAddressesSerialize(t *testing.T) {
 	// "TokenBridge" left-padded to 32 bytes.
 	const tokenBridgeModule = "000000000000000000000000000000000000000000546f6b656e427269646765"
 	evmPauser := bytes.Repeat([]byte{0xaa}, 20)
+	evmFreezer := bytes.Repeat([]byte{0xdd}, 20)
 	evmUnpauser := bytes.Repeat([]byte{0xbb}, 20)
 	svmPauser := bytes.Repeat([]byte{0xcc}, 32)
 
@@ -133,33 +134,40 @@ func TestBodyTokenBridgeSetPauserAddressesSerialize(t *testing.T) {
 		errText  string
 	}{
 		{
-			name: "evm both set",
+			name: "evm all three set",
 			body: BodyTokenBridgeSetPauserAddresses{
-				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: evmPauser, Unpauser: evmUnpauser,
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: evmPauser, Freezer: evmFreezer, Unpauser: evmUnpauser,
 			},
-			// module || action(04) || chain(0002) || pauserLen(14) || pauser || unpauserLen(14) || unpauser
-			expected: tokenBridgeModule + "04" + "0002" + "14" + hex.EncodeToString(evmPauser) + "14" + hex.EncodeToString(evmUnpauser),
+			// module || action(04) || chain(0002) || pauserLen(14) || pauser || freezerLen(14) || freezer || unpauserLen(14) || unpauser
+			expected: tokenBridgeModule + "04" + "0002" + "14" + hex.EncodeToString(evmPauser) + "14" + hex.EncodeToString(evmFreezer) + "14" + hex.EncodeToString(evmUnpauser),
 		},
 		{
-			name: "pauser unassigned, unpauser set",
+			name: "pauser unassigned, freezer and unpauser set",
 			body: BodyTokenBridgeSetPauserAddresses{
-				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: nil, Unpauser: evmUnpauser,
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: nil, Freezer: evmFreezer, Unpauser: evmUnpauser,
 			},
-			expected: tokenBridgeModule + "04" + "0002" + "00" + "14" + hex.EncodeToString(evmUnpauser),
+			expected: tokenBridgeModule + "04" + "0002" + "00" + "14" + hex.EncodeToString(evmFreezer) + "14" + hex.EncodeToString(evmUnpauser),
 		},
 		{
-			name: "both unassigned",
+			name: "freezer unassigned, pauser and unpauser set",
 			body: BodyTokenBridgeSetPauserAddresses{
-				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: nil, Unpauser: nil,
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: evmPauser, Freezer: nil, Unpauser: evmUnpauser,
 			},
-			expected: tokenBridgeModule + "04" + "0002" + "00" + "00",
+			expected: tokenBridgeModule + "04" + "0002" + "14" + hex.EncodeToString(evmPauser) + "00" + "14" + hex.EncodeToString(evmUnpauser),
 		},
 		{
-			name: "solana pauser (32-byte)",
+			name: "all unassigned",
 			body: BodyTokenBridgeSetPauserAddresses{
-				Module: "TokenBridge", TargetChainID: ChainIDSolana, Pauser: svmPauser, Unpauser: nil,
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: nil, Freezer: nil, Unpauser: nil,
 			},
-			expected: tokenBridgeModule + "04" + "0001" + "20" + hex.EncodeToString(svmPauser) + "00",
+			expected: tokenBridgeModule + "04" + "0002" + "00" + "00" + "00",
+		},
+		{
+			name: "solana pauser (32-byte), freezer and unpauser unassigned",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDSolana, Pauser: svmPauser, Freezer: nil, Unpauser: nil,
+			},
+			expected: tokenBridgeModule + "04" + "0001" + "20" + hex.EncodeToString(svmPauser) + "00" + "00",
 		},
 		{
 			name: "pauser too long",
@@ -167,6 +175,13 @@ func TestBodyTokenBridgeSetPauserAddressesSerialize(t *testing.T) {
 				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Pauser: bytes.Repeat([]byte{0x01}, 256),
 			},
 			errText: "pauser too long",
+		},
+		{
+			name: "freezer too long",
+			body: BodyTokenBridgeSetPauserAddresses{
+				Module: "TokenBridge", TargetChainID: ChainIDEthereum, Freezer: bytes.Repeat([]byte{0x01}, 256),
+			},
+			errText: "freezer too long",
 		},
 		{
 			name: "unpauser too long",
