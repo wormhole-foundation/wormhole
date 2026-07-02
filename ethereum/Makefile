@@ -53,7 +53,7 @@ build: forge_dependencies node_modules ${SOURCE_FILES}
 flattened/%.sol: contracts/%.sol node_modules
 	./sh/flatten.sh
 
-.PHONY: flattened
+.PHONY: flattened verifiable-delegated-guardians-build
 flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
 
 .env: .env.test
@@ -82,3 +82,9 @@ test-push0: dependencies
 
 clean:
 	rm -rf .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
+
+
+verifiable-delegated-guardians-build:
+	mkdir -p verifiable-delegated-guardians-build
+	touch -m verifiable-delegated-guardians-build
+	docker build --file ./delegated-guardians-build.Dockerfile . --tag delegated-guardians-evm-build --output type=local,dest=verifiable-delegated-guardians-build
