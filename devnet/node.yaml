@@ -50,6 +50,7 @@ spec:
         - name: node-wormchain-key
           secret:
             secretName: node-wormchain-key
+            defaultMode: 0600
             optional: false
             items:
               - key: accountantKey0
