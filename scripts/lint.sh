@@ -42,8 +42,13 @@ format(){
         exit 1
     fi
 
-    # Use -exec because of pitfall #1 in http://mywiki.wooledge.org/BashPitfalls
-    GOFMT_OUTPUT="$(find "./sdk" "./node" "./wormchain" -type f -name '*.go' -not -path '*.pb.go' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
+
+    GOFMT_OUTPUT="$(git -C "$ROOT" ls-files -z --cached -- \
+        'sdk/*.go' \
+        'node/*.go' \
+        'wormchain/*.go' \
+        ':(exclude)**/*.pb.go' \
+        | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
 
     if [ -n "$GOFMT_OUTPUT" ]; then
         if [ "$GITHUB_ACTION" == "true" ]; then
@@ -55,13 +60,16 @@ format(){
 }
 
 lint(){
+    LINT_EXIT=0
+
     # === Spell check
     if ! command -v cspell >/dev/null 2>&1; then
         printf "%s\n" "cspell is not installed. Skipping spellcheck"
     else
-        cspell "*/**.*md"
+        cspell "*/**.*md" &
+        CSPELL_PID=$!
     fi
-    
+
     # === Go linting
     # Check for dependencies
     if ! command -v golangci-lint >/dev/null 2>&1; then
@@ -69,11 +77,28 @@ lint(){
     fi
 
     # Do the actual linting!
-    cd "$ROOT"/node
-    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    (
+        cd "$ROOT"/node
+        golangci-lint run --timeout=10m --allow-parallel-runners $GOLANGCI_LINT_ARGS ./...
+    ) &
+    NODE_PID=$!
 
-    cd "${ROOT}/sdk"
-    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    (
+        cd "${ROOT}/sdk"
+        golangci-lint run --timeout=10m --allow-parallel-runners $GOLANGCI_LINT_ARGS ./...
+    ) &
+    SDK_PID=$!
+
+    wait $NODE_PID || LINT_EXIT=1
+    wait $SDK_PID || LINT_EXIT=1
+
+    if [ -n "${CSPELL_PID:-}" ]; then
+        wait $CSPELL_PID || LINT_EXIT=1
+    fi
+
+    if [ $LINT_EXIT -ne 0 ]; then
+        exit 1
+    fi
 }
 
 DOCKER="false"

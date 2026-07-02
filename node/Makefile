@@ -1,6 +1,6 @@
 .PHONY: lint
-lint:
-	golangci-lint run -c ../.golangci.yml ./...
+lint: 
+	golangci-lint run -c ../.golangci.yml --allow-parallel-runners ./...
 
 .PHONY: test
 test: 
