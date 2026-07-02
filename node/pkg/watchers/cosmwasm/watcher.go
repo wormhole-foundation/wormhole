@@ -153,20 +153,20 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "cosmwasm"),
-		zap.String("urlWS", e.urlWS),
-		zap.String("urlLCD", e.urlLCD),
+		zap.String("wsURL", common.SafeURLForLogging(e.urlWS)),
+		zap.String("lcdURL", common.SafeURLForLogging(e.urlLCD)),
 		zap.String("contract", e.contract),
 		zap.String("chainID", e.chainID.String()),
 	)
 
-	logger.Info("connecting to websocket", zap.String("network", e.networkName), zap.String("url", e.urlWS))
+	logger.Info("connecting to websocket", zap.String("network", e.networkName), zap.String("wsURL", common.SafeURLForLogging(e.urlWS)))
 
 	//nolint:bodyclose // The close is down below. The linter misses it.
 	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(e.networkName, "websocket_dial_error").Inc()
-		return fmt.Errorf("websocket dial failed: %w", err)
+		return fmt.Errorf("websocket dial failed: %s", common.SafeErrorForLogging(err, e.urlWS))
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 

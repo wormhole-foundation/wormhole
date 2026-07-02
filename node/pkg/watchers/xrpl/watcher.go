@@ -118,7 +118,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "xrpl"),
-		zap.String("rpc", w.rpc),
+		zap.String("rpcURL", common.SafeURLForLogging(w.rpc)),
 		zap.String("contract", w.contract),
 		zap.Strings("nttAccounts", w.nttAccounts),
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
@@ -139,7 +139,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		_ = w.client.Disconnect()
 	}()
 
-	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
+	logger.Info("Connected to XRPL node", zap.String("rpcURL", common.SafeURLForLogging(w.rpc)))
 
 	// Initialize the parser with the watcher's fetchMPTAssetScale method
 	w.parser = NewParser(w.contract, w.nttAccounts, w.fetchMPTAssetScale)

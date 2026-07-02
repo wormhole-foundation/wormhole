@@ -221,15 +221,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "algorand"),
-		zap.String("indexerRPC", e.indexerRPC),
-		zap.String("indexerToken", e.indexerToken),
-		zap.String("algodRPC", e.algodRPC),
-		zap.String("algodToken", e.algodToken),
+		zap.String("indexerURL", common.SafeURLForLogging(e.indexerRPC)),
+		zap.String("algodURL", common.SafeURLForLogging(e.algodRPC)),
 		zap.Uint64("appid", e.appid),
 	)
 
-	logger.Info("Algorand watcher connecting to indexer  ", zap.String("url", e.indexerRPC))
-	logger.Info("Algorand watcher connecting to RPC node ", zap.String("url", e.algodRPC))
+	logger.Info("Algorand watcher connecting to indexer  ", zap.String("indexerURL", common.SafeURLForLogging(e.indexerRPC)))
+	logger.Info("Algorand watcher connecting to RPC node ", zap.String("algodURL", common.SafeURLForLogging(e.algodRPC)))
 
 	timer := time.NewTicker(time.Second * 1)
 	defer timer.Stop()
