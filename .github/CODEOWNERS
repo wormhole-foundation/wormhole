@@ -37,7 +37,6 @@
 /tools @evan-gray @panoel @djb15 @johnsaigle
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 /wormchain/devnet/ @evan-gray
-/wormchain/devnet/txverifier @djb15 @johnsaigle @mdulin2 @pleasew8t
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
 
 # Protobuf for node
@@ -126,6 +125,8 @@
 
 /node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 /node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+/devnet/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+/devnet/tx-verifier-sui.yaml @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Watchers
 
