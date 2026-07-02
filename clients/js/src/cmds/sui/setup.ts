@@ -1,5 +1,5 @@
 import { parseTokenBridgeRegisterChainVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
-import { SuiClient } from "@mysten/sui/client";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Transaction } from "@mysten/sui/transactions";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -233,9 +233,9 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   );
 
 const getEmitterCapObjectId = async (
-  client: SuiClient,
+  client: SuiGrpcClient,
   tokenBridgeStateObjectId: string
-): Promise<string> => {
+): Promise<string | undefined> => {
   const fields = await getObjectFields(client, tokenBridgeStateObjectId);
-  return fields?.emitter_cap?.fields?.id?.id;
+  return fields?.emitter_cap?.id;
 };
