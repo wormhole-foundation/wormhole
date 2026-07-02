@@ -83,6 +83,7 @@ interface ITokenBridge {
     error NotFreezer();
     error NotPaused();
     error NotExpired();
+    error PauseNotExtended();
 
     // Transfer/wrap-related (declared in Bridge contract).
     error InsufficientFee();

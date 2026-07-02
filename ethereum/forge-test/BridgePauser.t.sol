@@ -407,15 +407,32 @@ contract TestBridgePauser is Test {
         assertEq(secondExpiry, uint64(block.timestamp) + PAUSE_DURATION);
     }
 
-    function testPause_DoesNotReduceFreezeExpiry() public {
+    function testPause_Revert_SameBlockRepause() public {
+        _configureRoles();
+        vm.prank(PAUSER);
+        bridge.pause();
+        uint64 firstExpiry = bridge.pauseExpiry();
+
+        // Re-pausing in the same block computes the same expiry, so it makes no forward progress
+        // and must revert (no misleading success).
+        vm.prank(PAUSER);
+        vm.expectRevert(ITokenBridge.PauseNotExtended.selector);
+        bridge.pause();
+        assertEq(bridge.pauseExpiry(), firstExpiry);
+        assertTrue(bridge.paused());
+    }
+
+    function testPause_Revert_WhenFrozen() public {
         _configureRoles();
         // Freeze sets max expiry.
         vm.prank(FREEZER);
         bridge.freeze();
         assertEq(bridge.pauseExpiry(), MAX_TIMESTAMP);
 
-        // A subsequent pause must NOT pull the expiry down to now + 5d.
+        // A subsequent pause cannot push the expiry past the freeze's max, so it must revert
+        // rather than curtail the freeze or emit a misleading success. State is unchanged.
         vm.prank(PAUSER);
+        vm.expectRevert(ITokenBridge.PauseNotExtended.selector);
         bridge.pause();
         assertEq(bridge.pauseExpiry(), MAX_TIMESTAMP);
         assertTrue(bridge.paused());
@@ -770,17 +787,10 @@ contract TestBridgePauser is Test {
 
     // ============================ Idempotency ============================
 
-    function testPause_Idempotent_State() public {
-        _configureRoles();
-        vm.prank(PAUSER);
-        bridge.pause();
-        assertTrue(bridge.paused());
-
-        // A second pause() keeps `paused` true (and pushes expiry — see testPause_PushesExpiryForward).
-        vm.prank(PAUSER);
-        bridge.pause();
-        assertTrue(bridge.paused());
-    }
+    // NOTE: `pause()` is intentionally NOT idempotent. A pause that would not extend the expiry
+    // reverts with `PauseNotExtended` — see `testPause_Revert_SameBlockRepause` (equal expiry) and
+    // `testPause_Revert_WhenFrozen` (freeze already set a further-out expiry). Extending across
+    // blocks is covered by `testPause_PushesExpiryForward`.
 
     // ============================ Rotation while paused ============================
 

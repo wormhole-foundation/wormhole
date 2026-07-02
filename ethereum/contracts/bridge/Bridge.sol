@@ -71,6 +71,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     /// @notice Reverts when `unpauseExpired()` is called before the current pause has expired
     ///         (`block.timestamp < pauseExpiry`).
     error NotExpired();
+    /// @notice Reverts when `pause()` would not push `pauseExpiry` forward — i.e. the bridge already
+    ///         has an equal-or-later expiry (e.g. it is frozen). A lower-trust pauser must not be
+    ///         able to shorten a `freeze`, and a call that changes nothing reverts rather than
+    ///         emitting a misleading success.
+    error PauseNotExtended();
     /// @notice Reverts when `msg.value` does not cover the wormhole message fee.
     error InsufficientFee();
     /// @notice Reverts when an arbiter / relayer fee exceeds the transfer amount.
@@ -135,10 +140,12 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         }
     }
 
-    /// @notice Temporarily pause the bridge. Only callable by the configured pauser. Sets `paused`
-    ///         and pushes `pauseExpiry` to `block.timestamp + PAUSE_DURATION` (5 days), but NEVER
-    ///         reduces a `pauseExpiry` already further in the future — so a lower-trust pauser
-    ///         cannot curtail a `freeze`. Not idempotent: each call extends the window.
+    /// @notice Temporarily pause the bridge. Only callable by the configured pauser. Pushes
+    ///         `pauseExpiry` to `block.timestamp + PAUSE_DURATION` (5 days) and sets `paused`.
+    ///         Reverts with `PauseNotExtended` if the new expiry would not be strictly later than
+    ///         the current one — so a lower-trust pauser can never curtail a `freeze`, and a call
+    ///         that would change nothing fails loudly instead of emitting a misleading success.
+    ///         Not idempotent: each successful call extends the window.
     /// @dev The pauser is configured via the `SetPauserAddresses` (action 4) governance VAA and may
     ///      be left unassigned; when unassigned this entry point reverts before comparing
     ///      `msg.sender`, so an all-zero `pauser` is never authorized.
@@ -149,12 +156,13 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     function pause() external {
         _requireRole(pauser(), NotPauser.selector);
         uint64 newExpiry = uint64(block.timestamp) + PAUSE_DURATION;
-        // Never reduce an expiry already further out (e.g. one set by `freeze`).
-        if (newExpiry > pauseExpiry()) {
-            setPauseExpiry(newExpiry);
-        }
+        // Never reduce (or leave unchanged) an expiry already at/further out (e.g. one set by
+        // `freeze`): a pause that doesn't extend the window is a no-op, so revert rather than
+        // emit a misleading success.
+        if (newExpiry <= pauseExpiry()) revert PauseNotExtended();
+        setPauseExpiry(newExpiry);
         setPaused(true);
-        emit Paused(msg.sender, pauseExpiry());
+        emit Paused(msg.sender, newExpiry);
     }
 
     /// @notice Freeze the bridge for the maximum duration. Only callable by the configured freezer.
