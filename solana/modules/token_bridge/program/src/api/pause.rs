@@ -16,6 +16,7 @@ use crate::{
         InvalidSelfProgram,
         NotExpired,
         NotPaused,
+        PauseNotExtended,
         PauserNotConfigured,
     },
 };
@@ -69,10 +70,11 @@ pub struct Pause<'b> {
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct PauseData {}
 
-/// Temporarily pause the bridge. Only callable by the configured pauser. Sets `paused` and pushes
-/// `pause_expiry` to `now + PAUSE_DURATION` (5 days), but NEVER reduces an expiry already further
-/// in the future — so a lower-trust pauser cannot curtail a `freeze`. Not idempotent: each call
-/// extends the window.
+/// Temporarily pause the bridge. Only callable by the configured pauser. Pushes `pause_expiry` to
+/// `now + PAUSE_DURATION` (5 days) and sets `paused`. Reverts with `PauseNotExtended` if the new
+/// expiry would not be strictly later than the current one — so a lower-trust pauser can never
+/// curtail a `freeze`, and a call that would change nothing fails loudly instead of emitting a
+/// misleading success. Not idempotent: each successful call extends the window.
 pub fn pause(ctx: &ExecutionContext, accs: &mut Pause, _data: PauseData) -> Result<()> {
     let config_info = accs.config.info();
     require_role(config_info, accs.pauser.key, Role::Pauser)?;
@@ -83,17 +85,16 @@ pub fn pause(ctx: &ExecutionContext, accs: &mut Pause, _data: PauseData) -> Resu
     let new_expiry = accs.clock.unix_timestamp.saturating_add(PAUSE_DURATION);
     {
         let mut data = config_info.data.borrow_mut();
-        // Never reduce an expiry already further out (e.g. one set by `freeze`).
-        if new_expiry > pause_expiry(&data) {
-            write_pause_expiry(&mut data, new_expiry);
+        if new_expiry <= pause_expiry(&data) {
+            return Err(PauseNotExtended.into());
         }
+        write_pause_expiry(&mut data, new_expiry);
         write_paused(&mut data, true);
     }
 
-    let expiry = pause_expiry(&config_info.data.borrow());
     let mut payload = [0u8; 40];
     payload[..32].copy_from_slice(&accs.pauser.key.to_bytes());
-    payload[32..].copy_from_slice(&expiry.to_le_bytes());
+    payload[32..].copy_from_slice(&new_expiry.to_le_bytes());
     emit_event_cpi(
         ctx,
         &accs.event_authority,
