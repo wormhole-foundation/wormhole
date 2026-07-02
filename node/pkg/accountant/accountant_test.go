@@ -3,8 +3,11 @@ package accountant
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math/big"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -90,6 +93,43 @@ func (c *MockAccountantWormchainConn) WaitUntilTxRespConsumed() {
 	}
 }
 
+// AuditMockWormchainConn extends MockAccountantWormchainConn with configurable
+// query responses for audit testing.
+type AuditMockWormchainConn struct {
+	MockAccountantWormchainConn
+
+	allPendingTransfersResp []byte
+	allPendingTransfersErr  error
+	batchTransferStatusResp []byte
+	batchTransferStatusErr  error
+
+	queryLock         sync.Mutex
+	queries           []string
+	contractAddresses []string
+}
+
+func (c *AuditMockWormchainConn) SubmitQuery(ctx context.Context, contractAddress string, query []byte) ([]byte, error) {
+	queryStr := string(query)
+	c.queryLock.Lock()
+	c.queries = append(c.queries, queryStr)
+	c.contractAddresses = append(c.contractAddresses, contractAddress)
+	c.queryLock.Unlock()
+
+	if strings.Contains(queryStr, "all_pending_transfers") {
+		return c.allPendingTransfersResp, c.allPendingTransfersErr
+	}
+	if strings.Contains(queryStr, "batch_transfer_status") {
+		return c.batchTransferStatusResp, c.batchTransferStatusErr
+	}
+	return []byte{}, nil
+}
+
+func (c *AuditMockWormchainConn) QueryCount() int {
+	c.queryLock.Lock()
+	defer c.queryLock.Unlock()
+	return len(c.queries)
+}
+
 func newAccountantForTest(
 	t *testing.T,
 	logger *zap.Logger,
@@ -128,6 +168,7 @@ func newAccountantForTest(
 		guardianSigner,
 		gst,
 		acctWriteC,
+		DefaultSubmitObservationBatchSize,
 		env,
 	)
 
@@ -147,12 +188,12 @@ func hashToTxID(str string) []byte {
 
 // Note this method assumes 18 decimals for the amount.
 func buildMockTransferPayloadBytes(
-	t uint8,
-	tokenChainID vaa.ChainID,
-	tokenAddrStr string,
-	toChainID vaa.ChainID,
-	toAddrStr string,
-	amtFloat float64,
+	t uint8, //nolint:unparam
+	tokenChainID vaa.ChainID, //nolint:unparam
+	tokenAddrStr string, //nolint:unparam
+	toChainID vaa.ChainID, //nolint:unparam
+	toAddrStr string, //nolint:unparam
+	amtFloat float64, //nolint:unparam
 ) []byte {
 	bytes := make([]byte, 101)
 	bytes[0] = t
@@ -653,4 +694,540 @@ func TestCreateAuditMapFiltersNTT(t *testing.T) {
 	require.Equal(t, true, exists)
 	assert.Equal(t, 1, len(entries))
 	assert.Equal(t, pe2.msgId, entries[0].msgId)
+}
+
+// createTestPendingEntry creates a pendingEntry for testing with semi realistic values.
+// The digest is computed from the message using CreateDigest().
+func createTestPendingEntry(
+	emitterChain vaa.ChainID, //nolint:unparam
+	emitterAddr vaa.Address,
+	sequence uint64,
+	txHash []byte,
+	payload []byte,
+) *pendingEntry {
+	msg := &common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        time.Unix(1654543099, 0),
+		Nonce:            1,
+		Sequence:         sequence,
+		EmitterChain:     emitterChain,
+		EmitterAddress:   emitterAddr,
+		ConsistencyLevel: 32,
+		Payload:          payload,
+	}
+	return &pendingEntry{
+		msg:         msg,
+		msgId:       msg.MessageIDString(),
+		digest:      msg.CreateDigest(),
+		enforceFlag: true,
+	}
+}
+
+// drainObsvReqChannel drains the observation request channel
+func drainObsvReqChannel(ch chan *gossipv1.ObservationRequest) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
+		}
+	}
+}
+
+// drainMsgChannel drains a message publication channel
+func drainMsgChannel(ch chan *common.MessagePublication) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
+		}
+	}
+}
+
+// newAccountantForAuditTest creates an accountant configured for audit testing
+// with an AuditMockWormchainConn.
+func newAccountantForAuditTest(
+	t *testing.T,
+	logger *zap.Logger,
+	ctx context.Context,
+	obsvReqWriteC chan *gossipv1.ObservationRequest,
+	acctWriteC chan *common.MessagePublication,
+	wormchainConn *AuditMockWormchainConn,
+) *Accountant {
+	return newAccountantForAuditModeTest(t, logger, ctx, obsvReqWriteC, acctWriteC, "0xdeadbeef", wormchainConn, "", nil)
+}
+
+func newAccountantForAuditModeTest(
+	t *testing.T,
+	logger *zap.Logger,
+	ctx context.Context,
+	obsvReqWriteC chan *gossipv1.ObservationRequest,
+	acctWriteC chan *common.MessagePublication,
+	contract string,
+	wormchainConn *AuditMockWormchainConn,
+	nttContract string,
+	nttWormchainConn *AuditMockWormchainConn,
+) *Accountant {
+	var db guardianDB.MockAccountantDB
+
+	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(0))
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(pk)
+	require.NoError(t, err)
+
+	gst := common.NewGuardianSetState(nil)
+	// Guardian set with index 0, our guardian at index 0
+	gs := &common.GuardianSet{
+		Index: 0,
+		Keys:  []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")},
+	}
+	gst.Set(gs)
+
+	acct := NewAccountant(
+		ctx,
+		logger,
+		&db,
+		obsvReqWriteC,
+		contract,
+		"none",
+		wormchainConn,
+		true, // enforceFlag
+		nttContract,
+		nttWormchainConn,
+		guardianSigner,
+		gst,
+		acctWriteC,
+		DefaultSubmitObservationBatchSize,
+		common.GoTest, // Use GoTest to avoid starting worker goroutines that consume from subChan
+	)
+
+	err = acct.Start(ctx)
+	require.NoError(t, err)
+	return acct
+}
+
+// Standard test values for audit tests
+var (
+	testEmitterAddr, _ = vaa.StringToAddress("0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16")
+	testEmitterAddrStr = "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16"
+	testSequence       = uint64(1674568234)
+	testTxHash         = []byte{0x06, 0xf5, 0x41, 0xf5, 0xec, 0xfc, 0x43, 0x40, 0x7c, 0x31, 0x58, 0x7a, 0xa6, 0xac, 0x3a, 0x68, 0x9e, 0x89, 0x60, 0xf3, 0x6d, 0xc2, 0x3c, 0x33, 0x2d, 0xb5, 0x51, 0x0d, 0xfc, 0x6a, 0x40, 0x64}
+)
+
+func TestRunAuditBaseOnlySkipsNttAudit(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: []byte(`{"pending":[]}`),
+	}
+
+	acct := newAccountantForAuditModeTest(t, logger, ctx, obsvReqWriteC, acctChan, "base-contract", wormchainConn, "", nil)
+
+	require.NotPanics(t, func() {
+		acct.runAudit(ctx)
+	})
+	assert.Equal(t, 1, wormchainConn.QueryCount(), "expected base audit query")
+	assert.Equal(t, []string{"base-contract"}, wormchainConn.contractAddresses)
+}
+
+func TestRunAuditNttOnlySkipsBaseAudit(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+	nttWormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: []byte(`{"pending":[]}`),
+	}
+
+	acct := newAccountantForAuditModeTest(t, logger, ctx, obsvReqWriteC, acctChan, "", nil, "ntt-contract", nttWormchainConn)
+
+	require.NotPanics(t, func() {
+		acct.runAudit(ctx)
+	})
+	assert.Equal(t, 1, nttWormchainConn.QueryCount(), "expected NTT audit query")
+	assert.Equal(t, []string{"ntt-contract"}, nttWormchainConn.contractAddresses)
+}
+
+func TestPerformAuditResubmitsUnsignedTransfer(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+
+	payload := buildMockTransferPayloadBytes(1, vaa.ChainIDEthereum, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", vaa.ChainIDPolygon, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", 1.25)
+
+	// Create pending entry
+	pe := createTestPendingEntry(vaa.ChainIDEthereum, testEmitterAddr, testSequence, testTxHash, payload)
+
+	// Decode the digest from hex to bytes for the mock response
+	digestBytes, err := hex.DecodeString(pe.digest)
+	require.NoError(t, err)
+
+	// Mock returns pending transfer where guardian 0 hasn't signed (signatures="0")
+	allPendingResp := createPendingTransfersForTestWithTxHash(
+		uint16(vaa.ChainIDEthereum),
+		testEmitterAddrStr,
+		testSequence,
+		testTxHash,
+		digestBytes,
+		0,   // guardian set index
+		"0", // signatures - guardian 0 has NOT signed
+	)
+
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: allPendingResp,
+	}
+
+	acct := newAccountantForAuditTest(t, logger, ctx, obsvReqWriteC, acctChan, wormchainConn)
+
+	// Add the pending entry to the accountant's map
+	acct.pendingTransfersLock.Lock()
+	acct.pendingTransfers[pe.msgId] = pe
+	acct.pendingTransfersLock.Unlock()
+
+	// Create tmpMap for audit (simulating what createAuditMap does)
+	tmpMap := map[string][]*pendingEntry{
+		pe.makeAuditKey(): {pe},
+	}
+
+	// Run the audit
+	acct.performAudit(ctx, tmpMap, wormchainConn, "test-contract")
+
+	// Verify: entry should have been submitted to subChan
+	assert.Equal(t, 1, len(acct.subChan), "expected 1 message in subChan")
+
+	// Verify: entry should have been removed from tmpMap because phase 1 found it
+	// in the contract's pending list and we hadn't signed it, so it was deleted
+	// from tmpMap after being resubmitted.
+	assert.Equal(t, 0, len(tmpMap), "expected tmpMap to be empty")
+
+	// Verify: submitPending flag should be set
+	assert.True(t, pe.submitPending(), "expected submitPending to be true")
+
+	// Drain channels
+	drainMsgChannel(acct.subChan)
+	drainObsvReqChannel(obsvReqWriteC)
+}
+
+func TestPerformAuditRequestsReobservation(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+
+	// Mock returns pending transfer where guardian 0 hasn't signed
+	// but we DON'T have this transfer locally
+	allPendingResp := createPendingTransfersForTestWithTxHash(
+		uint16(vaa.ChainIDEthereum),
+		testEmitterAddrStr,
+		testSequence,
+		testTxHash,
+		[]byte("somedigest"),
+		0,   // guardian set index
+		"0", // signatures - guardian 0 has NOT signed
+	)
+
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: allPendingResp,
+	}
+
+	acct := newAccountantForAuditTest(t, logger, ctx, obsvReqWriteC, acctChan, wormchainConn)
+
+	// Empty local map - we don't have this transfer
+	tmpMap := map[string][]*pendingEntry{}
+
+	// Run the audit
+	acct.performAudit(ctx, tmpMap, wormchainConn, "test-contract")
+
+	// Verify: reobservation request should have been sent
+	assert.Equal(t, 1, len(obsvReqWriteC), "expected 1 reobservation request")
+
+	// Verify the request has correct values
+	req := <-obsvReqWriteC
+	assert.Equal(t, uint32(vaa.ChainIDEthereum), req.ChainId)
+	assert.Equal(t, testTxHash, req.TxHash)
+
+	// Verify: tmpMap remains empty because we started with an empty local map.
+	// The contract's pending transfer was handled via reobservation request, not
+	// via tmpMap lookup, so tmpMap was never modified.
+	assert.Equal(t, 0, len(tmpMap), "expected tmpMap to remain empty")
+
+	// Drain channels
+	drainObsvReqChannel(obsvReqWriteC)
+}
+
+func TestPerformAuditSkipsAlreadySigned(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+
+	payload := buildMockTransferPayloadBytes(1, vaa.ChainIDEthereum, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", vaa.ChainIDPolygon, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", 1.25)
+	pe := createTestPendingEntry(vaa.ChainIDEthereum, testEmitterAddr, testSequence, testTxHash, payload)
+	digestBytes, err := hex.DecodeString(pe.digest)
+	require.NoError(t, err)
+
+	// Mock returns pending transfer where guardian 0 HAS signed (signatures="1")
+	allPendingResp := createPendingTransfersForTestWithTxHash(
+		uint16(vaa.ChainIDEthereum),
+		testEmitterAddrStr,
+		testSequence,
+		testTxHash,
+		digestBytes,
+		0,   // guardian set index
+		"1", // signatures - guardian 0 HAS signed (bit 0 set)
+	)
+
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: allPendingResp,
+	}
+
+	acct := newAccountantForAuditTest(t, logger, ctx, obsvReqWriteC, acctChan, wormchainConn)
+
+	acct.pendingTransfersLock.Lock()
+	acct.pendingTransfers[pe.msgId] = pe
+	acct.pendingTransfersLock.Unlock()
+
+	tmpMap := map[string][]*pendingEntry{
+		pe.makeAuditKey(): {pe},
+	}
+
+	// Run the audit
+	acct.performAudit(ctx, tmpMap, wormchainConn, "test-contract")
+
+	// Verify: nothing should have been submitted (we already signed)
+	assert.Equal(t, 0, len(acct.subChan), "expected no messages in subChan")
+	assert.Equal(t, 0, len(obsvReqWriteC), "expected no reobservation requests")
+
+	// Verify: tmpMap still contains the entry because phase 1 skipped it
+	// (guardian already signed), so delete(tmpMap) was never called.
+	// Phase 2 iterates remaining tmpMap entries but never removes them from tmpMap.
+	assert.Equal(t, 1, len(tmpMap), "expected tmpMap to still contain the entry")
+
+	// Drain channels
+	drainMsgChannel(acct.subChan)
+	drainObsvReqChannel(obsvReqWriteC)
+}
+
+func TestPerformAuditPhase2Committed(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+
+	payload := buildMockTransferPayloadBytes(1, vaa.ChainIDEthereum, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", vaa.ChainIDPolygon, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", 1.25)
+	pe := createTestPendingEntry(vaa.ChainIDEthereum, testEmitterAddr, testSequence, testTxHash, payload)
+
+	// Decode the digest from hex to bytes for the mock response
+	digestBytes, err := hex.DecodeString(pe.digest)
+	require.NoError(t, err)
+
+	// Mock: all_pending_transfers returns empty (transfer not in pending list)
+	// Mock: batch_transfer_status returns committed with matching digest
+	batchStatusResp := createBatchTransferStatusResponse(
+		uint16(vaa.ChainIDEthereum),
+		testEmitterAddrStr,
+		testSequence,
+		"committed",
+		digestBytes,
+	)
+
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: []byte(`{"pending":[]}`),
+		batchTransferStatusResp: batchStatusResp,
+	}
+
+	acct := newAccountantForAuditTest(t, logger, ctx, obsvReqWriteC, acctChan, wormchainConn)
+
+	acct.pendingTransfersLock.Lock()
+	acct.pendingTransfers[pe.msgId] = pe
+	acct.pendingTransfersLock.Unlock()
+
+	tmpMap := map[string][]*pendingEntry{
+		pe.makeAuditKey(): {pe},
+	}
+
+	// Run the audit
+	acct.performAudit(ctx, tmpMap, wormchainConn, "test-contract")
+
+	// Verify: transfer should have been published to msgChan
+	assert.Equal(t, 1, len(acctChan), "expected 1 message in msgChan")
+
+	// Verify: entry should have been removed from pendingTransfers
+	acct.pendingTransfersLock.Lock()
+	_, exists := acct.pendingTransfers[pe.msgId]
+	acct.pendingTransfersLock.Unlock()
+	assert.False(t, exists, "expected entry to be removed from pendingTransfers")
+
+	// Verify: tmpMap still contains the entry because phase 2 never deletes from tmpMap.
+	// The entry was not in the contract's pending list (phase 1 had nothing to process),
+	// and phase 2 only reads tmpMap to query batch status — it publishes the committed
+	// transfer but does not remove it from tmpMap.
+	assert.Equal(t, 1, len(tmpMap), "expected tmpMap to still contain the entry")
+
+	// Drain channels
+	drainMsgChannel(acctChan)
+	drainMsgChannel(acct.subChan)
+	drainObsvReqChannel(obsvReqWriteC)
+}
+
+func TestPerformAuditPhase2Unknown(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+
+	payload := buildMockTransferPayloadBytes(1, vaa.ChainIDEthereum, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", vaa.ChainIDPolygon, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", 1.25)
+	pe := createTestPendingEntry(vaa.ChainIDEthereum, testEmitterAddr, testSequence, testTxHash, payload)
+
+	// Mock: all_pending_transfers returns empty
+	// Mock: batch_transfer_status returns null (contract doesn't know about it)
+	batchStatusResp := createBatchTransferStatusResponse(
+		uint16(vaa.ChainIDEthereum),
+		testEmitterAddrStr,
+		testSequence,
+		"null",
+		nil,
+	)
+
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: []byte(`{"pending":[]}`),
+		batchTransferStatusResp: batchStatusResp,
+	}
+
+	acct := newAccountantForAuditTest(t, logger, ctx, obsvReqWriteC, acctChan, wormchainConn)
+
+	acct.pendingTransfersLock.Lock()
+	acct.pendingTransfers[pe.msgId] = pe
+	acct.pendingTransfersLock.Unlock()
+
+	tmpMap := map[string][]*pendingEntry{
+		pe.makeAuditKey(): {pe},
+	}
+
+	// Run the audit
+	acct.performAudit(ctx, tmpMap, wormchainConn, "test-contract")
+
+	// Verify: entry should have been resubmitted to subChan
+	assert.Equal(t, 1, len(acct.subChan), "expected 1 message in subChan")
+
+	// Verify: submitPending flag should be set
+	assert.True(t, pe.submitPending(), "expected submitPending to be true")
+
+	// Verify: tmpMap still contains the entry because phase 2 never deletes from tmpMap.
+	// The contract returned null status (unknown), so the entry was resubmitted, but
+	// tmpMap itself is only modified by delete() in phase 1.
+	assert.Equal(t, 1, len(tmpMap), "expected tmpMap to still contain the entry")
+
+	// Drain channels
+	drainMsgChannel(acct.subChan)
+	drainObsvReqChannel(obsvReqWriteC)
+}
+
+func TestPerformAuditPhase2DigestMismatch(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+
+	payload := buildMockTransferPayloadBytes(1, vaa.ChainIDEthereum, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", vaa.ChainIDPolygon, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", 1.25)
+	pe := createTestPendingEntry(vaa.ChainIDEthereum, testEmitterAddr, testSequence, testTxHash, payload)
+
+	// Use a DIFFERENT digest than what the pending entry has
+	wrongDigestBytes := []byte("this_is_a_completely_different_digest_value_32b")
+
+	// Mock: all_pending_transfers returns empty
+	// Mock: batch_transfer_status returns committed with DIFFERENT digest
+	batchStatusResp := createBatchTransferStatusResponse(
+		uint16(vaa.ChainIDEthereum),
+		testEmitterAddrStr,
+		testSequence,
+		"committed",
+		wrongDigestBytes,
+	)
+
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersResp: []byte(`{"pending":[]}`),
+		batchTransferStatusResp: batchStatusResp,
+	}
+
+	acct := newAccountantForAuditTest(t, logger, ctx, obsvReqWriteC, acctChan, wormchainConn)
+
+	acct.pendingTransfersLock.Lock()
+	acct.pendingTransfers[pe.msgId] = pe
+	acct.pendingTransfersLock.Unlock()
+
+	tmpMap := map[string][]*pendingEntry{
+		pe.makeAuditKey(): {pe},
+	}
+
+	// Run the audit
+	acct.performAudit(ctx, tmpMap, wormchainConn, "test-contract")
+
+	// Verify: nothing should be published to msgChan (digest mismatch)
+	assert.Equal(t, 0, len(acctChan), "expected no messages in msgChan")
+
+	// Verify: entry should have been removed from pendingTransfers (dropped)
+	acct.pendingTransfersLock.Lock()
+	_, exists := acct.pendingTransfers[pe.msgId]
+	acct.pendingTransfersLock.Unlock()
+	assert.False(t, exists, "expected entry to be removed from pendingTransfers")
+
+	// Verify: tmpMap still contains the entry because phase 2 never deletes from tmpMap.
+	// The transfer was dropped from pendingTransfers due to digest mismatch, but
+	// tmpMap itself is only modified by delete() in phase 1.
+	assert.Equal(t, 1, len(tmpMap), "expected tmpMap to still contain the entry")
+
+	// Drain channels
+	drainMsgChannel(acctChan)
+	drainMsgChannel(acct.subChan)
+	drainObsvReqChannel(obsvReqWriteC)
+}
+
+func TestPerformAuditQueryError(t *testing.T) {
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t)
+	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
+	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
+
+	payload := buildMockTransferPayloadBytes(1, vaa.ChainIDEthereum, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", vaa.ChainIDPolygon, "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8", 1.25)
+	pe := createTestPendingEntry(vaa.ChainIDEthereum, testEmitterAddr, testSequence, testTxHash, payload)
+
+	// Mock: all_pending_transfers returns error
+	wormchainConn := &AuditMockWormchainConn{
+		allPendingTransfersErr: errors.New("query failed"),
+	}
+
+	acct := newAccountantForAuditTest(t, logger, ctx, obsvReqWriteC, acctChan, wormchainConn)
+
+	acct.pendingTransfersLock.Lock()
+	acct.pendingTransfers[pe.msgId] = pe
+	acct.pendingTransfersLock.Unlock()
+
+	tmpMap := map[string][]*pendingEntry{
+		pe.makeAuditKey(): {pe},
+	}
+
+	// Run the audit - should not panic
+	acct.performAudit(ctx, tmpMap, wormchainConn, "test-contract")
+
+	// Verify: entry should still be in pendingTransfers (not removed due to error)
+	acct.pendingTransfersLock.Lock()
+	_, exists := acct.pendingTransfers[pe.msgId]
+	acct.pendingTransfersLock.Unlock()
+	assert.True(t, exists, "expected entry to remain in pendingTransfers")
+
+	// Verify: nothing should have been sent to channels
+	assert.Equal(t, 0, len(acct.subChan), "expected no messages in subChan")
+	assert.Equal(t, 0, len(obsvReqWriteC), "expected no reobservation requests")
+
+	// Verify: tmpMap still contains the entry because the query failed and
+	// performAudit returned early, so neither phase 1 nor phase 2 processed it.
+	assert.Equal(t, 1, len(tmpMap), "expected tmpMap to still contain the entry")
+
+	// Drain channels
+	drainMsgChannel(acct.subChan)
+	drainObsvReqChannel(obsvReqWriteC)
 }

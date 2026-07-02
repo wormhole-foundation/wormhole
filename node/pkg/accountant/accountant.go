@@ -30,7 +30,7 @@ import (
 
 // MsgChannelCapacity specifies the capacity of the message channel used to publish messages released from the accountant.
 // This channel should not back up, but if it does, the accountant will start dropping messages, which would require reobservations.
-const MsgChannelCapacity = 5 * batchSize
+const MsgChannelCapacity = 5 * DefaultSubmitObservationBatchSize
 
 type (
 	AccountantWormchainConn interface {
@@ -75,23 +75,24 @@ type (
 
 // Accountant is the object that manages the interface to the wormchain accountant smart contract.
 type Accountant struct {
-	ctx                  context.Context
-	logger               *zap.Logger
-	db                   guardianDB.AccountantDB
-	obsvReqWriteC        chan<- *gossipv1.ObservationRequest
-	contract             string
-	wsUrl                string
-	wormchainConn        AccountantWormchainConn
-	enforceFlag          bool
-	guardianSigner       guardiansigner.GuardianSigner
-	gst                  *common.GuardianSetState
-	guardianAddr         ethCommon.Address
-	msgChan              chan<- *common.MessagePublication
-	tokenBridges         validEmitters
-	pendingTransfersLock sync.Mutex
-	pendingTransfers     map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
-	subChan              chan *common.MessagePublication
-	env                  common.Environment
+	ctx                        context.Context
+	logger                     *zap.Logger
+	db                         guardianDB.AccountantDB
+	obsvReqWriteC              chan<- *gossipv1.ObservationRequest
+	contract                   string
+	wsUrl                      string
+	wormchainConn              AccountantWormchainConn
+	enforceFlag                bool
+	guardianSigner             guardiansigner.GuardianSigner
+	gst                        *common.GuardianSetState
+	guardianAddr               ethCommon.Address
+	msgChan                    chan<- *common.MessagePublication
+	tokenBridges               validEmitters
+	pendingTransfersLock       sync.Mutex
+	pendingTransfers           map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
+	subChan                    chan *common.MessagePublication
+	submitObservationBatchSize int
+	env                        common.Environment
 
 	nttContract       string
 	nttWormchainConn  AccountantWormchainConn
@@ -101,7 +102,10 @@ type Accountant struct {
 }
 
 // On startup, there can be a large number of re-submission requests.
-const subChanSize = 500
+const subChanSize = 5000
+
+// auditSubmitTimeout is the timeout for blocking channel writes during audit.
+const auditSubmitTimeout = 30 * time.Second
 
 // baseEnabled returns true if the base accountant is enabled, false if not.
 func (acct *Accountant) baseEnabled() bool {
@@ -123,25 +127,31 @@ func NewAccountant(
 	guardianSigner guardiansigner.GuardianSigner, // the guardian signer used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
+	submitObservationBatchSize int, // maximum number of observations to submit to the contract in one transaction
 	env common.Environment, // Controls the set of token bridges to be monitored
 ) *Accountant {
+	if submitObservationBatchSize <= 0 {
+		submitObservationBatchSize = DefaultSubmitObservationBatchSize
+	}
+
 	return &Accountant{
-		ctx:              ctx,
-		logger:           logger.With(zap.String("component", "gacct")),
-		db:               db,
-		obsvReqWriteC:    obsvReqWriteC,
-		contract:         contract,
-		wsUrl:            wsUrl,
-		wormchainConn:    wormchainConn,
-		enforceFlag:      enforceFlag,
-		guardianSigner:   guardianSigner,
-		gst:              gst,
-		guardianAddr:     ethCrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
-		msgChan:          msgChan,
-		tokenBridges:     make(validEmitters),
-		pendingTransfers: make(map[string]*pendingEntry),
-		subChan:          make(chan *common.MessagePublication, subChanSize),
-		env:              env,
+		ctx:                        ctx,
+		logger:                     logger.With(zap.String("component", "gacct")),
+		db:                         db,
+		obsvReqWriteC:              obsvReqWriteC,
+		contract:                   contract,
+		wsUrl:                      wsUrl,
+		wormchainConn:              wormchainConn,
+		enforceFlag:                enforceFlag,
+		guardianSigner:             guardianSigner,
+		gst:                        gst,
+		guardianAddr:               ethCrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
+		msgChan:                    msgChan,
+		tokenBridges:               make(validEmitters),
+		pendingTransfers:           make(map[string]*pendingEntry),
+		subChan:                    make(chan *common.MessagePublication, subChanSize),
+		submitObservationBatchSize: submitObservationBatchSize,
+		env:                        env,
 
 		nttContract:       nttContract,
 		nttWormchainConn:  nttWormchainConn,
@@ -153,7 +163,7 @@ func NewAccountant(
 
 // Start initializes the accountant and starts the worker and watcher runnables.
 func (acct *Accountant) Start(ctx context.Context) error {
-	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("baseEnabled", acct.baseEnabled()), zap.Bool("nttEnabled", acct.nttEnabled()))
+	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag), zap.Bool("baseEnabled", acct.baseEnabled()), zap.Bool("nttEnabled", acct.nttEnabled()), zap.Int("submitObservationBatchSize", acct.submitObservationBatchSize))
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
@@ -215,9 +225,13 @@ func (acct *Accountant) Start(ctx context.Context) error {
 				return fmt.Errorf("failed to start watcher: %w", err)
 			}
 
-			if err := supervisor.Run(ctx, "acctaudit", common.WrapWithScissors(acct.audit, "acctaudit")); err != nil {
-				return fmt.Errorf("failed to start audit worker: %w", err)
-			}
+		}
+	}
+
+	// Start the audit worker if not mocking/testing and either Global or NTT accountant are enabled
+	if acct.env != common.AccountantMock && acct.env != common.GoTest && (acct.baseEnabled() || acct.nttEnabled()) {
+		if err := supervisor.Run(ctx, "acctaudit", common.WrapWithScissors(acct.audit, "acctaudit")); err != nil {
+			return fmt.Errorf("failed to start audit worker: %w", err)
 		}
 	}
 
@@ -315,7 +329,11 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
-	// If this is already pending, don't send it again.
+	var pe *pendingEntry
+
+	// If there is a digest mismatch, don't send it again.
+	// Otherwise resubmit it and rely on the submitPending flag to prevent duplicate submissions to the contract.
+	// This allows manual reobservations to proceed.
 	if oldEntry, exists := acct.pendingTransfers[msgId]; exists {
 		if oldEntry.digest != digest {
 			digestMismatches.Inc()
@@ -325,17 +343,18 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 				zap.String("newDigest", digest),
 				zap.Bool("enforcing", enforceFlag),
 			)
-		} else {
-			acct.logger.Info("blocking transfer because it is already outstanding", zap.String("msgID", msgId), zap.Bool("enforcing", enforceFlag))
-		}
-		return !enforceFlag, nil
-	}
 
-	// Add it to the pending map and the database.
-	pe := &pendingEntry{msg: msg, msgId: msgId, digest: digest, isNTT: isNTT, enforceFlag: enforceFlag}
-	if err := acct.addPendingTransferAlreadyLocked(pe); err != nil {
-		acct.logger.Error("failed to persist pending transfer, blocking publishing", zap.String("msgID", msgId), zap.Error(err))
-		return false, err
+			return !enforceFlag, nil
+		}
+		pe = oldEntry
+	} else {
+		// Add it to the pending map and the database.
+		// We only add it if it is not already present.
+		pe = &pendingEntry{msg: msg, msgId: msgId, digest: digest, isNTT: isNTT, enforceFlag: enforceFlag}
+		if err := acct.addPendingTransferAlreadyLocked(pe); err != nil {
+			acct.logger.Error("failed to persist pending transfer, blocking publishing", zap.String("msgID", msgId), zap.Error(err))
+			return false, err
+		}
 	}
 
 	// This transaction may take a while. Pass it off to the worker so we don't block the processor.
@@ -345,7 +364,7 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 			tag = "ntt-accountant"
 		}
 		acct.logger.Info(fmt.Sprintf("submitting transfer to %s for approval", tag), zap.String("msgID", msgId), zap.Bool("canPublish", !enforceFlag))
-		_ = acct.submitObservation(pe)
+		_ = acct.submitObservation(acct.ctx, pe, false) // Non-blocking from processor
 	}
 
 	// If we are not enforcing accountant, the event can be published. Otherwise we have to wait to hear back from the contract.
@@ -436,37 +455,68 @@ func (acct *Accountant) loadPendingTransfers() error {
 
 // submitObservation sends an observation request to the worker so it can be submitted to the contract.  If the transfer is already
 // marked as "submit pending", this function returns false without doing anything. Otherwise it returns true. The return value can
-// be used to avoid unnecessary error logging. If writing to the channel would block, this function returns without doing anything,
-// assuming the pending transfer will be handled on the next audit interval. This function grabs the state lock.
-func (acct *Accountant) submitObservation(pe *pendingEntry) bool {
+// be used to avoid unnecessary error logging. If blocking is false and writing to the channel would block, this function returns
+// without doing anything, assuming the pending transfer will be handled on the next audit interval. If blocking is true, it will
+// block until the channel has space, a timeout occurs, or the context is cancelled. This function grabs the state lock.
+func (acct *Accountant) submitObservation(ctx context.Context, pe *pendingEntry, blocking bool) bool {
 	pe.stateLock.Lock()
-	defer pe.stateLock.Unlock()
 
 	if pe.state.submitPending {
+		pe.stateLock.Unlock()
 		return false
 	}
 
 	pe.state.submitPending = true
 	pe.state.updTime = time.Now()
+	pe.stateLock.Unlock()
+
+	timeout := time.Duration(0)
+	if blocking {
+		timeout = auditSubmitTimeout
+	}
 
 	if pe.isNTT {
-		acct.submitToChannel(pe, acct.nttSubChan, "ntt-accountant")
+		acct.submitToChannel(ctx, pe, acct.nttSubChan, "ntt-accountant", blocking, timeout)
 	} else {
-		acct.submitToChannel(pe, acct.subChan, "accountant")
+		acct.submitToChannel(ctx, pe, acct.subChan, "accountant", blocking, timeout)
 	}
 
 	return true
 }
 
-// submitToChannel submits an observation to the specified channel. If the submission fails because the channel is full,
-// it marks the transfer as pending so it will be resubmitted by the audit.
-func (acct *Accountant) submitToChannel(pe *pendingEntry, subChan chan *common.MessagePublication, tag string) {
-	select {
-	case subChan <- pe.msg:
-		acct.logger.Debug(fmt.Sprintf("submitted observation to channel for %s", tag), zap.String("msgId", pe.msgId))
-	default:
-		acct.logger.Error(fmt.Sprintf("unable to submit observation to %s because the channel is full, will try next interval", tag), zap.String("msgId", pe.msgId))
-		pe.state.submitPending = false
+// submitToChannel submits an observation to the specified channel. If blocking is false and the channel is full,
+// it marks the transfer as no longer pending so it will be resubmitted by the audit. If blocking is true, it will
+// block until the channel has space, a timeout occurs, or the context is cancelled.
+func (acct *Accountant) submitToChannel(ctx context.Context, pe *pendingEntry, subChan chan *common.MessagePublication, tag string, blocking bool, timeout time.Duration) {
+	if blocking {
+		select {
+		case subChan <- pe.msg:
+			acct.logger.Debug(fmt.Sprintf("submitted observation to channel for %s", tag), zap.String("msgId", pe.msgId))
+		case <-time.After(timeout):
+			channelSubmitTimeouts.Inc()
+			acct.logger.Warn(fmt.Sprintf("timeout submitting observation to %s channel, will retry next audit", tag),
+				zap.String("msgId", pe.msgId),
+				zap.Duration("timeout", timeout))
+			pe.stateLock.Lock()
+			pe.state.submitPending = false
+			pe.stateLock.Unlock()
+		case <-ctx.Done():
+			acct.logger.Warn(fmt.Sprintf("context cancelled while submitting to %s channel", tag), zap.String("msgId", pe.msgId))
+			pe.stateLock.Lock()
+			pe.state.submitPending = false
+			pe.stateLock.Unlock()
+		}
+	} else {
+		// Non-blocking write
+		select {
+		case subChan <- pe.msg:
+			acct.logger.Debug(fmt.Sprintf("submitted observation to channel for %s", tag), zap.String("msgId", pe.msgId))
+		default:
+			acct.logger.Error(fmt.Sprintf("unable to submit observation to %s because the channel is full, will try next interval", tag), zap.String("msgId", pe.msgId))
+			pe.stateLock.Lock()
+			pe.state.submitPending = false
+			pe.stateLock.Unlock()
+		}
 	}
 }
 

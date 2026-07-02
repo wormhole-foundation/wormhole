@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	batchSize    = 10
-	batchTimeout = 100 * time.Millisecond
+	DefaultSubmitObservationBatchSize = 100             // Observations per batch (limited by wasm contract input size of 64KB)
+	batchTimeout                      = 2 * time.Second // Time to collect observations before submitting
 )
 
 // baseWorker is the entry point for the base accountant worker.
@@ -68,7 +68,7 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 	ctx, cancel := context.WithTimeout(ctx, batchTimeout)
 	defer cancel()
 
-	msgs, err := common.ReadFromChannelWithTimeout[*common.MessagePublication](ctx, subChan, batchSize)
+	msgs, err := common.ReadFromChannelWithTimeout[*common.MessagePublication](ctx, subChan, acct.submitObservationBatchSize)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("failed to read messages from channel for %s: %w", tag, err)
 	}
