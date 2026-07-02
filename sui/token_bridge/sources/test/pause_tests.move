@@ -244,8 +244,10 @@ module token_bridge::pause_tests {
     }
 
     #[test]
-    fun test_pause_does_not_reduce_freeze_expiry() {
-        // freeze sets max expiry; a subsequent pause must NOT pull it down.
+    #[expected_failure(abort_code = pause::E_PAUSE_NOT_EXTENDED)]
+    fun test_pause_reverts_when_frozen() {
+        // freeze sets max expiry; a subsequent pause cannot push it forward, so it must abort
+        // with E_PAUSE_NOT_EXTENDED (a lower-trust pauser can never curtail a freeze).
         let (caller, pauser_owner, _u) = three_people();
         let freezer_owner = caller;
         let my_scenario = test_scenario::begin(caller);
@@ -269,7 +271,7 @@ module token_bridge::pause_tests {
         test_scenario::return_to_address(freezer_owner, fc);
         return_state(token_bridge_state);
 
-        // Pause: expiry must remain max (not reduced to now + 5d).
+        // Pause on a frozen bridge: cannot extend past max, so this aborts.
         test_scenario::next_tx(scenario, pauser_owner);
         let token_bridge_state = take_state(scenario);
         let pc = test_scenario::take_from_address<PauserCap>(scenario, pauser_owner);
@@ -277,9 +279,7 @@ module token_bridge::pause_tests {
         clock::set_for_testing(&mut the_clock, 1_000);
         pause::pause(&mut token_bridge_state, &pc, &the_clock, test_scenario::ctx(scenario));
 
-        assert!(state::pause_expiry(&token_bridge_state) == pause::max_timestamp_ms(), 0);
-        assert!(state::is_paused(&token_bridge_state), 0);
-
+        // Unreachable — the pause above aborts. Cleanup keeps the borrow checker happy.
         clock::destroy_for_testing(the_clock);
         test_scenario::return_to_address(pauser_owner, pc);
         return_state(token_bridge_state);
@@ -785,10 +785,12 @@ module token_bridge::pause_tests {
         test_scenario::return_to_address(owner_a, cap_a);
         return_state(token_bridge_state);
 
-        // owner_b's new cap works.
+        // owner_b's new cap works. Advance the clock so the pause pushes the expiry strictly
+        // forward (the prior pause left `pause_expiry` at 1_000 + 5d).
         test_scenario::next_tx(scenario, owner_b);
         let token_bridge_state = take_state(scenario);
         let cap_b = test_scenario::take_from_address<PauserCap>(scenario, owner_b);
+        clock::set_for_testing(&mut the_clock, 2_000);
         pause::pause(&mut token_bridge_state, &cap_b, &the_clock, test_scenario::ctx(scenario));
         assert!(state::is_paused(&token_bridge_state), 0);
 

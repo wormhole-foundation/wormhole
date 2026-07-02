@@ -81,6 +81,10 @@ module token_bridge::pause {
     const E_NOT_PAUSED: u64 = 6;
     /// `unpause_expired` called before `pauseExpiry`.
     const E_NOT_EXPIRED: u64 = 7;
+    /// `pause` would not push `pauseExpiry` strictly forward — the bridge already has an
+    /// equal-or-later expiry (e.g. it is frozen, or a same-timestamp re-pause). A pauser must not
+    /// reduce a freeze, and a no-op call aborts rather than emitting a misleading event.
+    const E_PAUSE_NOT_EXTENDED: u64 = 8;
 
     /// Temporary-pause duration: 5 days, in milliseconds (Sui Clock is ms).
     const PAUSE_DURATION_MS: u64 = 432_000_000;
@@ -196,10 +200,12 @@ module token_bridge::pause {
     }
 
     /// Temporarily pause the token bridge. Requires the active `PauserCap`.
-    /// Sets `paused` and pushes `pauseExpiry` to `now + PAUSE_DURATION` (5 days),
-    /// never reducing an expiry already further in the future (so a lower-trust
-    /// pauser cannot curtail a freeze). Not idempotent — each call extends the
-    /// window. Aborts if the pauser role is unassigned.
+    /// Pushes `pauseExpiry` to `now + PAUSE_DURATION` (5 days) and sets `paused`.
+    /// Aborts with `E_PAUSE_NOT_EXTENDED` if the new expiry would not be strictly
+    /// later than the current one — so a lower-trust pauser can never curtail a
+    /// freeze, and a call that would change nothing aborts rather than emitting a
+    /// misleading event. Not idempotent — each successful call extends the window.
+    /// Also aborts if the pauser role is unassigned.
     public fun pause(
         token_bridge_state: &mut State,
         cap: &PauserCap,
@@ -215,16 +221,14 @@ module token_bridge::pause {
         assert!(cap_id == option::destroy_some(configured), E_NOT_PAUSER);
 
         let new_expiry = clock::timestamp_ms(clock) + PAUSE_DURATION_MS;
-        // Never reduce an expiry already further out (e.g. one set by `freeze`).
-        if (new_expiry > state::pause_expiry(token_bridge_state)) {
-            state::set_pause_expiry(&latest_only, token_bridge_state, new_expiry);
-        };
+        assert!(new_expiry > state::pause_expiry(token_bridge_state), E_PAUSE_NOT_EXTENDED);
+        state::set_pause_expiry(&latest_only, token_bridge_state, new_expiry);
         state::set_paused(&latest_only, token_bridge_state, true);
 
         sui::event::emit(Paused {
             cap: cap_id,
             sender: tx_context::sender(ctx),
-            pause_expiry: state::pause_expiry(token_bridge_state)
+            pause_expiry: new_expiry
         });
     }
 
