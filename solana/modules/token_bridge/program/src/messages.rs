@@ -375,8 +375,8 @@ impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 /// Body of the `SetPauserAddresses` (action 4) governance message — see the "Pausing" section of
 /// whitepapers/0003_token_bridge.md.
 ///
-/// Wire format after the governance header:
-///   `pauser_len(u8) | pauser[pauser_len] | unpauser_len(u8) | unpauser[unpauser_len]`
+/// Wire format after the governance header (three length-prefixed addresses, in order):
+///   `pauser_len(u8) | pauser[..] | freezer_len(u8) | freezer[..] | unpauser_len(u8) | unpauser[..]`
 ///
 /// On Solana each length must be either 32 (the native address size) or 0 (the role is left
 /// unassigned). Any other length is rejected. An all-zero 32-byte address is treated as equivalent
@@ -385,18 +385,21 @@ impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 #[derive(PartialEq, Debug)]
 pub struct PayloadSetPauserAddresses {
     pub pauser: Pubkey,
+    pub freezer: Pubkey,
     pub unpauser: Pubkey,
 }
 
 impl SerializePayload for PayloadSetPauserAddresses {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
         self.write_governance_header(v)?;
-        // Canonical SVM encoding: always emit the full 32-byte length, even for the unassigned
+        // Canonical SVM encoding: always emit the full 32-byte length, even for an unassigned
         // role (in which case the body is 32 bytes of zeros). The wire format also accepts a
         // zero-length encoding on the receive side; either form decodes to `Pubkey::default()`.
         // `PUBKEY_BYTES` is 32 and `as u8` is safe for that range.
         v.write_u8(PUBKEY_BYTES as u8)?;
         v.write_all(&self.pauser.to_bytes())?;
+        v.write_u8(PUBKEY_BYTES as u8)?;
+        v.write_all(&self.freezer.to_bytes())?;
         v.write_u8(PUBKEY_BYTES as u8)?;
         v.write_all(&self.unpauser.to_bytes())?;
         Ok(())
@@ -412,13 +415,18 @@ where
         Self::check_governance_header(&mut c)?;
 
         let pauser = read_length_prefixed_pubkey(&mut c)?;
+        let freezer = read_length_prefixed_pubkey(&mut c)?;
         let unpauser = read_length_prefixed_pubkey(&mut c)?;
 
         if c.position() != c.into_inner().len() as u64 {
             return Err(InvalidAccountData.into());
         }
 
-        Ok(PayloadSetPauserAddresses { pauser, unpauser })
+        Ok(PayloadSetPauserAddresses {
+            pauser,
+            freezer,
+            unpauser,
+        })
     }
 }
 
@@ -540,6 +548,7 @@ mod tests {
     pub fn test_serde_gov_set_pauser_addresses() {
         let original = PayloadSetPauserAddresses {
             pauser: Pubkey::new_unique(),
+            freezer: Pubkey::new_unique(),
             unpauser: Pubkey::new_unique(),
         };
 
