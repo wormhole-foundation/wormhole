@@ -1370,7 +1370,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := managerSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on manager topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+						errC <- fmt.Errorf("failed to receive pubsub message on manager topic: %w", err) // Note on channel capacity: The runnable will exit anyway
 						return
 					}
 

@@ -6,6 +6,14 @@ set -eo pipefail -o nounset
 ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
 DOCKERFILE="$ROOT/scripts/Dockerfile.lint"
 
+# The custom golangci-lint (with our linters/ module plugins baked in) is built
+# from source under linters/ via `make -C linters build-golangci-lint`. The
+# golangci-lint version is owned by linters/ (GOLANGCI_LINT_HASH in
+# linters/Makefile, whose tag comment must match `version:` in
+# linters/.custom-gcl.yml). The Go build cache makes rebuilds a near-no-op after
+# the first build, so we just rebuild every run rather than caching the binary.
+LINTERS_DIR="$ROOT/linters"
+
 VALID_COMMANDS=("lint" "format")
 
 SELF_ARGS_WITHOUT_DOCKER=""
@@ -43,7 +51,7 @@ format(){
     fi
 
     # Use -exec because of pitfall #1 in http://mywiki.wooledge.org/BashPitfalls
-    GOFMT_OUTPUT="$(find "./sdk" "./node" "./wormchain" -type f -name '*.go' -not -path '*.pb.go' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
+    GOFMT_OUTPUT="$(find "./sdk" "./node" "./wormchain" "./linters" -type f -name '*.go' -not -path '*.pb.go' -print0 | xargs -r -0 goimports $GOIMPORTS_ARGS 2>&1)"
 
     if [ -n "$GOFMT_OUTPUT" ]; then
         if [ "$GITHUB_ACTION" == "true" ]; then
@@ -54,6 +62,22 @@ format(){
     fi
 }
 
+ensure_wormhole_golangci_lint() {
+    # In the -c docker image the custom linter is already built from source and
+    # placed on PATH; run that instead of rebuilding (the repo mount is read-only).
+    if command -v wormhole-golangci-lint >/dev/null 2>&1; then
+        command -v wormhole-golangci-lint
+        return
+    fi
+
+    # Build the custom golangci-lint. The Go build cache makes this a near-no-op
+    # once it's been built once, so we don't cache the binary ourselves.
+    # (stderr only — stdout is the binary path.)
+    echo "Building wormhole-golangci-lint..." >&2
+    make -C "$LINTERS_DIR" build-golangci-lint >&2
+    echo "$LINTERS_DIR/bin/wormhole-golangci-lint"
+}
+
 lint(){
     # === Spell check
     if ! command -v cspell >/dev/null 2>&1; then
@@ -61,19 +85,26 @@ lint(){
     else
         cspell "*/**.*md"
     fi
-    
-    # === Go linting
-    # Check for dependencies
-    if ! command -v golangci-lint >/dev/null 2>&1; then
-        printf "%s\n" "Require golangci-lint. You can run this command in a docker container instead with '-c' and not worry about it or install it: https://golangci-lint.run/usage/install/"
-    fi
 
-    # Do the actual linting!
-    cd "$ROOT"/node
-    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    # === Go linting (custom wormhole-golangci-lint)
+    local LINT_BIN
+    LINT_BIN="$(ensure_wormhole_golangci_lint)"
 
-    cd "${ROOT}/sdk"
-    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    # Lint node, sdk, and linters/ is the custom linter's own code; its
+    # rules/<name>/ are separate modules (mirroring `make -C linters test`), so
+    # lint each one too. Run in a subshell so a failure still halts under
+    # `set -e` without leaking the working directory between modules.
+    # NOTE this does NOT lint the wormchain directory.
+    lint_module() {
+        ( cd "$1" && "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./... )
+    }
+
+    lint_module "$ROOT/node"
+    lint_module "$ROOT/sdk"
+    lint_module "$ROOT/linters"
+    while IFS= read -r gomod; do
+        lint_module "$(dirname "$gomod")"
+    done < <(find "$ROOT/linters/rules" -name go.mod)
 }
 
 DOCKER="false"
