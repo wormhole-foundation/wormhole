@@ -3,20 +3,23 @@ package processor
 import (
 	"bytes"
 	"testing"
-	"time"
 
-	"github.com/certusone/wormhole/node/pkg/devnet"
-	"github.com/certusone/wormhole/node/pkg/p2p"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/p2p"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
-func getUniqueVAA(seqNo uint64) vaa.VAA {
+func getUniqueVAA(t testing.TB, seqNo uint64) vaa.VAA {
+	t.Helper()
+
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -24,7 +27,7 @@ func getUniqueVAA(seqNo uint64) vaa.VAA {
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 0),
 		Nonce:            uint32(1),
 		Sequence:         seqNo,
 		ConsistencyLevel: uint8(32),
@@ -42,7 +45,7 @@ func TestMarshalSignedObservationBatch(t *testing.T) {
 	observations := make([]*gossipv1.Observation, 0, NumObservations)
 	txHash := []byte("0123456789012345678901234567890123456789012345678901234567890123") // 64 bytes, the size of a Solana signature.
 	for seqNo := uint64(1); seqNo <= NumObservations; seqNo++ {
-		uniqueVAA := getUniqueVAA(seqNo)
+		uniqueVAA := getUniqueVAA(t, seqNo)
 		digest := uniqueVAA.SigningDigest()
 		sig, err := crypto.Sign(digest.Bytes(), gk)
 		require.NoError(t, err)

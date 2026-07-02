@@ -17,14 +17,16 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zaptest"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
 const (
@@ -188,7 +190,7 @@ func TestVaaFromUninterestingEmitter(t *testing.T) {
 
 	msg := common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		EmitterChain:     vaa.ChainIDSolana,
@@ -216,7 +218,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 
 	msg := common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -251,7 +253,7 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 
 	msg := common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -295,7 +297,7 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T)
 
 	msg := common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -347,7 +349,7 @@ func TestForDeadlock(t *testing.T) {
 
 	msg := common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1683136244),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -374,7 +376,7 @@ func TestForDeadlock(t *testing.T) {
 
 	msg2 := common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1683136244),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -480,7 +482,7 @@ func TestCreateAuditMapMultipleTransfersSameTxHash(t *testing.T) {
 
 	msg1 := &common.MessagePublication{
 		TxID:             txID,
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -491,7 +493,7 @@ func TestCreateAuditMapMultipleTransfersSameTxHash(t *testing.T) {
 
 	msg2 := &common.MessagePublication{
 		TxID:             txID,
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(2),
 		Sequence:         uint64(2),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -543,7 +545,7 @@ func TestCreateAuditMapDifferentTxHashes(t *testing.T) {
 
 	msg1 := &common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -554,7 +556,7 @@ func TestCreateAuditMapDifferentTxHashes(t *testing.T) {
 
 	msg2 := &common.MessagePublication{
 		TxID:             hashToTxID("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(2),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -610,7 +612,7 @@ func TestCreateAuditMapFiltersNTT(t *testing.T) {
 
 	msg1 := &common.MessagePublication{
 		TxID:             txID,
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -621,7 +623,7 @@ func TestCreateAuditMapFiltersNTT(t *testing.T) {
 
 	msg2 := &common.MessagePublication{
 		TxID:             txID,
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(2),
 		Sequence:         uint64(2),
 		EmitterChain:     vaa.ChainIDEthereum,

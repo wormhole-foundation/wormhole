@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 
 	"github.com/dgraph-io/badger/v3"
 	eth_common "github.com/ethereum/go-ethereum/common"
@@ -30,7 +32,7 @@ func TestAcctPendingTransferMsgID(t *testing.T) {
 
 	msg1 := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -71,7 +73,7 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 
 	msg1 := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -82,7 +84,7 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 
 	msg2 := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123457,
 		Sequence:         789101112131416,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -110,7 +112,7 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 	// Delete something that doesn't exist.
 	msg3 := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123457,
 		Sequence:         789101112131417,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -161,7 +163,7 @@ func TestAcctGetData(t *testing.T) {
 
 	msg1 := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         789101112131415,
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -172,7 +174,7 @@ func TestAcctGetData(t *testing.T) {
 
 	msg2 := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123457,
 		Sequence:         789101112131416,
 		EmitterChain:     vaa.ChainIDEthereum,
