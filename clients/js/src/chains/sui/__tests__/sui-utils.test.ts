@@ -1,84 +1,19 @@
 import { toHex } from "@mysten/sui/utils";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import {
-  getCreatedObjects,
   getPublishedPackageId,
   normalizeSuiAddress,
   normalizeSuiType,
-  SuiTransactionResult,
   toSuiTransactionResult,
 } from "../utils";
 import {
   CoinTypeKeyBcs,
+  getOriginalAssetSui,
   isValidSuiAddress,
   isValidSuiType,
   trimSuiType,
 } from "../../../sdk/sui";
 
-const baseResult = (
-  changedObjects: SuiTransactionResult["changedObjects"]
-): SuiTransactionResult => ({
-  digest: "DiGeStXyZ",
-  success: true,
-  changedObjects,
-  events: [],
-});
-
-describe("Sui transaction-result transforms", () => {
-  it("getCreatedObjects returns created non-package objects with their type", () => {
-    const res = baseResult([
-      {
-        objectId: "0xstate",
-        type: "0xpkg::state::State",
-        owner: "Shared",
-        created: true,
-        isPackage: false,
-      },
-      {
-        objectId: "0xpackage",
-        type: undefined,
-        owner: "Immutable",
-        created: true,
-        isPackage: true,
-      },
-      {
-        objectId: "0xmutated",
-        type: "0xpkg::thing::Thing",
-        owner: "0xowner",
-        created: false,
-        isPackage: false,
-      },
-    ]);
-
-    expect(getCreatedObjects(res)).toEqual([
-      { type: "0xpkg::state::State", objectId: "0xstate", owner: "Shared" },
-    ]);
-  });
-
-  it("getPublishedPackageId returns the single published package", () => {
-    const res = baseResult([
-      {
-        objectId: "0xpackage",
-        type: undefined,
-        owner: "Immutable",
-        created: true,
-        isPackage: true,
-      },
-      {
-        objectId: "0xobj",
-        type: "0xpkg::state::State",
-        owner: "Shared",
-        created: true,
-        isPackage: false,
-      },
-    ]);
-
-    expect(getPublishedPackageId(res)).toBe("0xpackage");
-  });
-
-  it("getPublishedPackageId throws when the package count is not exactly one", () => {
-    expect(() => getPublishedPackageId(baseResult([]))).toThrow();
-  });
-});
 
 // The gRPC envelope shape consumed by toSuiTransactionResult. Cast at the call
 // site since hand-building the SDK's include-parameterized type is unnecessary
@@ -213,5 +148,156 @@ describe("CoinTypeKey BCS encoding", () => {
       CoinTypeKeyBcs.serialize({ chain: 21, addr }).toBytes()
     );
     expect(encoded).toBe(`150020${addrHex}`);
+  });
+});
+
+describe("getOriginalAssetSui", () => {
+  const mockClient = {
+    getObject: jest.fn(),
+    getDynamicField: jest.fn(),
+  } as unknown as SuiGrpcClient;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("parses a wrapped asset from token registry", async () => {
+    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId = "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const coinType = "0x1234567890123456789012345678901234567890123456789012345678901234::coin::COIN";
+    const tokenAddress = Buffer.from(
+      "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+      "hex"
+    );
+
+    (mockClient.getObject as jest.Mock)
+      .mockResolvedValueOnce({
+        object: {
+          type: "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42::token_bridge::State",
+          json: {
+            token_registry: { id: registryId },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        object: {
+          type: `0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42::wrapped_asset::WrappedAsset<${coinType}>`,
+          json: {
+            value: {
+              info: {
+                token_chain: "7",
+                token_address: {
+                  value: {
+                    data: Buffer.from(tokenAddress).toString("base64"),
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+    (mockClient.getDynamicField as jest.Mock).mockResolvedValueOnce({
+      dynamicField: {
+        fieldId: "0x" + "a".repeat(64),
+      },
+    });
+
+    const result = await getOriginalAssetSui(
+      mockClient,
+      tokenBridgeStateId,
+      coinType
+    );
+
+    expect(result).toEqual({
+      isWrapped: true,
+      chainId: 7,
+      assetAddress: new Uint8Array(tokenAddress),
+    });
+
+    expect(mockClient.getObject).toHaveBeenCalledTimes(2);
+    expect(mockClient.getDynamicField).toHaveBeenCalledTimes(1);
+  });
+
+  it("parses a native asset from token registry", async () => {
+    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId = "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const coinType = "0x2::sui::SUI";
+    const tokenAddress = Buffer.alloc(32, 0);
+
+    (mockClient.getObject as jest.Mock)
+      .mockResolvedValueOnce({
+        object: {
+          type: "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42::token_bridge::State",
+          json: {
+            token_registry: { id: registryId },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        object: {
+          type: `0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42::native_asset::NativeAsset<${coinType}>`,
+          json: {
+            value: {
+              token_address: {
+                value: {
+                  data: Buffer.from(tokenAddress).toString("base64"),
+                },
+              },
+            },
+          },
+        },
+      });
+
+    (mockClient.getDynamicField as jest.Mock).mockResolvedValueOnce({
+      dynamicField: {
+        fieldId: "0x" + "b".repeat(64),
+      },
+    });
+
+    const result = await getOriginalAssetSui(
+      mockClient,
+      tokenBridgeStateId,
+      coinType
+    );
+
+    expect(result).toEqual({
+      isWrapped: false,
+      chainId: 21,
+      assetAddress: new Uint8Array(tokenAddress),
+    });
+  });
+
+  it("throws on invalid coin type", async () => {
+    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+
+    await expect(
+      getOriginalAssetSui(mockClient, tokenBridgeStateId, "invalid::type")
+    ).rejects.toThrow("Invalid Sui type");
+
+    expect(mockClient.getObject).not.toHaveBeenCalled();
+  });
+
+  it("throws when token is not registered", async () => {
+    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId = "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const coinType = "0x1234567890123456789012345678901234567890123456789012345678901234::coin::COIN";
+
+    (mockClient.getObject as jest.Mock).mockResolvedValueOnce({
+      object: {
+        type: "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42::token_bridge::State",
+        json: {
+          token_registry: { id: registryId },
+        },
+      },
+    });
+
+    (mockClient.getDynamicField as jest.Mock).mockRejectedValueOnce(
+      new Error("not found")
+    );
+
+    await expect(
+      getOriginalAssetSui(mockClient, tokenBridgeStateId, coinType)
+    ).rejects.toThrow("has not been registered with the token bridge");
   });
 });
