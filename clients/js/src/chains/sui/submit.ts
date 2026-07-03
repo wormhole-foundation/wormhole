@@ -228,7 +228,6 @@ export const submit = async (
           throw Error("Can't complete payload 3 transfer from CLI");
         default:
           impossible(payload);
-          break;
       }
 
       break;
