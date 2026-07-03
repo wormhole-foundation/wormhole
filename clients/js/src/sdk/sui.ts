@@ -102,9 +102,7 @@ export const getOriginalAssetSui = async (
     };
   }
 
-  throw new Error(
-    `Unrecognized token metadata type ${type} for ${coinType}`
-  );
+  throw new Error(`Unrecognized token metadata type ${type} for ${coinType}`);
 };
 
 export const getTokenCoinType = async (

@@ -263,9 +263,7 @@ const getCoinBuildOutput = async (
     tokenBridgeStateObjectId
   );
   return {
-    modules: [
-      buildWrappedCoinBytecode(originalTokenBridgePackageId, decimals),
-    ],
+    modules: [buildWrappedCoinBytecode(originalTokenBridgePackageId, decimals)],
     dependencies: ["0x1", "0x2", tokenBridgePackageId, coreBridgePackageId].map(
       (d) => normalizeSuiAddress(d)
     ),
@@ -326,11 +324,12 @@ const createWrappedOnSui = async (
   ]);
 
   const coinType = getWrappedCoinType(coinPackageId);
-  const coinMetadataObjectId = (
-    await client.getCoinMetadata({ coinType })
-  )?.coinMetadata?.id;
+  const coinMetadataObjectId = (await client.getCoinMetadata({ coinType }))
+    ?.coinMetadata?.id;
   if (!coinMetadataObjectId) {
-    throw new Error(`Coin metadata object not found for coin type ${coinType}.`);
+    throw new Error(
+      `Coin metadata object not found for coin type ${coinType}.`
+    );
   }
 
   const coinUpgradeCapObjectId = await getUpgradeCapObjectId(

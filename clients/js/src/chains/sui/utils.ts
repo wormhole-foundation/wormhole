@@ -242,7 +242,11 @@ export const getCreatedObjects = (
 ): { type: string; objectId: string; owner: string }[] =>
   res.changedObjects
     .filter((o) => o.created && !o.isPackage && o.type)
-    .map((o) => ({ type: o.type as string, objectId: o.objectId, owner: o.owner }));
+    .map((o) => ({
+      type: o.type as string,
+      objectId: o.objectId,
+      owner: o.owner,
+    }));
 
 export const getOwnedObjectId = async (
   client: SuiGrpcClient,
@@ -333,10 +337,7 @@ export const getOriginalPackageId = async (
   return res.object.type.split("::")[0];
 };
 
-export const getProvider = (
-  network?: Network,
-  rpc?: string
-): SuiGrpcClient => {
+export const getProvider = (network?: Network, rpc?: string): SuiGrpcClient => {
   if (!network && !rpc) {
     throw new Error("Must provide network or RPC to initialize provider");
   }
