@@ -14,7 +14,6 @@ import {
   trimSuiType,
 } from "../../../sdk/sui";
 
-
 // The gRPC envelope shape consumed by toSuiTransactionResult. Cast at the call
 // site since hand-building the SDK's include-parameterized type is unnecessary
 // for exercising the mapping.
@@ -162,9 +161,12 @@ describe("getOriginalAssetSui", () => {
   });
 
   it("parses a wrapped asset from token registry", async () => {
-    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
-    const registryId = "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
-    const coinType = "0x1234567890123456789012345678901234567890123456789012345678901234::coin::COIN";
+    const tokenBridgeStateId =
+      "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId =
+      "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const coinType =
+      "0x1234567890123456789012345678901234567890123456789012345678901234::coin::COIN";
     const tokenAddress = Buffer.from(
       "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
       "hex"
@@ -220,8 +222,10 @@ describe("getOriginalAssetSui", () => {
   });
 
   it("parses a native asset from token registry", async () => {
-    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
-    const registryId = "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const tokenBridgeStateId =
+      "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId =
+      "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
     const coinType = "0x2::sui::SUI";
     const tokenAddress = Buffer.alloc(32, 0);
 
@@ -269,7 +273,8 @@ describe("getOriginalAssetSui", () => {
   });
 
   it("throws on invalid coin type", async () => {
-    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const tokenBridgeStateId =
+      "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
 
     await expect(
       getOriginalAssetSui(mockClient, tokenBridgeStateId, "invalid::type")
@@ -279,9 +284,12 @@ describe("getOriginalAssetSui", () => {
   });
 
   it("throws when token is not registered", async () => {
-    const tokenBridgeStateId = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
-    const registryId = "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
-    const coinType = "0x1234567890123456789012345678901234567890123456789012345678901234::coin::COIN";
+    const tokenBridgeStateId =
+      "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId =
+      "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const coinType =
+      "0x1234567890123456789012345678901234567890123456789012345678901234::coin::COIN";
 
     (mockClient.getObject as jest.Mock).mockResolvedValueOnce({
       object: {
