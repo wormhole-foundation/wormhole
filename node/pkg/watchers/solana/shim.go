@@ -37,7 +37,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/near/borsh-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -116,7 +115,7 @@ func shimParsePostMessage(shimPostMessageDiscriminator []byte, buf []byte) (*Shi
 	}
 
 	data := new(ShimPostMessageData)
-	if err := borsh.Deserialize(data, buf[len(shimPostMessageDiscriminator):]); err != nil {
+	if err := decodeBorsh(data, buf[len(shimPostMessageDiscriminator):]); err != nil {
 		return nil, fmt.Errorf("failed to deserialize shim post message: %w", err)
 	}
 
@@ -135,7 +134,7 @@ func shimVerifyCoreMessage(buf []byte) (bool, error) {
 	}
 
 	var data PostMessageData
-	if err := borsh.Deserialize(&data, buf[1:]); err != nil {
+	if err := decodeBorsh(&data, buf[1:]); err != nil {
 		return false, fmt.Errorf("failed to deserialize core instruction data: %w", err)
 	}
 
@@ -153,7 +152,7 @@ func shimParseMessageEvent(shimMessageEventDiscriminator []byte, buf []byte) (*S
 	}
 
 	data := new(ShimMessageEventData)
-	if err := borsh.Deserialize(data, buf[len(shimMessageEventDiscriminator):]); err != nil {
+	if err := decodeBorsh(data, buf[len(shimMessageEventDiscriminator):]); err != nil {
 		return nil, fmt.Errorf("failed to deserialize shim message event: %w", err)
 	}
 

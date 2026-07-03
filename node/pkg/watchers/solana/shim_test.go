@@ -2277,9 +2277,9 @@ func TestShimProcessRestWithoutShimEventShouldFail(t *testing.T) {
 	require.ErrorContains(t, err, "failed to find inner shim message event instruction")
 }
 
-// The core inner instruction has the unreliable PostMessage id (0x08) but its
-// trailing bytes can't be borsh-deserialized, so shimVerifyCoreMessage returns
-// an error and shimProcessRest wraps it.
+// The core inner instruction has the unreliable PostMessage id (0x08), but the
+// remaining bytes are truncated, so shimVerifyCoreMessage returns an error and
+// shimProcessRest wraps it.
 func TestShimProcessRestWithMalformedCoreInstructionShouldFail(t *testing.T) {
 	var txRpc rpc.TransactionWithMeta
 	require.NoError(t, json.Unmarshal([]byte(shimDirectEventJSON), &txRpc))

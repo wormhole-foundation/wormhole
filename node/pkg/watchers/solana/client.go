@@ -22,13 +22,13 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/coder/websocket"
+	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
 	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 	"github.com/google/uuid"
 	"github.com/mr-tron/base58"
-	"github.com/near/borsh-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -330,6 +330,10 @@ type PostMessageData struct {
 	Nonce            uint32
 	Payload          []byte
 	ConsistencyLevel ConsistencyLevel
+}
+
+func decodeBorsh(dst interface{}, data []byte) error {
+	return bin.UnmarshalBorsh(dst, data)
 }
 
 func NewSolanaWatcher(
@@ -968,7 +972,7 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.C
 
 	// Decode instruction data (UNTRUSTED)
 	var data PostMessageData
-	if err := borsh.Deserialize(&data, inst.Data[1:]); err != nil {
+	if err := decodeBorsh(&data, inst.Data[1:]); err != nil {
 		return false, fmt.Errorf("failed to deserialize instruction data: %w", err)
 	}
 
@@ -1306,7 +1310,7 @@ func ParseMessagePublicationAccount(
 	}
 
 	prop := &MessagePublicationAccount{}
-	if err := borsh.Deserialize(prop, data[prefixLength:]); err != nil {
+	if err := decodeBorsh(prop, data[prefixLength:]); err != nil {
 		return nil, err
 	}
 
