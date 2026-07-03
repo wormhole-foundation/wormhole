@@ -1,5 +1,4 @@
 import { SuiGrpcClient } from "@mysten/sui/grpc";
-import { bcs } from "@mysten/sui/bcs";
 import { Chain, chainToChainId } from "@wormhole-foundation/sdk";
 import { normalizeSuiAddress } from "../chains/sui/utils";
 
@@ -7,10 +6,19 @@ import { normalizeSuiAddress } from "../chains/sui/utils";
 // up a wrapped/native coin type by (chain, address). Field order must match the
 // Move struct: `chain: u16` then `addr: vector<u8>` (a left-padded 32-byte
 // external address). Verified against the on-chain table on Sui mainnet.
-export const CoinTypeKeyBcs = bcs.struct("CoinTypeKey", {
-  chain: bcs.u16(),
-  addr: bcs.vector(bcs.u8()),
-});
+let CoinTypeKeyBcsCache: any;
+export const CoinTypeKeyBcs = {
+  serialize(data: { chain: number; addr: number[] | Uint8Array }) {
+    if (!CoinTypeKeyBcsCache) {
+      const { bcs } = require("@mysten/sui/bcs");
+      CoinTypeKeyBcsCache = bcs.struct("CoinTypeKey", {
+        chain: bcs.u16(),
+        addr: bcs.vector(bcs.u8()),
+      });
+    }
+    return CoinTypeKeyBcsCache.serialize(data);
+  },
+} as any;
 
 export async function getForeignAssetSui(
   client: SuiGrpcClient,
@@ -28,7 +36,14 @@ export async function getForeignAssetSui(
 }
 
 /** Marker key value (`struct Key has copy, drop, store { dummy_field: bool }`). */
-const RegistryKeyBcs = bcs.struct("Key", { dummy_field: bcs.bool() });
+let RegistryKeyBcsCache: any;
+function getRegistryKeyBcs() {
+  if (!RegistryKeyBcsCache) {
+    const { bcs } = require("@mysten/sui/bcs");
+    RegistryKeyBcsCache = bcs.struct("Key", { dummy_field: bcs.bool() });
+  }
+  return RegistryKeyBcsCache;
+}
 
 export interface SuiOriginalAssetInfo {
   isWrapped: boolean;
@@ -67,7 +82,7 @@ export const getOriginalAssetSui = async (
       parentId: registryId,
       name: {
         type: `${originalPackageId}::token_registry::Key<${coinType}>`,
-        bcs: RegistryKeyBcs.serialize({ dummy_field: false }).toBytes(),
+        bcs: getRegistryKeyBcs().serialize({ dummy_field: false }).toBytes(),
       },
     });
     fieldId = res.dynamicField.fieldId;
@@ -139,6 +154,7 @@ export const getTokenCoinType = async (
       name: { type: keyType, bcs: keyBcs },
     });
     // The dynamic-field value is an `ascii::String` holding the coin type.
+    const { bcs } = require("@mysten/sui/bcs");
     const coinType = bcs.string().parse(res.dynamicField.value.bcs);
     return coinType ? trimSuiType(ensureHexPrefix(coinType)) : null;
   } catch (e) {
