@@ -82,6 +82,100 @@ const (
 // tesSUCCESS is the XRPL transaction result code for successful transactions
 const tesSUCCESS = "tesSUCCESS"
 
+// regMemoFormat is the hex-encoded MemoFormat for XREG registration publishes: "application/x-ntt-registration"
+// On a successful initialize / register_peer, the sequencer posts an XREG payload that the executor relays back
+// to XRPL as a core-publish whose MemoData is the raw XREG bytes and MemoFormat is regMemoFormat. The watcher
+// synthesizes the canonical NTT transceiver registration message the ntt-global-accountant expects
+// (WormholeTransceiverInfo for a hub, WormholeTransceiverRegistration for a peer), emitted under the NTT
+// transceiver emitter keccak256("ntt" + manager + sourceToken) — the same emitter XRPL NTT transfers use, so
+// the accountant keys hub/peer state consistently.
+const regMemoFormat = "6170706C69636174696F6E2F782D6E74742D726567697374726174696F6E"
+
+// xregPrefix is the 4-byte prefix for XRPL registration payloads
+var xregPrefix = [4]byte{'X', 'R', 'E', 'G'}
+
+// Prefixes for canonical NTT transceiver messages (from the NTT spec / ntt-messages)
+var transceiverInfoPrefix = [4]byte{0x9c, 0x23, 0xbd, 0x3b} // WormholeTransceiverInfo
+var transceiverRegPrefix = [4]byte{0x18, 0xfc, 0x67, 0xc2}  // WormholeTransceiverRegistration
+
+// XREG constants
+const (
+	xregKindHub    = 0x00 // hub sub-type (byte after prefix), mirrors sequencer XREG_KIND_HUB
+	xregKindPeer   = 0x01 // peer sub-type (byte after prefix), mirrors sequencer XREG_KIND_PEER
+	xregTokenXRP   = 0x00 // wire token_id opening byte for XRP, mirrors XrplTokenId
+	xregTokenIOU   = 0x01 // wire token_id opening byte for issued currencies
+	xregTokenMPT   = 0x02 // wire token_id opening byte for MPT
+	nttModeLocking = 0x00 // manager mode for XRPL custody accounts (locking; accountant only accepts locking)
+)
+
+// regSourceTokenFromWire converts an XREG wire token_id (XrplTokenId form) into
+// the 32-byte source_token used by calculateEmitterAddress. It MUST produce the
+// identical bytes to the transfer path's sourceToken derivation so that the
+// synthesized registration emitter matches transfers:
+//
+//	XRP: 32 zeros
+//	IOU: 0x01 || keccak256(currency[20] || issuer[20])[1:]
+//	MPT: 0x02 || 7 zeros || mpt_issuance_id[24]
+//
+// Returns the source_token, the bytes consumed from `wire`, or an error.
+func regSourceTokenFromWire(wire []byte) ([32]byte, int, error) {
+	var sourceToken [32]byte
+	if len(wire) < 1 {
+		return sourceToken, 0, fmt.Errorf("xreg token_id empty")
+	}
+	switch wire[0] {
+	case xregTokenXRP:
+		return sourceToken, 1, nil // all zeros
+	case xregTokenIOU:
+		// 1 + currency(20) + issuer(20) = 41 bytes
+		if len(wire) < 41 {
+			return sourceToken, 0, fmt.Errorf("xreg IOU token_id too short: %d", len(wire))
+		}
+		// currency[20] || issuer[20] are already the normalized/decoded forms
+		// the transfer path hashes (currencycodec.NormalizedLen == 20, issuer is
+		// the 20-byte account ID), so hash them directly.
+		hash := ethcrypto.Keccak256(wire[1:41])
+		sourceToken[0] = tokenTypeIssued
+		copy(sourceToken[1:], hash[1:])
+		return sourceToken, 41, nil
+	case xregTokenMPT:
+		// 1 + mpt_issuance_id(24) = 25 bytes
+		if len(wire) < 25 {
+			return sourceToken, 0, fmt.Errorf("xreg MPT token_id too short: %d", len(wire))
+		}
+		sourceToken[0] = tokenTypeMPT
+		copy(sourceToken[8:], wire[1:25]) // 1 prefix + 7 padding = offset 8
+		return sourceToken, 25, nil
+	default:
+		return sourceToken, 0, fmt.Errorf("xreg unknown token type: 0x%02x", wire[0])
+	}
+}
+
+// buildTransceiverInfoPayload builds a WormholeTransceiverInfo payload:
+//
+//	prefix(4=0x9c23bd3b) + manager_address(32) + manager_mode(1) +
+//	token_address(32) + token_decimals(1)  = 70 bytes
+func buildTransceiverInfoPayload(manager32, token32 [32]byte, decimals uint8) []byte {
+	out := make([]byte, 0, 70)
+	out = append(out, transceiverInfoPrefix[:]...)
+	out = append(out, manager32[:]...)
+	out = append(out, nttModeLocking)
+	out = append(out, token32[:]...)
+	out = append(out, decimals)
+	return out
+}
+
+// buildTransceiverRegistrationPayload builds a WormholeTransceiverRegistration:
+//
+//	prefix(4=0x18fc67c2) + chain_id(2 BE) + transceiver_address(32) = 38 bytes
+func buildTransceiverRegistrationPayload(peerChain uint16, peerAddress [32]byte) []byte {
+	out := make([]byte, 0, 38)
+	out = append(out, transceiverRegPrefix[:]...)
+	out = binary.BigEndian.AppendUint16(out, peerChain)
+	out = append(out, peerAddress[:]...)
+	return out
+}
+
 // txResponseV2 pairs a TxResponse with the close_time_iso field from API v2.
 // These are decoded separately because GetResult uses mapstructure which does
 // not support embedded-struct squashing with TagName:"json".
@@ -344,12 +438,169 @@ func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, err
 		return msg, err
 	}
 
+	// Registration (XREG) publishes go to the core account but use a distinct
+	// MemoFormat, so they must be checked before the generic core parser.
+	msg, err = p.parseRegistrationTransaction(tx)
+	if msg != nil || err != nil {
+		return msg, err
+	}
+
 	msg, err = p.parseCoreTransaction(tx)
 	if msg != nil || err != nil {
 		return msg, err
 	}
 
 	return p.parseNttTransaction(tx)
+}
+
+// parseRegistrationTransaction parses an XREG registration publish (payment to
+// the core account with regMemoFormat) and synthesizes the canonical NTT
+// transceiver registration message under the NTT transceiver emitter.
+//
+// Returns (nil, nil) if this is not a registration publish.
+func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePublication, error) {
+	if p.coreAccount == "" {
+		return nil, nil
+	}
+
+	destination, err := p.extractDestination(tx.Transaction)
+	if err != nil {
+		return nil, err
+	}
+	if destination != p.coreAccount {
+		return nil, nil
+	}
+
+	// Read the registration memo (memo[0], regMemoFormat). nil => not an XREG.
+	regData, err := p.parseRegistrationMemoData(tx.Transaction)
+	if err != nil {
+		return nil, err
+	}
+	if regData == nil {
+		return nil, nil
+	}
+
+	if err = validateTransactionResult(tx); err != nil {
+		return nil, err
+	}
+	if err = validateTransactionType(tx.Transaction); err != nil {
+		return nil, err
+	}
+
+	txHash, sequence, err := p.extractTxHashAndSequence(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Synthesize the canonical transceiver payload + re-keyed emitter.
+	payload, emitter, err := buildRegistrationMessage(regData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build registration message: %w", err)
+	}
+
+	return &common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        tx.Timestamp,
+		Nonce:            0,
+		Sequence:         sequence,
+		EmitterChain:     vaa.ChainIDXRPL,
+		EmitterAddress:   emitter,
+		Payload:          payload,
+		ConsistencyLevel: 0,
+		IsReobservation:  false,
+		Unreliable:       false,
+	}, nil
+}
+
+// parseRegistrationMemoData extracts the raw XREG bytes from memo[0] when its
+// MemoFormat is regMemoFormat. Returns (nil, nil) if not a registration memo.
+func (p *Parser) parseRegistrationMemoData(tx transaction.FlatTransaction) ([]byte, error) {
+	memosRaw, ok := tx["Memos"]
+	if !ok {
+		return nil, nil
+	}
+	memos, ok := memosRaw.([]any)
+	if !ok || len(memos) == 0 {
+		return nil, nil
+	}
+	// Only the first memo (index 0), consistent with the NTT/core parsers.
+	memoWrapper, ok := memos[0].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	memoRaw, ok := memoWrapper["Memo"]
+	if !ok {
+		return nil, nil
+	}
+	memo, ok := memoRaw.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	memoFormatStr, ok := memo["MemoFormat"].(string)
+	if !ok || memoFormatStr != regMemoFormat {
+		return nil, nil
+	}
+	memoDataStr, ok := memo["MemoData"].(string)
+	if !ok {
+		return nil, nil
+	}
+	data, err := hex.DecodeString(memoDataStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode registration MemoData: %w", err)
+	}
+	if len(data) < 4 || !bytes.Equal(data[:4], xregPrefix[:]) {
+		return nil, nil
+	}
+	return data, nil
+}
+
+// buildRegistrationMessage parses the XREG bytes and returns the canonical
+// transceiver payload plus the NTT transceiver emitter to publish under.
+//
+// XREG layout: prefix(4) + kind(1) + manager(20) + token_id(wire 1-41) + tail
+//
+//	Hub  tail: token_decimals(1)
+//	Peer tail: peer_chain(2 BE) + peer_address(32)
+func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
+	var emitter vaa.Address
+	const headerLen = 4 + 1 + 20
+	if len(data) < headerLen+1 {
+		return nil, emitter, fmt.Errorf("xreg payload too short: %d", len(data))
+	}
+	kind := data[4]
+	var manager20 [20]byte
+	copy(manager20[:], data[5:25])
+
+	// manager32 = left-padded 20-byte account id (same as transfer sourceNTTManager).
+	var manager32 [32]byte
+	copy(manager32[12:], manager20[:])
+
+	sourceToken, consumed, err := regSourceTokenFromWire(data[25:])
+	if err != nil {
+		return nil, emitter, err
+	}
+	tail := data[25+consumed:]
+
+	emitter = (&Parser{}).calculateEmitterAddress(manager32, sourceToken)
+
+	switch kind {
+	case xregKindHub:
+		if len(tail) < 1 {
+			return nil, emitter, fmt.Errorf("xreg hub missing decimals")
+		}
+		decimals := tail[0]
+		return buildTransceiverInfoPayload(manager32, sourceToken, decimals), emitter, nil
+	case xregKindPeer:
+		if len(tail) < 2+32 {
+			return nil, emitter, fmt.Errorf("xreg peer tail too short: %d", len(tail))
+		}
+		peerChain := binary.BigEndian.Uint16(tail[0:2])
+		var peerAddr [32]byte
+		copy(peerAddr[:], tail[2:34])
+		return buildTransceiverRegistrationPayload(peerChain, peerAddr), emitter, nil
+	default:
+		return nil, emitter, fmt.Errorf("xreg unknown kind: 0x%02x", kind)
+	}
 }
 
 // parseCoreTransaction parses a generic Wormhole message (payment to the core account).
