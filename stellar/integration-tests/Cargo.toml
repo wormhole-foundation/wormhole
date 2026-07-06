@@ -1,0 +1,16 @@
+[package]
+name = "integration-tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+autobins = false
+
+[dependencies]
+serde_json = "1.0"
+stellar-strkey = "0.0.14"
+secp256k1 = { version = "0.32.0-beta.2", default-features = false, features = ["alloc", "recovery"] }
+hex = "0.4"
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+
+[dev-dependencies]
