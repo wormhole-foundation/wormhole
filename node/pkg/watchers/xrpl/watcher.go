@@ -133,7 +133,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	w.client = websocket.NewClient(cfg)
 	if err := w.client.Connect(); err != nil {
-		return fmt.Errorf("failed to connect to XRPL node: %w", err)
+		return fmt.Errorf("failed to connect to XRPL node: %s", common.SafeErrorForLogging(err, w.rpc))
 	}
 	defer func() {
 		_ = w.client.Disconnect()
@@ -294,7 +294,7 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context) error {
 
 	_, err := w.client.Request(subscribeReq)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to accounts %v: %w", accounts, err)
+		return fmt.Errorf("failed to subscribe to accounts %v: %s", accounts, common.SafeErrorForLogging(err, w.rpc))
 	}
 
 	w.logger.Info("Subscribed to accounts",

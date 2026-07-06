@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
@@ -366,7 +367,7 @@ func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialO
 	conn, err := grpc.NewClient(rpcURL, opts...)
 
 	if err != nil {
-		return nil, fmt.Errorf("sui gRPC client creation failed: %w", err)
+		return nil, fmt.Errorf("sui gRPC client creation failed: %s", common.SafeErrorForLogging(err, rpcURL))
 	}
 
 	grpcLedgerServiceClient := &GrpcLedgerServiceClient{

@@ -234,16 +234,18 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	indexerClient, err := indexer.MakeClient(e.indexerRPC, e.indexerToken)
 	if err != nil {
-		logger.Error("indexer make client", zap.Error(err))
+		safeErr := common.SafeErrorForLogging(err, e.indexerRPC)
+		logger.Error("indexer make client", zap.String("error", safeErr))
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
-		return err
+		return fmt.Errorf("indexer make client: %s", safeErr)
 	}
 
 	algodClient, err := algod.MakeClient(e.algodRPC, e.algodToken)
 	if err != nil {
-		logger.Error("algod client", zap.Error(err))
+		safeErr := common.SafeErrorForLogging(err, e.algodRPC)
+		logger.Error("algod client", zap.String("error", safeErr))
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
-		return err
+		return fmt.Errorf("algod client: %s", safeErr)
 	}
 
 	// Get the node version for troubleshooting
@@ -251,9 +253,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	status, err := algodClient.StatusAfterBlock(0).Do(ctx)
 	if err != nil {
-		logger.Error("StatusAfterBlock", zap.Error(err))
+		safeErr := common.SafeErrorForLogging(err, e.algodRPC)
+		logger.Error("StatusAfterBlock", zap.String("error", safeErr))
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
-		return err
+		return fmt.Errorf("StatusAfterBlock: %s", safeErr)
 	}
 
 	e.next_round = status.LastRound + 1
@@ -278,7 +281,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)).Do(ctx)
 			if err != nil {
-				logger.Error("SearchForTransactions", zap.Error(err))
+				logger.Error("SearchForTransactions", zap.String("error", common.SafeErrorForLogging(err, e.indexerRPC)))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 				break
 			}
@@ -287,7 +290,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				block, err := algodClient.Block(r).Do(ctx)
 				if err != nil {
-					logger.Error("SearchForTransactions", zap.Error(err))
+					logger.Error("SearchForTransactions", zap.String("error", common.SafeErrorForLogging(err, e.algodRPC)))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 					break
 				}
@@ -300,7 +303,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-timer.C:
 			status, err := algodClient.Status().Do(ctx)
 			if err != nil {
-				logger.Error(fmt.Sprintf("algodClient.Status: %s", err.Error()))
+				logger.Error(fmt.Sprintf("algodClient.Status: %s", common.SafeErrorForLogging(err, e.algodRPC)))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 				continue
 			}
@@ -309,7 +312,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				for {
 					block, err := algodClient.Block(e.next_round).Do(ctx)
 					if err != nil {
-						logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
+						logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, common.SafeErrorForLogging(err, e.algodRPC)))
 						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 						break
 					}
@@ -355,7 +358,7 @@ func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger, client *al
 	versionResult, err := versionRPC.Do(ctx)
 	if err != nil {
 		logger.Error("problem retrieving node version",
-			zap.Error(err),
+			zap.String("error", common.SafeErrorForLogging(err, e.algodRPC)),
 			zap.String("network", networkName),
 		)
 		return
