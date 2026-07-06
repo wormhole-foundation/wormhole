@@ -1110,12 +1110,13 @@ func (s *nodePrivilegedService) fetchMissing(
 		// #nosec G704 -- Admin RPC: BackfillNodes from authorized admin request
 		resp, err := c.Do(req)
 		if err != nil {
+			safeErr := common.SafeErrorForLogging(err, requestURL)
 			s.logger.Warn("failed to fetch missing VAA",
 				zap.String("node", common.SafeURLForLogging(node)),
 				zap.String("chain", chain.String()),
 				zap.String("address", addr),
 				zap.Uint64("sequence", seq),
-				zap.Error(err),
+				zap.String("error", safeErr),
 			)
 			continue
 		}
@@ -1132,7 +1133,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
 				resp.Body.Close()
 				s.logger.Warn("failed to decode VAA response",
-					zap.String("node", node),
+					zap.String("node", common.SafeURLForLogging(node)),
 					zap.String("chain", chain.String()),
 					zap.String("address", addr),
 					zap.Uint64("sequence", seq),
@@ -1146,7 +1147,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			if err != nil {
 				resp.Body.Close()
 				s.logger.Warn("failed to decode VAA body",
-					zap.String("node", node),
+					zap.String("node", common.SafeURLForLogging(node)),
 					zap.String("chain", chain.String()),
 					zap.String("address", addr),
 					zap.Uint64("sequence", seq),

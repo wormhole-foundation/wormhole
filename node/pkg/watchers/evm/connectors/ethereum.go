@@ -28,6 +28,7 @@ type EthereumBaseConnector struct {
 	logger      *zap.Logger
 	client      *ethClient.Client
 	rawClient   *ethRpc.Client
+	rawURL      string
 	filterer    *ethAbi.AbiFilterer
 	caller      *ethAbi.AbiCaller
 	dgCaller    *dgAbi.DelegatedguardiansCaller
@@ -69,6 +70,7 @@ func NewEthereumBaseConnector(ctx context.Context, networkName, rawUrl string, a
 		filterer:    filterer,
 		caller:      caller,
 		rawClient:   rawClient,
+		rawURL:      rawUrl,
 		dgCaller:    dgCaller,
 		dgAddress:   dgAddress,
 	}, nil
@@ -80,6 +82,10 @@ func (e *EthereumBaseConnector) NetworkName() string {
 
 func (e *EthereumBaseConnector) ContractAddress() ethCommon.Address {
 	return e.address
+}
+
+func (e *EthereumBaseConnector) RPCURL() string {
+	return e.rawURL
 }
 
 func (e *EthereumBaseConnector) GetCurrentGuardianSetIndex(ctx context.Context) (uint32, error) {

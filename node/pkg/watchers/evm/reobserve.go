@@ -165,7 +165,7 @@ func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 	// Get the current finalized and safe blocks.
 	_, finalized, safe, err := ethConn.GetLatest(timeout)
 	if err != nil {
-		return 0, fmt.Errorf(`failed to get latest blocks: %w`, err)
+		return 0, fmt.Errorf(`failed to get latest blocks: %s`, common.SafeErrorForLogging(err, customEndpoint))
 	}
 
 	// Finally, do the reobservation and return the number of messages observed.

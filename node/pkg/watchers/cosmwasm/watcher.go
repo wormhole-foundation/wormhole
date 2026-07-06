@@ -213,9 +213,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-t.C:
 				msm := time.Now()
 				// Query and report height and set currentSlotHeight
-				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
+				requestURL := fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL)
+				resp, err := client.Get(requestURL) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
-					logger.Error("query latest block response error", zap.String("network", e.networkName), zap.Error(err))
+					logger.Error("query latest block response error", zap.String("network", e.networkName), zap.String("error", common.SafeErrorForLogging(err, requestURL)))
 					continue
 				}
 				blocksBody, err := common.SafeRead(resp.Body)
@@ -269,9 +270,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				// Query for tx by hash
-				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
+				requestURL := fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx)
+				resp, err := client.Get(requestURL) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
-					logger.Error("query tx response error", zap.String("network", e.networkName), zap.Error(err))
+					logger.Error("query tx response error", zap.String("network", e.networkName), zap.String("error", common.SafeErrorForLogging(err, requestURL)))
 					continue
 				}
 				txBody, err := common.SafeRead(resp.Body)

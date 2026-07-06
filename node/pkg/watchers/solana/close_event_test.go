@@ -273,12 +273,12 @@ func TestClosePostedMessageSkippedDuringNormalProcessing(t *testing.T) {
 	require.NoError(t, err)
 
 	// Process as normal (non-reobservation) — should produce NO observation.
-	numObs := s.processTransaction(context.Background(), nil, tx, txRpc.Meta, 100, false)
+	numObs := s.processTransaction(context.Background(), nil, "", tx, txRpc.Meta, 100, false)
 	assert.Equal(t, uint32(0), numObs)
 	assert.Equal(t, 0, len(msgC), "normal processing must not generate observation for close events")
 
 	// Process as reobservation — should produce an observation.
-	numObs = s.processTransaction(context.Background(), nil, tx, txRpc.Meta, 100, true)
+	numObs = s.processTransaction(context.Background(), nil, "", tx, txRpc.Meta, 100, true)
 	assert.Equal(t, uint32(1), numObs)
 	assert.Equal(t, 1, len(msgC), "reobservation should generate observation for close events")
 

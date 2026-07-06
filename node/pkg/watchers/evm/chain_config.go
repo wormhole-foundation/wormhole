@@ -244,7 +244,7 @@ func QueryEvmChainID(ctx context.Context, url string) (uint64, error) {
 	var str string
 	err = c.CallContext(ctx, &str, "eth_chainId")
 	if err != nil {
-		return 0, fmt.Errorf("failed to read evm chain id: %w", err)
+		return 0, fmt.Errorf("failed to read evm chain id: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	evmChainID, err := strconv.ParseUint(strings.TrimPrefix(str, "0x"), 16, 64)
@@ -274,7 +274,7 @@ func (w *Watcher) verifyEvmChainID(ctx context.Context, logger *zap.Logger, url 
 	var str string
 	err = c.CallContext(ctx, &str, "eth_chainId")
 	if err != nil {
-		return fmt.Errorf("failed to read evm chain id: %w", err)
+		return fmt.Errorf("failed to read evm chain id: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	evmChainID, err := strconv.ParseUint(strings.TrimPrefix(str, "0x"), 16, 64)

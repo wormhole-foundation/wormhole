@@ -13,7 +13,7 @@ import (
 
 // handleReobservationRequest performs a reobservation request and publishes any observed transactions.
 // SECURITY: Only the finalized watcher handles reobservations. Set in configuration of watcher for Solana chains.
-func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []byte, rpcClient *rpc.Client) (numObservations uint32, err error) {
+func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []byte, rpcClient *rpc.Client, customEndpoint string) (numObservations uint32, err error) {
 	if chainId != s.chainID {
 		return 0, fmt.Errorf("unexpected chain id: %v", chainId)
 	}
@@ -21,7 +21,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		acc := solana.PublicKeyFromBytes(txID)
 		s.logger.Info("received observation request with account id", zap.String("account", acc.String()))
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
-		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, acc, 0, true, solana.Signature{})
+		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, customEndpoint, acc, 0, true, solana.Signature{})
 		cancel()
 	} else if len(txID) == SolanaSignatureLen { // Request by transaction ID
 		signature := solana.SignatureFromBytes(txID)
@@ -38,7 +38,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		)
 		cancel()
 		if err != nil {
-			return 0, fmt.Errorf("failed to get transaction for observation request: %v", err)
+			return 0, fmt.Errorf("failed to get transaction for observation request: %s", common.SafeErrorForLogging(err, customEndpoint))
 		}
 
 		if metadataErr := validateTransactionMeta(result.Meta); metadataErr != nil {
@@ -53,7 +53,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		if err != nil {
 			return 0, fmt.Errorf("failed to extract transaction for observation request: %v", err)
 		}
-		numObservations = s.processTransaction(s.ctx, rpcClient, tx, result.Meta, result.Slot, true)
+		numObservations = s.processTransaction(s.ctx, rpcClient, customEndpoint, tx, result.Meta, result.Slot, true)
 	} else {
 		return 0, fmt.Errorf("ignoring an observation request of unexpected length: %d", len(txID))
 	}
@@ -68,5 +68,5 @@ func (s *SolanaWatcher) Reobserve(_ context.Context, chainID vaa.ChainID, txID [
 	s.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("customEndpointURL", common.SafeURLForLogging(customEndpoint)))
 	rpcClient := rpc.New(customEndpoint)
 	//nolint:contextcheck // See comment above for the reason why we don't use the passed in context.
-	return s.handleReobservationRequest(chainID, txID, rpcClient)
+	return s.handleReobservationRequest(chainID, txID, rpcClient, customEndpoint)
 }
