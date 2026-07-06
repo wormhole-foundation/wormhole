@@ -480,6 +480,18 @@ func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePubl
 		return nil, nil
 	}
 
+	senderID, err := p.registrationSenderAccountID(tx.Transaction)
+	if err != nil {
+		return nil, err
+	}
+	if senderID == nil {
+		return nil, nil
+	}
+	// manager occupies bytes [5:25] of the XREG payload (prefix4 + kind1 + manager20).
+	if len(regData) < 25 || !bytes.Equal(senderID, regData[5:25]) {
+		return nil, nil
+	}
+
 	if err = validateTransactionResult(tx); err != nil {
 		return nil, err
 	}
@@ -552,6 +564,30 @@ func (p *Parser) parseRegistrationMemoData(tx transaction.FlatTransaction) ([]by
 		return nil, nil
 	}
 	return data, nil
+}
+
+// registrationSenderAccountID returns the sender's 20-byte XRPL account ID when
+// the sender is a managed (guardian-controlled) account, or nil when it is not
+// managed — used to authenticate an XREG registration publish (see the SECURITY
+// note in parseRegistrationTransaction). A missing/malformed Account field is an
+// error; an unmanaged sender is a silent decline (nil, nil).
+func (p *Parser) registrationSenderAccountID(tx transaction.FlatTransaction) ([]byte, error) {
+	accountRaw, ok := tx["Account"]
+	if !ok {
+		return nil, fmt.Errorf("transaction has no Account field")
+	}
+	account, ok := accountRaw.(string)
+	if !ok {
+		return nil, fmt.Errorf("transaction Account field is not a string")
+	}
+	if _, managed := p.managedAccounts[account]; !managed {
+		return nil, nil
+	}
+	_, accountID, err := addresscodec.DecodeClassicAddressToAccountID(account)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode sender address %s: %w", account, err)
+	}
+	return accountID, nil
 }
 
 // buildRegistrationMessage parses the XREG bytes and returns the canonical

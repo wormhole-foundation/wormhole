@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	addresscodec "github.com/Peersyst/xrpl-go/address-codec"
 	streamtypes "github.com/Peersyst/xrpl-go/xrpl/queries/subscription/types"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,22 @@ func testRegManager20() [20]byte {
 		m[i] = byte(i + 1)
 	}
 	return m
+}
+
+// managerAddress derives the classic r-address for a 20-byte account id — the
+// XRPL sender that a genuine XREG publish for that manager is signed by.
+func managerAddress(t *testing.T, m [20]byte) string {
+	t.Helper()
+	addr, err := addresscodec.EncodeAccountIDToClassicAddress(m[:])
+	require.NoError(t, err)
+	return addr
+}
+
+// newRegParser builds a Parser whose managed set contains `manager`, i.e. the
+// XREG sender is trusted. This is the setup a genuine registration publish uses.
+func newRegParser(t *testing.T, manager [20]byte) *Parser {
+	t.Helper()
+	return NewParser(testRegCoreAccount, []string{managerAddress(t, manager)}, nil)
 }
 
 // buildXregHubXRP builds an XREG Hub payload for an XRP custody (matching the
@@ -61,7 +78,9 @@ func buildXregPeerXRP(manager [20]byte, peerChain uint16, peerAddr [32]byte) []b
 	return out
 }
 
-func regTxStream(memoData []byte) *streamtypes.TransactionStream {
+// regTxStream builds a registration publish signed by `sender` (the XRPL
+// Account field) carrying the given XREG memo, targeting the core account.
+func regTxStream(sender string, memoData []byte) *streamtypes.TransactionStream {
 	return &streamtypes.TransactionStream{
 		Hash:         "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890",
 		LedgerIndex:  12345,
@@ -69,7 +88,7 @@ func regTxStream(memoData []byte) *streamtypes.TransactionStream {
 		Validated:    true,
 		Transaction: transaction.FlatTransaction{
 			"TransactionType": "Payment",
-			"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+			"Account":         sender,
 			"Destination":     testRegCoreAccount,
 			"meta": map[string]any{
 				"TransactionResult": "tesSUCCESS",
@@ -99,10 +118,10 @@ func manager32From20(m [20]byte) [32]byte {
 }
 
 func TestRegistration_HubXRP_EmitterMatchesTransferPath(t *testing.T) {
-	p := NewParser(testRegCoreAccount, nil, nil)
 	manager := testRegManager20()
+	p := newRegParser(t, manager)
 
-	msg, err := p.ParseTransactionStream(regTxStream(buildXregHubXRP(manager, 6)))
+	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubXRP(manager, 6)))
 	require.NoError(t, err)
 	require.NotNil(t, msg, "registration publish should produce a message")
 
@@ -125,8 +144,8 @@ func TestRegistration_HubXRP_EmitterMatchesTransferPath(t *testing.T) {
 }
 
 func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
-	p := NewParser(testRegCoreAccount, nil, nil)
 	manager := testRegManager20()
+	p := newRegParser(t, manager)
 
 	// Normalized currency (20) + issuer account id (20), as carried in XREG.
 	var currency, issuer [20]byte
@@ -135,7 +154,7 @@ func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
 		issuer[i] = byte(0xA0 + i)
 	}
 
-	msg, err := p.ParseTransactionStream(regTxStream(buildXregHubIOU(manager, currency, issuer, 9)))
+	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubIOU(manager, currency, issuer, 9)))
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -155,8 +174,8 @@ func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
 }
 
 func TestRegistration_PeerXRP(t *testing.T) {
-	p := NewParser(testRegCoreAccount, nil, nil)
 	manager := testRegManager20()
+	p := newRegParser(t, manager)
 
 	var peerAddr [32]byte
 	for i := range peerAddr {
@@ -164,7 +183,7 @@ func TestRegistration_PeerXRP(t *testing.T) {
 	}
 	const peerChain = uint16(6) // Avalanche
 
-	msg, err := p.ParseTransactionStream(regTxStream(buildXregPeerXRP(manager, peerChain, peerAddr)))
+	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregPeerXRP(manager, peerChain, peerAddr)))
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -182,8 +201,9 @@ func TestRegistration_PeerXRP(t *testing.T) {
 }
 
 func TestRegistration_WrongMemoFormat_NotRegistration(t *testing.T) {
-	p := NewParser(testRegCoreAccount, nil, nil)
-	tx := regTxStream(buildXregHubXRP(testRegManager20(), 6))
+	manager := testRegManager20()
+	p := newRegParser(t, manager)
+	tx := regTxStream(managerAddress(t, manager), buildXregHubXRP(manager, 6))
 	// A valid core publish (version 1 + nonce + payload) under coreMemoFormat must
 	// NOT be parsed as a registration: parseRegistrationTransaction returns nil and
 	// the generic core parser handles it (emitter = sender, not the keccak emitter).
@@ -200,4 +220,43 @@ func TestRegistration_WrongMemoFormat_NotRegistration(t *testing.T) {
 	require.NotNil(t, msg)
 	assert.NotEqual(t, transceiverInfoPrefix[:], msg.Payload[0:4],
 		"non-XREG memo must not synthesize a transceiver-info payload")
+}
+
+// TestRegistration_UntrustedSender_Declined ensures a registration publish from
+// an account that is NOT a managed (guardian-controlled) account is ignored.
+// Otherwise anyone could forge a hub/peer registration by paying the core
+// account with a crafted XREG memo.
+func TestRegistration_UntrustedSender_Declined(t *testing.T) {
+	manager := testRegManager20()
+	// Parser trusts `manager`, but the publish is signed by a DIFFERENT account.
+	p := newRegParser(t, manager)
+
+	var attacker [20]byte
+	for i := range attacker {
+		attacker[i] = byte(0xEE)
+	}
+	tx := regTxStream(managerAddress(t, attacker), buildXregHubXRP(manager, 6))
+
+	msg, err := p.ParseTransactionStream(tx)
+	require.NoError(t, err)
+	assert.Nil(t, msg, "registration from an untrusted sender must be declined")
+}
+
+// TestRegistration_ManagerMismatch_Declined ensures the XREG manager field must
+// match the (trusted) sender. A trusted account must not be able to register a
+// hub/peer on behalf of a different manager account.
+func TestRegistration_ManagerMismatch_Declined(t *testing.T) {
+	sender := testRegManager20()
+
+	var otherManager [20]byte
+	for i := range otherManager {
+		otherManager[i] = byte(0x40 + i)
+	}
+	// Sender is trusted, but the memo names a different manager.
+	p := newRegParser(t, sender)
+	tx := regTxStream(managerAddress(t, sender), buildXregHubXRP(otherManager, 6))
+
+	msg, err := p.ParseTransactionStream(tx)
+	require.NoError(t, err)
+	assert.Nil(t, msg, "registration whose manager != sender must be declined")
 }
