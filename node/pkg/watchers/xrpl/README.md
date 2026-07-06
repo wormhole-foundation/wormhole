@@ -100,6 +100,8 @@ uint32 nonce
 []byte payload
 ```
 
+<!-- cspell:ignore XREG vaas -->
+
 ### Registration (Initialize Transceiver & Peer Registration)
 
 Because XRPL has no smart contracts, the `WormholeTransceiverInfo` (hub init) and

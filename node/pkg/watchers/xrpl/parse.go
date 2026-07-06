@@ -106,6 +106,16 @@ const (
 	xregTokenIOU   = 0x01 // wire token_id opening byte for issued currencies
 	xregTokenMPT   = 0x02 // wire token_id opening byte for MPT
 	nttModeLocking = 0x00 // manager mode for XRPL custody accounts (locking; accountant only accepts locking)
+
+	xregManagerOffset = 5  // offset of the manager field: after prefix(4) + kind(1)
+	xregHeaderLen     = 25 // prefix(4) + kind(1) + manager(20); token_id + tail follow
+
+	xregTokenXRPWireLen = 1  // XRP wire token_id: type(1)
+	xregTokenIOUWireLen = 41 // IOU wire token_id: type(1) + currency(20) + issuer(20)
+	xregTokenMPTWireLen = 25 // MPT wire token_id: type(1) + mpt_issuance_id(24)
+
+	transceiverInfoLen = 70 // WormholeTransceiverInfo: prefix(4) + manager(32) + mode(1) + token(32) + decimals(1)
+	transceiverRegLen  = 38 // WormholeTransceiverRegistration: prefix(4) + chain_id(2) + transceiver(32)
 )
 
 // regSourceTokenFromWire converts an XREG wire token_id (XrplTokenId form) into
@@ -125,27 +135,25 @@ func regSourceTokenFromWire(wire []byte) ([32]byte, int, error) {
 	}
 	switch wire[0] {
 	case xregTokenXRP:
-		return sourceToken, 1, nil // all zeros
+		return sourceToken, xregTokenXRPWireLen, nil // all zeros
 	case xregTokenIOU:
-		// 1 + currency(20) + issuer(20) = 41 bytes
-		if len(wire) < 41 {
+		if len(wire) < xregTokenIOUWireLen {
 			return sourceToken, 0, fmt.Errorf("xreg IOU token_id too short: %d", len(wire))
 		}
 		// currency[20] || issuer[20] are already the normalized/decoded forms
 		// the transfer path hashes (currencycodec.NormalizedLen == 20, issuer is
 		// the 20-byte account ID), so hash them directly.
-		hash := ethcrypto.Keccak256(wire[1:41])
+		hash := ethcrypto.Keccak256(wire[1:xregTokenIOUWireLen])
 		sourceToken[0] = tokenTypeIssued
 		copy(sourceToken[1:], hash[1:])
-		return sourceToken, 41, nil
+		return sourceToken, xregTokenIOUWireLen, nil
 	case xregTokenMPT:
-		// 1 + mpt_issuance_id(24) = 25 bytes
-		if len(wire) < 25 {
+		if len(wire) < xregTokenMPTWireLen {
 			return sourceToken, 0, fmt.Errorf("xreg MPT token_id too short: %d", len(wire))
 		}
 		sourceToken[0] = tokenTypeMPT
-		copy(sourceToken[8:], wire[1:25]) // 1 prefix + 7 padding = offset 8
-		return sourceToken, 25, nil
+		copy(sourceToken[8:], wire[1:xregTokenMPTWireLen]) // 1 prefix + 7 padding = offset 8
+		return sourceToken, xregTokenMPTWireLen, nil
 	default:
 		return sourceToken, 0, fmt.Errorf("xreg unknown token type: 0x%02x", wire[0])
 	}
@@ -156,7 +164,7 @@ func regSourceTokenFromWire(wire []byte) ([32]byte, int, error) {
 //	prefix(4=0x9c23bd3b) + manager_address(32) + manager_mode(1) +
 //	token_address(32) + token_decimals(1)  = 70 bytes
 func buildTransceiverInfoPayload(manager32, token32 [32]byte, decimals uint8) []byte {
-	out := make([]byte, 0, 70)
+	out := make([]byte, 0, transceiverInfoLen)
 	out = append(out, transceiverInfoPrefix[:]...)
 	out = append(out, manager32[:]...)
 	out = append(out, nttModeLocking)
@@ -169,7 +177,7 @@ func buildTransceiverInfoPayload(manager32, token32 [32]byte, decimals uint8) []
 //
 //	prefix(4=0x18fc67c2) + chain_id(2 BE) + transceiver_address(32) = 38 bytes
 func buildTransceiverRegistrationPayload(peerChain uint16, peerAddress [32]byte) []byte {
-	out := make([]byte, 0, 38)
+	out := make([]byte, 0, transceiverRegLen)
 	out = append(out, transceiverRegPrefix[:]...)
 	out = binary.BigEndian.AppendUint16(out, peerChain)
 	out = append(out, peerAddress[:]...)
@@ -487,8 +495,8 @@ func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePubl
 	if senderID == nil {
 		return nil, nil
 	}
-	// manager occupies bytes [5:25] of the XREG payload (prefix4 + kind1 + manager20).
-	if len(regData) < 25 || !bytes.Equal(senderID, regData[5:25]) {
+	// manager occupies bytes [xregManagerOffset:xregHeaderLen] of the XREG payload.
+	if len(regData) < xregHeaderLen || !bytes.Equal(senderID, regData[xregManagerOffset:xregHeaderLen]) {
 		return nil, nil
 	}
 
@@ -599,23 +607,22 @@ func (p *Parser) registrationSenderAccountID(tx transaction.FlatTransaction) ([]
 //	Peer tail: peer_chain(2 BE) + peer_address(32)
 func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
 	var emitter vaa.Address
-	const headerLen = 4 + 1 + 20
-	if len(data) < headerLen+1 {
+	if len(data) < xregHeaderLen+1 {
 		return nil, emitter, fmt.Errorf("xreg payload too short: %d", len(data))
 	}
 	kind := data[4]
 	var manager20 [20]byte
-	copy(manager20[:], data[5:25])
+	copy(manager20[:], data[xregManagerOffset:xregHeaderLen])
 
 	// manager32 = left-padded 20-byte account id (same as transfer sourceNTTManager).
 	var manager32 [32]byte
 	copy(manager32[12:], manager20[:])
 
-	sourceToken, consumed, err := regSourceTokenFromWire(data[25:])
+	sourceToken, consumed, err := regSourceTokenFromWire(data[xregHeaderLen:])
 	if err != nil {
 		return nil, emitter, err
 	}
-	tail := data[25+consumed:]
+	tail := data[xregHeaderLen+consumed:]
 
 	emitter = (&Parser{}).calculateEmitterAddress(manager32, sourceToken)
 

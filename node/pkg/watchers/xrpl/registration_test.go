@@ -44,12 +44,12 @@ func newRegParser(t *testing.T, manager [20]byte) *Parser {
 // buildXregHubXRP builds an XREG Hub payload for an XRP custody (matching the
 // sequencer's payloads.rs serialization): prefix + kind(0) + manager(20) +
 // token_id(XRP=0x00) + decimals(1).
-func buildXregHubXRP(manager [20]byte, decimals uint8) []byte {
+func buildXregHubXRP(manager [20]byte) []byte {
 	out := append([]byte{}, xregPrefix[:]...)
 	out = append(out, xregKindHub)
 	out = append(out, manager[:]...)
 	out = append(out, xregTokenXRP) // token_id wire
-	out = append(out, decimals)
+	out = append(out, xrpDecimals)  // XRP decimals are fixed at 6
 	return out
 }
 
@@ -121,7 +121,7 @@ func TestRegistration_HubXRP_EmitterMatchesTransferPath(t *testing.T) {
 	manager := testRegManager20()
 	p := newRegParser(t, manager)
 
-	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubXRP(manager, 6)))
+	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubXRP(manager)))
 	require.NoError(t, err)
 	require.NotNil(t, msg, "registration publish should produce a message")
 
@@ -135,12 +135,12 @@ func TestRegistration_HubXRP_EmitterMatchesTransferPath(t *testing.T) {
 
 	// Payload is a canonical WormholeTransceiverInfo: prefix(4) + manager(32) +
 	// mode(1) + token(32) + decimals(1) = 70 bytes.
-	require.Equal(t, 70, len(msg.Payload))
+	require.Equal(t, transceiverInfoLen, len(msg.Payload))
 	assert.Equal(t, transceiverInfoPrefix[:], msg.Payload[0:4])
 	assert.Equal(t, manager32From20(manager), [32]byte(msg.Payload[4:36]))
 	assert.Equal(t, uint8(nttModeLocking), msg.Payload[36])
 	assert.Equal(t, zeroToken, [32]byte(msg.Payload[37:69]))
-	assert.Equal(t, uint8(6), msg.Payload[69])
+	assert.Equal(t, uint8(xrpDecimals), msg.Payload[69])
 }
 
 func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
@@ -168,7 +168,7 @@ func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
 	assert.Equal(t, expected, msg.EmitterAddress)
 
 	// Canonical info payload carries the same sourceToken + decimals=9.
-	require.Equal(t, 70, len(msg.Payload))
+	require.Equal(t, transceiverInfoLen, len(msg.Payload))
 	assert.Equal(t, sourceToken, [32]byte(msg.Payload[37:69]))
 	assert.Equal(t, uint8(9), msg.Payload[69])
 }
@@ -194,7 +194,7 @@ func TestRegistration_PeerXRP(t *testing.T) {
 
 	// Payload is a canonical WormholeTransceiverRegistration:
 	// prefix(4) + chain_id(2) + transceiver_address(32) = 38 bytes.
-	require.Equal(t, 38, len(msg.Payload))
+	require.Equal(t, transceiverRegLen, len(msg.Payload))
 	assert.Equal(t, transceiverRegPrefix[:], msg.Payload[0:4])
 	assert.Equal(t, peerChain, binary.BigEndian.Uint16(msg.Payload[4:6]))
 	assert.Equal(t, peerAddr, [32]byte(msg.Payload[6:38]))
@@ -203,13 +203,17 @@ func TestRegistration_PeerXRP(t *testing.T) {
 func TestRegistration_WrongMemoFormat_NotRegistration(t *testing.T) {
 	manager := testRegManager20()
 	p := newRegParser(t, manager)
-	tx := regTxStream(managerAddress(t, manager), buildXregHubXRP(manager, 6))
+	tx := regTxStream(managerAddress(t, manager), buildXregHubXRP(manager))
 	// A valid core publish (version 1 + nonce + payload) under coreMemoFormat must
 	// NOT be parsed as a registration: parseRegistrationTransaction returns nil and
 	// the generic core parser handles it (emitter = sender, not the keccak emitter).
 	coreMemo := append([]byte{0x01, 0, 0, 0, 0}, []byte("hello")...)
-	memos := tx.Transaction["Memos"].([]any)
-	memo := memos[0].(map[string]any)["Memo"].(map[string]any)
+	memos, ok := tx.Transaction["Memos"].([]any)
+	require.True(t, ok, "Memos should be a slice")
+	memoWrapper, ok := memos[0].(map[string]any)
+	require.True(t, ok, "memo[0] should be a map")
+	memo, ok := memoWrapper["Memo"].(map[string]any)
+	require.True(t, ok, "Memo should be a map")
 	memo["MemoFormat"] = coreMemoFormat
 	memo["MemoData"] = hex.EncodeToString(coreMemo)
 
@@ -235,7 +239,7 @@ func TestRegistration_UntrustedSender_Declined(t *testing.T) {
 	for i := range attacker {
 		attacker[i] = byte(0xEE)
 	}
-	tx := regTxStream(managerAddress(t, attacker), buildXregHubXRP(manager, 6))
+	tx := regTxStream(managerAddress(t, attacker), buildXregHubXRP(manager))
 
 	msg, err := p.ParseTransactionStream(tx)
 	require.NoError(t, err)
@@ -254,7 +258,7 @@ func TestRegistration_ManagerMismatch_Declined(t *testing.T) {
 	}
 	// Sender is trusted, but the memo names a different manager.
 	p := newRegParser(t, sender)
-	tx := regTxStream(managerAddress(t, sender), buildXregHubXRP(otherManager, 6))
+	tx := regTxStream(managerAddress(t, sender), buildXregHubXRP(otherManager))
 
 	msg, err := p.ParseTransactionStream(tx)
 	require.NoError(t, err)
