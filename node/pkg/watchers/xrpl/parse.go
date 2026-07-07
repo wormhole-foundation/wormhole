@@ -100,15 +100,22 @@ var transceiverRegPrefix = [4]byte{0x18, 0xfc, 0x67, 0xc2}  // WormholeTransceiv
 
 // XREG constants
 const (
-	xregKindHub    = 0x00 // hub sub-type (byte after prefix), mirrors sequencer XREG_KIND_HUB
-	xregKindPeer   = 0x01 // peer sub-type (byte after prefix), mirrors sequencer XREG_KIND_PEER
-	xregTokenXRP   = 0x00 // wire token_id opening byte for XRP, mirrors XrplTokenId
-	xregTokenIOU   = 0x01 // wire token_id opening byte for issued currencies
-	xregTokenMPT   = 0x02 // wire token_id opening byte for MPT
-	nttModeLocking = 0x00 // manager mode for XRPL custody accounts (locking; accountant only accepts locking)
+	xregKindHub  = 0x00 // hub sub-type (byte after prefix), mirrors sequencer XREG_KIND_HUB
+	xregKindPeer = 0x01 // peer sub-type (byte after prefix), mirrors sequencer XREG_KIND_PEER
+	xregTokenXRP = 0x00 // wire token_id opening byte for XRP, mirrors XrplTokenId
+	xregTokenIOU = 0x01 // wire token_id opening byte for issued currencies
+	xregTokenMPT = 0x02 // wire token_id opening byte for MPT
+
+	// NTT manager modes (ntt-messages Mode enum). An XRPL custody account is in
+	// Burning mode when it is itself the token issuer (it can mint/burn), and
+	// Locking mode otherwise (it holds a token issued by another account). XRP
+	// has no issuer, so it is always Locking.
+	nttModeLocking = 0x00
+	nttModeBurning = 0x01
 
 	xregManagerOffset = 5  // offset of the manager field: after prefix(4) + kind(1)
 	xregHeaderLen     = 25 // prefix(4) + kind(1) + manager(20); token_id + tail follow
+	xregPeerTailLen   = 34 // peer tail: peer_chain(2) + peer_address(32)
 
 	xregTokenXRPWireLen = 1  // XRP wire token_id: type(1)
 	xregTokenIOUWireLen = 41 // IOU wire token_id: type(1) + currency(20) + issuer(20)
@@ -159,15 +166,47 @@ func regSourceTokenFromWire(wire []byte) ([32]byte, int, error) {
 	}
 }
 
+// nttManagerModeFromWire determines whether the custody account (manager) runs
+// in Locking or Burning mode for the token described by the XREG wire token_id.
+// The manager is in Burning mode when it is itself the token's issuer.
+//
+//	IOU: issuer is the last 20 bytes of the token_id (currency(20) then issuer(20))
+//	MPT: mpt_issuance_id = Sequence(4) || IssuerAccountID(20) per the XRPL spec,
+//	     so the issuer is the last 20 bytes of the 24-byte id.
+func nttManagerModeFromWire(manager20 [20]byte, wire []byte) byte {
+	if len(wire) < 1 {
+		return nttModeLocking
+	}
+	var issuer []byte
+	switch wire[0] {
+	case xregTokenIOU:
+		if len(wire) < xregTokenIOUWireLen {
+			return nttModeLocking
+		}
+		issuer = wire[xregIouIssuerOffset:xregTokenIOUWireLen]
+	case xregTokenMPT:
+		if len(wire) < xregTokenMPTWireLen {
+			return nttModeLocking
+		}
+		issuer = wire[xregMptIssuerOffset:xregTokenMPTWireLen]
+	default: // XRP has no issuer → Locking
+		return nttModeLocking
+	}
+	if bytes.Equal(issuer, manager20[:]) {
+		return nttModeBurning
+	}
+	return nttModeLocking
+}
+
 // buildTransceiverInfoPayload builds a WormholeTransceiverInfo payload:
 //
 //	prefix(4=0x9c23bd3b) + manager_address(32) + manager_mode(1) +
 //	token_address(32) + token_decimals(1)  = 70 bytes
-func buildTransceiverInfoPayload(manager32, token32 [32]byte, decimals uint8) []byte {
+func buildTransceiverInfoPayload(manager32, token32 [32]byte, mode, decimals uint8) []byte {
 	out := make([]byte, 0, transceiverInfoLen)
 	out = append(out, transceiverInfoPrefix[:]...)
 	out = append(out, manager32[:]...)
-	out = append(out, nttModeLocking)
+	out = append(out, mode)
 	out = append(out, token32[:]...)
 	out = append(out, decimals)
 	return out
@@ -618,7 +657,8 @@ func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
 	var manager32 [32]byte
 	copy(manager32[12:], manager20[:])
 
-	sourceToken, consumed, err := regSourceTokenFromWire(data[xregHeaderLen:])
+	tokenWire := data[xregHeaderLen:]
+	sourceToken, consumed, err := regSourceTokenFromWire(tokenWire)
 	if err != nil {
 		return nil, emitter, err
 	}
@@ -632,14 +672,15 @@ func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
 			return nil, emitter, fmt.Errorf("xreg hub missing decimals")
 		}
 		decimals := tail[0]
-		return buildTransceiverInfoPayload(manager32, sourceToken, decimals), emitter, nil
+		mode := nttManagerModeFromWire(manager20, tokenWire)
+		return buildTransceiverInfoPayload(manager32, sourceToken, mode, decimals), emitter, nil
 	case xregKindPeer:
-		if len(tail) < 2+32 {
+		if len(tail) < xregPeerTailLen {
 			return nil, emitter, fmt.Errorf("xreg peer tail too short: %d", len(tail))
 		}
 		peerChain := binary.BigEndian.Uint16(tail[0:2])
 		var peerAddr [32]byte
-		copy(peerAddr[:], tail[2:34])
+		copy(peerAddr[:], tail[2:xregPeerTailLen])
 		return buildTransceiverRegistrationPayload(peerChain, peerAddr), emitter, nil
 	default:
 		return nil, emitter, fmt.Errorf("xreg unknown kind: 0x%02x", kind)

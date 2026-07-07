@@ -66,6 +66,18 @@ func buildXregHubIOU(manager [20]byte, currency, issuer [20]byte, decimals uint8
 	return out
 }
 
+// buildXregHubMPT builds an XREG Hub for an MPT custody:
+// prefix + kind(0) + manager(20) + token_id(0x02 + mpt_issuance_id24) + decimals.
+func buildXregHubMPT(manager [20]byte, mptID [24]byte, decimals uint8) []byte {
+	out := append([]byte{}, xregPrefix[:]...)
+	out = append(out, xregKindHub)
+	out = append(out, manager[:]...)
+	out = append(out, xregTokenMPT)
+	out = append(out, mptID[:]...)
+	out = append(out, decimals)
+	return out
+}
+
 // buildXregPeerXRP builds an XREG Peer for an XRP custody:
 // prefix + kind(1) + manager(20) + token_id(XRP) + peer_chain(2) + peer_address(32).
 func buildXregPeerXRP(manager [20]byte, peerChain uint16, peerAddr [32]byte) []byte {
@@ -162,15 +174,56 @@ func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
 	// 0x01 || keccak256(currency20 || issuer20)[1:].
 	sourceToken, consumed, err := regSourceTokenFromWire(append([]byte{xregTokenIOU}, append(currency[:], issuer[:]...)...))
 	require.NoError(t, err)
-	require.Equal(t, 41, consumed)
+	require.Equal(t, xregTokenIOUWireLen, consumed)
 
 	expected := p.calculateEmitterAddress(manager32From20(manager), sourceToken)
 	assert.Equal(t, expected, msg.EmitterAddress)
+
+	// issuer != manager, so this custody account is in Locking mode.
+	assert.Equal(t, uint8(nttModeLocking), msg.Payload[36], "issuer != manager => Locking")
 
 	// Canonical info payload carries the same sourceToken + decimals=9.
 	require.Equal(t, transceiverInfoLen, len(msg.Payload))
 	assert.Equal(t, sourceToken, [32]byte(msg.Payload[37:69]))
 	assert.Equal(t, uint8(9), msg.Payload[69])
+}
+
+// TestRegistration_HubIOU_BurningWhenManagerIsIssuer verifies the manager mode
+// is Burning when the custody account is itself the token issuer.
+func TestRegistration_HubIOU_BurningWhenManagerIsIssuer(t *testing.T) {
+	manager := testRegManager20()
+	p := newRegParser(t, manager)
+
+	var currency [20]byte
+	copy(currency[12:15], []byte("FOO"))
+	// issuer == manager => Burning mode.
+	issuer := manager
+
+	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubIOU(manager, currency, issuer, 9)))
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	require.Equal(t, transceiverInfoLen, len(msg.Payload))
+	assert.Equal(t, uint8(nttModeBurning), msg.Payload[36], "manager == issuer => Burning")
+}
+
+// TestRegistration_HubMPT_BurningWhenManagerIsIssuer verifies mode derivation for
+// MPT, whose issuer is the first 20 bytes of the mpt_issuance_id.
+func TestRegistration_HubMPT_BurningWhenManagerIsIssuer(t *testing.T) {
+	manager := testRegManager20()
+	p := newRegParser(t, manager)
+
+	// mpt_issuance_id = Sequence(4) || Issuer(20) per XLS-0033; set issuer == manager.
+	var mptID [24]byte
+	mptID[3] = 0x07               // arbitrary sequence (first 4 bytes)
+	copy(mptID[4:24], manager[:]) // issuer is the last 20 bytes
+
+	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubMPT(manager, mptID, 6)))
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	require.Equal(t, transceiverInfoLen, len(msg.Payload))
+	assert.Equal(t, uint8(nttModeBurning), msg.Payload[36], "manager == MPT issuer => Burning")
 }
 
 func TestRegistration_PeerXRP(t *testing.T) {
