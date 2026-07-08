@@ -43,6 +43,26 @@ func isValidCoreBridgeMessagePublicationLog(l types.Log, contract eth_common.Add
 	return true
 }
 
+// validateTransactionReceipt checks that a transaction receipt was successfully retrieved and that
+// the transaction executed successfully. It returns a non-nil error describing the problem when the
+// receipt is unusable. This is the shared validation used by both the real-time subscription path
+// (postMessage) and the reobservation path (MessageEventsForTransaction).
+//
+// SECURITY: Bail early when the receipt status is anything other than 1 (success). In theory this
+// check isn't strictly necessary - a failed transaction cannot emit logs and will trigger neither
+// subscription messages nor have log messages in its receipt. However, relying on that invariant is
+// brittle - we connect to a lot of EVM-compatible chains which might accidentally break this API
+// contract and return logs for failed transactions. Check explicitly instead.
+func validateTransactionReceipt(receipt *types.Receipt, err error) error {
+	if receipt == nil || err != nil {
+		return fmt.Errorf("failed to get transaction receipt: %w", err)
+	}
+	if receipt.Status != gethTypes.ReceiptStatusSuccessful {
+		return fmt.Errorf("non-success transaction status: %d", receipt.Status)
+	}
+	return nil
+}
+
 // newMessagePublication builds a MessagePublication from a parsed LogMessagePublished event and
 // the timestamp of the block that included it. This is the single place where the EVM watcher
 // translates on-chain event data (the ethabi.AbiLogMessagePublished struct returned by the EVM
@@ -86,21 +106,12 @@ func MessageEventsForTransaction(
 	// Get transactions logs from transaction
 	// API only returns transactions that have been included in a block. Nothing in the mempool
 	receipt, err := ethConn.TransactionReceipt(ctx, tx)
-	if receipt == nil || err != nil {
-		return nil, 0, nil, fmt.Errorf("failed to get transaction receipt: %w", err)
-	}
-
-	// SECURITY
-	// Bail early when the transaction receipt status is anything other than
-	// 1 (success). In theory, this check isn't strictly necessary - a failed
-	// transaction cannot emit logs and will trigger neither subscription
-	// messages nor have log messages in its receipt.
-	//
-	// However, relying on that invariant is brittle - we connect to a lot of
-	// EVM-compatible chains which might accidentally break this API contract
-	// and return logs for failed transactions. Check explicitly instead.
-	if receipt.Status != gethTypes.ReceiptStatusSuccessful {
-		return nil, 0, nil, fmt.Errorf("non-success transaction status: %d", receipt.Status)
+	// SECURITY: Do not trust the logs of a transaction whose receipt could not be fetched or whose
+	// execution did not succeed. A failed transaction cannot emit logs, so a non-success receipt
+	// here means the RPC node is misbehaving; bail before we parse any events from it. See
+	// validateTransactionReceipt for the full rationale.
+	if valErr := validateTransactionReceipt(receipt, err); valErr != nil {
+		return nil, 0, nil, valErr
 	}
 
 	// Get block

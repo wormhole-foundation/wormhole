@@ -785,7 +785,10 @@ func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (
 	return blockTime, err
 }
 
-// postMessage creates a message object from a log event and adds it to the pending list for processing.
+// postMessage creates a message object from a log event and either publishes it immediately or adds
+// it to the pending list to await the required block confirmations. It validates the event, builds
+// the MessagePublication, then dispatches to publishMessageImmediately or queuePendingMessage based
+// on the message's consistency level.
 func (w *Watcher) postMessage(
 	parentCtx context.Context,
 	ev *ethabi.AbiLogMessagePublished,
@@ -808,56 +811,78 @@ func (w *Watcher) postMessage(
 	ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 
 	if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-		w.logger.Info("found new message publication transaction, publishing it immediately",
-			zap.String("msgId", msg.MessageIDString()),
-			zap.String("txHash", msg.TxIDString()),
-			zap.Uint64("blockNum", ev.Raw.BlockNumber),
-			zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
-			zap.Stringer("blockHash", ev.Raw.BlockHash),
-			zap.Uint64("blockTime", blockTime),
-			zap.Uint32("Nonce", ev.Nonce),
-			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-		)
-
-		// SECURITY: Defense-in-depth check of transaction status.
-		// The EVM invariant is that failed transactions cannot emit logs, but we verify
-		// explicitly in case an EVM-compatible chain breaks this invariant.
-		msm := time.Now()
-		receiptCtx, receiptCancel := context.WithTimeout(parentCtx, 5*time.Second)
-		receipt, err := w.ethConn.TransactionReceipt(receiptCtx, ev.Raw.TxHash)
-		receiptCancel()
-		queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
-		if receipt == nil || err != nil {
-			w.logger.Error("failed to get transaction receipt for instant message",
-				zap.String("msgId", msg.MessageIDString()),
-				zap.String("txHash", msg.TxIDString()),
-				zap.Error(err),
-			)
-			return
-		}
-		if receipt.Status != gethTypes.ReceiptStatusSuccessful {
-			w.logger.Error("instant message transaction has non-success status",
-				zap.String("msgId", msg.MessageIDString()),
-				zap.String("txHash", msg.TxIDString()),
-				zap.Uint64("status", receipt.Status),
-			)
-			return
-		}
-
-		verifyCtx, cancel := context.WithCancel(parentCtx)
-		defer cancel()
-
-		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, receipt)
-		if pubErr != nil {
-			w.logger.Error("could not publish message: transfer verification failed",
-				zap.String("msgId", msg.MessageIDString()),
-				zap.String("txHash", msg.TxIDString()),
-				zap.Error(pubErr),
-			)
-		}
+		w.publishMessageImmediately(parentCtx, ev, msg, blockTime)
 		return
 	}
 
+	w.queuePendingMessage(parentCtx, ev, msg, blockTime)
+}
+
+// publishMessageImmediately handles a message with ConsistencyLevelPublishImmediately. Because the
+// message is broadcast right away with no further block confirmations, it re-fetches and validates
+// the transaction receipt as a last line of defense before verifying and publishing the message.
+func (w *Watcher) publishMessageImmediately(
+	parentCtx context.Context,
+	ev *ethabi.AbiLogMessagePublished,
+	msg *common.MessagePublication,
+	blockTime uint64,
+) {
+	w.logger.Info("found new message publication transaction, publishing it immediately",
+		zap.String("msgId", msg.MessageIDString()),
+		zap.String("txHash", msg.TxIDString()),
+		zap.Uint64("blockNum", ev.Raw.BlockNumber),
+		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
+		zap.Stringer("blockHash", ev.Raw.BlockHash),
+		zap.Uint64("blockTime", blockTime),
+		zap.Uint32("Nonce", ev.Nonce),
+		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+	)
+
+	// SECURITY: Defense-in-depth check of transaction status.
+	// The EVM invariant is that failed transactions cannot emit logs, but we verify
+	// explicitly in case an EVM-compatible chain breaks this invariant.
+	msm := time.Now()
+	receiptCtx, receiptCancel := context.WithTimeout(parentCtx, 5*time.Second)
+	receipt, err := w.ethConn.TransactionReceipt(receiptCtx, ev.Raw.TxHash)
+	receiptCancel()
+	queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
+	// SECURITY: This is the instant-publish path - the message is broadcast immediately with no
+	// further block confirmations, so validating that the transaction was actually retrieved and
+	// executed successfully is the last line of defense before we trust and publish its log. Do
+	// not publish if the receipt is missing or reports a non-success status. See
+	// validateTransactionReceipt for the full rationale.
+	if valErr := validateTransactionReceipt(receipt, err); valErr != nil {
+		w.logger.Error("failed to validate transaction receipt for instant message",
+			zap.String("msgId", msg.MessageIDString()),
+			zap.String("txHash", msg.TxIDString()),
+			zap.Error(valErr),
+		)
+		return
+	}
+
+	verifyCtx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+
+	pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, receipt)
+	if pubErr != nil {
+		w.logger.Error("could not publish message: transfer verification failed",
+			zap.String("msgId", msg.MessageIDString()),
+			zap.String("txHash", msg.TxIDString()),
+			zap.Error(pubErr),
+		)
+	}
+}
+
+// queuePendingMessage records a message that must wait for additional block confirmations before it
+// can be published. It stores the message in w.pending keyed by (tx, block, emitter, sequence);
+// processNewBlock later publishes it once the required consistency level and block height are
+// reached. For custom-consistency-level messages, cclHandleMessage may adjust the pending entry.
+func (w *Watcher) queuePendingMessage(
+	parentCtx context.Context,
+	ev *ethabi.AbiLogMessagePublished,
+	msg *common.MessagePublication,
+	blockTime uint64,
+) {
 	pendingEntry := &pendingMessage{
 		message:     msg,
 		height:      ev.Raw.BlockNumber,
