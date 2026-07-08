@@ -414,24 +414,28 @@ func (s *SolanaWatcher) setupWebSocket(ctx context.Context) error {
 	}
 
 	common.RunWithScissors(ctx, s.errC, "SolanaDataPump", func(ctx context.Context) error {
-		defer ws.Close(websocket.StatusNormalClosure, "")
-
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			default:
-				if msg, err := s.readWebSocketWithTimeout(ctx, ws); err != nil {
-					logger.Error("failed to read from account web socket", zap.Error(err))
-					return err
-				} else {
-					s.pumpData <- msg // Note on channel capacity: Only pauses this watcher
-				}
-			}
-		}
+		return s.runDataPump(ctx, logger, ws)
 	})
 
 	return nil
+}
+
+func (s *SolanaWatcher) runDataPump(ctx context.Context, logger *zap.Logger, ws *websocket.Conn) error {
+	defer ws.Close(websocket.StatusNormalClosure, "")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			if msg, err := s.readWebSocketWithTimeout(ctx, ws); err != nil {
+				logger.Error("failed to read from account web socket", zap.Error(err))
+				return err
+			} else {
+				s.pumpData <- msg // Note on channel capacity: Only pauses this watcher
+			}
+		}
+	}
 }
 
 func (s *SolanaWatcher) readWebSocketWithTimeout(ctx context.Context, ws *websocket.Conn) ([]byte, error) {
@@ -497,95 +501,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	s.logVersion(ctx, logger)
 
 	common.RunWithScissors(ctx, s.errC, "SolanaWatcher", func(ctx context.Context) error {
-		timer := time.NewTicker(pollInterval)
-		defer timer.Stop()
-		useStdPolling := (!s.pollForTx) && (!useWs)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case msg := <-s.pumpData:
-				err := s.processAccountSubscriptionData(ctx, msg, false)
-				if err != nil {
-					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_subscription_data").Inc()
-					s.errC <- err // Note on channel capacity: The watcher will exit anyway
-					return err
-				}
-			case m := <-s.obsvReqC:
-				chainId, err := vaa.KnownChainIDFromNumber[uint32](m.ChainId)
-				if err != nil {
-					logger.Error("invalid chain id for observation request",
-						zap.Uint32("chainID", m.ChainId),
-						zap.String("txID", hex.EncodeToString(m.TxHash)),
-						zap.Error(err),
-					)
-					continue
-				}
-
-				//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
-				numObservations, err := s.handleReobservationRequest(chainId, m.TxHash, s.rpcClient)
-				if err != nil {
-					logger.Error("failed to process observation request",
-						zap.Uint32("chainID", m.ChainId),
-						zap.String("identifier", base58.Encode(m.TxHash)),
-						zap.Error(err),
-					)
-				} else {
-					logger.Info("reobserved transactions",
-						zap.Uint32("chainID", m.ChainId),
-						zap.String("identifier", base58.Encode(m.TxHash)),
-						zap.Uint32("numObservations", numObservations),
-					)
-				}
-			case <-timer.C:
-				// Get current slot height
-				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-				start := time.Now()
-				slot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
-				cancel()
-				queryLatency.WithLabelValues(s.networkName, "get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
-				if err != nil {
-					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_slot_error").Inc()
-					s.errC <- err // Note on channel capacity: The watcher will exit anyway
-					return err
-				}
-
-				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
-				readiness.SetReady(s.readinessSync)
-				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
-					Height:          int64(slot), // #nosec G115 -- This conversion is safe indefinitely
-					ContractAddress: contractAddr,
-				})
-
-				if logger.Level().Enabled(zapcore.DebugLevel) {
-					logger.Debug("fetched current Solana height", zap.Uint64("slot", slot))
-				}
-
-				if useStdPolling {
-					lastSlot := atomic.LoadUint64(&s.lastSlot)
-					if lastSlot == 0 {
-						lastSlot = slot - 1
-					}
-
-					rangeStart := lastSlot + 1
-					rangeEnd := slot
-
-					// Requesting each slot
-					for slotIdx := rangeStart; slotIdx <= rangeEnd; slotIdx++ {
-						_slot := slotIdx
-						common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
-							s.retryFetchBlock(ctx, logger, _slot, 0, false)
-							return nil
-						})
-					}
-				}
-
-				atomic.StoreUint64(&s.lastSlot, slot)
-			}
-		}
+		return s.runWatcher(ctx, logger, pollInterval, useWs, contractAddr)
 	})
 
 	if s.pollForTx {
@@ -602,6 +518,102 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	case err := <-s.errC:
 		return err
 	}
+}
+
+func (s *SolanaWatcher) runWatcher(ctx context.Context, logger *zap.Logger, pollInterval time.Duration, useWs bool, contractAddr string) error {
+	timer := time.NewTicker(pollInterval)
+	defer timer.Stop()
+	useStdPolling := (!s.pollForTx) && (!useWs)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case msg := <-s.pumpData:
+			err := s.processAccountSubscriptionData(ctx, msg, false)
+			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+				solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_subscription_data").Inc()
+				s.errC <- err // Note on channel capacity: The watcher will exit anyway
+				return err
+			}
+		case m := <-s.obsvReqC:
+			chainId, err := vaa.KnownChainIDFromNumber[uint32](m.ChainId)
+			if err != nil {
+				logger.Error("invalid chain id for observation request",
+					zap.Uint32("chainID", m.ChainId),
+					zap.String("txID", hex.EncodeToString(m.TxHash)),
+					zap.Error(err),
+				)
+				continue
+			}
+
+			//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
+			numObservations, err := s.handleReobservationRequest(chainId, m.TxHash, s.rpcClient)
+			if err != nil {
+				logger.Error("failed to process observation request",
+					zap.Uint32("chainID", m.ChainId),
+					zap.String("identifier", base58.Encode(m.TxHash)),
+					zap.Error(err),
+				)
+			} else {
+				logger.Info("reobserved transactions",
+					zap.Uint32("chainID", m.ChainId),
+					zap.String("identifier", base58.Encode(m.TxHash)),
+					zap.Uint32("numObservations", numObservations),
+				)
+			}
+		case <-timer.C:
+			// Get current slot height
+			rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+			start := time.Now()
+			slot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
+			cancel()
+			queryLatency.WithLabelValues(s.networkName, "get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
+			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+				solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_slot_error").Inc()
+				s.errC <- err // Note on channel capacity: The watcher will exit anyway
+				return err
+			}
+
+			currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
+			readiness.SetReady(s.readinessSync)
+			p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
+				Height:          int64(slot), // #nosec G115 -- This conversion is safe indefinitely
+				ContractAddress: contractAddr,
+			})
+
+			if logger.Level().Enabled(zapcore.DebugLevel) {
+				logger.Debug("fetched current Solana height", zap.Uint64("slot", slot))
+			}
+
+			if useStdPolling {
+				lastSlot := atomic.LoadUint64(&s.lastSlot)
+				if lastSlot == 0 {
+					lastSlot = slot - 1
+				}
+
+				rangeStart := lastSlot + 1
+				rangeEnd := slot
+
+				// Requesting each slot
+				for slotIdx := rangeStart; slotIdx <= rangeEnd; slotIdx++ {
+					slot := slotIdx
+					common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
+						return s.runSlotFetcher(ctx, logger, slot)
+					})
+				}
+			}
+
+			atomic.StoreUint64(&s.lastSlot, slot)
+		}
+	}
+}
+
+func (s *SolanaWatcher) runSlotFetcher(ctx context.Context, logger *zap.Logger, slot uint64) error {
+	s.retryFetchBlock(ctx, logger, slot, 0, false)
+	return nil
 }
 
 func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint, isReobservation bool) {
@@ -624,10 +636,14 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 		}
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchBlock", func(ctx context.Context) error {
-			s.retryFetchBlock(ctx, logger, slot, retry+1, isReobservation)
-			return nil
+			return s.runRetryFetchBlock(ctx, logger, slot, retry, isReobservation)
 		})
 	}
+}
+
+func (s *SolanaWatcher) runRetryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint, isReobservation bool) error {
+	s.retryFetchBlock(ctx, logger, slot, retry+1, isReobservation)
+	return nil
 }
 
 func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint, isReobservation bool) (ok bool) {
@@ -672,9 +688,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			// Schedule a single retry just in case the Solana node was confused about the block being missing.
 			if emptyRetry < maxEmptyRetry {
 				common.RunWithScissors(ctx, s.errC, "delayedFetchBlock", func(ctx context.Context) error {
-					time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
-					s.fetchBlock(ctx, logger, slot, emptyRetry+1, isReobservation)
-					return nil
+					return s.runDelayedFetchBlock(ctx, logger, slot, emptyRetry, isReobservation)
 				})
 			}
 			return true
@@ -745,6 +759,12 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	}
 
 	return true
+}
+
+func (s *SolanaWatcher) runDelayedFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint, isReobservation bool) error {
+	time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
+	s.fetchBlock(ctx, logger, slot, emptyRetry+1, isReobservation)
+	return nil
 }
 
 // processTransaction processes a transaction and publishes any Wormhole events.
@@ -1002,11 +1022,15 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.C
 	}
 
 	common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-		s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, 0, isReobservation, signature)
-		return nil
+		return s.runInitialFetchMessageAccount(ctx, rpcClient, acc, slot, isReobservation, signature)
 	})
 
 	return true, nil
+}
+
+func (s *SolanaWatcher) runInitialFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) error {
+	s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, 0, isReobservation, signature)
+	return nil
 }
 
 func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) {
@@ -1029,10 +1053,14 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient 
 			zap.Uint("retry", retry))
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-			s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, retry+1, isReobservation, signature)
-			return nil
+			return s.runRetryFetchMessageAccount(ctx, rpcClient, acc, slot, retry, isReobservation, signature)
 		})
 	}
+}
+
+func (s *SolanaWatcher) runRetryFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) error {
+	s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, retry+1, isReobservation, signature)
+	return nil
 }
 
 func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) (numObservations uint32, retryable bool) {
