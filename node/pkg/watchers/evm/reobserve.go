@@ -31,7 +31,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 	// by relying on the same websocket connection).
 
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-	receipt, blockNumber, msgs, err := MessageEventsForTransaction(timeout, ethConn, w.contract, w.chainID, tx)
+	receipt, blockNumber, msgs, err := MessageEventsForTransaction(timeout, ethConn, w.contract, w.chainID, tx, true /* isReobservation */)
 	cancel()
 
 	if err != nil {
@@ -39,7 +39,6 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 	}
 
 	for _, msg := range msgs {
-		msg.IsReobservation = true
 		if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 			w.logger.Info("re-observed message publication transaction, publishing it immediately",
 				zap.String("msgId", msg.MessageIDString()),
