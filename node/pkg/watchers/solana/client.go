@@ -1147,7 +1147,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 		return decodeErr
 	}
 
-	// SECURITY: Parse the message account data to ensure it's valid.
+	// SECURITY: Parse the message account data to ensure it's valid before handing it to the static publication builder.
 	messageAccountData, dataErr := NewMessageAccountData(dataBase64Decoded)
 	if dataErr != nil {
 		s.logger.Debug("skipping non-message account", zap.String("account", value.Pubkey), zap.Error(dataErr))
@@ -1164,7 +1164,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 
 // SECURITY: Ownership check on account key must be done BEFORE this function is called.
 func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccountData MessageAccountData, acc solana.PublicKey, isReobservation bool, signature solana.Signature, useSignatureAsTxID bool) (numObservations uint32) {
-	proposal, err := ParseMessagePublicationAccount(messageAccountData)
+	observation, err := s.buildMessagePublicationFromAccountData(acc, messageAccountData, signature, isReobservation, useSignatureAsTxID)
 	if err != nil {
 		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
 		logger.Error(
@@ -1176,11 +1176,11 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 	}
 
 	// SECURITY: defense-in-depth, ensure the consistency level in the account matches the consistency level of the watcher
-	commitment, err := accountConsistencyLevelToCommitment(proposal.ConsistencyLevel)
+	commitment, err := accountConsistencyLevelToCommitment(observation.ConsistencyLevel)
 	if err != nil {
 		logger.Error(
 			"failed to parse proposal consistency level",
-			zap.Any("proposal", proposal),
+			zap.Uint8("consistency_level", observation.ConsistencyLevel),
 			zap.Error(err))
 		return
 	}
@@ -1196,46 +1196,9 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 		return
 	}
 
-	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
-	if s.chainID != vaa.ChainIDPythNet {
-		// SECURITY: ensure these fields are zeroed out. in the legacy solana program they were always zero, and in the 2023 rewrite they are zeroed once the account is finalized
-		if !bytes.Equal(proposal.EmitterAuthority.Bytes(), emptyAddressBytes) || proposal.MessageStatus != 0 || !bytes.Equal(proposal.Gap[:], emptyGapBytes) {
-			solanaAccountSkips.WithLabelValues(s.networkName, "unfinalized_account").Inc()
-			logger.Error(
-				"account is not finalized",
-				zap.Stringer("account", acc),
-				zap.String("data", messageAccountData.String()),
-			)
-			return
-		}
-	}
-
-	var txID []byte
-	if useSignatureAsTxID && !signature.IsZero() {
-		// Close event path: use the Solana transaction signature as TxID,
-		// matching the shim convention.
-		txID = signature[:]
-	} else {
-		// Account-based path: use the message account pubkey as TxID.
-		txID = acc[:]
-	}
-
-	observation := &common.MessagePublication{
-		TxID:             txID,
-		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
-		Nonce:            proposal.Nonce,
-		Sequence:         proposal.Sequence,
-		EmitterChain:     s.chainID, // SECURITY: The message must be emitted from the chain this watcher is observing. This prevents mix-ups between different SVM chains.
-		EmitterAddress:   proposal.EmitterAddress,
-		Payload:          proposal.Payload,
-		ConsistencyLevel: proposal.ConsistencyLevel,
-		IsReobservation:  isReobservation,
-		Unreliable:       !messageAccountData.IsReliable(),
-	}
-
 	// SECURITY: An unreliable message with an empty payload is most like a PostMessage generated as part
 	// of a shim event where this guardian is not watching the shim contract. Those events should be ignored.
-	if !messageAccountData.IsReliable() && len(observation.Payload) == 0 {
+	if observation.Unreliable && len(observation.Payload) == 0 {
 		logger.Debug("ignoring an observation because it is marked unreliable and has a zero length payload, probably from the shim",
 			zap.Stringer("account", acc),
 			zap.Time("timestamp", observation.Timestamp),
@@ -1272,6 +1235,81 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 
 	s.msgC <- observation // Note on channel capacity: The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	return 1
+}
+
+// buildMessagePublicationFromAccountData is the deterministic account-message parser/builder boundary.
+// It must not perform network requests; callers are responsible for fetching account bytes, proving account ownership, and converting bytes to MessageAccountData before calling it.
+func (s *SolanaWatcher) buildMessagePublicationFromAccountData(messageAccount solana.PublicKey, messageAccountData MessageAccountData, txSignature solana.Signature, isReobservation bool, useSignatureAsTxID bool) (*common.MessagePublication, error) {
+	proposal, err := ParseMessagePublicationAccount(messageAccountData)
+	if err != nil {
+		return nil, err
+	}
+
+	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
+	if s.chainID != vaa.ChainIDPythNet {
+		// SECURITY: ensure these fields are zeroed out. in the legacy solana program they were always zero, and in the 2023 rewrite they are zeroed once the account is finalized
+		if !bytes.Equal(proposal.EmitterAuthority.Bytes(), emptyAddressBytes) || proposal.MessageStatus != 0 || !bytes.Equal(proposal.Gap[:], emptyGapBytes) {
+			return nil, errors.New("account is not finalized")
+		}
+	}
+
+	var txID []byte
+	if useSignatureAsTxID && !txSignature.IsZero() {
+		// Close event path: use the Solana transaction signature as TxID,
+		// matching the shim convention.
+		txID = txSignature[:]
+	} else {
+		// Account-based path: use the message account pubkey as TxID.
+		txID = messageAccount[:]
+	}
+
+	return &common.MessagePublication{
+		TxID:             txID,
+		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
+		Nonce:            proposal.Nonce,
+		Sequence:         proposal.Sequence,
+		EmitterChain:     s.chainID, // SECURITY: The message must be emitted from the chain this watcher is observing. This prevents mix-ups between different SVM chains.
+		EmitterAddress:   proposal.EmitterAddress,
+		Payload:          proposal.Payload,
+		ConsistencyLevel: proposal.ConsistencyLevel,
+		IsReobservation:  isReobservation,
+		Unreliable:       !messageAccountData.IsReliable(),
+	}, nil
+}
+
+// buildMessagePublicationFromShimData is the deterministic shim parser/builder boundary.
+// It must not perform network requests; callers are responsible for extracting the relevant instruction bytes from a transaction before calling it.
+func (s *SolanaWatcher) buildMessagePublicationFromShimData(txSignature solana.Signature, postMessageInstructionData []byte, messageEventInstructionData []byte, isReobservation bool) (*common.MessagePublication, error) {
+	postMessage, err := shimParsePostMessage(s.shimPostMessageDiscriminator, postMessageInstructionData)
+	if err != nil {
+		return nil, err
+	}
+	if postMessage == nil {
+		return nil, errors.New("instruction is not a shim post message")
+	}
+
+	messageEvent, err := shimParseMessageEvent(s.shimMessageEventDiscriminator, messageEventInstructionData)
+	if err != nil {
+		return nil, err
+	}
+	if messageEvent == nil {
+		return nil, errors.New("instruction is not a shim message event")
+	}
+
+	return &common.MessagePublication{
+		TxID:             txSignature[:],
+		Timestamp:        time.Unix(int64(messageEvent.Timestamp), 0),
+		Nonce:            postMessage.Nonce,
+		Sequence:         messageEvent.Sequence,
+		EmitterChain:     s.chainID,
+		EmitterAddress:   messageEvent.EmitterAddress,
+		Payload:          postMessage.Payload,
+		ConsistencyLevel: uint8(postMessage.ConsistencyLevel),
+		IsReobservation:  isReobservation,
+
+		// Shim messages are always reliable.
+		Unreliable: false,
+	}, nil
 }
 
 // updateLatestBlock() updates the latest block number if the slot passed in is greater than the previous value.
