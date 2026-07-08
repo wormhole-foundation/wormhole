@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -380,19 +381,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 	// Poll for guardian set.
 	common.RunWithScissors(ctx, errC, "evm_fetch_guardian_set", func(ctx context.Context) error {
-		t := time.NewTicker(15 * time.Second)
-		defer t.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case <-t.C:
-				if pollErr := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); pollErr != nil {
-					errC <- fmt.Errorf("failed to request guardian set: %v", pollErr) // Note on channel capacity: The watcher will exit anyway
-					return nil
-				}
-			}
-		}
+		return w.runGuardianSetPoller(ctx, errC)
 	})
 
 	// Fetch initial delegated guardian config if configured.
@@ -406,60 +395,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	if w.dgContractAddr != nil && w.dgConfigC != nil {
 		// Keep this outer gate even though fetchAndUpdateDelegatedGuardianConfig() also checks
 		common.RunWithScissors(ctx, errC, "evm_fetch_delegated_guardian_config", func(ctx context.Context) error {
-			t := time.NewTicker(15 * time.Second)
-			defer t.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return nil
-				case <-t.C:
-					if pollErr := w.fetchAndUpdateDelegatedGuardianConfig(ctx); pollErr != nil {
-						errC <- fmt.Errorf("failed to request delegated guardian config: %v", pollErr) // Note on channel capacity: The watcher will exit anyway
-						return nil
-					}
-				}
-			}
+			return w.runDelegatedGuardianConfigPoller(ctx, errC)
 		})
 	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_objs_req", func(ctx context.Context) error {
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case r := <-w.obsvReqC:
-				chainId, chainErr := vaa.KnownChainIDFromNumber[uint32](r.ChainId)
-				if chainErr != nil {
-					logger.Error("invalid chain id for observation request",
-						zap.Uint32("chainID", r.ChainId),
-						zap.String("txID", hex.EncodeToString(r.TxHash)),
-						zap.Error(chainErr),
-					)
-					continue
-				}
-				numObservations, handleErr := w.handleReobservationRequest(
-					ctx,
-					chainId,
-					r.TxHash,
-					w.ethConn,
-					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
-					atomic.LoadUint64(&w.latestSafeBlockNumber),
-				)
-				if handleErr != nil {
-					logger.Error("failed to process observation request",
-						zap.Uint32("chainID", r.ChainId),
-						zap.String("txID", hex.EncodeToString(r.TxHash)),
-						zap.Error(handleErr),
-					)
-				}
-
-				logger.Info("reobserved transactions",
-					zap.Uint32("chainID", r.ChainId),
-					zap.String("txID", hex.EncodeToString(r.TxHash)),
-					zap.Uint32("numObservations", numObservations),
-				)
-			}
-		}
+		return w.runReobservationHandler(ctx)
 	})
 
 	if w.ccqConfig.QueriesSupported() {
@@ -471,31 +412,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case subErr := <-messageSub.Err():
-				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing message publication subscription: %w", subErr) // The watcher will exit anyway
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return nil
-			case ev := <-messageC:
-				blockTime, blockErr := w.getBlockTime(ctx, ev.Raw.BlockHash)
-				if blockErr != nil {
-					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-					if canRetryGetBlockTime(blockErr) {
-						go w.waitForBlockTime(ctx, errC, ev)
-						continue
-					}
-					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), blockErr) // The watcher will exit anyway
-					return nil
-				}
-
-				w.postMessage(ctx, ev, blockTime)
-			}
-		}
+		return w.runMessageProcessor(ctx, errC, messageSub, messageC)
 	})
 
 	// Watch headers
@@ -509,44 +426,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	defer headerSubscription.Unsubscribe()
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_headers", func(ctx context.Context) error {
-		stats := gossipv1.Heartbeat_Network{ContractAddress: w.contract.Hex()}
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case err := <-headerSubscription.Err():
-				logger.Error("error while processing header subscription", zap.Error(err))
-				ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing header subscription: %w", err) // Note on channel capacity: The watcher will exit anyway
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return nil
-			case ev := <-headSink:
-				// These two pointers should have been checked before the event was placed on the channel, but just being safe.
-				if ev == nil {
-					logger.Error("new header event is nil")
-					continue
-				}
-				if ev.Number == nil {
-					logger.Error("new header block number is nil", zap.Stringer("finality", ev.Finality))
-					continue
-				}
-
-				currentHash := ev.Hash
-				logger.Debug("processing new header",
-					zap.Stringer("current_block", ev.Number),
-					zap.Uint64("block_time", ev.Time),
-					zap.Stringer("current_blockhash", currentHash),
-					zap.Stringer("finality", ev.Finality),
-				)
-				readiness.SetReady(w.readinessSync)
-
-				if err := w.processNewBlock(ctx, ev, &stats); err != nil {
-					errC <- err
-					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					return nil //nolint:nilerr // error propagated via errC
-				}
-			}
-		}
+		return w.runHeaderProcessor(ctx, errC, headerSubscription, headSink)
 	})
 
 	// Now that the init is complete, peg readiness. That will also happen when we process a new head, but chains
@@ -558,6 +438,157 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		return ctx.Err()
 	case err := <-errC:
 		return err
+	}
+}
+
+// runGuardianSetPoller periodically re-fetches the guardian set until the context is
+// canceled. Any fetch error is forwarded to errC (the watcher will exit anyway).
+func (w *Watcher) runGuardianSetPoller(ctx context.Context, errC chan error) error {
+	t := time.NewTicker(15 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-t.C:
+			if pollErr := w.fetchAndUpdateGuardianSet(ctx, w.ethConn); pollErr != nil {
+				errC <- fmt.Errorf("failed to request guardian set: %v", pollErr) // Note on channel capacity: The watcher will exit anyway
+				return nil
+			}
+		}
+	}
+}
+
+// runDelegatedGuardianConfigPoller periodically re-fetches the delegated guardian config
+// until the context is canceled. Any fetch error is forwarded to errC (the watcher will exit anyway).
+func (w *Watcher) runDelegatedGuardianConfigPoller(ctx context.Context, errC chan error) error {
+	t := time.NewTicker(15 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-t.C:
+			if pollErr := w.fetchAndUpdateDelegatedGuardianConfig(ctx); pollErr != nil {
+				errC <- fmt.Errorf("failed to request delegated guardian config: %v", pollErr) // Note on channel capacity: The watcher will exit anyway
+				return nil
+			}
+		}
+	}
+}
+
+// runReobservationHandler services reobservation requests from w.obsvReqC until the context
+// is canceled. Errors are logged rather than fatal, so a bad request does not stop the watcher.
+func (w *Watcher) runReobservationHandler(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case r := <-w.obsvReqC:
+			chainId, chainErr := vaa.KnownChainIDFromNumber[uint32](r.ChainId)
+			if chainErr != nil {
+				w.logger.Error("invalid chain id for observation request",
+					zap.Uint32("chainID", r.ChainId),
+					zap.String("txID", hex.EncodeToString(r.TxHash)),
+					zap.Error(chainErr),
+				)
+				continue
+			}
+			numObservations, handleErr := w.handleReobservationRequest(
+				ctx,
+				chainId,
+				r.TxHash,
+				w.ethConn,
+				atomic.LoadUint64(&w.latestFinalizedBlockNumber),
+				atomic.LoadUint64(&w.latestSafeBlockNumber),
+			)
+			if handleErr != nil {
+				w.logger.Error("failed to process observation request",
+					zap.Uint32("chainID", r.ChainId),
+					zap.String("txID", hex.EncodeToString(r.TxHash)),
+					zap.Error(handleErr),
+				)
+			}
+
+			w.logger.Info("reobserved transactions",
+				zap.Uint32("chainID", r.ChainId),
+				zap.String("txID", hex.EncodeToString(r.TxHash)),
+				zap.Uint32("numObservations", numObservations),
+			)
+		}
+	}
+}
+
+// runMessageProcessor consumes LogMessagePublished events from messageC (and subscription
+// errors from messageSub) until the context is canceled. Fatal errors are forwarded to errC.
+func (w *Watcher) runMessageProcessor(ctx context.Context, errC chan error, messageSub event.Subscription, messageC <-chan *ethabi.AbiLogMessagePublished) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case subErr := <-messageSub.Err():
+			ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
+			errC <- fmt.Errorf("error while processing message publication subscription: %w", subErr) // The watcher will exit anyway
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return nil
+		case ev := <-messageC:
+			blockTime, blockErr := w.getBlockTime(ctx, ev.Raw.BlockHash)
+			if blockErr != nil {
+				ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+				if canRetryGetBlockTime(blockErr) {
+					go w.waitForBlockTime(ctx, errC, ev)
+					continue
+				}
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), blockErr) // The watcher will exit anyway
+				return nil
+			}
+
+			w.postMessage(ctx, ev, blockTime)
+		}
+	}
+}
+
+// runHeaderProcessor consumes new block headers from headSink (and subscription errors from
+// headerSubscription) until the context is canceled. Fatal errors are forwarded to errC.
+func (w *Watcher) runHeaderProcessor(ctx context.Context, errC chan error, headerSubscription ethereum.Subscription, headSink <-chan *connectors.NewBlock) error {
+	stats := gossipv1.Heartbeat_Network{ContractAddress: w.contract.Hex()}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-headerSubscription.Err():
+			w.logger.Error("error while processing header subscription", zap.Error(err))
+			ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
+			errC <- fmt.Errorf("error while processing header subscription: %w", err) // Note on channel capacity: The watcher will exit anyway
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return nil
+		case ev := <-headSink:
+			// These two pointers should have been checked before the event was placed on the channel, but just being safe.
+			if ev == nil {
+				w.logger.Error("new header event is nil")
+				continue
+			}
+			if ev.Number == nil {
+				w.logger.Error("new header block number is nil", zap.Stringer("finality", ev.Finality))
+				continue
+			}
+
+			currentHash := ev.Hash
+			w.logger.Debug("processing new header",
+				zap.Stringer("current_block", ev.Number),
+				zap.Uint64("block_time", ev.Time),
+				zap.Stringer("current_blockhash", currentHash),
+				zap.Stringer("finality", ev.Finality),
+			)
+			readiness.SetReady(w.readinessSync)
+
+			if err := w.processNewBlock(ctx, ev, &stats); err != nil {
+				errC <- err
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				return nil //nolint:nilerr // error propagated via errC
+			}
+		}
 	}
 }
 
@@ -772,18 +803,7 @@ func (w *Watcher) postMessage(
 		return
 	}
 
-	msg := &common.MessagePublication{
-		TxID:             ev.Raw.TxHash.Bytes(),
-		Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
-		Nonce:            ev.Nonce,
-		Sequence:         ev.Sequence,
-		EmitterChain:     w.chainID, // SECURITY: Hardcoded chain id from watcher
-		EmitterAddress:   PadAddress(ev.Sender),
-		Payload:          ev.Payload,
-		ConsistencyLevel: ev.ConsistencyLevel,
-		IsReobservation:  false,
-		Unreliable:       false,
-	}
+	msg := newMessagePublication(ev, blockTime, w.chainID, false /* isReobservation */)
 
 	ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 

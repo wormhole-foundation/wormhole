@@ -51,7 +51,7 @@ func TestTronNileReobservation(t *testing.T) {
 	// handleReobservationRequest (reobserve.go).
 	receipt, blockNum, msgs, err := MessageEventsForTransaction(
 		ctx, poll, coreAddr, vaa.ChainIDTron,
-		ethCommon.HexToHash(txHash),
+		ethCommon.HexToHash(txHash), false, /* isReobservation */
 	)
 	require.NoError(t, err)
 	require.NotNil(t, receipt)
