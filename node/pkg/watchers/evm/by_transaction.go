@@ -3,8 +3,10 @@ package evm
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	eth_common "github.com/ethereum/go-ethereum/common"
@@ -41,14 +43,45 @@ func isValidCoreBridgeMessagePublicationLog(l types.Log, contract eth_common.Add
 	return true
 }
 
+// newMessagePublication builds a MessagePublication from a parsed LogMessagePublished event and
+// the timestamp of the block that included it. This is the single place where the EVM watcher
+// translates on-chain event data (the ethabi.AbiLogMessagePublished struct returned by the EVM
+// libraries) into a MessagePublication, so the real-time subscription path (postMessage) and the
+// reobservation path (MessageEventsForTransaction) stay consistent.
+//
+// isReobservation must be true when the message is being reconstructed from a reobservation
+// request and false for live observations; the caller states this explicitly so the field is set
+// at construction rather than mutated afterward. The emitter chain id is supplied by the caller
+// and is always the watcher's own hardcoded chain id (SECURITY: it must never be derived from
+// untrusted event data).
+func newMessagePublication(ev *ethabi.AbiLogMessagePublished, timestamp time.Time, chainId vaa.ChainID, isReobservation bool) *common.MessagePublication {
+	return &common.MessagePublication{
+		TxID:             ev.Raw.TxHash.Bytes(),
+		Timestamp:        timestamp,
+		Nonce:            ev.Nonce,
+		Sequence:         ev.Sequence,
+		EmitterChain:     chainId, // SECURITY: Hardcoded chain id from watcher
+		EmitterAddress:   PadAddress(ev.Sender),
+		Payload:          ev.Payload,
+		ConsistencyLevel: ev.ConsistencyLevel,
+		IsReobservation:  isReobservation,
+		Unreliable:       false,
+	}
+}
+
 // MessageEventsForTransaction returns the lockup events for a given transaction.
 // Returns the block number and a list of MessagePublication events.
+//
+// isReobservation labels the returned messages: pass true when servicing a reobservation
+// request and false for a plain parse (e.g. debug tooling). It is threaded through to
+// newMessagePublication so IsReobservation is set at construction rather than mutated later.
 func MessageEventsForTransaction(
 	ctx context.Context,
 	ethConn connectors.Connector,
 	contract eth_common.Address,
 	chainId vaa.ChainID,
-	tx eth_common.Hash) (*types.Receipt, uint64, []*common.MessagePublication, error) {
+	tx eth_common.Hash,
+	isReobservation bool) (*types.Receipt, uint64, []*common.MessagePublication, error) {
 
 	// Get transactions logs from transaction
 	// API only returns transactions that have been included in a block. Nothing in the mempool
@@ -98,20 +131,7 @@ func MessageEventsForTransaction(
 				tx.Hex(), ev.Raw.BlockNumber, blockTime, err)
 		}
 
-		message := &common.MessagePublication{
-			TxID:             ev.Raw.TxHash.Bytes(),
-			Timestamp:        timestamp,
-			Nonce:            ev.Nonce,
-			Sequence:         ev.Sequence,
-			EmitterChain:     chainId, // SECURITY: Hardcoded to watcher chain id
-			EmitterAddress:   PadAddress(ev.Sender),
-			Payload:          ev.Payload,
-			ConsistencyLevel: ev.ConsistencyLevel,
-			IsReobservation:  false,
-			Unreliable:       false,
-		}
-
-		msgs = append(msgs, message)
+		msgs = append(msgs, newMessagePublication(ev, timestamp, chainId, isReobservation))
 	}
 
 	return receipt, receipt.BlockNumber.Uint64(), msgs, nil
