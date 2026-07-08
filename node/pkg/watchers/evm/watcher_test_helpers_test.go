@@ -436,8 +436,14 @@ func newTestLogEventFromParams(p testLogEventParams) *ethabi.AbiLogMessagePublis
 // assertMessageMatchesEvent verifies that all fields on a MessagePublication match the source event.
 func assertMessageMatchesEvent(t *testing.T, msg *common.MessagePublication, ev *ethabi.AbiLogMessagePublished) {
 	t.Helper()
+	assertMessageMatchesEventAtTime(t, msg, ev, testBlockTime)
+}
+
+// assertMessageMatchesEventAtTime verifies the publication fields for a specific block timestamp.
+func assertMessageMatchesEventAtTime(t *testing.T, msg *common.MessagePublication, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
+	t.Helper()
 	assert.Equal(t, ev.Raw.TxHash.Bytes(), msg.TxID)
-	assert.Equal(t, time.Unix(int64(testBlockTime), 0), msg.Timestamp) // #nosec G115 -- test-only
+	assert.Equal(t, time.Unix(int64(blockTime), 0), msg.Timestamp) // #nosec G115 -- test-only
 	assert.Equal(t, ev.Nonce, msg.Nonce)
 	assert.Equal(t, ev.Sequence, msg.Sequence)
 	assert.Equal(t, vaa.ChainIDEthereum, msg.EmitterChain)

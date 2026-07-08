@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -19,6 +23,186 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
+
+const (
+	generatedPostMessageFixtureContract = "0x4a8bc80ed5a4067f1ccf107057b8270e0cc11a78"
+	realPostMessageFixtureContract      = "0x98f3c9e6e3face36baad05fe09d375ef1464288b"
+)
+
+type postMessageFixture struct {
+	name                       string
+	fileName                   string
+	contract                   eth_common.Address
+	checkGeneratedDistribution bool
+}
+
+type postMessageFixtureCase struct {
+	Comment          string             `json:"comment"`
+	MessageSent      *bool              `json:"messageSent,omitempty"`
+	Hash             string             `json:"hash,omitempty"`
+	Sender           eth_common.Address `json:"Sender"`
+	Sequence         uint64             `json:"Sequence"`
+	Nonce            uint32             `json:"Nonce"`
+	Payload          []byte             `json:"Payload"`
+	ConsistencyLevel uint8              `json:"ConsistencyLevel"`
+	BlockTime        uint64             `json:"BlockTime,omitempty"`
+	Raw              types.Log          `json:"Raw"`
+}
+
+func (tc postMessageFixtureCase) event() *ethabi.AbiLogMessagePublished {
+	return &ethabi.AbiLogMessagePublished{
+		Sender:           tc.Sender,
+		Sequence:         tc.Sequence,
+		Nonce:            tc.Nonce,
+		Payload:          tc.Payload,
+		ConsistencyLevel: tc.ConsistencyLevel,
+		Raw:              tc.Raw,
+	}
+}
+
+func postMessageFixtureDir(t *testing.T) string {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok, "failed to locate watcher_test.go")
+
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
+}
+
+func postMessageFixtures(t *testing.T) []postMessageFixture {
+	t.Helper()
+
+	return []postMessageFixture{
+		{
+			name:                       "generated",
+			fileName:                   "out.json",
+			contract:                   eth_common.HexToAddress(generatedPostMessageFixtureContract),
+			checkGeneratedDistribution: true,
+		},
+		{
+			name:     "real",
+			fileName: "real_out.json",
+			contract: eth_common.HexToAddress(realPostMessageFixtureContract),
+		},
+	}
+}
+
+func postMessageFixturePath(t *testing.T, fixture postMessageFixture) string {
+	t.Helper()
+	return filepath.Join(postMessageFixtureDir(t), fixture.fileName)
+}
+
+func loadPostMessageFixture(t *testing.T, fixture postMessageFixture) []postMessageFixtureCase {
+	t.Helper()
+
+	fixturePath := postMessageFixturePath(t, fixture)
+	data, err := os.ReadFile(fixturePath)
+	require.NoError(t, err)
+
+	var cases []postMessageFixtureCase
+	require.NoError(t, json.Unmarshal(data, &cases))
+	return cases
+}
+
+func writePostMessageFixture(t *testing.T, fixture postMessageFixture, cases []postMessageFixtureCase) {
+	t.Helper()
+
+	data, err := json.MarshalIndent(cases, "", "  ")
+	require.NoError(t, err)
+	data = append(data, '\n')
+
+	require.NoError(t, os.WriteFile(postMessageFixturePath(t, fixture), data, 0o644))
+}
+
+func fixtureValidationErrors(tc postMessageFixtureCase, contract eth_common.Address) []string {
+	var reasons []string
+	if tc.Raw.Removed {
+		reasons = append(reasons, "removed log")
+	}
+	if tc.Raw.Address != contract {
+		reasons = append(reasons, "wrong raw address")
+	}
+	if len(tc.Raw.Topics) == 0 {
+		reasons = append(reasons, "missing event topic")
+	} else if tc.Raw.Topics[0] != LogMessagePublishedTopic {
+		reasons = append(reasons, "wrong event topic")
+	}
+	return reasons
+}
+
+func fixtureReceipt(ev *ethabi.AbiLogMessagePublished) *types.Receipt {
+	log := ev.Raw
+	return &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		TxHash:      ev.Raw.TxHash,
+		BlockHash:   ev.Raw.BlockHash,
+		BlockNumber: new(big.Int).SetUint64(ev.Raw.BlockNumber),
+		Logs:        []*types.Log{&log},
+	}
+}
+
+func (tc postMessageFixtureCase) blockTime() uint64 {
+	if tc.BlockTime != 0 {
+		return tc.BlockTime
+	}
+	return testBlockTime
+}
+
+func fixtureBlock(ev *ethabi.AbiLogMessagePublished, blockTime uint64, finality connectors.FinalityLevel) *connectors.NewBlock {
+	return &connectors.NewBlock{
+		Number:   new(big.Int).SetUint64(ev.Raw.BlockNumber),
+		Hash:     ev.Raw.BlockHash,
+		Time:     blockTime,
+		Finality: finality,
+	}
+}
+
+func fixtureFinality(t *testing.T, consistencyLevel uint8) connectors.FinalityLevel {
+	t.Helper()
+
+	switch consistencyLevel {
+	case vaa.ConsistencyLevelPublishImmediately:
+		return connectors.Latest
+	case vaa.ConsistencyLevelSafe:
+		return connectors.Safe
+	default:
+		return connectors.Finalized
+	}
+}
+
+func TestFixtureFinality(t *testing.T) {
+	assert.Equal(t, connectors.Latest, fixtureFinality(t, vaa.ConsistencyLevelPublishImmediately))
+	assert.Equal(t, connectors.Safe, fixtureFinality(t, vaa.ConsistencyLevelSafe))
+	assert.Equal(t, connectors.Finalized, fixtureFinality(t, vaa.ConsistencyLevelFinalized))
+	assert.Equal(t, connectors.Finalized, fixtureFinality(t, vaa.ConsistencyLevelCustom))
+	assert.Equal(t, connectors.Finalized, fixtureFinality(t, 1))
+}
+
+func assertOrSeedFixtureMessageSent(t *testing.T, tc *postMessageFixtureCase, messageSent bool) bool {
+	t.Helper()
+
+	if tc.MessageSent == nil {
+		tc.MessageSent = new(bool)
+		*tc.MessageSent = messageSent
+		return true
+	}
+
+	require.Equal(t, *tc.MessageSent, messageSent)
+	return false
+}
+
+func assertOrSeedFixtureHash(t *testing.T, tc *postMessageFixtureCase, msg *common.MessagePublication) bool {
+	t.Helper()
+
+	hash := msg.CreateDigest()
+	if tc.Hash == "" {
+		tc.Hash = hash
+		return true
+	}
+
+	require.Equal(t, tc.Hash, hash)
+	return false
+}
 
 func TestMsgIdFromLogEvent(t *testing.T) {
 	evJson := `
@@ -893,6 +1077,91 @@ func TestPostMessageWrongEventSignatureIsIgnored(t *testing.T) {
 
 	assert.Equal(t, 0, len(msgC), "log with wrong event signature should not be published to msgC")
 	assert.Equal(t, 0, len(w.pending), "log with wrong event signature should not be added to pending")
+}
+
+func TestPostMessageGeneratedFixture(t *testing.T) {
+	for _, fixture := range postMessageFixtures(t) {
+		fixture := fixture
+
+		t.Run(fixture.name, func(t *testing.T) {
+			cases := loadPostMessageFixture(t, fixture)
+			require.Len(t, cases, 200)
+			var correctAddress, correctTopic, removed uint
+			wrongCounts := map[int]int{}
+			fixtureUpdated := false
+
+			for i := range cases {
+				tc := &cases[i]
+				reasons := fixtureValidationErrors(*tc, fixture.contract)
+				wrongCounts[len(reasons)]++
+				if tc.Raw.Address == fixture.contract {
+					correctAddress++
+				}
+				if len(tc.Raw.Topics) > 0 && tc.Raw.Topics[0] == LogMessagePublishedTopic {
+					correctTopic++
+				}
+				if tc.Raw.Removed {
+					removed++
+				}
+				require.LessOrEqual(t, len(reasons), 3, "case %d has too many validation errors: %v", i, reasons)
+
+				i := i
+				tcForCase := tc
+				t.Run(fmt.Sprintf("case_%03d", i), func(t *testing.T) {
+					w, mock, msgC := newTestWatcher(t)
+					w.contract = fixture.contract
+
+					ev := tcForCase.event()
+					mock.receipts[ev.Raw.TxHash] = fixtureReceipt(ev)
+					blockTime := tcForCase.blockTime()
+
+					w.postMessage(context.TODO(), ev, blockTime)
+
+					if ev.ConsistencyLevel != vaa.ConsistencyLevelPublishImmediately {
+						err := w.processNewBlock(
+							context.TODO(),
+							fixtureBlock(ev, blockTime, fixtureFinality(t, ev.ConsistencyLevel)),
+							&gossipv1.Heartbeat_Network{},
+						)
+						require.NoError(t, err)
+					}
+
+					require.LessOrEqual(t, len(msgC), 1)
+					messageSent := len(msgC) == 1
+					if assertOrSeedFixtureMessageSent(t, tcForCase, messageSent) {
+						fixtureUpdated = true
+					}
+
+					assert.Equal(t, 0, len(w.pending), "fixture %q should not leave pending messages", tcForCase.Comment)
+					if !messageSent {
+						assert.Empty(t, tcForCase.Hash, "fixture %q should not have an output hash when no message is sent", tcForCase.Comment)
+						return
+					}
+
+					msg := <-msgC
+					assertMessageMatchesEventAtTime(t, msg, ev, blockTime)
+					assert.Equal(t, common.NotVerified, msg.VerificationState())
+					if assertOrSeedFixtureHash(t, tcForCase, msg) {
+						fixtureUpdated = true
+					}
+				})
+			}
+
+			if fixture.checkGeneratedDistribution {
+				assert.Equal(t, uint(180), correctAddress)
+				assert.Equal(t, uint(180), correctTopic)
+				assert.Equal(t, uint(10), removed)
+				assert.Equal(t, 160, wrongCounts[0])
+				assert.Equal(t, 30, wrongCounts[1])
+				assert.Equal(t, 10, wrongCounts[2])
+				assert.Equal(t, 0, wrongCounts[3])
+			}
+
+			if fixtureUpdated && !t.Failed() {
+				writePostMessageFixture(t, fixture, cases)
+			}
+		})
+	}
 }
 
 // TxVerifier is used on postMessage
