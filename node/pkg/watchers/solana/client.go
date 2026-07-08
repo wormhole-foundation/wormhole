@@ -48,7 +48,7 @@ type (
 		obsvReqC   <-chan *gossipv1.ObservationRequest
 		errC       chan error
 		pumpData   chan []byte
-		rpcClient  *rpc.Client
+		rpcClient  solanaRPCClient
 		// Readiness component
 		readinessSync readiness.Component
 		// VAA ChainID of the SVM network we're connecting to.
@@ -93,6 +93,17 @@ type (
 		// wormhole transaction to be observed. It is stored in the Watcher so it will survive a
 		// watcher restart, allowing us to continue on without gaps.
 		pollPrevWormholeSignature solana.Signature
+	}
+
+	solanaRPCClient interface {
+		GetSlot(context.Context, rpc.CommitmentType) (uint64, error)
+		GetBlockWithOpts(context.Context, uint64, *rpc.GetBlockOpts) (*rpc.GetBlockResult, error)
+		GetTransaction(context.Context, solana.Signature, *rpc.GetTransactionOpts) (*rpc.GetTransactionResult, error)
+		GetAccountInfo(context.Context, solana.PublicKey) (*rpc.GetAccountInfoResult, error)
+		GetAccountInfoWithOpts(context.Context, solana.PublicKey, *rpc.GetAccountInfoOpts) (*rpc.GetAccountInfoResult, error)
+		GetSignaturesForAddressWithOpts(context.Context, solana.PublicKey, *rpc.GetSignaturesForAddressOpts) ([]*rpc.TransactionSignature, error)
+		GetVersion(context.Context) (*rpc.GetVersionResult, error)
+		RPCCallForInto(context.Context, interface{}, string, []interface{}) error
 	}
 
 	EventSubscriptionError struct {
@@ -616,7 +627,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 }
 
 // processTransaction processes a transaction and publishes any Wormhole events.
-func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.Client, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) (numObservations uint32) {
+func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient solanaRPCClient, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) (numObservations uint32) {
 	// SECURITY: Validate transaction metadata before accessing fields
 	if metadataErr := validateTransactionMeta(meta); metadataErr != nil {
 		if s.logger.Level().Enabled(zapcore.DebugLevel) {
@@ -816,7 +827,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 	return
 }
 
-func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.Client, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int, isReobservation bool) (bool, error) {
+func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient solanaRPCClient, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int, isReobservation bool) (bool, error) {
 	if inst.ProgramIDIndex != programIndex {
 		return false, nil
 	}
@@ -876,7 +887,7 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.C
 	return true, nil
 }
 
-func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) (numObservations uint32, retryable bool) {
+func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) (numObservations uint32, retryable bool) {
 	// Fetching account
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
@@ -1131,7 +1142,7 @@ func ParseMessagePublicationAccount(
 	return prop, nil
 }
 
-func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, rpcClient *rpc.Client, tx *solana.Transaction) error {
+func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, rpcClient solanaRPCClient, tx *solana.Transaction) error {
 	if !tx.Message.IsVersioned() {
 		return nil
 	}

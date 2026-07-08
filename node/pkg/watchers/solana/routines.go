@@ -12,7 +12,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/coder/websocket"
 	"github.com/gagliardetto/solana-go"
-	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/mr-tron/base58"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -173,12 +172,12 @@ func (s *SolanaWatcher) runDelayedFetchBlock(ctx context.Context, logger *zap.Lo
 	return nil
 }
 
-func (s *SolanaWatcher) runInitialFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) error {
+func (s *SolanaWatcher) runInitialFetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) error {
 	s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, 0, isReobservation, signature)
 	return nil
 }
 
-func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) {
+func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) {
 	_, retryable := s.fetchMessageAccount(ctx, rpcClient, acc, slot, isReobservation, signature)
 
 	if retryable {
@@ -203,7 +202,7 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient 
 	}
 }
 
-func (s *SolanaWatcher) runRetryFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) error {
+func (s *SolanaWatcher) runRetryFetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) error {
 	s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, retry+1, isReobservation, signature)
 	return nil
 }
