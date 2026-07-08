@@ -3,6 +3,7 @@ package connectors
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -33,10 +34,14 @@ type mockConnectorForBatchPoller struct {
 	sub             ethEvent.Subscription
 	err             error
 	persistentError bool
-	blockNumbers    []uint64
-	prevLatest      uint64
-	prevSafe        uint64
-	prevFinalized   uint64
+	// perElementErrs, when set, injects an error onto the batch element at the given index,
+	// mirroring a batched call that succeeds at the transport level but reports a per-element
+	// failure. Elements without an entry are served normally.
+	perElementErrs map[int]error
+	blockNumbers   []uint64
+	prevLatest     uint64
+	prevSafe       uint64
+	prevFinalized  uint64
 }
 
 // setError takes an error which will be returned on the next RPC call. The error will persist until cleared.
@@ -118,6 +123,13 @@ func (e *mockConnectorForBatchPoller) RawBatchCallContext(ctx context.Context, b
 	for i, entry := range b {
 		if entry.Method != "eth_getBlockByNumber" {
 			panic("method not implemented by mockConnectorForBatchPoller")
+		}
+
+		if elemErr, ok := e.perElementErrs[i]; ok {
+			// Simulate a per-element failure: geth reports it on the batch element and leaves
+			// the result unpopulated.
+			b[i].Error = elemErr
+			continue
 		}
 
 		var blockNumber uint64
@@ -471,4 +483,107 @@ func TestBatchPoller(t *testing.T) {
 	baseConnector.setError(nil)
 	publishedErr = nil
 	mutex.Unlock()
+}
+
+// TestBatchPollerReturnsPerElementError proves that when a batched eth_getBlockByNumber call
+// succeeds at the transport level but an individual element reports an error, getBlocks and
+// getBlockRange return that per-element error. The per-element failure was previously logged but
+// discarded in favor of the nil transport error, so a failed block fetch surfaced as an empty
+// success.
+func TestBatchPollerReturnsPerElementError(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	logger := zap.NewNop()
+	errElement := errors.New("element failed")
+
+	t.Run("getBlocks", func(t *testing.T) {
+		t.Parallel()
+
+		// getBlocks requests the finalized (index 0) and safe (index 1) tags.
+		tests := []struct {
+			name     string
+			elemErrs map[int]error
+			wantErr  bool
+		}{
+			{
+				name:     "finalized_element_error",
+				elemErrs: map[int]error{0: errElement},
+				wantErr:  true,
+			},
+			{
+				name:     "safe_element_error",
+				elemErrs: map[int]error{1: errElement},
+				wantErr:  true,
+			},
+			{
+				name: "no_element_error",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				baseConnector := mockConnectorForBatchPoller{
+					blockNumbers:   []uint64{0x309a0c, 0x309a0c},
+					perElementErrs: tc.elemErrs,
+				}
+				poller := NewBatchPollConnector(ctx, logger, &baseConnector, true, time.Millisecond)
+
+				blocks, err := poller.getBlocks(ctx, logger)
+				if tc.wantErr {
+					require.ErrorIs(t, err, errElement)
+					assert.Nil(t, blocks)
+					return
+				}
+				require.NoError(t, err)
+				assert.Len(t, blocks, 2)
+			})
+		}
+	})
+
+	t.Run("getBlockRange", func(t *testing.T) {
+		t.Parallel()
+
+		const numBlocks = 3
+
+		tests := []struct {
+			name     string
+			elemErrs map[int]error
+			wantErr  bool
+		}{
+			{
+				name:     "first_element_error",
+				elemErrs: map[int]error{0: errElement},
+				wantErr:  true,
+			},
+			{
+				name:     "last_element_error",
+				elemErrs: map[int]error{numBlocks - 1: errElement},
+				wantErr:  true,
+			},
+			{
+				name: "no_element_error",
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				baseConnector := mockConnectorForBatchPoller{perElementErrs: tc.elemErrs}
+				poller := NewBatchPollConnector(ctx, logger, &baseConnector, true, time.Millisecond)
+
+				blocks, err := poller.getBlockRange(ctx, logger, 0x309a0c, numBlocks, Finalized)
+				if tc.wantErr {
+					require.ErrorIs(t, err, errElement)
+					assert.Nil(t, blocks)
+					return
+				}
+				require.NoError(t, err)
+				assert.Len(t, blocks, numBlocks)
+			})
+		}
+	})
 }

@@ -34,7 +34,6 @@ type (
 
 	BatchResult struct {
 		result BlockMarshaller
-		err    error
 	}
 )
 
@@ -245,7 +244,6 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 				false, // no full transaction details
 			},
 			Result: &results[idx].result,
-			Error:  results[idx].err,
 		}
 	}
 
@@ -256,11 +254,13 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 	}
 
 	ret := make(Blocks, len(b.batchData))
-	for idx, result := range results {
+	for idx := range results {
 		finality := b.batchData[idx].finality
-		if result.err != nil {
-			logger.Error("failed to get block", zap.Stringer("finality", finality), zap.Error(result.err))
-			return nil, err
+		// RawBatchCallContext reports a per-element failure on the batch element itself, so the
+		// error must be read from batch[idx], not from the pre-populated results entry.
+		if batch[idx].Error != nil {
+			logger.Error("failed to get block", zap.Stringer("finality", finality), zap.Error(batch[idx].Error))
+			return nil, batch[idx].Error
 		}
 
 		var n big.Int
@@ -304,7 +304,6 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 				false, // no full transaction details
 			},
 			Result: &results[idx].result,
-			Error:  results[idx].err,
 		}
 		blockNum++
 	}
@@ -317,9 +316,11 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 
 	ret := make(Blocks, numBlocks)
 	for idx := range results {
-		if results[idx].err != nil {
-			logger.Error("failed to get block", zap.Int("idx", idx), zap.Stringer("finality", finality), zap.Error(results[idx].err))
-			return nil, err
+		// RawBatchCallContext reports a per-element failure on the batch element itself, so the
+		// error must be read from batch[idx], not from the pre-populated results entry.
+		if batch[idx].Error != nil {
+			logger.Error("failed to get block", zap.Int("idx", idx), zap.Stringer("finality", finality), zap.Error(batch[idx].Error))
+			return nil, batch[idx].Error
 		}
 
 		var n big.Int
