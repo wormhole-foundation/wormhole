@@ -550,7 +550,10 @@ func TestProcessMessageAccount(t *testing.T) {
 func TestProcessAccountSubscriptionData(t *testing.T) {
 	// Scenario: subscription messages are validated and decoded; invalid input yields errors or no-ops.
 	rawContract := "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-	pubkey := "01234567890123456789012345678901"
+	// pubkey is a real base58-encoded Solana account address (the SPL Token program). It must be
+	// base58-decoded to reach the correct account key that becomes the observation TxID.
+	pubkey := "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+	wantTxID := solana.MustPublicKeyFromBase58(pubkey).Bytes()
 
 	proposal := testMessagePublicationAccount([]byte("hello"), 32)
 	validAccountData := encodeMessagePublicationAccount(t, accountPrefixReliable, proposal)
@@ -626,6 +629,13 @@ func TestProcessAccountSubscriptionData(t *testing.T) {
 			data: buildSubscriptionPayload(t, rawContract, pubkey, []byte{0x01, 0x02}),
 		},
 		{
+			// A pubkey that is not valid base58 must surface a decode error rather than
+			// silently reinterpreting the string as raw key bytes.
+			name:    "invalid_pubkey",
+			data:    buildSubscriptionPayload(t, rawContract, "01234567890123456789012345678901", validAccountData),
+			wantErr: true,
+		},
+		{
 			name:    "valid_message",
 			data:    buildSubscriptionPayload(t, rawContract, pubkey, validAccountData),
 			wantMsg: true,
@@ -646,10 +656,70 @@ func TestProcessAccountSubscriptionData(t *testing.T) {
 			require.NoError(t, err)
 			if tc.wantMsg {
 				require.Equal(t, 1, len(msgC))
-				<-msgC
+				msg := <-msgC
+				require.NotNil(t, msg)
+				// On the account path the observation TxID is the account key. It must match the
+				// base58-decoded pubkey, not the raw bytes of the base58 string.
+				assert.Equal(t, wantTxID, msg.TxID)
 			} else {
 				assert.Equal(t, 0, len(msgC))
 			}
+		})
+	}
+}
+
+// TestAccountSubscriptionPubkeyDecode proves that the account pubkey delivered on the
+// account-subscription websocket path is a base58-encoded string that must be decoded with
+// solana.PublicKeyFromBase58. Casting the string to a byte slice with
+// solana.PublicKeyFromBytes([]byte(pubkey)) reinterprets the base58 text as raw key bytes and
+// yields a different, incorrect key. That key becomes the observation TxID on the account path,
+// so the miscast produces a garbled TxID.
+func TestAccountSubscriptionPubkeyDecode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		pubkey  string
+		wantErr bool
+	}{
+		{
+			// SPL Token program address, a real on-chain Solana account.
+			name:   "token_program",
+			pubkey: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+		},
+		{
+			// Wormhole SVM core bridge address.
+			name:   "core_bridge",
+			pubkey: "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth",
+		},
+		{
+			// '0' is not part of the base58 alphabet, so decoding must fail rather than
+			// silently succeeding as the byte-cast path did.
+			name:    "not_base58",
+			pubkey:  "01234567890123456789012345678901",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			decoded, err := solana.PublicKeyFromBase58(tc.pubkey)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			// Re-encoding the decoded key reproduces the original base58 string, proving it
+			// decoded to the account the string actually names.
+			assert.Equal(t, tc.pubkey, decoded.String())
+
+			// The previous implementation cast the base58 string to bytes instead of decoding it.
+			// That path yields a different key, which is the bug this fix addresses.
+			miscast := solana.PublicKeyFromBytes([]byte(tc.pubkey))
+			assert.NotEqual(t, decoded, miscast)
 		})
 	}
 }
