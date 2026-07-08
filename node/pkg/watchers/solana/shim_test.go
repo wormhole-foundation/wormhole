@@ -2254,7 +2254,7 @@ func TestShimProcessRestWithNullEventShouldFail(t *testing.T) {
 
 	alreadyProcessed := ShimAlreadyProcessed{}
 	err = s.shimProcessRest(logger, whProgramIndex, shimProgramIndex, tx, txRpc.Meta.InnerInstructions[0].Instructions, 0, 10, nil, alreadyProcessed, false, true)
-	require.ErrorContains(t, err, "postMessage is nil")
+	require.ErrorContains(t, err, "postMessageInstructionData is nil")
 	require.Equal(t, 0, len(s.msgC))
 	require.Equal(t, 0, len(alreadyProcessed))
 }
@@ -2277,6 +2277,7 @@ func TestShimProcessRestWithoutCoreEventShouldFail(t *testing.T) {
 			shimProgramIndex = uint16(n) // #nosec G115
 		}
 	}
+	postMessageInstructionData := shimPostMessageInstructionDataForTest(t, s, tx)
 
 	var filtered []rpc.CompiledInstruction
 	for _, inst := range txRpc.Meta.InnerInstructions[0].Instructions {
@@ -2287,7 +2288,7 @@ func TestShimProcessRestWithoutCoreEventShouldFail(t *testing.T) {
 	require.NotEmpty(t, filtered)
 
 	err = s.shimProcessRest(zap.NewNop(), whProgramIndex, shimProgramIndex, tx, filtered, 0, 0,
-		&ShimPostMessageData{ConsistencyLevel: consistencyLevelFinalized}, ShimAlreadyProcessed{}, false, true)
+		postMessageInstructionData, ShimAlreadyProcessed{}, false, true)
 	require.ErrorContains(t, err, "failed to find inner core instruction")
 }
 
@@ -2309,6 +2310,7 @@ func TestShimProcessRestWithoutShimEventShouldFail(t *testing.T) {
 			shimProgramIndex = uint16(n) // #nosec G115
 		}
 	}
+	postMessageInstructionData := shimPostMessageInstructionDataForTest(t, s, tx)
 
 	var filtered []rpc.CompiledInstruction
 	for _, inst := range txRpc.Meta.InnerInstructions[0].Instructions {
@@ -2318,7 +2320,7 @@ func TestShimProcessRestWithoutShimEventShouldFail(t *testing.T) {
 	}
 
 	err = s.shimProcessRest(zap.NewNop(), whProgramIndex, shimProgramIndex, tx, filtered, 0, 0,
-		&ShimPostMessageData{ConsistencyLevel: consistencyLevelFinalized}, ShimAlreadyProcessed{}, false, true)
+		postMessageInstructionData, ShimAlreadyProcessed{}, false, true)
 	require.ErrorContains(t, err, "failed to find inner shim message event instruction")
 }
 
@@ -2341,6 +2343,7 @@ func TestShimProcessRestWithMalformedCoreInstructionShouldFail(t *testing.T) {
 			shimProgramIndex = uint16(n) // #nosec G115
 		}
 	}
+	postMessageInstructionData := shimPostMessageInstructionDataForTest(t, s, tx)
 
 	insts := append([]rpc.CompiledInstruction(nil), txRpc.Meta.InnerInstructions[0].Instructions...)
 	replaced := false
@@ -2354,6 +2357,22 @@ func TestShimProcessRestWithMalformedCoreInstructionShouldFail(t *testing.T) {
 	require.True(t, replaced)
 
 	err = s.shimProcessRest(zap.NewNop(), whProgramIndex, shimProgramIndex, tx, insts, 0, 0,
-		&ShimPostMessageData{ConsistencyLevel: consistencyLevelFinalized}, ShimAlreadyProcessed{}, false, true)
+		postMessageInstructionData, ShimAlreadyProcessed{}, false, true)
 	require.ErrorContains(t, err, "failed to verify inner core instruction")
+}
+
+func shimPostMessageInstructionDataForTest(t *testing.T, s *SolanaWatcher, tx *solana.Transaction) []byte {
+	t.Helper()
+
+	for _, inst := range tx.Message.Instructions {
+		if !tx.Message.AccountKeys[inst.ProgramIDIndex].Equals(s.shimContractAddr) {
+			continue
+		}
+		if shimMatchPrefix(s.shimPostMessageDiscriminator, inst.Data) {
+			return inst.Data
+		}
+	}
+
+	t.Fatal("failed to find top-level shim post message instruction")
+	return nil
 }
