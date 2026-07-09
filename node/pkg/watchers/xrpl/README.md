@@ -100,7 +100,7 @@ uint32 nonce
 []byte payload
 ```
 
-<!-- cspell:ignore XREG vaas -->
+<!-- cspell:ignore XREG XREL vaas -->
 
 ### Registration (Initialize Transceiver & Peer Registration)
 
