@@ -121,6 +121,10 @@ const (
 	xregTokenIOUWireLen = 41 // IOU wire token_id: type(1) + currency(20) + issuer(20)
 	xregTokenMPTWireLen = 25 // MPT wire token_id: type(1) + mpt_issuance_id(24)
 
+	// Issuer offsets within an XREG wire token_id (used to derive manager mode).
+	xregIouIssuerOffset = 21 // IOU issuer starts after type(1) + currency(20)
+	xregMptIssuerOffset = 5  // MPT issuer = last 20 bytes of the 24-byte id: after type(1) + sequence(4) (MPTokenIssuanceID = Sequence(4) || Issuer(20))
+
 	transceiverInfoLen = 70 // WormholeTransceiverInfo: prefix(4) + manager(32) + mode(1) + token(32) + decimals(1)
 	transceiverRegLen  = 38 // WormholeTransceiverRegistration: prefix(4) + chain_id(2) + transceiver(32)
 )
@@ -426,7 +430,7 @@ func (p *Parser) parseNttTransaction(
 	}
 
 	// Calculate emitter address: keccak256("ntt" + source_ntt_manager + source_token)
-	emitterAddress := p.calculateEmitterAddress(sourceNTTManager, tokenInfo.sourceToken)
+	emitterAddress := calculateEmitterAddress(sourceNTTManager, tokenInfo.sourceToken)
 
 	// Build the NTT payload
 	payload := p.buildNTTPayload(
@@ -619,13 +623,9 @@ func (p *Parser) parseRegistrationMemoData(tx transaction.FlatTransaction) ([]by
 // note in parseRegistrationTransaction). A missing/malformed Account field is an
 // error; an unmanaged sender is a silent decline (nil, nil).
 func (p *Parser) registrationSenderAccountID(tx transaction.FlatTransaction) ([]byte, error) {
-	accountRaw, ok := tx["Account"]
-	if !ok {
-		return nil, fmt.Errorf("transaction has no Account field")
-	}
-	account, ok := accountRaw.(string)
-	if !ok {
-		return nil, fmt.Errorf("transaction Account field is not a string")
+	account, err := extractAccountString(tx)
+	if err != nil {
+		return nil, err
 	}
 	if _, managed := p.managedAccounts[account]; !managed {
 		return nil, nil
@@ -653,9 +653,13 @@ func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
 	var manager20 [20]byte
 	copy(manager20[:], data[xregManagerOffset:xregHeaderLen])
 
-	// manager32 = left-padded 20-byte account id (same as transfer sourceNTTManager).
-	var manager32 [32]byte
-	copy(manager32[12:], manager20[:])
+	// manager32 = the 20-byte account id right-aligned in 32 bytes (same as the
+	// transfer path's sourceNTTManager). vaa.BytesToAddress does the left-pad.
+	manager32Addr, err := vaa.BytesToAddress(manager20[:])
+	if err != nil {
+		return nil, emitter, fmt.Errorf("failed to pad manager: %w", err)
+	}
+	manager32 := [32]byte(manager32Addr)
 
 	tokenWire := data[xregHeaderLen:]
 	sourceToken, consumed, err := regSourceTokenFromWire(tokenWire)
@@ -664,7 +668,7 @@ func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
 	}
 	tail := data[xregHeaderLen+consumed:]
 
-	emitter = (&Parser{}).calculateEmitterAddress(manager32, sourceToken)
+	emitter = calculateEmitterAddress(manager32, sourceToken)
 
 	switch kind {
 	case xregKindHub:
@@ -1111,19 +1115,28 @@ func validateTransactionType(tx transaction.FlatTransaction) error {
 	return nil
 }
 
+// extractAccountString returns the transaction's `Account` (sender) r-address.
+// Shared by extractSender and registrationSenderAccountID.
+func extractAccountString(tx transaction.FlatTransaction) (string, error) {
+	accountRaw, ok := tx["Account"]
+	if !ok {
+		return "", fmt.Errorf("transaction has no Account field")
+	}
+	account, ok := accountRaw.(string)
+	if !ok {
+		return "", fmt.Errorf("transaction Account field is not a string")
+	}
+	return account, nil
+}
+
 // extractSender extracts the sender address from the transaction Account field
 // and converts it to a 32-byte format.
 func (p *Parser) extractSender(tx transaction.FlatTransaction) ([32]byte, error) {
 	var sender [32]byte
 
-	accountRaw, ok := tx["Account"]
-	if !ok {
-		return sender, fmt.Errorf("transaction has no Account field")
-	}
-
-	account, ok := accountRaw.(string)
-	if !ok {
-		return sender, fmt.Errorf("transaction Account field is not a string")
+	account, err := extractAccountString(tx)
+	if err != nil {
+		return sender, err
 	}
 
 	emitter, err := p.addressToEmitter(account)
@@ -1260,11 +1273,12 @@ func (p *Parser) addressToEmitter(address string) (vaa.Address, error) {
 		return vaa.Address{}, fmt.Errorf("unexpected account ID length: got %d, want %d", len(accountID), addresscodec.AccountAddressLength)
 	}
 
-	// Left-pad with zeros to create 32-byte emitter address
-	// vaa.Address is [32]byte, accountID is 20 bytes
-	// Place accountID in the last 20 bytes (indices 12-31)
-	var emitter vaa.Address
-	copy(emitter[32-addresscodec.AccountAddressLength:], accountID)
+	// Right-align the 20-byte account id in a 32-byte vaa.Address (left-padded
+	// with 12 zero bytes). Uses the SDK helper rather than hand-rolled copying.
+	emitter, err := vaa.BytesToAddress(accountID)
+	if err != nil {
+		return vaa.Address{}, fmt.Errorf("failed to pad account id: %w", err)
+	}
 
 	return emitter, nil
 }
@@ -1618,7 +1632,8 @@ func (p *Parser) scaleAmount(amount uint64, fromDecimals, toDecimals uint8) (uin
 
 // calculateEmitterAddress calculates the emitter address from source NTT manager and source token.
 // emitter = keccak256("ntt" + source_ntt_manager_address + source_token)
-func (p *Parser) calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte) vaa.Address {
+// It is a pure function of its inputs (no Parser state), so it is a free function.
+func calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte) vaa.Address {
 	const addrLen = len(sourceNTTManager)
 	data := make([]byte, nttEmitterDomainLen+2*addrLen)
 	copy(data[:nttEmitterDomainLen], "ntt")

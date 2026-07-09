@@ -106,10 +106,12 @@ uint32 nonce
 
 Because XRPL has no smart contracts, the [`WormholeTransceiverInfo`](https://github.com/wormhole-foundation/native-token-transfers/blob/main/docs/Transceiver.md#initialize-transceiver) (hub init) and
 [`WormholeTransceiverRegistration`](https://github.com/wormhole-foundation/native-token-transfers/blob/main/docs/Transceiver.md#transceiver-peer-registration) (peer) messages cannot be emitted natively.
-Instead, the Solana Sequencer emits an `XrplRegistration` (prefix `XREG`) message
-when a custody account is initialized (`initialize`) or a peer is registered
-(`register_peer`), and the executor relays it back to XRPL as a Payment to the
-Core Account. The watcher then re-keys and synthesizes the canonical transceiver
+Instead, when a custody account is initialized (`initialize`) or a peer is
+registered (`register_peer`), the Solana Sequencer emits the registration as an
+`XrplRelease` (XREL) carrying the `XrplRegistration` (XREG) bytes in its first
+memo. The delegated manager set signs and submits that XREL as a multisig Payment
+to the Core Account (there is no standalone XREG message and the executor is not
+involved). The watcher then re-keys and synthesizes the canonical transceiver
 message under the correct NTT transceiver emitter.
 
 Upon a Payment to the Core Account, the guardian watcher MUST

@@ -743,23 +743,19 @@ func TestScaleAmount_ToZeroDecimals(t *testing.T) {
 // =============================================================================
 
 func TestCalculateEmitterAddress_Deterministic(t *testing.T) {
-	p := NewParser("", nil, nil)
-
 	var sourceNTTManager [32]byte
 	var sourceToken [32]byte
 	sourceNTTManager[31] = 0x01
 	sourceToken[0] = tokenTypeXRP
 
 	// Call twice and verify same result
-	emitter1 := p.calculateEmitterAddress(sourceNTTManager, sourceToken)
-	emitter2 := p.calculateEmitterAddress(sourceNTTManager, sourceToken)
+	emitter1 := calculateEmitterAddress(sourceNTTManager, sourceToken)
+	emitter2 := calculateEmitterAddress(sourceNTTManager, sourceToken)
 
 	assert.Equal(t, emitter1, emitter2)
 }
 
 func TestCalculateEmitterAddress_DifferentTokens(t *testing.T) {
-	p := NewParser("", nil, nil)
-
 	var sourceNTTManager [32]byte
 	sourceNTTManager[31] = 0x01
 
@@ -770,8 +766,8 @@ func TestCalculateEmitterAddress_DifferentTokens(t *testing.T) {
 	issuedToken[0] = tokenTypeIssued
 	issuedToken[1] = 0xAB
 
-	emitter1 := p.calculateEmitterAddress(sourceNTTManager, xrpToken)
-	emitter2 := p.calculateEmitterAddress(sourceNTTManager, issuedToken)
+	emitter1 := calculateEmitterAddress(sourceNTTManager, xrpToken)
+	emitter2 := calculateEmitterAddress(sourceNTTManager, issuedToken)
 
 	assert.NotEqual(t, emitter1, emitter2, "Different tokens should produce different emitters")
 }

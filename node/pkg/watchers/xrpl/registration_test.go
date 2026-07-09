@@ -142,7 +142,7 @@ func TestRegistration_HubXRP_EmitterMatchesTransferPath(t *testing.T) {
 	// The synthesized emitter MUST equal the transfer-path emitter for the same
 	// (manager, XRP sourceToken=zeros) — this is the core correctness guarantee.
 	var zeroToken [32]byte
-	expected := p.calculateEmitterAddress(manager32From20(manager), zeroToken)
+	expected := calculateEmitterAddress(manager32From20(manager), zeroToken)
 	assert.Equal(t, expected, msg.EmitterAddress, "hub emitter must match transfer emitter")
 
 	// Payload is a canonical WormholeTransceiverInfo: prefix(4) + manager(32) +
@@ -176,7 +176,7 @@ func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, xregTokenIOUWireLen, consumed)
 
-	expected := p.calculateEmitterAddress(manager32From20(manager), sourceToken)
+	expected := calculateEmitterAddress(manager32From20(manager), sourceToken)
 	assert.Equal(t, expected, msg.EmitterAddress)
 
 	// issuer != manager, so this custody account is in Locking mode.
@@ -242,7 +242,7 @@ func TestRegistration_PeerXRP(t *testing.T) {
 
 	// Emitter is keyed on the SAME (manager, XRP token) as the hub/transfers.
 	var zeroToken [32]byte
-	expected := p.calculateEmitterAddress(manager32From20(manager), zeroToken)
+	expected := calculateEmitterAddress(manager32From20(manager), zeroToken)
 	assert.Equal(t, expected, msg.EmitterAddress)
 
 	// Payload is a canonical WormholeTransceiverRegistration:
