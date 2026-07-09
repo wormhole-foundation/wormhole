@@ -7,6 +7,7 @@ import {
   setMaxGasBudgetDevnet,
   SUI_CLOCK_OBJECT_ID,
 } from "./utils";
+import { getObjectFields } from "../../sdk/sui";
 import {
   Chain,
   Network,
@@ -63,6 +64,9 @@ export async function transferSui(
     getPackageId(client, token_bridge),
   ]);
 
+  const coreFields = await getObjectFields(client, core);
+  const messageFee = BigInt(coreFields?.fee_collector?.fee_amount ?? 0);
+
   const tx = new Transaction();
 
   const [transferCoin] = (() => {
@@ -80,7 +84,7 @@ export async function transferSui(
     return tx.splitCoins(primaryCoinInput, [tx.pure("u64", amt)]);
   })();
 
-  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure("u64", BigInt(0))]);
+  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure("u64", messageFee)]);
 
   const [assetInfo] = tx.moveCall({
     target: `${tokenBridgePackageId}::state::verified_asset`,
