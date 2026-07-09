@@ -66,7 +66,7 @@ func postMessageFixtureDir(t *testing.T) string {
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok, "failed to locate watcher_test.go")
 
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
+	return filepath.Join(filepath.Dir(file), "testdata")
 }
 
 func postMessageFixtures(t *testing.T) []postMessageFixture {
@@ -75,13 +75,13 @@ func postMessageFixtures(t *testing.T) []postMessageFixture {
 	return []postMessageFixture{
 		{
 			name:                       "generated",
-			fileName:                   "out.json",
+			fileName:                   "generated_data.json",
 			contract:                   eth_common.HexToAddress(generatedPostMessageFixtureContract),
 			checkGeneratedDistribution: true,
 		},
 		{
 			name:     "real",
-			fileName: "real_out.json",
+			fileName: "real_data.json",
 			contract: eth_common.HexToAddress(realPostMessageFixtureContract),
 		},
 	}
