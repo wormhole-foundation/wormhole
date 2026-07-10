@@ -502,9 +502,75 @@ func txStatusScenarios() []scenario {
 	return out
 }
 
+// altMovableCount is the number of referenced movable accounts an account-indexing message
+// contributes in ALT mode: the message account plus the (NumAccounts-2) filler references
+// accountRefs adds (post_message defaults to 8 accounts, close to 6).
+func altMovableCount(ty string) int {
+	if ty == "close" {
+		return 5 // 6 accounts: signer + msg + 4 fillers
+	}
+	return 7 // 8 accounts: signer + msg + 6 fillers
+}
+
+// altLayout returns the LookupTables spec and message-account placement for a named layout,
+// sized so Σ(Writable+Readonly) == n (the referenced movable accounts).
+func altLayout(layout string, n int) ([]testgen.LookupTableSpec, int, bool) {
+	switch layout {
+	case "1table_writable":
+		// One table, message + all fillers writable.
+		return []testgen.LookupTableSpec{{Writable: n}}, 0, false
+	case "1table_readonly":
+		// One table; the message account is reached through the readonly section.
+		return []testgen.LookupTableSpec{{Writable: n - 1, Readonly: 1}}, 0, true
+	default: // "2table_mixed"
+		// Two tables, each with writable and readonly entries; the message account lives in
+		// the second table's readonly section — the most ordering-sensitive placement.
+		x := 2 // table 1 writable count
+		remaining := n - 1 - x
+		w0 := (remaining + 1) / 2
+		r0 := remaining - w0
+		return []testgen.LookupTableSpec{{Writable: w0, Readonly: r0}, {Writable: x, Readonly: 1}}, 1, true
+	}
+}
+
+// lookuptableScenarios generates the Address-Lookup-Table matrix: each account-indexing
+// message type (regular reliable/unreliable and close), at an outer and inner position,
+// under three lookup-table layouts (one writable table, one table with the message reached
+// via readonly, and two tables mixing writable/readonly with the message in table 1's
+// readonly section). Each is a versioned (v0) transaction whose referenced accounts are
+// distributed across the synthesized ALTs. 3 layouts x 3 types x 2 locations = 18 bundles.
+func lookuptableScenarios() []scenario {
+	layouts := []string{"1table_writable", "1table_readonly", "2table_mixed"}
+	types := []string{"postmessage", "postmessageunreliable", "close"}
+
+	var out []scenario
+	i := 0
+	for _, layout := range layouts {
+		for _, ty := range types {
+			for _, outer := range []bool{true, false} {
+				layout, ty, outer := layout, ty, outer
+				name := fmt.Sprintf("lookuptable_%s_%s_%s", layout, ty, locName(outer))
+				m := fields(uint32(200+i), uint64(200+i), fmt.Sprintf("alt-%d", i))
+				out = append(out, scenario{name: name, build: func() (*testgen.Bundle, error) {
+					cfg := baseCfg(name)
+					specs, msgTable, msgReadonly := altLayout(layout, altMovableCount(ty))
+					cfg.LookupTables = specs
+					cfg.LookupMessageTable = msgTable
+					cfg.LookupMessageReadonly = msgReadonly
+					b := testgen.NewBuilder(cfg)
+					addType(b, ty, outer, m, testgen.AccountContent{}, false, nil, 0)
+					return b.Build()
+				}})
+				i++
+			}
+		}
+	}
+	return out
+}
+
 func main() {
 	out := flag.String("out", "./bundles.json", "output JSON file for the generated bundle array")
-	matrix := flag.String("matrix", "curated", "scenario set to emit: curated | boundary | situations | triplets | txstatus | all")
+	matrix := flag.String("matrix", "curated", "scenario set to emit: curated | boundary | situations | triplets | txstatus | lookuptable | all")
 	flag.Parse()
 
 	if dir := filepath.Dir(*out); dir != "" && dir != "." {
@@ -526,13 +592,16 @@ func main() {
 		scns = tripletScenarios()
 	case "txstatus":
 		scns = txStatusScenarios()
+	case "lookuptable":
+		scns = lookuptableScenarios()
 	case "all":
 		scns = append(scenarios(), boundaryScenarios()...)
 		scns = append(scns, situationScenarios()...)
 		scns = append(scns, tripletScenarios()...)
 		scns = append(scns, txStatusScenarios()...)
+		scns = append(scns, lookuptableScenarios()...)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown --matrix %q (want curated | boundary | situations | triplets | txstatus | all)\n", *matrix)
+		fmt.Fprintf(os.Stderr, "unknown --matrix %q (want curated | boundary | situations | triplets | txstatus | lookuptable | all)\n", *matrix)
 		os.Exit(2)
 	}
 
