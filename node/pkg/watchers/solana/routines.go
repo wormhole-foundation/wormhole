@@ -131,6 +131,43 @@ func (s *SolanaWatcher) runWatcher(ctx context.Context, logger *zap.Logger, poll
 	}
 }
 
+// transactionProcessor is the runnable that periodically queries for transactions
+// involving the core contract. It is separate from runWatcher so transaction-query
+// delays do not block slot polling and heartbeat updates.
+func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
+	// Preserve the previous signature across watcher restarts. On a fresh guardian
+	// start, initialize from the most recent core-contract transaction.
+	if s.pollPrevWormholeSignature.IsZero() {
+		var err error
+		s.pollPrevWormholeSignature, err = s.getPrevWormholeSignature()
+		if err != nil {
+			s.logger.Error("failed to get the last wormhole signature on start up", zap.Error(err))
+			s.errC <- err
+			return err
+		}
+	}
+
+	s.logger.Info("starting from previous wormhole signature", zap.Stringer("prevSig", s.pollPrevWormholeSignature))
+
+	timer := time.NewTicker(DefaultPollDelay)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-timer.C:
+			//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
+			err := s.processNewTransactions()
+			if err != nil {
+				s.logger.Error("failed to get transactions", zap.Error(err))
+				s.errC <- err
+				return err
+			}
+		}
+	}
+}
+
 func (s *SolanaWatcher) runSlotFetcher(ctx context.Context, logger *zap.Logger, slot uint64) error {
 	s.retryFetchBlock(ctx, logger, slot, 0, false)
 	return nil
