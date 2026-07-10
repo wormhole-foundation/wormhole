@@ -94,7 +94,8 @@ func MessageEventsForTransaction(
 		}
 		timestamp, err := vaa.TimeFromUnix(blockTime)
 		if err != nil {
-			return nil, 0, nil, fmt.Errorf("invalid block timestamp: %w", err)
+			return nil, 0, nil, fmt.Errorf("invalid block timestamp for tx %s at block %d (time %d): %w",
+				tx.Hex(), ev.Raw.BlockNumber, blockTime, err)
 		}
 
 		message := &common.MessagePublication{
