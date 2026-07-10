@@ -158,10 +158,10 @@ func knownPublicationCounts() map[string]int {
 	return m
 }
 
-// wantCount is the expected number of publications, or -1 when unknown. When known, we
-// drain exactly that many; when unknown, we collect until the channel is quiet for a
-// full settle window so the true count is discovered (needed for the observation flow,
-// whose subset is not known up front).
+// newReplayWatcher builds the minimum watcher state needed to exercise the real Solana
+// observation and reobservation entrypoints. The bundle supplies the active core and
+// shim program IDs so the replay follows the same program-matching decisions as a live
+// watcher.
 func newReplayWatcher(t *testing.T, b *replayBundle, msgC chan<- *common.MessagePublication) *SolanaWatcher {
 	t.Helper()
 
@@ -177,6 +177,10 @@ func newReplayWatcher(t *testing.T, b *replayBundle, msgC chan<- *common.Message
 	return s
 }
 
+// seedReplayRPCClient converts a generated bundle into the RPC responses consumed by
+// the high-level watcher paths: getAccountInfo, getBlock, and getTransaction. This keeps
+// replay deterministic while still testing the same RPC interface calls used in normal
+// operation.
 func seedReplayRPCClient(t *testing.T, b *replayBundle) *mockSolanaRPCClient {
 	t.Helper()
 
@@ -193,6 +197,9 @@ func seedReplayRPCClient(t *testing.T, b *replayBundle) *mockSolanaRPCClient {
 	require.NoError(t, err, "marshal bundle transaction")
 	meta := b.Meta
 	if meta.Err == nil && len(meta.LogMessages) == 0 {
+		// fetchBlock filters transactions by Wormhole-looking logs before parsing
+		// instructions. Generated bundles model the transaction and account data, so
+		// synthesize the minimal logs needed to reach the watcher parsing logic.
 		meta.LogMessages = []string{
 			fmt.Sprintf("Program %s invoke [1]", b.Contract),
 			"Program log: Sequence: 1",
@@ -213,6 +220,8 @@ func seedReplayRPCClient(t *testing.T, b *replayBundle) *mockSolanaRPCClient {
 	return m
 }
 
+// makeGetTransactionResult round-trips through JSON so the private solana-go envelope
+// fields are populated exactly as they are for a real base64 getTransaction response.
 func makeGetTransactionResult(t *testing.T, slot uint64, txBytes []byte, meta *rpc.TransactionMeta) *rpc.GetTransactionResult {
 	t.Helper()
 
@@ -230,6 +239,12 @@ func makeGetTransactionResult(t *testing.T, slot uint64, txBytes []byte, meta *r
 	return &result
 }
 
+// drainReplayOutput collects the published MessagePublication digests. The digest is
+// the regression signal: it commits to the msgpub fields that form the VAA body/hash.
+//
+// wantCount is the expected number of publications, or -1 when unknown. When known, we
+// drain exactly that many; when unknown, we collect until the channel is quiet for a
+// full settle window so the true count is discovered (needed for subset flows).
 func drainReplayOutput(t *testing.T, name string, msgC <-chan *common.MessagePublication, errC <-chan error, wantCount int) (digests []string, replayErrs []error) {
 	t.Helper()
 
@@ -286,6 +301,8 @@ func reobserveTransactionOutput(t *testing.T, b *replayBundle, wantCount int) (d
 	s := newReplayWatcher(t, b, msgC)
 	m := seedReplayRPCClient(t, b)
 	require.NotEmpty(t, b.Transaction.Signatures, "bundle has no transaction signature")
+	// Transaction reobservation is the canonical complete path: it replays the full
+	// transaction and includes close-message events that normal observation skips.
 	_, err := s.handleReobservationRequest(vaa.ChainIDSolana, b.Transaction.Signatures[0][:], m)
 	if b.Meta.Err == nil {
 		require.NoError(t, err, "reobserve transaction")
@@ -302,6 +319,8 @@ func fetchBlockOutput(t *testing.T, b *replayBundle) (digests []string, replayEr
 	s := newReplayWatcher(t, b, msgC)
 	m := seedReplayRPCClient(t, b)
 	s.rpcClient = m
+	// fetchBlock is the normal guardian observation entrypoint: it fetches a block,
+	// applies log prefiltering, decodes transactions, and then processes instructions.
 	require.True(t, s.fetchBlock(context.Background(), s.logger, b.Slot, 0, false), "fetch block")
 	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
 }
@@ -377,6 +396,8 @@ func reobserveAccountOutput(t *testing.T, b *replayBundle) (digests []string, re
 	m := seedReplayRPCClient(t, b)
 
 	for _, acc := range accts {
+		// Account-id reobservation exercises the guardian path used when peers ask for a
+		// specific posted-message account rather than a full transaction replay.
 		_, err := s.handleReobservationRequest(vaa.ChainIDSolana, acc[:], m)
 		require.NoError(t, err, "reobserve account")
 	}
@@ -481,7 +502,9 @@ func TestReplayGeneratedBundles(t *testing.T) {
 				want := append([]string(nil), b.Expected.Digests...)
 				sort.Strings(want)
 
-				// Reobservation: exact match — all recorded digests must appear, none extra.
+				// This digest equality is the core regression check: the replayed
+				// MessagePublication values must produce the same VAA body digest as the
+				// committed fixture, with no missing or newly introduced publications.
 				assert.Equalf(t, b.Expected.Count, len(reobDigests),
 					"reobservation message count changed for %q (was %d, now %d)", b.Name, b.Expected.Count, len(reobDigests))
 				if !assert.Equalf(t, want, reobDigests, "reobservation digests changed for %q", b.Name) {
