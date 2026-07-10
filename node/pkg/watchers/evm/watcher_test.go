@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -32,6 +33,7 @@ const (
 type postMessageFixture struct {
 	name                       string
 	fileName                   string
+	receiptFileName            string
 	contract                   eth_common.Address
 	checkGeneratedDistribution bool
 }
@@ -76,13 +78,15 @@ func postMessageFixtures(t *testing.T) []postMessageFixture {
 		{
 			name:                       "generated",
 			fileName:                   "generated_data.json",
+			receiptFileName:            "generated_receipts.json",
 			contract:                   eth_common.HexToAddress(generatedPostMessageFixtureContract),
 			checkGeneratedDistribution: true,
 		},
 		{
-			name:     "real",
-			fileName: "real_data.json",
-			contract: eth_common.HexToAddress(realPostMessageFixtureContract),
+			name:            "real",
+			fileName:        "real_data.json",
+			receiptFileName: "real_receipts.json",
+			contract:        eth_common.HexToAddress(realPostMessageFixtureContract),
 		},
 	}
 }
@@ -102,6 +106,60 @@ func loadPostMessageFixture(t *testing.T, fixture postMessageFixture) []postMess
 	var cases []postMessageFixtureCase
 	require.NoError(t, json.Unmarshal(data, &cases))
 	return cases
+}
+
+func loadPostMessageReceiptFixture(t *testing.T, fileName string) []*types.Receipt {
+	t.Helper()
+
+	data, err := os.ReadFile(filepath.Join(postMessageFixtureDir(t), fileName))
+	require.NoError(t, err)
+
+	var receipts []*types.Receipt
+	require.NoError(t, json.Unmarshal(data, &receipts))
+	return receipts
+}
+
+func postMessageReceiptFixtureByTx(t *testing.T, receipts []*types.Receipt) map[eth_common.Hash]*types.Receipt {
+	t.Helper()
+
+	receiptsByTx := map[eth_common.Hash]*types.Receipt{}
+	for i, receipt := range receipts {
+		require.NotNil(t, receipt, "receipt %d", i)
+		_, exists := receiptsByTx[receipt.TxHash]
+		require.False(t, exists, "duplicate receipt for tx %s", receipt.TxHash)
+		receiptsByTx[receipt.TxHash] = receipt
+	}
+	return receiptsByTx
+}
+
+func fixtureLogsEqual(left, right types.Log) bool {
+	if left.Address != right.Address ||
+		left.BlockNumber != right.BlockNumber ||
+		left.TxHash != right.TxHash ||
+		left.TxIndex != right.TxIndex ||
+		left.BlockHash != right.BlockHash ||
+		left.Index != right.Index ||
+		left.Removed != right.Removed ||
+		!bytes.Equal(left.Data, right.Data) ||
+		len(left.Topics) != len(right.Topics) {
+		return false
+	}
+
+	for i := range left.Topics {
+		if left.Topics[i] != right.Topics[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func receiptContainsFixtureLog(receipt *types.Receipt, raw types.Log) bool {
+	for _, log := range receipt.Logs {
+		if log != nil && fixtureLogsEqual(*log, raw) {
+			return true
+		}
+	}
+	return false
 }
 
 func writePostMessageFixture(t *testing.T, fixture postMessageFixture, cases []postMessageFixtureCase) {
@@ -176,6 +234,70 @@ func TestFixtureFinality(t *testing.T) {
 	assert.Equal(t, connectors.Finalized, fixtureFinality(t, vaa.ConsistencyLevelFinalized))
 	assert.Equal(t, connectors.Finalized, fixtureFinality(t, vaa.ConsistencyLevelCustom))
 	assert.Equal(t, connectors.Finalized, fixtureFinality(t, 1))
+}
+
+func TestGeneratedReceiptFixtureMatchesGeneratedData(t *testing.T) {
+	generatedFixture := postMessageFixture{
+		name:     "generated",
+		fileName: "generated_data.json",
+		contract: eth_common.HexToAddress(generatedPostMessageFixtureContract),
+	}
+	cases := loadPostMessageFixture(t, generatedFixture)
+	receipts := loadPostMessageReceiptFixture(t, "generated_receipts.json")
+	require.Len(t, receipts, len(cases))
+
+	receiptsByTx := postMessageReceiptFixtureByTx(t, receipts)
+	for i, receipt := range receipts {
+		require.Equal(t, uint8(types.DynamicFeeTxType), receipt.Type, "receipt %d", i)
+		require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "receipt %d", i)
+		require.NotNil(t, receipt.BlockNumber, "receipt %d", i)
+		require.Len(t, receipt.Logs, 1, "receipt %d", i)
+		require.Equal(t, types.CreateBloom(types.Receipts{receipt}), receipt.Bloom, "receipt %d", i)
+
+		log := receipt.Logs[0]
+		require.NotNil(t, log, "receipt %d log", i)
+		require.Equal(t, receipt.TxHash, log.TxHash, "receipt %d tx hash", i)
+		require.Equal(t, receipt.BlockHash, log.BlockHash, "receipt %d block hash", i)
+		require.Equal(t, receipt.BlockNumber.Uint64(), log.BlockNumber, "receipt %d block number", i)
+		require.Equal(t, receipt.TransactionIndex, uint(log.TxIndex), "receipt %d transaction index", i)
+	}
+
+	for i, tc := range cases {
+		receipt, exists := receiptsByTx[tc.Raw.TxHash]
+		require.True(t, exists, "case %d missing receipt for tx %s", i, tc.Raw.TxHash)
+		require.Equal(t, tc.Raw.BlockHash, receipt.BlockHash, "case %d block hash", i)
+		require.Equal(t, tc.Raw.BlockNumber, receipt.BlockNumber.Uint64(), "case %d block number", i)
+		require.Equal(t, uint(tc.Raw.TxIndex), receipt.TransactionIndex, "case %d transaction index", i)
+		require.Equal(t, tc.Raw, *receipt.Logs[0], "case %d receipt log", i)
+	}
+}
+
+func TestRealReceiptFixtureMatchesRealData(t *testing.T) {
+	realFixture := postMessageFixture{
+		name:     "real",
+		fileName: "real_data.json",
+		contract: eth_common.HexToAddress(realPostMessageFixtureContract),
+	}
+	cases := loadPostMessageFixture(t, realFixture)
+	receipts := loadPostMessageReceiptFixture(t, "real_receipts.json")
+	require.Len(t, receipts, len(cases))
+
+	receiptsByTx := postMessageReceiptFixtureByTx(t, receipts)
+	for i, receipt := range receipts {
+		require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "receipt %d", i)
+		require.NotNil(t, receipt.BlockNumber, "receipt %d", i)
+		require.NotEmpty(t, receipt.Logs, "receipt %d", i)
+		require.Equal(t, types.CreateBloom(types.Receipts{receipt}), receipt.Bloom, "receipt %d", i)
+	}
+
+	for i, tc := range cases {
+		receipt, exists := receiptsByTx[tc.Raw.TxHash]
+		require.True(t, exists, "case %d missing receipt for tx %s", i, tc.Raw.TxHash)
+		require.Equal(t, tc.Raw.BlockHash, receipt.BlockHash, "case %d block hash", i)
+		require.Equal(t, tc.Raw.BlockNumber, receipt.BlockNumber.Uint64(), "case %d block number", i)
+		require.Equal(t, uint(tc.Raw.TxIndex), receipt.TransactionIndex, "case %d transaction index", i)
+		require.True(t, receiptContainsFixtureLog(receipt, tc.Raw), "case %d receipt missing fixture log", i)
+	}
 }
 
 func assertOrSeedFixtureMessageSent(t *testing.T, tc *postMessageFixtureCase, messageSent bool) bool {
@@ -1159,6 +1281,98 @@ func TestPostMessageGeneratedFixture(t *testing.T) {
 
 			if fixtureUpdated && !t.Failed() {
 				writePostMessageFixture(t, fixture, cases)
+			}
+		})
+	}
+}
+
+func TestFixtureObservationMatchesReobservation(t *testing.T) {
+	for _, fixture := range postMessageFixtures(t) {
+		fixture := fixture
+
+		t.Run(fixture.name, func(t *testing.T) {
+			cases := loadPostMessageFixture(t, fixture)
+			receiptsByTx := postMessageReceiptFixtureByTx(t, loadPostMessageReceiptFixture(t, fixture.receiptFileName))
+
+			for i := range cases {
+				tc := cases[i]
+				require.NotNil(t, tc.MessageSent, "case %d missing messageSent", i)
+				if *tc.MessageSent {
+					require.NotEmpty(t, tc.Hash, "case %d missing hash", i)
+				} else {
+					require.Empty(t, tc.Hash, "case %d should not have hash when no message is sent", i)
+				}
+
+				t.Run(fmt.Sprintf("case_%03d", i), func(t *testing.T) {
+					receipt, exists := receiptsByTx[tc.Raw.TxHash]
+					require.True(t, exists, "missing receipt for tx %s", tc.Raw.TxHash)
+					require.NotNil(t, receipt.BlockNumber, "receipt for tx %s missing block number", tc.Raw.TxHash)
+					require.True(t, receiptContainsFixtureLog(receipt, tc.Raw), "receipt for tx %s missing fixture log", tc.Raw.TxHash)
+
+					blockTime := tc.blockTime()
+					ev := tc.event()
+
+					obsWatcher, obsMock, obsC := newTestWatcher(t)
+					obsWatcher.contract = fixture.contract
+					obsMock.receipts[tc.Raw.TxHash] = receipt
+					obsMock.blockTimes[receipt.BlockHash] = blockTime
+
+					obsWatcher.postMessage(context.TODO(), ev, blockTime)
+					if ev.ConsistencyLevel != vaa.ConsistencyLevelPublishImmediately {
+						err := obsWatcher.processNewBlock(
+							context.TODO(),
+							fixtureBlock(ev, blockTime, fixtureFinality(t, ev.ConsistencyLevel)),
+							&gossipv1.Heartbeat_Network{},
+						)
+						require.NoError(t, err)
+					}
+
+					require.LessOrEqual(t, len(obsC), 1, "observation flow should publish at most the fixture log")
+					require.Equal(t, *tc.MessageSent, len(obsC) == 1, "observation sent state must match fixture")
+
+					var observedMsg *common.MessagePublication
+					if len(obsC) == 1 {
+						observedMsg = recvMsg(t, obsC)
+						require.False(t, observedMsg.IsReobservation)
+						require.Equal(t, tc.Hash, observedMsg.CreateDigest(), "observation hash must match fixture")
+					}
+
+					reobsWatcher, reobsMock, reobsC := newTestWatcher(t)
+					reobsWatcher.contract = fixture.contract
+					reobsMock.receipts[tc.Raw.TxHash] = receipt
+					reobsMock.blockTimes[receipt.BlockHash] = blockTime
+
+					blockNumber := receipt.BlockNumber.Uint64()
+					numObs, err := reobsWatcher.handleReobservationRequest(
+						context.TODO(),
+						reobsWatcher.chainID,
+						tc.Raw.TxHash.Bytes(),
+						reobsMock,
+						blockNumber,
+						blockNumber,
+					)
+					require.NoError(t, err)
+					require.Equal(t, int(numObs), len(reobsC), "reobservation count should match published messages")
+
+					if !*tc.MessageSent {
+						require.Empty(t, reobsC, "reobservation should not publish when observation does not publish")
+						return
+					}
+
+					require.GreaterOrEqual(t, len(reobsC), 1, "reobservation should publish at least the fixture log")
+					var reobservedMsg *common.MessagePublication
+					for len(reobsC) > 0 {
+						msg := recvMsg(t, reobsC)
+						require.True(t, msg.IsReobservation)
+						if msg.MessageIDString() == observedMsg.MessageIDString() {
+							reobservedMsg = msg
+						}
+					}
+
+					require.NotNil(t, reobservedMsg, "reobservation did not publish fixture message %s", observedMsg.MessageIDString())
+					require.Equal(t, tc.Hash, reobservedMsg.CreateDigest(), "reobservation hash must match fixture")
+					require.Equal(t, observedMsg.CreateDigest(), reobservedMsg.CreateDigest(), "observation and reobservation hashes must match")
+				})
 			}
 		})
 	}
