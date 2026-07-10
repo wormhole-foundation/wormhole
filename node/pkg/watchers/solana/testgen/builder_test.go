@@ -7,6 +7,7 @@ import (
 
 	solwatch "github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/gagliardetto/solana-go"
+	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -203,6 +204,107 @@ func TestIndexingIntegrity(t *testing.T) {
 
 	// The core contract must never be at index 0.
 	assert.NotEqual(t, uint16(0), b.coreIndex())
+}
+
+// TestLookupTableBundle checks that Config.LookupTables produces a versioned (v0)
+// transaction spanning multiple Address Lookup Tables, with the referenced accounts
+// distributed across writable/readonly sections. Resolving exactly like the watcher must
+// leave every instruction index in bounds and map the post_message's Accounts[1] back to
+// its (served) message account — even when that account sits in the second table's readonly
+// section, the most ordering-sensitive placement.
+func TestLookupTableBundle(t *testing.T) {
+	b := NewBuilder(Config{
+		Contract:              genKey(0xAA, 0),
+		ShimContract:          genKey(0xDD, 0),
+		WatcherCommitment:     rpc.CommitmentFinalized,
+		Slot:                  42,
+		LookupTables:          []LookupTableSpec{{Writable: 2, Readonly: 2}, {Writable: 2, Readonly: 1}}, // Σ=7 = msg + 6 fillers
+		LookupMessageTable:    1,
+		LookupMessageReadonly: true,
+	})
+	emitter := emitter041c(t)
+	b.AddRegular(RegularSpec{Location: Outer, Kind: PostMessage, Msg: WormholeFields{Nonce: 7, Payload: []byte("hi"), Sequence: 1, EmitterChain: 1, EmitterAddress: emitter}})
+	bundle, err := b.Build()
+	require.NoError(t, err)
+
+	msg := bundle.Transaction.Message
+	require.True(t, msg.IsVersioned(), "LookupTables must emit a versioned tx")
+	require.Len(t, msg.AddressTableLookups, 2, "one lookup per table")
+	require.Equal(t, genKey(lookupTableTag, 0), msg.AddressTableLookups[0].AccountKey)
+	require.Equal(t, genKey(lookupTableTag, 1), msg.AddressTableLookups[1].AccountKey)
+
+	regMsgKey := genKey(messageTag, 0)
+	assert.NotContains(t, msg.AccountKeys, regMsgKey, "message account must not be a static key")
+	assert.Contains(t, msg.AccountKeys, b.cfg.Contract, "core program stays static")
+
+	// One ALT account per table, owned by the ALT program; gather resolutions from all.
+	resolutions := map[solana.PublicKey]solana.PublicKeySlice{}
+	altCount := 0
+	for i := range bundle.Accounts {
+		a := bundle.Accounts[i]
+		if a.Owner != addressLookupTableProgramID {
+			continue
+		}
+		altCount++
+		state, err := lookup.DecodeAddressLookupTableState(a.Data)
+		require.NoError(t, err)
+		resolutions[a.Pubkey] = state.Addresses
+	}
+	require.Equal(t, 2, altCount, "one synthesized ALT account per table")
+
+	// Resolve exactly like populateLookupTableAccounts across both tables.
+	tx := *bundle.Transaction
+	require.NoError(t, tx.Message.SetAddressTables(resolutions))
+	require.NoError(t, tx.Message.ResolveLookups())
+
+	// Every instruction index is in bounds after multi-table resolution.
+	n := len(tx.Message.AccountKeys)
+	for _, ins := range tx.Message.Instructions {
+		assert.Lessf(t, int(ins.ProgramIDIndex), n, "program index in bounds")
+		for _, a := range ins.Accounts {
+			assert.Lessf(t, int(a), n, "account index in bounds")
+		}
+	}
+
+	// Accounts[1] resolves to the message account despite it living in table 1's readonly.
+	post := tx.Message.Instructions[0]
+	require.Equal(t, byte(postMessageInstructionID), []byte(post.Data)[0])
+	resolved := tx.Message.AccountKeys[post.Accounts[1]]
+	assert.Equal(t, regMsgKey, resolved, "resolved Accounts[1] must be the message account")
+
+	served := false
+	for _, a := range bundle.Accounts {
+		if a.Pubkey == resolved {
+			served = true
+		}
+	}
+	assert.True(t, served, "resolved message account is served in Accounts")
+
+	// JSON round-trips and keeps both lookups.
+	raw, err := json.Marshal(bundle)
+	require.NoError(t, err)
+	var env struct {
+		Transaction json.RawMessage `json:"transaction"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &env))
+	var rtx solana.Transaction
+	require.NoError(t, json.Unmarshal(env.Transaction, &rtx))
+	require.Len(t, rtx.Message.AddressTableLookups, 2)
+}
+
+// TestLookupTableSpecMismatch confirms Build() rejects a lookup layout whose total slot
+// count does not match the referenced movable accounts (message account + fillers).
+func TestLookupTableSpecMismatch(t *testing.T) {
+	b := NewBuilder(Config{
+		Contract:          genKey(0xAA, 0),
+		ShimContract:      genKey(0xDD, 0),
+		WatcherCommitment: rpc.CommitmentFinalized,
+		Slot:              42,
+		LookupTables:      []LookupTableSpec{{Writable: 3}}, // 3 != 7 (msg + 6 fillers)
+	})
+	b.AddRegular(RegularSpec{Location: Outer, Kind: PostMessage, Msg: WormholeFields{Nonce: 1}})
+	_, err := b.Build()
+	require.Error(t, err, "spec slot count must equal referenced movable account count")
 }
 
 // TestShimCustomOrdering confirms the ordering knob actually reorders the emitted

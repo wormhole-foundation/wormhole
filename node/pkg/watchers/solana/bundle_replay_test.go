@@ -13,6 +13,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/gagliardetto/solana-go"
+	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -192,7 +193,14 @@ func seedReplayRPCClient(t *testing.T, b *replayBundle) *mockSolanaRPCClient {
 		m.SetAccount(acc.Pubkey, acc.Owner.String(), decoded)
 	}
 
-	tx := b.Transaction
+	tx := b.Transaction // addressable copy
+	// A bundle loaded from JSON loses the message version (a private field with no custom
+	// UnmarshalJSON), so IsVersioned() would be false and the watcher would skip ALT
+	// resolution. Re-mark it as versioned; the ALT accounts are in b.Accounts and served
+	// to the mock above, so processTransaction's populateLookupTableAccounts resolves them.
+	if len(tx.Message.AddressTableLookups) > 0 {
+		tx.Message.SetAddressTableLookups(tx.Message.AddressTableLookups)
+	}
 	txBytes, err := tx.MarshalBinary()
 	require.NoError(t, err, "marshal bundle transaction")
 	meta := b.Meta
@@ -325,6 +333,41 @@ func fetchBlockOutput(t *testing.T, b *replayBundle) (digests []string, replayEr
 	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
 }
 
+// resolveBundleKeys returns the bundle transaction's account keys with any Address
+// Lookup Tables resolved (static keys, then writable-loaded, then readonly-loaded),
+// mirroring the watcher's populateLookupTableAccounts. The resolutions come from the
+// bundle's own ALT accounts (those owned by the address-lookup-table program). For a
+// legacy bundle it just returns the static keys.
+func resolveBundleKeys(b *replayBundle) []solana.PublicKey {
+	tx := b.Transaction // addressable copy
+	if len(tx.Message.AddressTableLookups) == 0 {
+		return tx.Message.AccountKeys
+	}
+	tx.Message.SetAddressTableLookups(tx.Message.AddressTableLookups) // re-mark versioned
+	resolutions := make(map[solana.PublicKey]solana.PublicKeySlice)
+	for _, acc := range b.Accounts {
+		if !acc.Owner.Equals(addressLookupTableProgramID) || len(acc.Data) == 0 {
+			continue
+		}
+		data, err := base64.StdEncoding.DecodeString(acc.Data[0])
+		if err != nil {
+			continue
+		}
+		state, err := lookup.DecodeAddressLookupTableState(data)
+		if err != nil {
+			continue
+		}
+		resolutions[acc.Pubkey] = state.Addresses
+	}
+	if err := tx.Message.SetAddressTables(resolutions); err != nil {
+		return tx.Message.AccountKeys
+	}
+	if err := tx.Message.ResolveLookups(); err != nil {
+		return tx.Message.AccountKeys
+	}
+	return tx.Message.AccountKeys
+}
+
 // postMessageAccounts returns the message account referenced by each core
 // post_message / post_message_unreliable instruction in the bundle (top-level and
 // inner), selected exactly as processInstruction does: a core-program instruction whose
@@ -338,7 +381,10 @@ func postMessageAccounts(b *replayBundle) []solana.PublicKey {
 		return nil
 	}
 
-	keys := b.Transaction.Message.AccountKeys
+	// For a versioned bundle the message account lives in an Address Lookup Table, so
+	// Accounts[1] is a composite index beyond the static keys; resolve the lookups (using
+	// the bundle's own ALT accounts) before indexing, exactly as the watcher does.
+	keys := resolveBundleKeys(b)
 	coreIdx := -1
 	for i, k := range keys {
 		if k.Equals(b.Contract) {
