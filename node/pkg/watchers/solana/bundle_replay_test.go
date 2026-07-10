@@ -13,7 +13,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/gagliardetto/solana-go"
-	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,12 +50,27 @@ type replayAccount struct {
 	Data   []string         `json:"data"` // [base64Data, "base64"]
 }
 
-// expectedOutput is the reproducible signature of a replay: the number of published
-// messages and the sorted list of their per-message digests (CreateDigest). A missing
-// digest that was present before, or an extra one, is a bug.
+// expectedOutput is the reproducible signature of a replay: the sorted per-message
+// digests (CreateDigest) published by EACH replay flow, recorded separately. Storing
+// every flow's own digest set — rather than one "complete" set plus subset checks — lets
+// each flow drain its known count: expected publications never wait, and a drain only
+// blocks (up to the per-message timeout) when a message the flow was told to expect is
+// missing, i.e. a real regression. A missing digest that was present before, or an extra
+// one, is a bug.
+//
+// The four flows:
+//   - Reobservation: handleReobservationRequest(txID) — the complete set (includes
+//     close-message events that normal observation skips).
+//   - Observation:   fetchBlock — the normal guardian block-observation path (a subset).
+//   - Polling:       processNewTransactions — the Fogo-style
+//     getSignaturesForAddress -> getTransaction path (a subset).
+//   - Account:       handleReobservationRequest(accountID) over every served account (a
+//     subset: only fetchable, core-owned, finalized message accounts emit).
 type expectedOutput struct {
-	Count   int      `json:"count"`
-	Digests []string `json:"digests"`
+	Reobservation []string `json:"reobservation"`
+	Observation   []string `json:"observation"`
+	Polling       []string `json:"polling"`
+	Account       []string `json:"account"`
 }
 
 // knownPublicationCounts is a generation-time guard, NOT the source of truth for the
@@ -247,62 +261,91 @@ func makeGetTransactionResult(t *testing.T, slot uint64, txBytes []byte, meta *r
 	return &result
 }
 
-// drainReplayOutput collects the published MessagePublication digests. The digest is
+// drain collects the published MessagePublication digests for one flow. The digest is
 // the regression signal: it commits to the msgpub fields that form the VAA body/hash.
 //
-// wantCount is the expected number of publications, or -1 when unknown. When known, we
-// drain exactly that many; when unknown, we collect until the channel is quiet for a
-// full settle window so the true count is discovered (needed for subset flows).
-func drainReplayOutput(t *testing.T, name string, msgC <-chan *common.MessagePublication, errC <-chan error, wantCount int) (digests []string, replayErrs []error) {
+// expect is the number of publications the flow is known to produce, or -1 when it is not
+// yet known (first-time fixture generation). When known we drain exactly that many and
+// return the instant the last one arrives — no settle wait — so a correctly behaving flow
+// never sleeps; the only wait is the per-message timeout when an expected message is
+// missing (a dropped publication). When unknown we collect until the channel is quiet for
+// a full settle window so the true set is discovered.
+func drain(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
+	if expect < 0 {
+		return collectUntilQuiet(t, msgC, errC)
+	}
+	return collectExpected(t, msgC, errC, expect)
+}
 
+// collectExpected drains exactly `expect` publications (3s per-message timeout, stopping
+// early if one never arrives) then finishes. No settle in the happy path.
+func collectExpected(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect int) (digests []string, replayErrs []error) {
+	t.Helper()
 	const perMsg = 3 * time.Second
+	for i := 0; i < expect; i++ {
+		select {
+		case msg := <-msgC:
+			require.NotNil(t, msg, "nil publication")
+			digests = append(digests, msg.CreateDigest())
+		case <-time.After(perMsg):
+			// A message the flow expects never arrived; stop waiting and let the caller
+			// report exactly which digests dropped.
+			return finishDrain(digests, msgC, errC)
+		}
+	}
+	return finishDrain(digests, msgC, errC)
+}
+
+// collectUntilQuiet drains publications until the channel is idle for a full settle
+// window. Used only during fixture generation, when the per-flow count is not yet known.
+func collectUntilQuiet(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error) (digests []string, replayErrs []error) {
+	t.Helper()
 	const settle = 1 * time.Second
-
-	drainErrs := func() []error {
-		sort.Strings(digests)
-		var errs []error
-		for {
-			select {
-			case err := <-errC:
-				errs = append(errs, err)
-			default:
-				return errs
-			}
-		}
-	}
-
-	if wantCount >= 0 {
-		// Known count: drain exactly that many (generous per-message timeout) and
-		// return. The digest comparison in the caller is the check.
-		for i := 0; i < wantCount; i++ {
-			select {
-			case msg := <-msgC:
-				require.NotNil(t, msg, "nil publication")
-				digests = append(digests, msg.CreateDigest())
-			case <-time.After(perMsg):
-				t.Fatalf("timed out waiting for publication %d/%d for %q", i+1, wantCount, name)
-			}
-		}
-		replayErrs = drainErrs()
-		return digests, replayErrs
-	}
-
-	// Unknown count (first-time generation): collect until the channel goes quiet for
-	// a full settle window so the true count is discovered.
 	for {
 		select {
 		case msg := <-msgC:
 			require.NotNil(t, msg, "nil publication")
 			digests = append(digests, msg.CreateDigest())
 		case <-time.After(settle):
-			replayErrs = drainErrs()
-			return digests, replayErrs
+			return finishDrain(digests, msgC, errC)
 		}
 	}
 }
 
-func reobserveTransactionOutput(t *testing.T, b *replayBundle, wantCount int) (digests []string, replayErrs []error) {
+// finishDrain non-blockingly sweeps any already-queued surplus publications (so an extra
+// beyond the expected count is still caught) and any scissored errors, then sorts the
+// digests for order-independent comparison.
+//
+// Note the surplus sweep is best-effort for the ASYNC flows (reobservation, observation,
+// polling): a spurious extra that has not yet been sent by its goroutine when we finish is
+// not waited for — matching the design goal that a correct flow never sleeps. Such an
+// extra is still guarded by the reobservation flow's exact match over the superset. The
+// account flow is synchronous, so every publication is already queued here and its
+// extra-detection is complete.
+func finishDrain(digests []string, msgC <-chan *common.MessagePublication, errC <-chan error) ([]string, []error) {
+	for {
+		select {
+		case msg := <-msgC:
+			if msg != nil {
+				digests = append(digests, msg.CreateDigest())
+			}
+		default:
+			var errs []error
+			for {
+				select {
+				case err := <-errC:
+					errs = append(errs, err)
+				default:
+					sort.Strings(digests)
+					return digests, errs
+				}
+			}
+		}
+	}
+}
+
+func reobserveTransactionOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	msgC := make(chan *common.MessagePublication, 64)
@@ -317,10 +360,10 @@ func reobserveTransactionOutput(t *testing.T, b *replayBundle, wantCount int) (d
 	} else {
 		require.Error(t, err, "failed transaction reobservation should return an error")
 	}
-	return drainReplayOutput(t, b.Name, msgC, s.errC, wantCount)
+	return drain(t, msgC, s.errC, expect)
 }
 
-func fetchBlockOutput(t *testing.T, b *replayBundle) (digests []string, replayErrs []error) {
+func fetchBlockOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	msgC := make(chan *common.MessagePublication, 64)
@@ -330,10 +373,10 @@ func fetchBlockOutput(t *testing.T, b *replayBundle) (digests []string, replayEr
 	// fetchBlock is the normal guardian observation entrypoint: it fetches a block,
 	// applies log prefiltering, decodes transactions, and then processes instructions.
 	require.True(t, s.fetchBlock(context.Background(), s.logger, b.Slot, 0, false), "fetch block")
-	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
+	return drain(t, msgC, s.errC, expect)
 }
 
-func processNewTransactionsOutput(t *testing.T, b *replayBundle) (digests []string, replayErrs []error) {
+func processNewTransactionsOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	msgC := make(chan *common.MessagePublication, 64)
@@ -343,128 +386,37 @@ func processNewTransactionsOutput(t *testing.T, b *replayBundle) (digests []stri
 	m.signatures[b.Contract] = []*rpc.TransactionSignature{{Signature: b.Transaction.Signatures[0]}}
 	s.rpcClient = m
 
-	// processNewTransactions is the poll-for-transactions path. It discovers the
-	// signature via getSignaturesForAddress, fetches it with getTransaction, and then
-	// feeds the result into the normal transaction processor asynchronously.
+	// processNewTransactions is the poll-for-transactions path (used by Fogo). It
+	// discovers the signature via getSignaturesForAddress, fetches it with getTransaction,
+	// and then feeds the result into the normal transaction processor asynchronously.
 	require.NoError(t, s.processNewTransactions(), "process new transactions")
-	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
+	return drain(t, msgC, s.errC, expect)
 }
 
-// resolveBundleKeys returns the bundle transaction's account keys with any Address
-// Lookup Tables resolved (static keys, then writable-loaded, then readonly-loaded),
-// mirroring the watcher's populateLookupTableAccounts. The resolutions come from the
-// bundle's own ALT accounts (those owned by the address-lookup-table program). For a
-// legacy bundle it just returns the static keys.
-func resolveBundleKeys(b *replayBundle) []solana.PublicKey {
-	tx := b.Transaction // addressable copy
-	if len(tx.Message.AddressTableLookups) == 0 {
-		return tx.Message.AccountKeys
-	}
-	tx.Message.SetAddressTableLookups(tx.Message.AddressTableLookups) // re-mark versioned
-	resolutions := make(map[solana.PublicKey]solana.PublicKeySlice)
-	for _, acc := range b.Accounts {
-		if !acc.Owner.Equals(addressLookupTableProgramID) || len(acc.Data) == 0 {
-			continue
-		}
-		data, err := base64.StdEncoding.DecodeString(acc.Data[0])
-		if err != nil {
-			continue
-		}
-		state, err := lookup.DecodeAddressLookupTableState(data)
-		if err != nil {
-			continue
-		}
-		resolutions[acc.Pubkey] = state.Addresses
-	}
-	if err := tx.Message.SetAddressTables(resolutions); err != nil {
-		return tx.Message.AccountKeys
-	}
-	if err := tx.Message.ResolveLookups(); err != nil {
-		return tx.Message.AccountKeys
-	}
-	return tx.Message.AccountKeys
-}
-
-// postMessageAccounts returns the message account referenced by each core
-// post_message / post_message_unreliable instruction in the bundle (top-level and
-// inner), selected exactly as processInstruction does: a core-program instruction whose
-// first data byte is the post-message discriminator and whose Accounts[1] is the message
-// account. Non-core instructions (wrong-CPI, shim core post, close) are skipped, so only
-// the accounts a real regular observation would fetch are returned.
-func postMessageAccounts(b *replayBundle) []solana.PublicKey {
-	// A failed transaction rolls back on-chain, so its message account is never
-	// committed and cannot be fetched — the by-account path has nothing to observe.
-	if b.Meta.Err != nil {
-		return nil
-	}
-
-	// For a versioned bundle the message account lives in an Address Lookup Table, so
-	// Accounts[1] is a composite index beyond the static keys; resolve the lookups (using
-	// the bundle's own ALT accounts) before indexing, exactly as the watcher does.
-	keys := resolveBundleKeys(b)
-	coreIdx := -1
-	for i, k := range keys {
-		if k.Equals(b.Contract) {
-			coreIdx = i
-			break
-		}
-	}
-	if coreIdx < 0 {
-		return nil
-	}
-
-	isPost := func(inst solana.CompiledInstruction) bool {
-		return int(inst.ProgramIDIndex) == coreIdx &&
-			len(inst.Data) > 0 &&
-			(inst.Data[0] == postMessageInstructionID || inst.Data[0] == postMessageUnreliableInstructionID) &&
-			len(inst.Accounts) >= postMessageInstructionMinNumAccounts
-	}
-
-	var accts []solana.PublicKey
-	seen := map[solana.PublicKey]bool{}
-	collect := func(inst solana.CompiledInstruction) {
-		if !isPost(inst) {
-			return
-		}
-		acc := keys[inst.Accounts[1]] // the VAA/message account
-		if !seen[acc] {
-			seen[acc] = true
-			accts = append(accts, acc)
-		}
-	}
-	for _, inst := range b.Transaction.Message.Instructions {
-		collect(inst)
-	}
-	for _, set := range b.Meta.InnerInstructions {
-		for _, inst := range set.Instructions {
-			collect(inst)
-		}
-	}
-	return accts
-}
-
-// reobserveAccountOutput runs each post_message / post_message_unreliable message
-// account through the guardian reobservation entrypoint. A valid, core-owned,
-// finalized message account emits; anything else emits nothing.
-func reobserveAccountOutput(t *testing.T, b *replayBundle) (digests []string, replayErrs []error) {
+// reobserveAccountOutput runs every served account through the guardian by-account
+// reobservation entrypoint. This mirrors a peer asking to reobserve a specific posted
+// message account. Only a fetchable, core-owned, finalized message account emits; any
+// other account (an ALT table, a wrong-owner or non-finalized account, ...) yields
+// nothing — the account-id path discards the fetch error and returns (0, nil) — so we can
+// feed it every account without parsing the transaction to pick out the message accounts.
+// The path is fully synchronous, so all publications are queued before we drain.
+func reobserveAccountOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
-
-	accts := postMessageAccounts(b)
-	if len(accts) == 0 {
-		return nil, nil
-	}
 
 	msgC := make(chan *common.MessagePublication, 64)
 	s := newReplayWatcher(t, b, msgC)
 	m := seedReplayRPCClient(t, b)
 
-	for _, acc := range accts {
-		// Account-id reobservation exercises the guardian path used when peers ask for a
-		// specific posted-message account rather than a full transaction replay.
-		_, err := s.handleReobservationRequest(vaa.ChainIDSolana, acc[:], m)
-		require.NoError(t, err, "reobserve account")
+	seen := map[solana.PublicKey]bool{}
+	for _, acc := range b.Accounts {
+		if seen[acc.Pubkey] {
+			continue // a duplicate account would double-count its publication
+		}
+		seen[acc.Pubkey] = true
+		_, err := s.handleReobservationRequest(vaa.ChainIDSolana, acc.Pubkey[:], m)
+		require.NoError(t, err, "reobserve account %s", acc.Pubkey)
 	}
-	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
+	return drain(t, msgC, s.errC, expect)
 }
 
 // insertExpected returns a copy of a single bundle's raw JSON with a freshly recorded
@@ -523,88 +475,60 @@ func TestReplayGeneratedBundles(t *testing.T) {
 				t.Parallel()
 
 				// Transaction reobservation flow — the complete set.
-				reobWant := -1
+				reobExpect, obsExpect, pollExpect, acctExpect := -1, -1, -1, -1
 				if b.Expected != nil {
-					reobWant = b.Expected.Count
+					reobExpect = len(b.Expected.Reobservation)
+					obsExpect = len(b.Expected.Observation)
+					pollExpect = len(b.Expected.Polling)
+					acctExpect = len(b.Expected.Account)
 				}
-				reobDigests, reobErrs := reobserveTransactionOutput(t, &b, reobWant)
+				reobDigests, reobErrs := reobserveTransactionOutput(t, &b, reobExpect)
 				assert.Empty(t, reobErrs, "no scissored errors expected (reobservation)")
 
 				// Block observation flow — a subset is allowed, so discover it via the settle
 				// window rather than a known count.
-				obsDigests, obsErrs := fetchBlockOutput(t, &b)
+				obsDigests, obsErrs := fetchBlockOutput(t, &b, obsExpect)
 				assert.Empty(t, obsErrs, "no scissored errors expected (observation)")
 
 				// Transaction polling flow — also a normal-observation subset, but reached
 				// through getSignaturesForAddress -> getTransaction -> processTransaction.
-				pollDigests, pollErrs := processNewTransactionsOutput(t, &b)
+				pollDigests, pollErrs := processNewTransactionsOutput(t, &b, pollExpect)
 				assert.Empty(t, pollErrs, "no scissored errors expected (transaction polling)")
 
 				// Account reobservation flow — run each post_message message account through
 				// handleReobservationRequest. Like the observation path, any event it emits
 				// must be in the recorded hash list; if it emits nothing, that is fine.
-				fetchDigests, fetchErrs := reobserveAccountOutput(t, &b)
+				fetchDigests, fetchErrs := reobserveAccountOutput(t, &b, acctExpect)
 				assert.Empty(t, fetchErrs, "no scissored errors expected (account reobservation)")
 
 				if b.Expected == nil {
 					if !updateFixtures {
 						t.Fatalf("%q has no expected output; set %s=1 to record fixtures", b.Name, updateReplayFixturesEnv)
 					}
-					// Generation: record the reobservation output. Guard against baking
-					// in a count we know to be wrong.
+					// Generation: record each flow's output. Guard the complete
+					// (reobservation) count against a value we know to be wrong.
 					if want, ok := guard[b.Name]; ok {
 						require.Equalf(t, want, len(reobDigests),
 							"generated reobservation count for %q disagrees with the known-good guard; refusing to record a wrong expectation", b.Name)
 					}
-					// The observation, transaction-polling, and account-reobservation flows must
-					// already be subsets of the transaction reobservation set.
-					if _, extra := diffDigests(reobDigests, obsDigests); len(extra) > 0 {
-						t.Fatalf("%q: observation published digest(s) not in the reobservation set: %v", b.Name, extra)
+					recordedByIndex[i] = &expectedOutput{
+						Reobservation: reobDigests,
+						Observation:   obsDigests,
+						Polling:       pollDigests,
+						Account:       fetchDigests,
 					}
-					if _, extra := diffDigests(reobDigests, pollDigests); len(extra) > 0 {
-						t.Fatalf("%q: transaction polling published digest(s) not in the transaction reobservation set: %v", b.Name, extra)
-					}
-					if _, extra := diffDigests(reobDigests, fetchDigests); len(extra) > 0 {
-						t.Fatalf("%q: account reobservation published digest(s) not in the transaction reobservation set: %v", b.Name, extra)
-					}
-					recordedByIndex[i] = &expectedOutput{Count: len(reobDigests), Digests: reobDigests}
-					t.Logf("recorded expected (reobservation) for %q: count=%d", b.Name, len(reobDigests))
+					t.Logf("recorded expected for %q: reob=%d obs=%d poll=%d acct=%d",
+						b.Name, len(reobDigests), len(obsDigests), len(pollDigests), len(fetchDigests))
 					return
 				}
 
-				want := append([]string(nil), b.Expected.Digests...)
-				sort.Strings(want)
-
-				// This digest equality is the core regression check: the replayed
-				// MessagePublication values must produce the same VAA body digest as the
-				// committed fixture, with no missing or newly introduced publications.
-				assert.Equalf(t, b.Expected.Count, len(reobDigests),
-					"reobservation message count changed for %q (was %d, now %d)", b.Name, b.Expected.Count, len(reobDigests))
-				if !assert.Equalf(t, want, reobDigests, "reobservation digests changed for %q", b.Name) {
-					missing, extra := diffDigests(want, reobDigests)
-					if len(missing) > 0 {
-						t.Errorf("%q reobservation: %d recorded message(s) no longer published (missing): %v", b.Name, len(missing), missing)
-					}
-					if len(extra) > 0 {
-						t.Errorf("%q reobservation: %d unexpected extra message(s) (new digests): %v", b.Name, len(extra), extra)
-					}
-				}
-
-				// Observation: subset — a missing digest is allowed, but nothing outside
-				// the recorded set may appear.
-				if _, extra := diffDigests(want, obsDigests); len(extra) > 0 {
-					t.Errorf("%q observation: %d message(s) published that are not in the reobservation set: %v", b.Name, len(extra), extra)
-				}
-
-				// Transaction polling: subset — every event it emits must be a recorded hash.
-				if _, extra := diffDigests(want, pollDigests); len(extra) > 0 {
-					t.Errorf("%q transaction polling: %d event(s) not in the transaction reobservation set: %v", b.Name, len(extra), extra)
-				}
-
-				// Account reobservation: subset — every event it emits must be a recorded hash.
-				if _, extra := diffDigests(want, fetchDigests); len(extra) > 0 {
-					t.Errorf("%q account reobservation: %d event(s) not in the transaction reobservation set: %v", b.Name, len(extra), extra)
-				}
+				// Each flow must reproduce exactly its own recorded digest set: no missing
+				// (dropped) and no extra (newly introduced) publications. The digests commit
+				// to the msgpub fields that form the VAA body/hash.
+				assertFlow(t, b.Name, "reobservation", b.Expected.Reobservation, reobDigests)
+				assertFlow(t, b.Name, "observation", b.Expected.Observation, obsDigests)
+				assertFlow(t, b.Name, "transaction polling", b.Expected.Polling, pollDigests)
+				assertFlow(t, b.Name, "account reobservation", b.Expected.Account, fetchDigests)
 			})
 		}
 	})
@@ -625,6 +549,25 @@ func TestReplayGeneratedBundles(t *testing.T) {
 		require.NoError(t, err, "marshal bundle array")
 		require.NoError(t, os.WriteFile(bundlesFile, append(out, '\n'), 0644), "write %s", bundlesFile)
 		t.Logf("recorded expected output into %s; re-run to assert against them", bundlesFile)
+	}
+}
+
+// assertFlow checks that a single flow reproduced exactly its recorded digest set. `got`
+// is already sorted by the drain; a mismatch is broken down into the specific missing
+// (dropped) and extra (newly introduced) digests for a legible failure.
+func assertFlow(t *testing.T, name, flow string, want, got []string) {
+	t.Helper()
+	w := append([]string(nil), want...)
+	sort.Strings(w)
+	if assert.Equalf(t, w, got, "%q %s digests changed", name, flow) {
+		return
+	}
+	missing, extra := diffDigests(w, got)
+	if len(missing) > 0 {
+		t.Errorf("%q %s: %d recorded message(s) no longer published (missing): %v", name, flow, len(missing), missing)
+	}
+	if len(extra) > 0 {
+		t.Errorf("%q %s: %d unexpected extra message(s) (new digests): %v", name, flow, len(extra), extra)
 	}
 }
 
