@@ -190,7 +190,8 @@ func (e *Watcher) processEvent(ctx context.Context, logger *zap.Logger, event su
 	txHashEthFormat := eth_common.BytesToHash(txHashBytes)
 	timestamp, err := vaa.TimeFromUnix(msg.Timestamp)
 	if err != nil {
-		return fmt.Errorf("processEvent failed to parse timestamp: %w", err)
+		return fmt.Errorf("processEvent failed to parse timestamp for tx %s (nonce %d, seq %d, time %d): %w",
+			txDigest, msg.Nonce, msg.Sequence, msg.Timestamp, err)
 	}
 
 	observation := &common.MessagePublication{

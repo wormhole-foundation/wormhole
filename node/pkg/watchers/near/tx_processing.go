@@ -236,7 +236,8 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	ts := outcomeBlockHeader.Timestamp
 	timestamp, err := vaa.TimeFromUnix(ts)
 	if err != nil {
-		return fmt.Errorf("invalid block timestamp: %w", err)
+		return fmt.Errorf("invalid block timestamp for tx %s (block %d, time %d, seq %d): %w",
+			job.txHash, outcomeBlockHeader.Height, ts, pubEvent.Seq, err)
 	}
 
 	observation := &common.MessagePublication{

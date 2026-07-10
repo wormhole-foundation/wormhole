@@ -359,7 +359,8 @@ func (s *SolanaWatcher) shimProcessRest(
 	}
 	timestamp, err := vaa.TimeFromUnix(messageEvent.Timestamp)
 	if err != nil {
-		return fmt.Errorf("invalid shim message timestamp: %w", err)
+		return fmt.Errorf("invalid shim message timestamp for tx %s shim idx %d (seq %d, time %d): %w",
+			tx.Signatures[0].String(), outerIdx, messageEvent.Sequence, messageEvent.Timestamp, err)
 	}
 
 	observation := &common.MessagePublication{

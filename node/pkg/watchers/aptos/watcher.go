@@ -556,7 +556,15 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 	}
 	timestamp, err := vaa.TimeFromUnix(ts.Uint())
 	if err != nil {
-		logger.Error("invalid timestamp", zap.Error(err), zap.Uint64("timestamp", ts.Uint()))
+		logger.Error("invalid timestamp",
+			zap.Error(err),
+			zap.Uint64("timestamp", ts.Uint()),
+			zap.String("txHash", txHash.Hex()),
+			zap.Uint64("nonce", nonce.Uint()),
+			zap.Uint64("sequence", sequence.Uint()),
+			zap.Stringer("emitter", a),
+			zap.Stringer("chainID", e.chainID),
+		)
 		return
 	}
 
