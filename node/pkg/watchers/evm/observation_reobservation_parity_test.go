@@ -24,12 +24,26 @@ import (
 // transaction they must yield the same messages, because guardians sign a digest that is identical
 // whether a message was seen live or recovered via reobservation.
 //
-// Test cases are a JSON array of geth types.Receipt, read from testdata (regenerate with
-// GEN_TESTDATA=1, see TestGenerateObservationReobservationTestdata). Both paths are driven against
-// the existing mockConnector, seeded so its RPC calls (TransactionReceipt, TimeOfBlockByHash,
-// ParseLogMessagePublished) return the receipt from the JSON instead of hitting a real node.
+// Test cases come from the JSON files in parityTestdataFiles - each a flattened geth types.Receipt
+// plus messageSent/error fields - captured against a specific core bridge contract. Both paths are
+// driven against the existing mockConnector, seeded so its RPC calls (TransactionReceipt,
+// TimeOfBlockByHash, ParseLogMessagePublished) return the receipt from the JSON instead of hitting a
+// real node.
 
-var parityTestdataPath = filepath.Join("testdata", "generated_receipts.json")
+// parityTestdataFiles lists the JSON test-case files and the core bridge contract each was captured
+// against. The watcher is configured with a single contract per chain, so every case - including
+// failures whose logs come from the wrong address - is validated against its file's contract
+// (deriving it per-receipt would wrongly accept a log from any address). Contracts are pinned here
+// rather than read from the mutable chain config so they stay matched to the data.
+var parityTestdataFiles = []struct {
+	path     string
+	contract eth_common.Address
+}{
+	// Sepolia core bridge (testnetChainConfig[vaa.ChainIDEthereum].ContractAddr).
+	{filepath.Join("testdata", "generated_receipts.json"), eth_common.HexToAddress("0x4a8bc80ed5a4067f1ccf107057b8270e0cc11a78")},
+	// Ethereum mainnet core bridge.
+	{filepath.Join("testdata", "real_receipts.json"), eth_common.HexToAddress("0x98f3c9e6e3face36baad05fe09d375ef1464288b")},
+}
 
 // blockTimeForReceipt derives a deterministic block time for a receipt. The receipt JSON carries no
 // timestamp, so both paths must agree on a synthesized value; keying it off the block number makes it
@@ -55,24 +69,6 @@ func seedReceipt(mock *mockConnector, receipt *types.Receipt) {
 			mock.blockTimes[l.BlockHash] = bt
 		}
 	}
-}
-
-// coreBridgeEmitterFromReceipt returns the address that emitted the LogMessagePublished events in the
-// receipt (the core bridge contract). The watcher must be configured with this address or it rejects
-// every log as coming from the wrong contract - so tests using real receipts derive the contract from
-// the data rather than assuming the default test emitter. Returns false when the receipt has no
-// LogMessagePublished logs (which legitimately yields no messages on either path).
-//
-// Both paths use the returned value, so setting it does not affect message content (the digest's
-// EmitterAddress comes from the log's sender topic, not the core bridge address) - it only decides
-// which logs are accepted, identically on each side.
-func coreBridgeEmitterFromReceipt(receipt *types.Receipt) (eth_common.Address, bool) {
-	for _, l := range receipt.Logs {
-		if l != nil && len(l.Topics) > 0 && l.Topics[0] == LogMessagePublishedTopic {
-			return l.Address, true
-		}
-	}
-	return eth_common.Address{}, false
 }
 
 // parseReceiptEvents parses the LogMessagePublished events from a receipt's logs, applying the same
@@ -120,14 +116,12 @@ func digestMultiset(msgs []*common.MessagePublication) map[string]int {
 // every MessagePublication it produces: those published immediately (msgC) plus those queued awaiting
 // confirmation (pending map). Queued message objects are byte-for-byte what processNewBlock would
 // later publish, so their signing digests are final.
-func runLiveObservation(t *testing.T, receipt *types.Receipt) []*common.MessagePublication {
+func runLiveObservation(t *testing.T, receipt *types.Receipt, contract eth_common.Address) []*common.MessagePublication {
 	t.Helper()
 	w, mock, _ := newTestWatcher(t)
 	msgC := make(chan *common.MessagePublication, 4096)
 	w.msgC = msgC
-	if emitter, ok := coreBridgeEmitterFromReceipt(receipt); ok {
-		w.contract = emitter // match the receipt's core bridge so its logs are accepted
-	}
+	w.contract = contract // the watcher's single configured core bridge; invalid logs are rejected against it
 	seedReceipt(mock, receipt)
 
 	events := parseReceiptEvents(t, mock, receipt, w.contract)
@@ -172,14 +166,12 @@ func runLiveObservation(t *testing.T, receipt *types.Receipt) []*common.MessageP
 // published MessagePublications. Both chain heads are set above the receipt's block so messages of
 // every consistency level publish (rather than being dropped as "too early"). expectedN is used to
 // read a precise number of messages so a count mismatch fails loudly via a recvMsg timeout.
-func runReobservation(t *testing.T, receipt *types.Receipt, expectedN int) []*common.MessagePublication {
+func runReobservation(t *testing.T, receipt *types.Receipt, contract eth_common.Address, expectedN int) []*common.MessagePublication {
 	t.Helper()
 	w, mock, _ := newTestWatcher(t)
 	msgC := make(chan *common.MessagePublication, 4096)
 	w.msgC = msgC
-	if emitter, ok := coreBridgeEmitterFromReceipt(receipt); ok {
-		w.contract = emitter // match the receipt's core bridge so its logs are accepted
-	}
+	w.contract = contract // the watcher's single configured core bridge; invalid logs are rejected against it
 	seedReceipt(mock, receipt)
 
 	atomic.StoreUint64(&w.latestFinalizedBlockNumber, ^uint64(0))
@@ -211,33 +203,43 @@ func runReobservation(t *testing.T, receipt *types.Receipt, expectedN int) []*co
 	return msgs
 }
 
-// TestObservationReobservationParity is the core harness: for every receipt (test case) in the JSON
-// file it runs both entrypoints and asserts they produce the same messages. Equality is by VAA
-// signing digest - the exact bytes guardians sign - so a divergence here means the two paths would
-// sign different VAAs for the same transaction.
+// TestObservationReobservationParity is the core harness: for every test case in the JSON file it
+// runs both entrypoints (live observation and reobservation) and asserts they agree.
+//
+// For a case expected to succeed (messageSent=true) the two paths must produce the same messages by
+// VAA signing digest - the exact bytes guardians sign - so a divergence means they would sign
+// different VAAs for the same transaction. For a case expected to fail (messageSent=false) neither
+// path may publish a message; we only assert nothing is emitted (the specific rejection reason is
+// not checked).
 func TestObservationReobservationParity(t *testing.T) {
-	receipts := loadReceiptTestcases(t)
-	require.NotEmpty(t, receipts, "no test cases in %s", parityTestdataPath)
+	cases := loadTestCases(t)
+	require.NotEmpty(t, cases, "no test cases loaded")
 
-	// Guard against a vacuous pass: if every case produced zero messages, the comparison would
-	// trivially hold. Require that the suite actually exercised message production overall. Atomic
-	// because the cases run in parallel.
+	// Guard against a vacuous pass: if no case produced messages, the comparison would trivially hold.
+	// Require that the suite actually exercised message production overall. Atomic because the cases
+	// run in parallel.
 	var totalMessages atomic.Int64
 
 	// Cases are independent (each builds its own watcher/mock), so run them in parallel. The group
 	// subtest blocks until all parallel children finish, so the guard below sees the final total.
 	t.Run("cases", func(t *testing.T) {
-		for i, receipt := range receipts {
-			t.Run(fmt.Sprintf("case_%d_tx_%s", i, receipt.TxHash.Hex()), func(t *testing.T) {
+		for i, tc := range cases {
+			receipt := tc.Receipt
+			t.Run(fmt.Sprintf("%s_case_%d_tx_%s", tc.Source, i, receipt.TxHash.Hex()), func(t *testing.T) {
 				t.Parallel()
-				// Non-success receipts are handled asymmetrically by design (reobservation rejects the
-				// whole tx up front; the live path defers the status check to processNewBlock), so they
-				// are out of scope for a direct output comparison.
-				require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status,
-					"test cases must be successful receipts; got status %d for tx %s", receipt.Status, receipt.TxHash.Hex())
 
-				live := runLiveObservation(t, receipt)
-				reobs := runReobservation(t, receipt, len(live))
+				live := runLiveObservation(t, receipt, tc.Contract)
+				reobs := runReobservation(t, receipt, tc.Contract, len(live))
+
+				if !tc.MessageSent {
+					// Expected failure: a bad log (reorg-removed, wrong emitter, or wrong topic) must
+					// not be published by either path.
+					require.Empty(t, live, "messageSent=false but live path published/queued messages for tx %s: %v", receipt.TxHash.Hex(), messageIDs(live))
+					require.Empty(t, reobs, "messageSent=false but reobservation published messages for tx %s: %v", receipt.TxHash.Hex(), messageIDs(reobs))
+					return
+				}
+
+				require.NotEmpty(t, live, "messageSent=true but live path produced no messages for tx %s", receipt.TxHash.Hex())
 
 				// The paths must differ only in IsReobservation, proving we really exercised both.
 				for _, m := range live {
@@ -258,7 +260,7 @@ func TestObservationReobservationParity(t *testing.T) {
 		}
 	})
 
-	require.Positive(t, totalMessages.Load(), "no messages were produced across any test case; the harness compared nothing")
+	require.Positive(t, totalMessages.Load(), "no successful messages were produced across any test case; the harness compared nothing")
 }
 
 func messageIDs(msgs []*common.MessagePublication) []string {
@@ -269,11 +271,51 @@ func messageIDs(msgs []*common.MessagePublication) []string {
 	return ids
 }
 
-func loadReceiptTestcases(t *testing.T) []*types.Receipt {
+// parityTestCase is one entry in a JSON test file: a geth receipt with two extra flattened fields.
+// messageSent records whether the transaction is expected to produce a MessagePublication. error
+// documents the reason a failure case is rejected; its exact text is not asserted (we only require
+// that a failing message is not published). Contract and Source are populated at load time (not from
+// JSON) from the file the case came from.
+type parityTestCase struct {
+	Receipt     *types.Receipt
+	MessageSent bool
+	Error       string
+
+	Contract eth_common.Address // core bridge the receipt was captured against
+	Source   string             // testdata file basename, for identifying the case
+}
+
+// UnmarshalJSON reads the flattened form: the messageSent/error keys sit alongside the receipt's own
+// fields in the same object. The receipt's UnmarshalJSON ignores the two extra keys, and the metadata
+// struct ignores the receipt's keys, so each side decodes only what it owns.
+func (tc *parityTestCase) UnmarshalJSON(data []byte) error {
+	var meta struct {
+		MessageSent bool   `json:"messageSent"`
+		Error       string `json:"error"`
+	}
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return err
+	}
+	tc.MessageSent = meta.MessageSent
+	tc.Error = meta.Error
+	tc.Receipt = new(types.Receipt)
+	return tc.Receipt.UnmarshalJSON(data)
+}
+
+func loadTestCases(t *testing.T) []*parityTestCase {
 	t.Helper()
-	data, err := os.ReadFile(parityTestdataPath)
-	require.NoError(t, err, "read %s (regenerate with GEN_TESTDATA=1)", parityTestdataPath)
-	var receipts []*types.Receipt
-	require.NoError(t, json.Unmarshal(data, &receipts), "unmarshal %s", parityTestdataPath)
-	return receipts
+	var all []*parityTestCase
+	for _, f := range parityTestdataFiles {
+		data, err := os.ReadFile(f.path)
+		require.NoError(t, err, "read %s", f.path)
+		var cases []*parityTestCase
+		require.NoError(t, json.Unmarshal(data, &cases), "unmarshal %s", f.path)
+		source := filepath.Base(f.path)
+		for _, tc := range cases {
+			tc.Contract = f.contract
+			tc.Source = source
+		}
+		all = append(all, cases...)
+	}
+	return all
 }
