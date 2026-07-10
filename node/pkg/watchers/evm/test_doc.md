@@ -8,7 +8,11 @@ message, or publish the same message hash every time.
 ## Files
 
 - `testdata/generated_data.json`: artificial cases generated from the prompt rules.
+- `testdata/generated_receipts.json`: artificial Ethereum transaction receipts built
+  from `generated_data.json`.
 - `testdata/real_data.json`: real Ethereum Wormhole Core logs scraped from chain data.
+- `testdata/real_receipts.json`: full Ethereum transaction receipts fetched for the
+  transactions in `real_data.json`.
 
 ## Fixture fields
 
@@ -33,8 +37,15 @@ without making every failure the same:
 - Most invalid cases have only one or two issues, never more than three.
 - The event topic is correct in about 90 percent of cases.
 - The raw contract address is correct in about 90 percent of cases.
+- Non-empty topic lists contain only the event topic and indexed sender, so the
+  logs can be ABI-parsed during re-observation.
 - A small number of cases use `removed: true`.
 - `BlockTime` values are deterministic pseudo-random timestamps.
+
+The generated receipt file is derived mechanically from the generated message
+cases. Each receipt is a successful geth `types.Receipt` JSON object with one log,
+and its transaction hash, block hash, block number, transaction index, and log
+index match the corresponding `Raw` log.
 
 After changing `BlockTime` or any event field, remove `hash` from affected cases
 and run the fixture test to regenerate expected hashes.
@@ -50,6 +61,9 @@ produced hashes that did not match historical VAA digests.
 Historical non-immediate consistency levels such as `1` are treated as finalized
 unless they are explicitly latest (`200`) or safe (`201`).
 
+The real receipt file is keyed by transaction hash. Each fixture log in
+`real_data.json` must be present in the matching receipt from `real_receipts.json`.
+
 ## Test flow
 
 For each fixture case, the test:
@@ -64,3 +78,9 @@ For each fixture case, the test:
 
 The generated fixture also checks the expected input distribution so accidental
 changes do not turn the data set into mostly one failure mode.
+
+`TestFixtureObservationMatchesReobservation` uses the receipt fixtures to run both
+paths for the same transaction: the normal observation flow from the fixture log,
+and the re-observation flow from transaction hash plus receipt. The test requires
+both paths to agree on whether a message is sent; when one is sent, it finds the
+matching message ID and requires the same `CreateDigest()` hash.
