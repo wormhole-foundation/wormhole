@@ -65671,5 +65671,2171 @@
         "cb15ca350d5c34dc31d246de355a8ce39e495ba0e092f728a1bca17fccca777f"
       ]
     }
+  },
+  {
+    "name": "lookuptable_1table_writable_postmessage_outer",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "data": "3teBfjdTP47uGWrfCYUG"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "readonlyIndexes": []
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": null,
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": null,
+        "writable": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXNnACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4FnyAAAAMgAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtMA==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAJqampqampqampqampqampqampqampqampqampqampoAmpqampqampqampqampqampqampqampqampqampqamgGampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoDmpqampqampqampqampqampqampqampqampqampqamgSampqampqampqampqampqampqampqampqampqampqaBQ==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "7fe38b549e70f6cb23d6723aa3974004a9c601e85a35c13350556a61cdbd9faf"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_writable_postmessage_inner",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "readonlyIndexes": []
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+              ],
+              "data": "3u1WPYGvsp1bG3BxCiba"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": null,
+        "writable": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXNnACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4FnyQAAAMkAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtMQ==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAJqampqampqampqampqampqampqampqampqampqampoAmpqampqampqampqampqampqampqampqampqampqamgGampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoDmpqampqampqampqampqampqampqampqampqampqamgSampqampqampqampqampqampqampqampqampqampqaBQ==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "00b68e0d567b566ed9e63041ab5b4701ea089261c295743f128ee085107549e2"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_writable_postmessageunreliable_outer",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "data": "FGBEiYjvrevtWjcaZQDW"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "readonlyIndexes": []
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": null,
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": null,
+        "writable": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXN1ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4FnygAAAMoAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtMg==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAJqampqampqampqampqampqampqampqampqampqampoAmpqampqampqampqampqampqampqampqampqampqamgGampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoDmpqampqampqampqampqampqampqampqampqampqamgSampqampqampqampqampqampqampqampqampqampqaBQ==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "f557f90785ee96bd6919f6446d1e58584f9dd4149ec3caadd4ae3d8139514555"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_writable_postmessageunreliable_inner",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "readonlyIndexes": []
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+              ],
+              "data": "FGYZSMPQMQpaWFwsZaLp"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": null,
+        "writable": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXN1ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4FnywAAAMsAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtMw==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAJqampqampqampqampqampqampqampqampqampqampoAmpqampqampqampqampqampqampqampqampqampqamgGampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoDmpqampqampqampqampqampqampqampqampqampqamgSampqampqampqampqampqampqampqampqampqampqaBQ==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "e699a1c2bb61eb775a64f644fca6a1bad1ac9046b609080d4c9915a76add823a"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_writable_close_outer",
+    "isReobservation": true,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "data": "A"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "readonlyIndexes": []
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": null,
+              "data": "5qT39exGnqmKYQtL1FELhBDjciPyP4UyJm7Ei4B7ogsJ82nW7QQZ8LCS6ZhH9G3iNYuZyDoxZ3hvNGtwRSpes1fqmHbHCtVvfULJhrc2zaoUsvKUUuvnJKkrq8AkHUcd8UoMD9ohrv2Mm1yALhumDbbo2LT254F"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": null,
+        "writable": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAJqampqampqampqampqampqampqampqampqampqampoAmpqampqampqampqampqampqampqampqampqampqamgGampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoD",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "20d77abd2abb3ba221ea8ab44391899754009fa0fd6db9b3281947faf1c55bf2"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_writable_close_inner",
+    "isReobservation": true,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "readonlyIndexes": []
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "data": "A"
+            },
+            {
+              "programIdIndex": 1,
+              "accounts": null,
+              "data": "5qT39exGnqmKYQtL1FELhBDjciPyP4UyJm7Ei4B7ogsJ82nW7QQZ8LCS6ZhH9G3iNYuZyDoxZ3hvNGtwRSpesNJyWSTdxME7AMWkp4YQWfbGDDf1Gazz9qVLoGTDZrZWNKjcVPcFuJ7VYuq4VQC5NaZwyjEoGuJ"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": null,
+        "writable": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAJqampqampqampqampqampqampqampqampqampqampoAmpqampqampqampqampqampqampqampqampqampqamgGampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoD",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "6b8b7d1fbf4d35772a3e39bc82f1fc2569ba303d72064779c593eb82b73d927d"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_readonly_postmessage_outer",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              9,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "data": "3vr7zZWJMbU3DerRDbE8"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "readonlyIndexes": [
+              6
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": null,
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXNnACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4FnzgAAAM4AAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtNg==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaA5qampqampqampqampqampqampqampqampqampqampoEmpqampqampqampqampqampqampqampqampqampqamgWwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAA==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "0d94eec897ecd701319beea80b71ed10974a56af3f8a8055bc6f2d6599ae0fed"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_readonly_postmessage_inner",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "readonlyIndexes": [
+              6
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                10,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9
+              ],
+              "data": "3wDSiN9mrMMjDBBiDmMS"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXNnACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4FnzwAAAM8AAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtNw==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaA5qampqampqampqampqampqampqampqampqampqampoEmpqampqampqampqampqampqampqampqampqampqamgWwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAA==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "384ccd4ceb567e027067f755b4bf9ff77183dcc98fce5ff9ab615431c7dc7ffb"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_readonly_postmessageunreliable_outer",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              9,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "data": "FJPB3NcmqCH2TscLaSyN"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "readonlyIndexes": [
+              6
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": null,
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXN1ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4Fn0AAAANAAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtOA==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaA5qampqampqampqampqampqampqampqampqampqampoEmpqampqampqampqampqampqampqampqampqampqamgWwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAA==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "3bff7f6d32518cb15807c34782dc12f34bb2f2fa7f703deba22b0b27ee6d5360"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_readonly_postmessageunreliable_inner",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "readonlyIndexes": [
+              6
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                10,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9
+              ],
+              "data": "FJkVmBGFKxAiTPwdad6g"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXN1ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4Fn0QAAANEAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gUAAABhbHQtOQ==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaA5qampqampqampqampqampqampqampqampqampqampoEmpqampqampqampqampqampqampqampqampqampqamgWwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwAA==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "f20e93d896ffd19a4c23aa6f9b0db7cfa5c23d5685e6a4dda47e5620080204d4"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_readonly_close_outer",
+    "isReobservation": true,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              7,
+              3,
+              4,
+              5,
+              6
+            ],
+            "data": "A"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "readonlyIndexes": [
+              4
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": null,
+              "data": "NLqvVCWxhLEcqeRYt5osvL7D6diPrNNTXPgXWD1f34xza2sqVGJxoMjTmZJnFTQyc7q2X9YGCSwcYuAFCtyLHAZqKH5v2S7jsh2xXg5Xfq2aaqTmdmMirhBdcE2CZU5hQdecrfPytMzxxggMJEKxDU8zKxSHzV5H"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaA7CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLAA",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "f2db043e27dd9ac6e1ab8612cdb0e882f6babfdcceee2eba8ed1a0b83e80c2a7"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_1table_readonly_close_inner",
+    "isReobservation": true,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "readonlyIndexes": [
+              4
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                8,
+                4,
+                5,
+                6,
+                7
+              ],
+              "data": "A"
+            },
+            {
+              "programIdIndex": 1,
+              "accounts": null,
+              "data": "NLqvVCWxhLEcqeRYt5osvL7D6diPrNNTXPgXWD1f34xza2sqVGJxoMjTmZJnFTQyc7q2X9YGCSwcYuAFCtyLJjfjVkEBcG5vDAw5m4mWecAeg1yyXMpHBER942atykwwZje8JLKTJsVdMFabUc7xM7aqrT2MWmW8"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaA7CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLAA",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "0acb71b79bbe596aa938323f28f0eb94f87298f3e46777d10aeb693b3ad647ed"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_2table_mixed_postmessage_outer",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              9,
+              3,
+              4,
+              7,
+              8,
+              5,
+              6
+            ],
+            "data": "E6QVe9nz9eNK5WA6qwXZz"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2,
+              3
+            ]
+          },
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": null,
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXNnACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4Fn1AAAANQAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gYAAABhbHQtMTI=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaAw==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaBJqampqampqampqampqampqampqampqampqampqampoFsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsAA=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "88b373b65aac4bc56bab5fb460f12a052a4adbb52cddd045b27a9441754433dc"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_2table_mixed_postmessage_inner",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2,
+              3
+            ]
+          },
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                10,
+                4,
+                5,
+                8,
+                9,
+                6,
+                7
+              ],
+              "data": "E82cGfgPWa6TbQ3FthtRv"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXNnACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4Fn1QAAANUAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gYAAABhbHQtMTM=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaAw==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaBJqampqampqampqampqampqampqampqampqampqampoFsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsAA=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "573abda3002d43f03dc65d670c3650ed73736615292964bf9380e0aaf2a37bc5"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_2table_mixed_postmessageunreliable_outer",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              9,
+              3,
+              4,
+              7,
+              8,
+              5,
+              6
+            ],
+            "data": "26HTZ6ZjZRU1hkGTxMzRck"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2,
+              3
+            ]
+          },
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": null,
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXN1ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4Fn1gAAANYAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gYAAABhbHQtMTQ=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaAw==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaBJqampqampqampqampqampqampqampqampqampqampoFsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsAA=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "80d20b3075d5840f1d13c86c6f67ec8b84e688cceacb52c0e21f33c7720cb2c3"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_2table_mixed_postmessageunreliable_inner",
+    "isReobservation": false,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2,
+              3
+            ]
+          },
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                10,
+                4,
+                5,
+                8,
+                9,
+                6,
+                7
+              ],
+              "data": "26K5fj5cxnPjrGAM7QknUg"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG",
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdH",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdJ"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "bXN1ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8W4Fn1wAAANcAAAAAAAAAAQAEHGV+hF1l0AnVnO6x3aFyvWvJ5+5aGeVlcxl89/3/3gYAAABhbHQtMTU=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+        "pubkey": "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoBmpqampqampqampqampqampqampqampqampqampqamgKampqampqampqampqampqampqampqampqampqampqaAw==",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaBJqampqampqampqampqampqampqampqampqampqampoFsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsAA=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "5653f2577e4a902bfe44dcd89949ba2c814831059995fea315cb5a591efdc889"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_2table_mixed_close_outer",
+    "isReobservation": true,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 1,
+            "accounts": [
+              0,
+              7,
+              3,
+              6,
+              4,
+              5
+            ],
+            "data": "A"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0
+            ],
+            "readonlyIndexes": [
+              1
+            ]
+          },
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": null,
+              "data": "NLqvVCWxhLEcqeRYt5osvL7D6diPrNNTXPgXWD1f34xza2sqVGJxoMjTmZJnFTQyc7q2X9YGCSwcYuAFCtyLSbBEQ5wXXPvotaRhv2DRYVs17vazyL74mvagH3QP5DHAMFbfWgvpRQxwJ65pNV5y1Lp7Uuxf8BeM"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoB",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoDsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsAA=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "540a15587cf9e1c8c8ccc39c0535259c22b1603de290687c553e3d275cfbebba"
+      ]
+    }
+  },
+  {
+    "name": "lookuptable_2table_mixed_close_inner",
+    "isReobservation": true,
+    "slot": 42,
+    "contract": "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+    "shimContract": "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+    "transaction": {
+      "signatures": [
+        "LnrbZDPq59Ywk2Ddy9zVxg7KVaDBPRpikn7V7A3ZWgEb2JK6JYLkQKJCbqyeji46k7svBPp5UsFu4v4mh1DGzTJ"
+      ],
+      "message": {
+        "accountKeys": [
+          "H5hM4fqRjygvCYXnp6dgFLgZ6o4uJ8Q9z7dAsTfapHh9",
+          "CVDFLCAjXhVWiPXH9nTCTpCgVzmDVoiPzNJYuccr1dqB",
+          "Fw5KdYvFgue4q1HAQ264JTZax6VUr3jDVBJ1szuQ7dHE",
+          "DyRkUpQxYG2VnP2SkMdQs5BTsVPeKCpSHLxzByc2SxsR"
+        ],
+        "header": {
+          "numRequiredSignatures": 1,
+          "numReadonlySignedAccounts": 0,
+          "numReadonlyUnsignedAccounts": 1
+        },
+        "recentBlockhash": "11111111111111111111111111111111",
+        "instructions": [
+          {
+            "programIdIndex": 3,
+            "accounts": null,
+            "data": "E5J"
+          }
+        ],
+        "addressTableLookups": [
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+            "writableIndexes": [
+              0
+            ],
+            "readonlyIndexes": [
+              1
+            ]
+          },
+          {
+            "accountKey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+            "writableIndexes": [
+              0,
+              1
+            ],
+            "readonlyIndexes": [
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "fee": 0,
+      "preBalances": null,
+      "postBalances": null,
+      "innerInstructions": [
+        {
+          "index": 0,
+          "instructions": [
+            {
+              "programIdIndex": 1,
+              "accounts": [
+                0,
+                8,
+                4,
+                7,
+                5,
+                6
+              ],
+              "data": "A"
+            },
+            {
+              "programIdIndex": 1,
+              "accounts": null,
+              "data": "NLqvVCWxhLEcqeRYt5osvL7D6diPrNNTXPgXWD1f34xza2sqVGJxoMjTmZJnFTQyc7q2X9YGCSwcYuAFCtyLUAH8aZ5o7DtzE4Kq9QuQXH15D77CrvZd6TpBiqy5VW9QWMbAxMrHqvTbgez4Yrsy8zFy1QYieU5C"
+            }
+          ]
+        }
+      ],
+      "preTokenBalances": null,
+      "postTokenBalances": null,
+      "logMessages": null,
+      "status": null,
+      "rewards": null,
+      "loadedAddresses": {
+        "readonly": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdE",
+          "Ctj2Bzxo5VGsYw2KmaQiD4qFxx2RYBqKLpJVFttSVdiP"
+        ],
+        "writable": [
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdD",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdF",
+          "BQWX3Nia4vjtUwXAB1EVoorUbTPzinjH3qe3yXuG4JdG"
+        ]
+      }
+    },
+    "accounts": [
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaAJqampqampqampqampqampqampqampqampqampqampoB",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJX",
+        "rentEpoch": 0
+      },
+      {
+        "data": [
+          "AQAAAP//////////KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACampqampqampqampqampqampqampqampqampqampqaApqampqampqampqampqampqampqampqampqampqampoDsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsAA=",
+          "base64"
+        ],
+        "executable": false,
+        "lamports": 1,
+        "owner": "AddressLookupTab1e1111111111111111111111111",
+        "pubkey": "BLbDu5FZUdSfLrGejhuaWw5iMJBo3j3TVRyPv9rfJyJY",
+        "rentEpoch": 0
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "digests": [
+        "0cb148e2bcc2c7adc54602a8a58cf492c57ea00d4b89c71b9b0f0ce21b707319"
+      ]
+    }
   }
 ]
