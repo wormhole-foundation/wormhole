@@ -38,11 +38,22 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// bundlesFile is the single JSON file holding the entire generated bundle matrix (an
-// array of bundles). Regenerate it with:
+// The replay matrix is split across two minified JSON files, each an array of bundles,
+// read together by the replay test:
 //
-//	go run ./pkg/watchers/solana/testgen/cmd --matrix all --out ./pkg/watchers/solana/testdata/bundles.json
-const bundlesFile = "testdata/bundles.json"
+//   - generatedBundlesFile: the builder-generated (synthetic) matrix. Regenerate with:
+//     go run ./pkg/watchers/solana/testgen/cmd --out ./pkg/watchers/solana/testdata/generated_bundles.json
+//   - realBundlesFile: live-collected real Solana transactions, produced by
+//     testgen/collect_wormhole_solana_logs.py.
+//
+// They are kept separate so regenerating the synthetic matrix never disturbs the
+// live-collected fixtures (and vice versa). Recorded `expected` blocks are written back
+// into whichever file a bundle came from.
+const generatedBundlesFile = "testdata/generated_bundles.json"
+const realBundlesFile = "testdata/real_bundles.json"
+
+// bundleFiles is every fixture file the replay test loads, in read order.
+var bundleFiles = []string{generatedBundlesFile, realBundlesFile}
 
 const updateReplayFixturesEnv = "UPDATE_SOLANA_REPLAY_FIXTURES"
 

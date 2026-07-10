@@ -11,7 +11,8 @@ package solana
 // replay flows and assertions, rather than fixture decoding and watcher bootstrapping.
 //
 // General algorithm:
-//   - Load the committed testdata/bundles.json matrix.
+//   - Load the committed matrix from testdata/generated_bundles.json (synthetic) and
+//     testdata/real_bundles.json (live-collected).
 //   - For each bundle, run transaction reobservation, block observation, transaction
 //     polling, and by-account reobservation.
 //   - Assert each flow's calculated digests exactly match its recorded digest list.
@@ -35,58 +36,88 @@ import (
 func TestReplayGeneratedBundles(t *testing.T) {
 	updateFixtures := os.Getenv(updateReplayFixturesEnv) == "1"
 
-	raw, err := os.ReadFile(bundlesFile)
-	require.NoErrorf(t, err, "read %s; generate it with: go run ./pkg/watchers/solana/testgen/cmd --matrix all --out ./pkg/watchers/solana/%s", bundlesFile, bundlesFile)
-
-	var rawBundles []json.RawMessage
-	require.NoError(t, json.Unmarshal(raw, &rawBundles), "decode bundle array")
-	require.NotEmpty(t, rawBundles, "no bundles in %s", bundlesFile)
-
-	recordedByIndex := make([]*expectedOutput, len(rawBundles))
+	sources := loadBundleSources(t)
 
 	t.Run("replay", func(t *testing.T) {
-		for i := range rawBundles {
-			i := i
-			var b replayBundle
-			require.NoErrorf(t, json.Unmarshal(rawBundles[i], &b), "decode bundle %d", i)
+		for _, src := range sources {
+			src := src
+			for i := range src.raw {
+				i := i
+				var b replayBundle
+				require.NoErrorf(t, json.Unmarshal(src.raw[i], &b), "decode bundle %d in %s", i, src.path)
 
-			t.Run(b.Name, func(t *testing.T) {
-				t.Parallel()
+				t.Run(b.Name, func(t *testing.T) {
+					t.Parallel()
 
-				reobExpect, obsExpect, pollExpect, acctExpect := expectedCounts(b.Expected)
-				reobDigests, reobErrs := reobserveTransactionOutput(t, &b, reobExpect)
-				obsDigests, obsErrs := fetchBlockOutput(t, &b, obsExpect)
-				pollDigests, pollErrs := processNewTransactionsOutput(t, &b, pollExpect)
-				acctDigests, acctErrs := reobserveAccountOutput(t, &b, acctExpect)
+					reobExpect, obsExpect, pollExpect, acctExpect := expectedCounts(b.Expected)
+					reobDigests, reobErrs := reobserveTransactionOutput(t, &b, reobExpect)
+					obsDigests, obsErrs := fetchBlockOutput(t, &b, obsExpect)
+					pollDigests, pollErrs := processNewTransactionsOutput(t, &b, pollExpect)
+					acctDigests, acctErrs := reobserveAccountOutput(t, &b, acctExpect)
 
-				assert.Empty(t, reobErrs, "no scissored errors expected (reobservation)")
-				assert.Empty(t, obsErrs, "no scissored errors expected (observation)")
-				assert.Empty(t, pollErrs, "no scissored errors expected (transaction polling)")
-				assert.Empty(t, acctErrs, "no scissored errors expected (account reobservation)")
+					assert.Empty(t, reobErrs, "no scissored errors expected (reobservation)")
+					assert.Empty(t, obsErrs, "no scissored errors expected (observation)")
+					assert.Empty(t, pollErrs, "no scissored errors expected (transaction polling)")
+					assert.Empty(t, acctErrs, "no scissored errors expected (account reobservation)")
 
-				if b.Expected == nil {
-					recordExpected(t, updateFixtures, b.Name, i, recordedByIndex, reobDigests, obsDigests, pollDigests, acctDigests)
-					return
-				}
+					if b.Expected == nil {
+						recordExpected(t, updateFixtures, b.Name, i, src.recorded, reobDigests, obsDigests, pollDigests, acctDigests)
+						return
+					}
 
-				flows := []struct {
-					name string
-					want []string
-					got  []string
-				}{
-					{name: "reobservation", want: b.Expected.Reobservation, got: reobDigests},
-					{name: "observation", want: b.Expected.Observation, got: obsDigests},
-					{name: "transaction polling", want: b.Expected.Polling, got: pollDigests},
-					{name: "account reobservation", want: b.Expected.Account, got: acctDigests},
-				}
-				for _, flow := range flows {
-					assertFlow(t, b.Name, flow.name, flow.want, flow.got)
-				}
-			})
+					flows := []struct {
+						name string
+						want []string
+						got  []string
+					}{
+						{name: "reobservation", want: b.Expected.Reobservation, got: reobDigests},
+						{name: "observation", want: b.Expected.Observation, got: obsDigests},
+						{name: "transaction polling", want: b.Expected.Polling, got: pollDigests},
+						{name: "account reobservation", want: b.Expected.Account, got: acctDigests},
+					}
+					for _, flow := range flows {
+						assertFlow(t, b.Name, flow.name, flow.want, flow.got)
+					}
+				})
+			}
 		}
 	})
 
-	writeRecordedExpectations(t, rawBundles, recordedByIndex)
+	for _, src := range sources {
+		writeRecordedExpectations(t, src.path, src.raw, src.recorded)
+	}
+}
+
+// bundleSource is one loaded fixture file: its raw bundle bytes plus a per-index slot for
+// any expected output recorded this run (written back into this same file).
+type bundleSource struct {
+	path     string
+	raw      []json.RawMessage
+	recorded []*expectedOutput
+}
+
+// loadBundleSources reads every fixture file in bundleFiles into its own bundleSource so
+// recorded expectations round-trip back to the file each bundle came from.
+func loadBundleSources(t *testing.T) []*bundleSource {
+	t.Helper()
+	sources := make([]*bundleSource, 0, len(bundleFiles))
+	total := 0
+	for _, path := range bundleFiles {
+		raw, err := os.ReadFile(path)
+		require.NoErrorf(t, err, "read %s; generate the synthetic matrix with: "+
+			"go run ./pkg/watchers/solana/testgen/cmd --out ./pkg/watchers/solana/%s", path, generatedBundlesFile)
+
+		var rawBundles []json.RawMessage
+		require.NoErrorf(t, json.Unmarshal(raw, &rawBundles), "decode bundle array in %s", path)
+		sources = append(sources, &bundleSource{
+			path:     path,
+			raw:      rawBundles,
+			recorded: make([]*expectedOutput, len(rawBundles)),
+		})
+		total += len(rawBundles)
+	}
+	require.NotZero(t, total, "no bundles in %v", bundleFiles)
+	return sources
 }
 
 func expectedCounts(exp *expectedOutput) (reob, obs, poll, acct int) {
@@ -121,7 +152,7 @@ func recordExpected(
 		name, len(reobDigests), len(obsDigests), len(pollDigests), len(acctDigests))
 }
 
-func writeRecordedExpectations(t *testing.T, rawBundles []json.RawMessage, recordedByIndex []*expectedOutput) {
+func writeRecordedExpectations(t *testing.T, path string, rawBundles []json.RawMessage, recordedByIndex []*expectedOutput) {
 	t.Helper()
 	changed := false
 	for i := range recordedByIndex {
@@ -129,17 +160,18 @@ func writeRecordedExpectations(t *testing.T, rawBundles []json.RawMessage, recor
 			continue
 		}
 		newRaw, err := insertExpected(rawBundles[i], recordedByIndex[i])
-		require.NoErrorf(t, err, "insert expected for bundle %d", i)
+		require.NoErrorf(t, err, "insert expected for bundle %d in %s", i, path)
 		rawBundles[i] = newRaw
 		changed = true
 	}
 	if !changed {
 		return
 	}
-	out, err := json.MarshalIndent(rawBundles, "", "  ")
+	// Minified to keep the fixture file small; the decoder ignores whitespace on read.
+	out, err := json.Marshal(rawBundles)
 	require.NoError(t, err, "marshal bundle array")
-	require.NoError(t, os.WriteFile(bundlesFile, append(out, '\n'), 0644), "write %s", bundlesFile)
-	t.Logf("recorded expected output into %s; re-run to assert against them", bundlesFile)
+	require.NoError(t, os.WriteFile(path, append(out, '\n'), 0644), "write %s", path)
+	t.Logf("recorded expected output into %s; re-run to assert against them", path)
 }
 
 // assertFlow checks that a single flow reproduced exactly its recorded digest set. `got`
