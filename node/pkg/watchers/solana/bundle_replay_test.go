@@ -333,6 +333,23 @@ func fetchBlockOutput(t *testing.T, b *replayBundle) (digests []string, replayEr
 	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
 }
 
+func processNewTransactionsOutput(t *testing.T, b *replayBundle) (digests []string, replayErrs []error) {
+	t.Helper()
+
+	msgC := make(chan *common.MessagePublication, 64)
+	s := newReplayWatcher(t, b, msgC)
+	m := seedReplayRPCClient(t, b)
+	require.NotEmpty(t, b.Transaction.Signatures, "bundle has no transaction signature")
+	m.signatures[b.Contract] = []*rpc.TransactionSignature{{Signature: b.Transaction.Signatures[0]}}
+	s.rpcClient = m
+
+	// processNewTransactions is the poll-for-transactions path. It discovers the
+	// signature via getSignaturesForAddress, fetches it with getTransaction, and then
+	// feeds the result into the normal transaction processor asynchronously.
+	require.NoError(t, s.processNewTransactions(), "process new transactions")
+	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
+}
+
 // resolveBundleKeys returns the bundle transaction's account keys with any Address
 // Lookup Tables resolved (static keys, then writable-loaded, then readonly-loaded),
 // mirroring the watcher's populateLookupTableAccounts. The resolutions come from the
@@ -476,6 +493,8 @@ func insertExpected(raw json.RawMessage, exp *expectedOutput) (json.RawMessage, 
 //   - Block observation flow: a subset is allowed — a recorded digest may legitimately
 //     not appear (e.g. close-message events are only processed on reobservation) — but
 //     no digest outside the recorded set may appear.
+//   - Transaction polling flow follows the same subset rule, but reaches processing via
+//     getSignaturesForAddress and getTransaction rather than getBlock.
 //
 // If a bundle has no `expected` block yet, set UPDATE_SOLANA_REPLAY_FIXTURES=1 to
 // record the reobservation output back into the same file.
@@ -516,6 +535,11 @@ func TestReplayGeneratedBundles(t *testing.T) {
 				obsDigests, obsErrs := fetchBlockOutput(t, &b)
 				assert.Empty(t, obsErrs, "no scissored errors expected (observation)")
 
+				// Transaction polling flow — also a normal-observation subset, but reached
+				// through getSignaturesForAddress -> getTransaction -> processTransaction.
+				pollDigests, pollErrs := processNewTransactionsOutput(t, &b)
+				assert.Empty(t, pollErrs, "no scissored errors expected (transaction polling)")
+
 				// Account reobservation flow — run each post_message message account through
 				// handleReobservationRequest. Like the observation path, any event it emits
 				// must be in the recorded hash list; if it emits nothing, that is fine.
@@ -532,10 +556,13 @@ func TestReplayGeneratedBundles(t *testing.T) {
 						require.Equalf(t, want, len(reobDigests),
 							"generated reobservation count for %q disagrees with the known-good guard; refusing to record a wrong expectation", b.Name)
 					}
-					// The observation and account-fetch flows must already be subsets of the
-					// reobservation set.
+					// The observation, transaction-polling, and account-reobservation flows must
+					// already be subsets of the transaction reobservation set.
 					if _, extra := diffDigests(reobDigests, obsDigests); len(extra) > 0 {
 						t.Fatalf("%q: observation published digest(s) not in the reobservation set: %v", b.Name, extra)
+					}
+					if _, extra := diffDigests(reobDigests, pollDigests); len(extra) > 0 {
+						t.Fatalf("%q: transaction polling published digest(s) not in the transaction reobservation set: %v", b.Name, extra)
 					}
 					if _, extra := diffDigests(reobDigests, fetchDigests); len(extra) > 0 {
 						t.Fatalf("%q: account reobservation published digest(s) not in the transaction reobservation set: %v", b.Name, extra)
@@ -567,6 +594,11 @@ func TestReplayGeneratedBundles(t *testing.T) {
 				// the recorded set may appear.
 				if _, extra := diffDigests(want, obsDigests); len(extra) > 0 {
 					t.Errorf("%q observation: %d message(s) published that are not in the reobservation set: %v", b.Name, len(extra), extra)
+				}
+
+				// Transaction polling: subset — every event it emits must be a recorded hash.
+				if _, extra := diffDigests(want, pollDigests); len(extra) > 0 {
+					t.Errorf("%q transaction polling: %d event(s) not in the transaction reobservation set: %v", b.Name, len(extra), extra)
 				}
 
 				// Account reobservation: subset — every event it emits must be a recorded hash.
