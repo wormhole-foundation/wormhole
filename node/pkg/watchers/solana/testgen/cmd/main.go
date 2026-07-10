@@ -1,9 +1,14 @@
-// Command testgen emits a matrix of Solana watcher processTransaction() input
-// bundles as a single JSON file holding an array of bundles. Each bundle's
+// Command testgen emits the full matrix of Solana watcher processTransaction() input
+// bundles as a single minified JSON file holding an array of bundles. Each bundle's
 // "transaction"/"meta" decode straight into solana.Transaction / rpc.TransactionMeta,
 // and "accounts" is the list of getAccountInfo responses to feed a mock.
 //
-//	go run ./pkg/watchers/solana/testgen/cmd --matrix all --out ./bundles.json
+// This file holds ONLY the builder-generated (synthetic) matrix. The live-collected
+// real transactions live in a separate file (testdata/real_bundles.json, produced by
+// collect_wormhole_solana_logs.py); the replay test reads both. Regenerating here is
+// therefore safe -- it never touches the real-transaction fixtures.
+//
+//	go run ./pkg/watchers/solana/testgen/cmd --out ./pkg/watchers/solana/testdata/generated_bundles.json
 package main
 
 import (
@@ -147,12 +152,23 @@ func locName(outer bool) string {
 	return "inner"
 }
 
-// boundaryScenarios sweeps the genuinely-unbounded integer fields (nonce, sequence,
-// timestamp) at 0 / middle / max, for each message type and location. Consistency
-// level is deliberately NOT swept: on Solana it is a two-variant enum (Confirmed /
-// Finalized), not a free integer, so it is held at a valid Finalized baseline.
+// boundaryScenarios sweeps the hashed VAA-body fields at their edges, for each message
+// type and location:
+//   - the genuinely-unbounded integer fields (nonce, sequence, timestamp) at 0/middle/max;
+//   - consistency level at Confirmed (the baseline is Finalized) — a two-variant enum, so
+//     swept as a single extra case. On the finalized replay watcher a Confirmed message is
+//     dropped by live observation/polling but still published on reobservation
+//     (checkCommitment's reobservation exception), and its consistency byte changes the
+//     VAA digest;
+//   - emitter address at all-zero / all-max / high-bit-set.
 //
-//	4 types x 2 locations x 3 fields x 3 levels = 72 cases.
+// Plus two EmitterChain override-regression cases (postmessage, outer) whose account
+// claims a wrong emitter chain: the watcher overrides it with its own chain id
+// (observations.go), so the field must never reach the digest. Both claim different wrong
+// chains yet must digest identically to a Solana message; if the override is ever removed
+// their recorded digests change and diverge, failing this regression.
+//
+//	4 types x 2 locations x (3 fields x 3 levels + 1 consistency + 3 emitters) + 2 = 106 cases.
 func boundaryScenarios() []scenario {
 	types := []struct {
 		name string
@@ -237,7 +253,81 @@ func boundaryScenarios() []scenario {
 			}
 		}
 	}
+
+	// Consistency: a Confirmed message (baseline is Finalized). The Confirmed byte flows
+	// into the VAA digest and, on the finalized replay watcher, publishes only on the
+	// reobservation paths (observation/polling drop it). One case per type x location.
+	for _, ty := range types {
+		for _, outer := range []bool{true, false} {
+			ty, outer := ty, outer
+			name := fmt.Sprintf("%s_%s_consistency_confirmed", ty.name, locName(outer))
+			out = append(out, scenario{name: name, build: func() (*testgen.Bundle, error) {
+				m := baseline()
+				m.Commitment = testgen.Confirmed
+				b := testgen.NewBuilder(baseCfg(name))
+				ty.add(b, outer, m)
+				return b.Build()
+			}})
+		}
+	}
+
+	// Emitter address: 32 hashed bytes held constant everywhere else. Sweep the extremes
+	// (all-zero, all-max, high-bit-set) to pin the digest across the full byte range.
+	emitters := []struct {
+		name string
+		addr [32]byte
+	}{
+		{"zero", [32]byte{}},
+		{"max", fillAddr(0xFF)},
+		{"highbit", fillAddr(0x80)},
+	}
+	for _, ev := range emitters {
+		for _, ty := range types {
+			for _, outer := range []bool{true, false} {
+				ev, ty, outer := ev, ty, outer
+				name := fmt.Sprintf("%s_%s_emitter_%s", ty.name, locName(outer), ev.name)
+				out = append(out, scenario{name: name, build: func() (*testgen.Bundle, error) {
+					m := baseline()
+					m.EmitterAddress = ev.addr
+					b := testgen.NewBuilder(baseCfg(name))
+					ty.add(b, outer, m)
+					return b.Build()
+				}})
+			}
+		}
+	}
+
+	// EmitterChain override regression: the account claims a wrong emitter chain, but the
+	// watcher publishes under its own chain id, so the field must not reach the digest.
+	// Both cases must record the SAME digest (verified at generation) even though they
+	// claim different wrong chains; removing the override would make them diverge.
+	for _, ec := range []struct {
+		name  string
+		chain uint16
+	}{
+		{"ethereum", uint16(vaa.ChainIDEthereum)},
+		{"max", 0xFFFF},
+	} {
+		ec := ec
+		name := fmt.Sprintf("postmessage_outer_emitterchain_%s", ec.name)
+		out = append(out, scenario{name: name, build: func() (*testgen.Bundle, error) {
+			m := baseline()
+			m.EmitterChain = ec.chain
+			b := testgen.NewBuilder(baseCfg(name))
+			b.AddRegular(testgen.RegularSpec{Location: testgen.Outer, Kind: testgen.PostMessage, Msg: m})
+			return b.Build()
+		}})
+	}
 	return out
+}
+
+// fillAddr returns a 32-byte emitter address with every byte set to v.
+func fillAddr(v byte) [32]byte {
+	var a [32]byte
+	for i := range a {
+		a[i] = v
+	}
+	return a
 }
 
 // fieldsB is a valid finalized message with the given (binary) payload.
@@ -568,9 +658,21 @@ func lookuptableScenarios() []scenario {
 	return out
 }
 
+// allScenarios returns every bundle scenario across all matrices. Generation always emits
+// the full set, so the committed fixture is always complete and deterministic.
+func allScenarios() []scenario {
+	var scns []scenario
+	scns = append(scns, scenarios()...)
+	scns = append(scns, boundaryScenarios()...)
+	scns = append(scns, situationScenarios()...)
+	scns = append(scns, tripletScenarios()...)
+	scns = append(scns, txStatusScenarios()...)
+	scns = append(scns, lookuptableScenarios()...)
+	return scns
+}
+
 func main() {
-	out := flag.String("out", "./bundles.json", "output JSON file for the generated bundle array")
-	matrix := flag.String("matrix", "curated", "scenario set to emit: curated | boundary | situations | triplets | txstatus | lookuptable | all")
+	out := flag.String("out", "./pkg/watchers/solana/testdata/generated_bundles.json", "output JSON file for the generated bundle array")
 	flag.Parse()
 
 	if dir := filepath.Dir(*out); dir != "" && dir != "." {
@@ -580,30 +682,7 @@ func main() {
 		}
 	}
 
-	var scns []scenario
-	switch *matrix {
-	case "curated":
-		scns = scenarios()
-	case "boundary":
-		scns = boundaryScenarios()
-	case "situations":
-		scns = situationScenarios()
-	case "triplets":
-		scns = tripletScenarios()
-	case "txstatus":
-		scns = txStatusScenarios()
-	case "lookuptable":
-		scns = lookuptableScenarios()
-	case "all":
-		scns = append(scenarios(), boundaryScenarios()...)
-		scns = append(scns, situationScenarios()...)
-		scns = append(scns, tripletScenarios()...)
-		scns = append(scns, txStatusScenarios()...)
-		scns = append(scns, lookuptableScenarios()...)
-	default:
-		fmt.Fprintf(os.Stderr, "unknown --matrix %q (want curated | boundary | situations | triplets | txstatus | lookuptable | all)\n", *matrix)
-		os.Exit(2)
-	}
+	scns := allScenarios()
 
 	// Collect every scenario into a single array so the whole matrix lives in one file.
 	bundles := make([]*testgen.Bundle, 0, len(scns))
@@ -618,14 +697,14 @@ func main() {
 			s.name, len(bundle.Transaction.Message.Instructions), len(bundle.Meta.InnerInstructions), len(bundle.Accounts))
 	}
 
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(bundles); err != nil {
+	// Minified (no indent) to keep the fixture file small; the replay test reads it back
+	// through the JSON decoder, which does not care about whitespace.
+	buf, err := json.Marshal(bundles)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "marshal failed: %v\n", err)
 		os.Exit(1)
 	}
-	if err := os.WriteFile(*out, buf.Bytes(), 0o644); err != nil { //nolint:gosec // test fixtures
+	if err := os.WriteFile(*out, append(buf, '\n'), 0o644); err != nil { //nolint:gosec // test fixtures
 		fmt.Fprintf(os.Stderr, "write failed: %v\n", err)
 		os.Exit(1)
 	}
