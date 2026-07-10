@@ -9,8 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -758,11 +756,8 @@ func TestProcessInstructionValidPostMessage(t *testing.T) {
 
 			proposal := testMessagePublicationAccount([]byte("hello"), 32)
 			accountData := encodeMessagePublicationAccount(t, tc.accountPrefix, proposal)
-			m := newMockRPCServer(t)
-			defer m.Close()
+			m := newMockSolanaRPCClient()
 			m.SetAccount(messageAccount, contract.String(), accountData)
-
-			rpcClient := rpc.New(m.URL)
 
 			tx := &solana.Transaction{
 				Message: solana.Message{
@@ -778,7 +773,7 @@ func TestProcessInstructionValidPostMessage(t *testing.T) {
 				Accounts:       []uint16{0, 1, 0, 0, 0, 0, 0, 0},
 			}
 
-			found, err := s.processInstruction(context.Background(), rpcClient, 1, inst, 0, tx, tx.Signatures[0], 0, false)
+			found, err := s.processInstruction(context.Background(), m, 1, inst, 0, tx, tx.Signatures[0], 0, false)
 			require.NoError(t, err)
 			assert.True(t, found)
 
@@ -1072,10 +1067,8 @@ func TestProcessTransaction(t *testing.T) {
 				s.shimSetup()
 			}
 
-			m := newMockRPCServer(t)
-			defer m.Close()
+			m := newMockSolanaRPCClient()
 			m.SetAccount(messageAccount, contract.String(), accountData)
-			rpcClient := rpc.New(m.URL)
 
 			tx := &solana.Transaction{
 				Message: solana.Message{
@@ -1090,7 +1083,7 @@ func TestProcessTransaction(t *testing.T) {
 				InnerInstructions: tc.innerInstructions,
 			}
 
-			num := s.processTransaction(context.Background(), rpcClient, tx, meta, 42, false)
+			num := s.processTransaction(context.Background(), m, tx, meta, 42, false)
 			assert.Equal(t, tc.wantObservations, num)
 
 			// Drain published messages and verify count.
@@ -1236,12 +1229,10 @@ func TestFetchMessageAccount(t *testing.T) {
 			s.errC = make(chan error, 10)
 			s.contract = contract
 
-			m := newMockRPCServer(t)
-			defer m.Close()
+			m := newMockSolanaRPCClient()
 			m.SetAccount(messageAccount, tc.accountOwner, tc.accountData)
-			rpcClient := rpc.New(m.URL)
 
-			numObservations, retryable := s.fetchMessageAccount(context.TODO(), rpcClient, messageAccount, 1, tc.reobservation, solana.SignatureFromBytes([]byte{}))
+			numObservations, retryable := s.fetchMessageAccount(context.TODO(), m, messageAccount, 1, tc.reobservation, solana.SignatureFromBytes([]byte{}))
 
 			assert.Equal(t, tc.wantObservations, numObservations)
 			assert.Equal(t, tc.retryable, retryable)
@@ -1250,29 +1241,27 @@ func TestFetchMessageAccount(t *testing.T) {
 
 	// Retryable RPC failure modes don't fit the data-driven shape above, so
 	// they live as standalone sub-tests.
-	newWatcher := func() (*SolanaWatcher, *mockRPCServer) {
+	newWatcher := func() (*SolanaWatcher, *mockSolanaRPCClient) {
 		s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, make(chan *common.MessagePublication, 1))
 		s.errC = make(chan error, 1)
 		s.contract = contract
-		return s, newMockRPCServer(t)
+		return s, newMockSolanaRPCClient()
 	}
 
 	t.Run("rpc error is retryable", func(t *testing.T) {
 		s, m := newWatcher()
-		defer m.Close()
 		m.SetAccountError(messageAccount, "rpc down")
 
-		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), messageAccount, 1, false, solana.Signature{})
+		num, retryable := s.fetchMessageAccount(context.TODO(), m, messageAccount, 1, false, solana.Signature{})
 		assert.Equal(t, uint32(0), num)
 		assert.True(t, retryable)
 	})
 
 	t.Run("missing account is retryable", func(t *testing.T) {
 		s, m := newWatcher()
-		defer m.Close()
 		// No account registered: handler returns value=null.
 
-		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), messageAccount, 1, false, solana.Signature{})
+		num, retryable := s.fetchMessageAccount(context.TODO(), m, messageAccount, 1, false, solana.Signature{})
 		assert.Equal(t, uint32(0), num)
 		assert.True(t, retryable)
 	})
@@ -1391,14 +1380,13 @@ func TestPopulateLookupTableAccounts(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			m := newMockRPCServer(t)
-			defer m.Close()
+			m := newMockSolanaRPCClient()
 
 			for _, tbl := range tc.tables {
 				if tbl.badOwner {
 					m.SetAccount(tbl.addr, nonALTOwner.String(), encodeLookupTableState(t, tbl.entries))
 				} else {
-					m.SetLookupTable(tbl.addr, tbl.entries)
+					m.SetLookupTable(t, tbl.addr, tbl.entries)
 				}
 			}
 
@@ -1418,7 +1406,7 @@ func TestPopulateLookupTableAccounts(t *testing.T) {
 			tx.Message.SetAddressTableLookups(lookups)
 
 			s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, nil)
-			err := s.populateLookupTableAccounts(context.Background(), rpc.New(m.URL), tx)
+			err := s.populateLookupTableAccounts(context.Background(), m, tx)
 
 			if tc.wantErrSub != "" {
 				require.ErrorContains(t, err, tc.wantErrSub)
@@ -1544,40 +1532,6 @@ func buildSubscriptionPayload(t *testing.T, owner, pubkey string, accountData []
 	return data
 }
 
-// mockAccount is the data the mock RPC returns for a given pubkey.
-type mockAccount struct {
-	Owner string
-	Data  []byte
-}
-
-// mockRPCServer is a configurable JSON-RPC stub for getAccountInfo.
-// Unregistered pubkeys return value=null, mirroring real RPC behavior.
-type mockRPCServer struct {
-	*httptest.Server
-	t        *testing.T
-	accounts map[solana.PublicKey]mockAccount
-	errors   map[solana.PublicKey]string
-}
-
-func newMockRPCServer(t *testing.T) *mockRPCServer {
-	t.Helper()
-	m := &mockRPCServer{
-		t:        t,
-		accounts: map[solana.PublicKey]mockAccount{},
-		errors:   map[solana.PublicKey]string{},
-	}
-	m.Server = httptest.NewServer(http.HandlerFunc(m.handle))
-	return m
-}
-
-func (m *mockRPCServer) SetAccount(key solana.PublicKey, owner string, data []byte) {
-	m.accounts[key] = mockAccount{Owner: owner, Data: data}
-}
-
-func (m *mockRPCServer) SetAccountError(key solana.PublicKey, msg string) {
-	m.errors[key] = msg
-}
-
 // encodeLookupTableState produces the on-wire bytes for an AddressLookupTableState
 // containing addrs, using the upstream MarshalWithEncoder.
 func encodeLookupTableState(t *testing.T, addrs []solana.PublicKey) []byte {
@@ -1595,84 +1549,9 @@ func encodeLookupTableState(t *testing.T, addrs []solana.PublicKey) []byte {
 
 // SetLookupTable registers a valid AddressLookupTableState under key,
 // owned by the address-lookup-table program (the realistic case).
-func (m *mockRPCServer) SetLookupTable(key solana.PublicKey, addrs []solana.PublicKey) {
-	m.t.Helper()
-	m.SetAccount(key, addressLookupTableProgramID.String(), encodeLookupTableState(m.t, addrs))
-}
-
-func (m *mockRPCServer) handle(w http.ResponseWriter, r *http.Request) {
-	body, err := common.SafeRead(r.Body)
-	require.NoError(m.t, err)
-	_ = r.Body.Close()
-
-	var req map[string]interface{}
-	require.NoError(m.t, json.Unmarshal(body, &req))
-	id := req["id"]
-
-	method, _ := req["method"].(string)
-	if method != "getAccountInfo" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	params, _ := req["params"].([]interface{})
-	var key solana.PublicKey
-	if len(params) > 0 {
-		if s, ok := params[0].(string); ok {
-			parsed, err := solana.PublicKeyFromBase58(s)
-			require.NoError(m.t, err)
-			key = parsed
-		}
-	}
-
-	if errMsg, ok := m.errors[key]; ok {
-		writeRPCError(m.t, w, id, errMsg)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	acct, ok := m.accounts[key]
-	if !ok {
-		resp := map[string]interface{}{
-			"jsonrpc": "2.0",
-			"id":      id,
-			"result": map[string]interface{}{
-				"context": map[string]interface{}{"slot": int64(1)},
-				"value":   nil,
-			},
-		}
-		require.NoError(m.t, json.NewEncoder(w).Encode(resp))
-		return
-	}
-
-	resp := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"result": map[string]interface{}{
-			"context": map[string]interface{}{"slot": int64(1)},
-			"value": map[string]interface{}{
-				"data":       []interface{}{base64.StdEncoding.EncodeToString(acct.Data), "base64"},
-				"owner":      acct.Owner,
-				"lamports":   int64(1),
-				"executable": false,
-				"rentEpoch":  int64(0),
-			},
-		},
-	}
-	require.NoError(m.t, json.NewEncoder(w).Encode(resp))
-}
-
-func writeRPCError(t *testing.T, w http.ResponseWriter, id interface{}, msg string) {
+func (m *mockSolanaRPCClient) SetLookupTable(t *testing.T, key solana.PublicKey, addrs []solana.PublicKey) {
 	t.Helper()
-	w.Header().Set("Content-Type", "application/json")
-	resp := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"error": map[string]interface{}{
-			"code":    -32000,
-			"message": msg,
-		},
-	}
-	require.NoError(t, json.NewEncoder(w).Encode(resp))
+	m.SetAccount(key, addressLookupTableProgramID.String(), encodeLookupTableState(t, addrs))
 }
 
 func TestNewMessageAccountDataIsolation(t *testing.T) {

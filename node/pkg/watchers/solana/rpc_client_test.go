@@ -49,6 +49,34 @@ type mockSolanaRPCClient struct {
 	rpcCallForInto func(ctx context.Context, out interface{}, method string, params []interface{}) error
 }
 
+func newMockSolanaRPCClient() *mockSolanaRPCClient {
+	return &mockSolanaRPCClient{
+		blocks:             map[uint64]*rpc.GetBlockResult{},
+		blockErr:           map[uint64]error{},
+		accounts:           map[solana.PublicKey]*rpc.GetAccountInfoResult{},
+		accountErr:         map[solana.PublicKey]error{},
+		accountsWithOpts:   map[solana.PublicKey]*rpc.GetAccountInfoResult{},
+		accountWithOptsErr: map[solana.PublicKey]error{},
+		transactions:       map[solana.Signature]*rpc.GetTransactionResult{},
+		transactionErr:     map[solana.Signature]error{},
+		signatures:         map[solana.PublicKey][]*rpc.TransactionSignature{},
+		signatureErr:       map[solana.PublicKey]error{},
+	}
+}
+
+func (m *mockSolanaRPCClient) SetAccount(key solana.PublicKey, owner string, data []byte) {
+	ownerKey := solana.MustPublicKeyFromBase58(owner)
+	info := makeMockAccountInfoResult(ownerKey, data)
+	m.accounts[key] = info
+	m.accountsWithOpts[key] = info
+}
+
+func (m *mockSolanaRPCClient) SetAccountError(key solana.PublicKey, msg string) {
+	err := errors.New(msg)
+	m.accountErr[key] = err
+	m.accountWithOptsErr[key] = err
+}
+
 func (m *mockSolanaRPCClient) GetSlot(_ context.Context, _ rpc.CommitmentType) (uint64, error) {
 	return m.slot, m.slotErr
 }
