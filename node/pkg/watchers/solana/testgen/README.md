@@ -61,14 +61,14 @@ bundle, err := b.Build()
 data, _ := json.MarshalIndent(bundle, "", "  ")
 ```
 
-## Usage — CLI (emit a scenario matrix)
+## Usage — CLI (emit the scenario matrix)
 
 ```sh
-go run ./pkg/watchers/solana/testgen/cmd --matrix all --out ./bundles.json
+go run ./pkg/watchers/solana/testgen/cmd --out ./pkg/watchers/solana/testdata/generated_bundles.json
 ```
 
-Writes a **single JSON file** holding an array of every bundle in the selected matrix
-(`--matrix curated | boundary | situations | triplets | txstatus | lookuptable | all`).
+Writes a single **minified** JSON file holding an array of **every** synthetic bundle
+across all matrices (the command always emits the full set).
 Cases cover regular/shim/close × outer/inner × reliable/unreliable, shim-ordering and
 account-content edge cases, integer boundary sweeps, situation edge cases, 40 triplet
 transactions that mix three (type, location) variants each, failed-transaction cases
@@ -78,10 +78,22 @@ lookup-table cases (`lookuptable_*`, regular/close × outer/inner) that reach th
 account through a synthesized Address Lookup Table so the watcher's v0 ALT-resolution path
 is exercised.
 
-The replay test (`bundle_replay_test.go`) reads this one file and records a reproducible
-output signature — message count plus per-message digests — into an `expected` block on
-each bundle. The recorded hashes are the **reobservation** output (the complete set).
-Every run replays each bundle three ways and checks against that hash list:
+### Two fixture files
+
+The replay matrix is split across two minified files, both read by `bundle_replay_test.go`:
+
+- **`testdata/generated_bundles.json`** — the synthetic matrix above, produced by this CLI.
+- **`testdata/real_bundles.json`** — live-collected real Solana transactions, produced by
+  `collect_wormhole_solana_logs.py` (each `real_*` bundle).
+
+Keeping them separate means regenerating the synthetic matrix (which overwrites its file
+wholesale) never disturbs the live-collected fixtures, and vice versa. A recorded
+`expected` block is written back into whichever file the bundle came from.
+
+The replay test reads both files and records a reproducible output signature — message
+count plus per-message digests — into an `expected` block on each bundle. The recorded
+hashes are the **reobservation** output (the complete set). Every run replays each bundle
+three ways and checks against that hash list:
 
 - **Reobservation** (`processTransaction`, `isReobservation=true`) — exact match: every
   recorded digest must appear and none extra.
