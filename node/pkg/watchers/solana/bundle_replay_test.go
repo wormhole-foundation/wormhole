@@ -25,6 +25,8 @@ import (
 //	go run ./pkg/watchers/solana/testgen/cmd --matrix all --out ./pkg/watchers/solana/testdata/bundles.json
 const bundlesFile = "testdata/bundles.json"
 
+const updateReplayFixturesEnv = "UPDATE_SOLANA_REPLAY_FIXTURES"
+
 // replayBundle mirrors the JSON emitted by the testgen builder. transaction and meta
 // decode straight into the watcher's own input types.
 type replayBundle struct {
@@ -156,46 +158,81 @@ func knownPublicationCounts() map[string]int {
 	return m
 }
 
-// replayOutput drives processTransaction for a single bundle in the given observation
-// mode and returns the resulting published-message digests (sorted) plus any scissored
-// errors. It sets up the watcher and mock RPC exactly like TestProcessTransaction.
-//
-// isReobservation selects the flow: reobservation processes close-message events and
-// accepts any commitment, so it is the complete set; a plain observation may publish a
-// subset (e.g. close events are skipped).
-//
 // wantCount is the expected number of publications, or -1 when unknown. When known, we
 // drain exactly that many; when unknown, we collect until the channel is quiet for a
 // full settle window so the true count is discovered (needed for the observation flow,
 // whose subset is not known up front).
-func replayOutput(t *testing.T, b *replayBundle, isReobservation bool, wantCount int) (digests []string, replayErrs []error) {
+func newReplayWatcher(t *testing.T, b *replayBundle, msgC chan<- *common.MessagePublication) *SolanaWatcher {
 	t.Helper()
 
-	msgC := make(chan *common.MessagePublication, 64)
 	s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, msgC)
 	s.errC = make(chan error, 64)
+	s.ctx = context.Background()
 	s.contract = b.Contract
+	s.whLogPrefix = fmt.Sprintf("Program %s", b.Contract)
 	// The shim is always enabled on Solana, so wire it up for every bundle.
 	s.shimContractAddr = b.ShimContract
 	s.shimContractStr = b.ShimContract.String()
 	s.shimSetup()
+	return s
+}
 
-	// Serve the bundle's accounts from the mock RPC (account-based path).
-	m := newMockRPCServer(t)
-	defer m.Close()
+func seedReplayRPCClient(t *testing.T, b *replayBundle) *mockSolanaRPCClient {
+	t.Helper()
+
+	m := newMockSolanaRPCClient()
 	for _, acc := range b.Accounts {
 		require.NotEmpty(t, acc.Data, "account %s has no data", acc.Pubkey)
 		decoded, err := base64.StdEncoding.DecodeString(acc.Data[0])
 		require.NoError(t, err, "decode account data")
 		m.SetAccount(acc.Pubkey, acc.Owner.String(), decoded)
 	}
-	rpcClient := rpc.New(m.URL)
 
-	tx := b.Transaction // addressable copy
+	tx := b.Transaction
+	txBytes, err := tx.MarshalBinary()
+	require.NoError(t, err, "marshal bundle transaction")
 	meta := b.Meta
-	s.processTransaction(context.Background(), rpcClient, &tx, &meta, b.Slot, isReobservation)
+	if meta.Err == nil && len(meta.LogMessages) == 0 {
+		meta.LogMessages = []string{
+			fmt.Sprintf("Program %s invoke [1]", b.Contract),
+			"Program log: Sequence: 1",
+		}
+	}
 
-	// The account-based path publishes asynchronously after an RPC fetch.
+	txWithMeta := rpc.TransactionWithMeta{
+		Slot:        b.Slot,
+		Transaction: rpc.DataBytesOrJSONFromBytes(txBytes),
+		Meta:        &meta,
+		Version:     rpc.LegacyTransactionVersion,
+	}
+	m.blocks[b.Slot] = &rpc.GetBlockResult{Transactions: []rpc.TransactionWithMeta{txWithMeta}}
+
+	if len(tx.Signatures) > 0 {
+		m.transactions[tx.Signatures[0]] = makeGetTransactionResult(t, b.Slot, txBytes, &meta)
+	}
+	return m
+}
+
+func makeGetTransactionResult(t *testing.T, slot uint64, txBytes []byte, meta *rpc.TransactionMeta) *rpc.GetTransactionResult {
+	t.Helper()
+
+	raw := map[string]interface{}{
+		"slot":        slot,
+		"transaction": []string{base64.StdEncoding.EncodeToString(txBytes), "base64"},
+		"meta":        meta,
+		"version":     "legacy",
+	}
+	encoded, err := json.Marshal(raw)
+	require.NoError(t, err, "marshal getTransaction fixture")
+
+	var result rpc.GetTransactionResult
+	require.NoError(t, json.Unmarshal(encoded, &result), "decode getTransaction fixture")
+	return &result
+}
+
+func drainReplayOutput(t *testing.T, name string, msgC <-chan *common.MessagePublication, errC <-chan error, wantCount int) (digests []string, replayErrs []error) {
+	t.Helper()
+
 	const perMsg = 3 * time.Second
 	const settle = 1 * time.Second
 
@@ -204,7 +241,7 @@ func replayOutput(t *testing.T, b *replayBundle, isReobservation bool, wantCount
 		var errs []error
 		for {
 			select {
-			case err := <-s.errC:
+			case err := <-errC:
 				errs = append(errs, err)
 			default:
 				return errs
@@ -221,7 +258,7 @@ func replayOutput(t *testing.T, b *replayBundle, isReobservation bool, wantCount
 				require.NotNil(t, msg, "nil publication")
 				digests = append(digests, msg.CreateDigest())
 			case <-time.After(perMsg):
-				t.Fatalf("timed out waiting for publication %d/%d for %q", i+1, wantCount, b.Name)
+				t.Fatalf("timed out waiting for publication %d/%d for %q", i+1, wantCount, name)
 			}
 		}
 		replayErrs = drainErrs()
@@ -240,6 +277,33 @@ func replayOutput(t *testing.T, b *replayBundle, isReobservation bool, wantCount
 			return digests, replayErrs
 		}
 	}
+}
+
+func reobserveTransactionOutput(t *testing.T, b *replayBundle, wantCount int) (digests []string, replayErrs []error) {
+	t.Helper()
+
+	msgC := make(chan *common.MessagePublication, 64)
+	s := newReplayWatcher(t, b, msgC)
+	m := seedReplayRPCClient(t, b)
+	require.NotEmpty(t, b.Transaction.Signatures, "bundle has no transaction signature")
+	_, err := s.handleReobservationRequest(vaa.ChainIDSolana, b.Transaction.Signatures[0][:], m)
+	if b.Meta.Err == nil {
+		require.NoError(t, err, "reobserve transaction")
+	} else {
+		require.Error(t, err, "failed transaction reobservation should return an error")
+	}
+	return drainReplayOutput(t, b.Name, msgC, s.errC, wantCount)
+}
+
+func fetchBlockOutput(t *testing.T, b *replayBundle) (digests []string, replayErrs []error) {
+	t.Helper()
+
+	msgC := make(chan *common.MessagePublication, 64)
+	s := newReplayWatcher(t, b, msgC)
+	m := seedReplayRPCClient(t, b)
+	s.rpcClient = m
+	require.True(t, s.fetchBlock(context.Background(), s.logger, b.Slot, 0, false), "fetch block")
+	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
 }
 
 // postMessageAccounts returns the message account referenced by each core
@@ -297,12 +361,10 @@ func postMessageAccounts(b *replayBundle) []solana.PublicKey {
 	return accts
 }
 
-// fetchMessageAccountOutput runs each post_message / post_message_unreliable message
-// account through fetchMessageAccount — the by-account entry point used by
-// reobservation — and returns the digests it publishes. It mirrors the account-based
-// observation path directly (bypassing the transaction/instruction walk): a valid,
-// core-owned, finalized message account emits; anything else emits nothing.
-func fetchMessageAccountOutput(t *testing.T, b *replayBundle) (digests []string, replayErrs []error) {
+// reobserveAccountOutput runs each post_message / post_message_unreliable message
+// account through the guardian reobservation entrypoint. A valid, core-owned,
+// finalized message account emits; anything else emits nothing.
+func reobserveAccountOutput(t *testing.T, b *replayBundle) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	accts := postMessageAccounts(b)
@@ -311,45 +373,14 @@ func fetchMessageAccountOutput(t *testing.T, b *replayBundle) (digests []string,
 	}
 
 	msgC := make(chan *common.MessagePublication, 64)
-	s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, msgC)
-	s.errC = make(chan error, 64)
-	s.contract = b.Contract
+	s := newReplayWatcher(t, b, msgC)
+	m := seedReplayRPCClient(t, b)
 
-	m := newMockRPCServer(t)
-	defer m.Close()
-	for _, acc := range b.Accounts {
-		require.NotEmpty(t, acc.Data, "account %s has no data", acc.Pubkey)
-		decoded, err := base64.StdEncoding.DecodeString(acc.Data[0])
-		require.NoError(t, err, "decode account data")
-		m.SetAccount(acc.Pubkey, acc.Owner.String(), decoded)
-	}
-	rpcClient := rpc.New(m.URL)
-
-	// fetchMessageAccount is synchronous — it fetches the account and publishes inline —
-	// so after this loop every event is already queued. Use the observation flow
-	// (isReobservation=false) to match the "regular observation path" semantics.
 	for _, acc := range accts {
-		s.fetchMessageAccount(context.Background(), rpcClient, acc, b.Slot, false, solana.Signature{})
+		_, err := s.handleReobservationRequest(vaa.ChainIDSolana, acc[:], m)
+		require.NoError(t, err, "reobserve account")
 	}
-
-	const settle = 500 * time.Millisecond
-	for {
-		select {
-		case msg := <-msgC:
-			require.NotNil(t, msg, "nil publication")
-			digests = append(digests, msg.CreateDigest())
-		case <-time.After(settle):
-			sort.Strings(digests)
-			for {
-				select {
-				case err := <-s.errC:
-					replayErrs = append(replayErrs, err)
-				default:
-					return digests, replayErrs
-				}
-			}
-		}
-	}
+	return drainReplayOutput(t, b.Name, msgC, s.errC, -1)
 }
 
 // insertExpected returns a copy of a single bundle's raw JSON with a freshly recorded
@@ -371,19 +402,19 @@ func insertExpected(raw json.RawMessage, exp *expectedOutput) (json.RawMessage, 
 }
 
 // TestReplayGeneratedBundles reads the single committed bundle file and replays every
-// bundle through processTransaction TWICE: once as a reobservation and once as a plain
-// observation. The recorded `expected` block is the reobservation output — the complete
-// set of publications.
+// bundle through high-level watcher entrypoints. The recorded `expected` block is the
+// transaction reobservation output — the complete set of publications.
 //
 //   - Reobservation flow: every recorded digest must appear and none extra (exact match).
-//   - Observation flow: a subset is allowed — a recorded digest may legitimately not
-//     appear (e.g. close-message events are only processed on reobservation) — but no
-//     digest outside the recorded set may appear.
+//   - Block observation flow: a subset is allowed — a recorded digest may legitimately
+//     not appear (e.g. close-message events are only processed on reobservation) — but
+//     no digest outside the recorded set may appear.
 //
-// If a bundle has no `expected` block yet, the reobservation output is recorded back
-// into the same file.
+// If a bundle has no `expected` block yet, set UPDATE_SOLANA_REPLAY_FIXTURES=1 to
+// record the reobservation output back into the same file.
 func TestReplayGeneratedBundles(t *testing.T) {
 	guard := knownPublicationCounts()
+	updateFixtures := os.Getenv(updateReplayFixturesEnv) == "1"
 
 	raw, err := os.ReadFile(bundlesFile)
 	require.NoErrorf(t, err, "read %s; generate it with: go run ./pkg/watchers/solana/testgen/cmd --matrix all --out ./pkg/watchers/solana/%s", bundlesFile, bundlesFile)
@@ -405,26 +436,29 @@ func TestReplayGeneratedBundles(t *testing.T) {
 			t.Run(b.Name, func(t *testing.T) {
 				t.Parallel()
 
-				// Reobservation flow — the complete set.
+				// Transaction reobservation flow — the complete set.
 				reobWant := -1
 				if b.Expected != nil {
 					reobWant = b.Expected.Count
 				}
-				reobDigests, reobErrs := replayOutput(t, &b, true, reobWant)
+				reobDigests, reobErrs := reobserveTransactionOutput(t, &b, reobWant)
 				assert.Empty(t, reobErrs, "no scissored errors expected (reobservation)")
 
-				// Observation flow — a subset is allowed, so discover it via the settle
+				// Block observation flow — a subset is allowed, so discover it via the settle
 				// window rather than a known count.
-				obsDigests, obsErrs := replayOutput(t, &b, false, -1)
+				obsDigests, obsErrs := fetchBlockOutput(t, &b)
 				assert.Empty(t, obsErrs, "no scissored errors expected (observation)")
 
-				// Account-fetch flow — run each post_message message account through
-				// fetchMessageAccount. Like the observation path, any event it emits must
-				// be in the recorded hash list; if it emits nothing, that is fine.
-				fetchDigests, fetchErrs := fetchMessageAccountOutput(t, &b)
-				assert.Empty(t, fetchErrs, "no scissored errors expected (account fetch)")
+				// Account reobservation flow — run each post_message message account through
+				// handleReobservationRequest. Like the observation path, any event it emits
+				// must be in the recorded hash list; if it emits nothing, that is fine.
+				fetchDigests, fetchErrs := reobserveAccountOutput(t, &b)
+				assert.Empty(t, fetchErrs, "no scissored errors expected (account reobservation)")
 
 				if b.Expected == nil {
+					if !updateFixtures {
+						t.Fatalf("%q has no expected output; set %s=1 to record fixtures", b.Name, updateReplayFixturesEnv)
+					}
 					// Generation: record the reobservation output. Guard against baking
 					// in a count we know to be wrong.
 					if want, ok := guard[b.Name]; ok {
@@ -437,7 +471,7 @@ func TestReplayGeneratedBundles(t *testing.T) {
 						t.Fatalf("%q: observation published digest(s) not in the reobservation set: %v", b.Name, extra)
 					}
 					if _, extra := diffDigests(reobDigests, fetchDigests); len(extra) > 0 {
-						t.Fatalf("%q: account fetch published digest(s) not in the reobservation set: %v", b.Name, extra)
+						t.Fatalf("%q: account reobservation published digest(s) not in the transaction reobservation set: %v", b.Name, extra)
 					}
 					recordedByIndex[i] = &expectedOutput{Count: len(reobDigests), Digests: reobDigests}
 					t.Logf("recorded expected (reobservation) for %q: count=%d", b.Name, len(reobDigests))
@@ -466,9 +500,9 @@ func TestReplayGeneratedBundles(t *testing.T) {
 					t.Errorf("%q observation: %d message(s) published that are not in the reobservation set: %v", b.Name, len(extra), extra)
 				}
 
-				// Account fetch: subset — every event it emits must be a recorded hash.
+				// Account reobservation: subset — every event it emits must be a recorded hash.
 				if _, extra := diffDigests(want, fetchDigests); len(extra) > 0 {
-					t.Errorf("%q account fetch: %d fetchMessageAccount event(s) not in the reobservation set: %v", b.Name, len(extra), extra)
+					t.Errorf("%q account reobservation: %d event(s) not in the transaction reobservation set: %v", b.Name, len(extra), extra)
 				}
 			})
 		}
