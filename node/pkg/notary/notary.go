@@ -388,18 +388,20 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 		ReleaseTime: release.Add(dur),
 	}
 
-	// Store in in-memory slice. This should happen even if a database error occurs.
-	n.delayed.Push(pMsg)
-
-	// Store in database.
-	dbErr := n.database.StoreDelayed(pMsg)
-	if dbErr != nil {
+	// Persist first. The database is the source of truth across guardian
+	// restarts. Mutating in-memory ahead of a failed disk write would leave the
+	// running process behaving as if the message were delayed while
+	// loadFromDB() on the next restart would silently drop the entry.
+	if dbErr := n.database.StoreDelayed(pMsg); dbErr != nil {
 		return dbErr
 	}
 
+	// Persistence succeeded; commit the in-memory representation.
+	n.delayed.Push(pMsg)
+
 	n.logger.Info("notary: delayed message", msg.ZapFields()...)
 
-	return dbErr
+	return nil
 }
 
 // blackhole adds a message publication to the blackholed in-memory set and stores it in the database.
@@ -432,14 +434,18 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	// Store in in-memory slice. This should happen even if a database error occurs.
-	n.blackholed.Add(msg.MessageID())
-
-	// Store in database.
-	dbErr := n.database.StoreBlackholed(msg)
-	if dbErr != nil {
+	// Persist first. The database is the source of truth across guardian
+	// restarts. The whitepaper at whitepapers/0015_notary.md guarantees that
+	// blackholed messages "cannot be automatically released - requires manual
+	// intervention." That guarantee is only enforceable if the persisted set
+	// of blackholed messages matches the in-memory set at every point where a
+	// restart could intervene.
+	if dbErr := n.database.StoreBlackholed(msg); dbErr != nil {
 		return dbErr
 	}
+
+	// Persistence succeeded; commit the in-memory representation.
+	n.blackholed.Add(msg.MessageID())
 
 	n.logger.Info("notary: blackholed message", msg.ZapFields()...)
 
@@ -486,21 +492,24 @@ func (n *Notary) removeBlackholed(msgID []byte) (*common.MessagePublication, err
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
+	// Persist-delete first. If the disk delete fails and we had already
+	// removed the entry from the in-memory set, IsBlackholed(msgID) would
+	// return false for the remainder of the process lifetime while disk still
+	// held the entry, silently defeating the operator's kill switch until the
+	// next restart reloaded state from disk.
+	deletedMsgPub, err := n.database.DeleteBlackholed(msgID)
+	if err != nil {
+		return nil, err
+	}
+
 	currLen := n.blackholed.Len()
 	n.blackholed.Remove(msgID)
 	removeOccurred := n.blackholed.Len() < currLen
 
-	// Log if the message was not removed, then continue to try to delete it from the database
-	// for consistency.
 	if !removeOccurred {
 		n.logger.Info("notary: call to removeBlackholed did not remove a message", zap.String("msgID", string(msgID)))
 	} else {
 		n.logger.Info("notary: removed blackholed message from in-memory set", zap.String("msgID", string(msgID)))
-	}
-
-	deletedMsgPub, err := n.database.DeleteBlackholed(msgID)
-	if err != nil {
-		return nil, err
 	}
 
 	// No-op if the message is not in the database.
@@ -576,12 +585,17 @@ func (n *Notary) removeDelayed(msgID []byte) (*common.PendingMessage, error) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	removed, err := n.delayed.RemoveItem(msgID)
+	// Persist-delete first. If the disk delete fails and we had already
+	// removed the entry from the in-memory delayed queue, IsDelayed would
+	// return false for the remainder of the process lifetime while disk still
+	// held the entry, producing divergent in-memory / on-disk views of the
+	// delayed set that only reconverge on the next restart.
+	deletedPendingMsg, err := n.database.DeleteDelayed(msgID)
 	if err != nil {
 		return nil, err
 	}
 
-	deletedPendingMsg, err := n.database.DeleteDelayed(msgID)
+	removed, err := n.delayed.RemoveItem(msgID)
 	if err != nil {
 		return nil, err
 	}
