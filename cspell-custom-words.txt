@@ -254,6 +254,7 @@ utest
 UTXO
 uusd
 uvarint
+vaas
 varint
 varints
 vimdiff
@@ -275,5 +276,7 @@ XFER
 xlayer
 xpla
 XPLA
+XREG
+XREL
 XRPL
 Zellic
