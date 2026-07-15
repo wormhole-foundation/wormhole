@@ -589,11 +589,16 @@ func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePubl
 		return nil, nil
 	}
 
+	// Decline (nil, nil) — rather than error — if the transaction did not succeed
+	// or is not a Payment. A FAILED registration Payment still consumed its ticket
+	// on XRPL, so it must fall through to parseXACKTransaction, which emits a
+	// failure XACK that clears the ticket on the sequencer. Returning
+	// an error here would abort the whole dispatch and leave the ticket stuck.
 	if err = validateTransactionResult(tx); err != nil {
-		return nil, err
+		return nil, nil //nolint:nilerr // Intentional: failed registration Payment falls through to the XACK handler.
 	}
 	if err = validateTransactionType(tx.Transaction); err != nil {
-		return nil, err
+		return nil, nil //nolint:nilerr // Intentional: non-Payment falls through to the other parsers.
 	}
 
 	txHash, sequence, err := p.extractTxHashAndSequence(tx)

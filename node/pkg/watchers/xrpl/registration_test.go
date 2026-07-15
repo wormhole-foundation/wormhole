@@ -410,3 +410,31 @@ func TestRegistration_TicketedPayment_YieldsBothRegistrationAndXACK(t *testing.T
 	assert.Equal(t, transceiverInfoPrefix[:], msgs[0].Payload[0:4], "registration first")
 	assert.Equal(t, xackPrefix[:], msgs[1].Payload[0:4], "XACK second")
 }
+
+// TestRegistration_FailedPayment_YieldsFailureXACKNoRegistration covers the
+// failure case: a FAILED registration Payment still consumed its ticket on XRPL,
+// so it must NOT synthesize a registration but MUST fall through to a failure
+// XACK (success=0) that clears the stuck ticket on the sequencer. Regression for
+// the reviewer's "what if the XREG fails? / ticket stuck until BURN" concern.
+func TestRegistration_FailedPayment_YieldsFailureXACKNoRegistration(t *testing.T) {
+	manager := testRegManager20()
+	p := newRegParser(t, manager)
+
+	tx := regTxStream(managerAddress(t, manager), buildXregHubXRP(manager))
+	// Mark the transaction as failed (ticket is still consumed on XRPL).
+	tx.Meta.TransactionResult = "tecUNFUNDED_PAYMENT"
+	meta, ok := tx.Transaction["meta"].(map[string]any)
+	require.True(t, ok)
+	meta["TransactionResult"] = "tecUNFUNDED_PAYMENT"
+
+	msgs, err := p.ParseTransactionStream(tx)
+	require.NoError(t, err, "a failed registration Payment must not abort the dispatch")
+
+	// No registration (it failed), but a failure XACK to clear the ticket.
+	assert.Nil(t, findRegistration(msgs), "a failed registration must not synthesize a registration")
+	xack := findXACK(msgs)
+	require.NotNil(t, xack, "a failed registration Payment must still emit an XACK to clear its ticket")
+	assert.Equal(t, regTicketSequence, binary.BigEndian.Uint64(xack.Payload[4:12]), "XACK ticket")
+	assert.Equal(t, uint8(0), xack.Payload[12], "XACK success=0 (failed)")
+	assert.Equal(t, uint8(xackTxTypeRelease), xack.Payload[13], "XACK tx_type Release")
+}
