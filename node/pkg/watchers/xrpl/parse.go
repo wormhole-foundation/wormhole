@@ -471,26 +471,31 @@ func (p *Parser) parseNttTransaction(
 //     produces an XTCF. A failed TicketCreate intentionally falls through here
 //     (parseTicketCreateTransaction returns (nil, nil)) and is handled by
 //     parseXACKTransaction below.
-//  2. parseXACKTransaction — ticket-consuming transactions on a managed account
+//  2. parseRegistrationTransaction — a ticketed Payment to the core account with
+//     the registration MemoFormat (an XREG-in-XREL publish, relayed by the manager
+//     set from the custody/managed account) produces the synthesized NTT
+//     transceiver registration. Because that Payment is also XACK-eligible (managed
+//     sender + TicketSequence), it additionally emits an XACK — see the note below.
+//  3. parseXACKTransaction — ticket-consuming transactions on a managed account
 //     (Release Payments, failed TicketCreate, Burn/AccountSet) produce an XACK.
-//  3. parseCoreTransaction — payments to the core account with a Wormhole core
+//  4. parseCoreTransaction — payments to the core account with a Wormhole core
 //     memo produce a generic Wormhole message.
-//  4. parseNttTransaction — payments to a managed account with an NTT memo
+//  5. parseNttTransaction — payments to a managed account with an NTT memo
 //     produce an NTT transfer message.
 //
-// The order is load-bearing: TicketCreate must run before XACK (so successful
-// TicketCreates are claimed as XTCF rather than XACK), and the Core/NTT parsers
-// come last because they require a Destination field that TicketCreate
-// transactions do not have.
+// The order is load-bearing:
+//   - TicketCreate must run before XACK (so successful TicketCreates are claimed as
+//     XTCF rather than XACK).
+//   - Registration must run before XACK: a registration Payment is a ticketed
+//     Payment from a managed account, so the XACK parser would otherwise consume it
+//     and the registration would be lost.
+//   - Core/NTT come last because they require a Destination field that TicketCreate
+//     transactions do not have.
 //
-// A registration (XREG-in-XREL) publish is special: it is relayed by the manager
-// set as a ticketed Payment FROM the custody (managed) account, so it is ALSO an
-// XACK-eligible transaction. It therefore yields BOTH messages — the synthesized
-// registration (for the accountant) and the XACK (to clear the ticket the
-// registration consumed on the sequencer). We check registration first (it is
-// distinguished by its Destination == core account + registration MemoFormat), and
-// when it matches we also emit the XACK. A non-registration tx flows through the
-// usual single-parser dispatch.
+// A registration publish is the one case that yields TWO messages: the synthesized
+// registration (for the accountant) AND the XACK that clears the ticket the
+// registration consumed on the sequencer. Every other transaction yields at most
+// one message.
 //
 // Returns an empty slice if none matched.
 func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, error) {
@@ -501,7 +506,6 @@ func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, e
 	if msg != nil {
 		return []*common.MessagePublication{msg}, nil
 	}
-
 
 	regMsg, err := p.parseRegistrationTransaction(tx)
 	if err != nil {
