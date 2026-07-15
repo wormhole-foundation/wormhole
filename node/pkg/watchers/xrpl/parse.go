@@ -302,11 +302,14 @@ func NewParser(coreAccount string, managedAccounts []string, fetchMPTAssetScale 
 // Transaction parsing entry points
 // =============================================================================
 
-// ParseTransactionStream converts an XRPL TransactionStream into a MessagePublication.
+// ParseTransactionStream converts an XRPL TransactionStream into zero or more
+// MessagePublications. A single transaction usually yields one message, but a
+// registration publish (XREG-in-XREL) yields two: the synthesized registration
+// AND the XACK that clears the ticket it consumed.
 //
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check tx.Validated before calling this function.
-func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*common.MessagePublication, error) {
+func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) ([]*common.MessagePublication, error) {
 	// Parse ledger close time
 	timestamp, err := time.Parse(time.RFC3339, tx.CloseTimeISO)
 	if err != nil {
@@ -325,11 +328,13 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 	})
 }
 
-// ParseTxResponse converts a TxResponse (from reobservation) into a MessagePublication.
+// ParseTxResponse converts a TxResponse (from reobservation) into zero or more
+// MessagePublications (see ParseTransactionStream for why there may be more than
+// one).
 //
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check tx.Validated before calling this function.
-func (p *Parser) ParseTxResponse(tx *txResponseV2) (*common.MessagePublication, error) {
+func (p *Parser) ParseTxResponse(tx *txResponseV2) ([]*common.MessagePublication, error) {
 	timestamp, err := time.Parse(time.RFC3339, tx.CloseTimeISO)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse close_time_iso: %w", err)
@@ -477,31 +482,68 @@ func (p *Parser) parseNttTransaction(
 // TicketCreates are claimed as XTCF rather than XACK), and the Core/NTT parsers
 // come last because they require a Destination field that TicketCreate
 // transactions do not have.
-// Returns (nil, nil) if none matched.
-func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, error) {
+//
+// A registration (XREG-in-XREL) publish is special: it is relayed by the manager
+// set as a ticketed Payment FROM the custody (managed) account, so it is ALSO an
+// XACK-eligible transaction. It therefore yields BOTH messages — the synthesized
+// registration (for the accountant) and the XACK (to clear the ticket the
+// registration consumed on the sequencer). We check registration first (it is
+// distinguished by its Destination == core account + registration MemoFormat), and
+// when it matches we also emit the XACK. A non-registration tx flows through the
+// usual single-parser dispatch.
+//
+// Returns an empty slice if none matched.
+func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, error) {
 	msg, err := p.parseTicketCreateTransaction(tx)
-	if msg != nil || err != nil {
-		return msg, err
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		return []*common.MessagePublication{msg}, nil
+	}
+
+
+	regMsg, err := p.parseRegistrationTransaction(tx)
+	if err != nil {
+		return nil, err
+	}
+	if regMsg != nil {
+		msgs := []*common.MessagePublication{regMsg}
+		ackMsg, err := p.parseXACKTransaction(tx)
+		if err != nil {
+			return nil, err
+		}
+		if ackMsg != nil {
+			msgs = append(msgs, ackMsg)
+		}
+		return msgs, nil
 	}
 
 	msg, err = p.parseXACKTransaction(tx)
-	if msg != nil || err != nil {
-		return msg, err
+	if err != nil {
+		return nil, err
 	}
-
-	// Registration (XREG) publishes go to the core account but use a distinct
-	// MemoFormat, so they must be checked before the generic core parser.
-	msg, err = p.parseRegistrationTransaction(tx)
-	if msg != nil || err != nil {
-		return msg, err
+	if msg != nil {
+		return []*common.MessagePublication{msg}, nil
 	}
 
 	msg, err = p.parseCoreTransaction(tx)
-	if msg != nil || err != nil {
-		return msg, err
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		return []*common.MessagePublication{msg}, nil
 	}
 
-	return p.parseNttTransaction(tx)
+	msg, err = p.parseNttTransaction(tx)
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		return []*common.MessagePublication{msg}, nil
+	}
+
+	return nil, nil
 }
 
 // parseRegistrationTransaction parses an XREG registration publish (payment to

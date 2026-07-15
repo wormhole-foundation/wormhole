@@ -17,7 +17,36 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/common"
 )
+
+// firstOrNil collapses a (slice, error) parse result to a single message for the
+// many single-message test cases. Returns nil when the slice is empty. Callers
+// that expect multiple messages (registration) inspect the slice directly.
+func firstOrNil(msgs []*common.MessagePublication, err error) (*common.MessagePublication, error) {
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, nil
+	}
+	return msgs[0], nil
+}
+
+// parseStreamOne / parseRespOne preserve the pre-slice single-message signature
+// for the single-message test cases.
+func (p *Parser) parseStreamOne(tx *streamtypes.TransactionStream) (*common.MessagePublication, error) {
+	return firstOrNil(p.ParseTransactionStream(tx))
+}
+
+func (p *Parser) parseRespOne(tx *txResponseV2) (*common.MessagePublication, error) {
+	return firstOrNil(p.ParseTxResponse(tx))
+}
+
+func (p *Parser) parseOne(tx GenericTx) (*common.MessagePublication, error) {
+	return firstOrNil(p.parseTransaction(tx))
+}
 
 // Sample NTT MemoData (hex-encoded, 72 bytes)
 // Format: prefix(4) + recipientNTTManager(32) + recipientAddress(32) + recipientChain(2) + fromDecimals(1) + toDecimals(1)
@@ -1357,7 +1386,7 @@ func TestParseTransactionStream_ValidTransaction(t *testing.T) {
 		},
 	}
 
-	msg, err := p.ParseTransactionStream(tx)
+	msg, err := p.parseStreamOne(tx)
 
 	require.NoError(t, err)
 	require.NotNil(t, msg)
@@ -1408,7 +1437,7 @@ func TestParseTransactionStream_NoNTTMemo(t *testing.T) {
 		},
 	}
 
-	msg, err := p.ParseTransactionStream(tx)
+	msg, err := p.parseStreamOne(tx)
 
 	require.NoError(t, err)
 	assert.Nil(t, msg, "Should return nil for transaction without NTT memo")
@@ -1507,7 +1536,7 @@ func TestParseTransactionStream_FailsOnNonSuccessResult(t *testing.T) {
 		},
 	}
 
-	msg, err := p.ParseTransactionStream(tx)
+	msg, err := p.parseStreamOne(tx)
 	require.Error(t, err)
 	assert.Nil(t, msg)
 	assert.Contains(t, err.Error(), "tecUNFUNDED_PAYMENT")
@@ -1585,7 +1614,7 @@ func TestParseTransactionStream_XRPPayment_FullFlow(t *testing.T) {
 		},
 	}
 
-	msg, err := p.ParseTransactionStream(tx)
+	msg, err := p.parseStreamOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -1649,7 +1678,7 @@ func TestParseTransactionStream_TrustLinePayment_FullFlow(t *testing.T) {
 		},
 	}
 
-	msg, err := p.ParseTransactionStream(tx)
+	msg, err := p.parseStreamOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -1729,7 +1758,7 @@ func TestParseTxResponse_ValidTransaction(t *testing.T) {
 		CloseTimeISO: "2024-11-05T06:00:00Z",
 	}
 
-	msg, err := p.ParseTxResponse(tx)
+	msg, err := p.parseRespOne(tx)
 
 	require.NoError(t, err)
 	require.NotNil(t, msg)
@@ -1770,7 +1799,7 @@ func TestParseTxResponse_NoNTTMemo(t *testing.T) {
 		CloseTimeISO: "2024-11-05T06:00:00Z",
 	}
 
-	msg, err := p.ParseTxResponse(tx)
+	msg, err := p.parseRespOne(tx)
 
 	require.NoError(t, err)
 	assert.Nil(t, msg, "Should return nil for transaction without NTT memo")
@@ -2151,7 +2180,7 @@ func TestParseTransactionStream_MPTPayment_FullFlow(t *testing.T) {
 		},
 	}
 
-	msg, err := p.ParseTransactionStream(tx)
+	msg, err := p.parseStreamOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -2539,7 +2568,7 @@ func TestParseTransactionStream_CoreMessage(t *testing.T) {
 		},
 	}
 
-	msg, err := p.ParseTransactionStream(tx)
+	msg, err := p.parseStreamOne(tx)
 
 	require.NoError(t, err)
 	require.NotNil(t, msg)
@@ -2707,12 +2736,12 @@ func TestParseTicketCreateTransaction_DispatchedFromParseTransaction(t *testing.
 	p := NewParser("", []string{testManagedAccount}, nil)
 
 	tx := createTicketCreateTx(testManagedAccount, []float64{200, 201, 202})
-	msg, err := p.parseTransaction(tx)
+	msgs, err := p.parseTransaction(tx)
 	require.NoError(t, err)
-	require.NotNil(t, msg)
+	require.Len(t, msgs, 1)
 
 	// Verify it was dispatched correctly (XTCF prefix)
-	assert.Equal(t, xtcfPrefix[:], msg.Payload[0:4])
+	assert.Equal(t, xtcfPrefix[:], msgs[0].Payload[0:4])
 }
 
 func TestParseTxResponse_TicketCreateTimestamp(t *testing.T) {
@@ -2757,7 +2786,7 @@ func TestParseTxResponse_TicketCreateTimestamp(t *testing.T) {
 		CloseTimeISO: "2024-11-05T06:00:00Z",
 	}
 
-	msg, err := p.ParseTxResponse(tx)
+	msg, err := p.parseRespOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -2806,7 +2835,7 @@ func TestParseTxResponse_EmptyCloseTimeISO(t *testing.T) {
 		CloseTimeISO: "",
 	}
 
-	msg, err := p.ParseTxResponse(tx)
+	msg, err := p.parseRespOne(tx)
 	require.Error(t, err)
 	require.Nil(t, msg)
 	assert.Contains(t, err.Error(), "failed to parse close_time_iso")
@@ -3618,7 +3647,7 @@ func TestParseXACKTransaction_DispatchedFromParseTransaction(t *testing.T) {
 
 	// A Release Payment with TicketSequence should produce XACK through parseTransaction
 	tx := createXACKTx(testManagedAccount, "Payment", 42, "tesSUCCESS")
-	msg, err := p.parseTransaction(tx)
+	msg, err := p.parseOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -3631,7 +3660,7 @@ func TestParseXACKTransaction_FailedTicketCreateDispatch(t *testing.T) {
 
 	// A failed TicketCreate with TicketSequence should fall through XTCF and produce XACK
 	tx := createXACKTx(testManagedAccount, "TicketCreate", 50, "tecNO_PERMISSION")
-	msg, err := p.parseTransaction(tx)
+	msg, err := p.parseOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -3650,7 +3679,7 @@ func TestParseXACKTransaction_SuccessfulTicketCreateStillXTCF(t *testing.T) {
 
 	// A successful TicketCreate should still be handled by XTCF, not XACK
 	tx := createTicketCreateTx(testManagedAccount, []float64{200, 201, 202})
-	msg, err := p.parseTransaction(tx)
+	msg, err := p.parseOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 
@@ -3833,7 +3862,7 @@ func TestParseXACKTransaction_BurnDispatch(t *testing.T) {
 
 	// An AccountSet with TicketSequence should produce XACK through parseTransaction
 	tx := createXACKTx(testManagedAccount, "AccountSet", 77, "tesSUCCESS")
-	msg, err := p.parseTransaction(tx)
+	msg, err := p.parseOne(tx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 

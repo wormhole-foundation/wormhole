@@ -245,7 +245,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				logger.Info("Received reobservation request",
 					zap.String("txHash", hex.EncodeToString(txHash)))
 
-				msg, err := w.fetchAndParseTransaction(txHash)
+				msgs, err := w.fetchAndParseTransaction(txHash)
 				if err != nil {
 					logger.Error("Failed to fetch transaction for reobservation",
 						zap.String("txHash", hex.EncodeToString(txHash)),
@@ -255,7 +255,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 
-				if msg != nil {
+				for _, msg := range msgs {
 					msg.IsReobservation = true
 					w.msgChan <- msg
 					watchers.ReobservationsByChain.WithLabelValues("xrpl", "std").Inc()
@@ -339,28 +339,26 @@ func (w *Watcher) processTransaction(tx *streamtypes.TransactionStream) error {
 		return nil
 	}
 
-	// Parse the transaction and extract Wormhole message
-	msg, err := w.parser.ParseTransactionStream(tx)
+	// Parse the transaction and extract Wormhole messages. A single transaction
+	// may yield more than one message (e.g. a registration publish yields the
+	// registration plus its XACK).
+	msgs, err := w.parser.ParseTransactionStream(tx)
 	if err != nil {
 		return fmt.Errorf("failed to parse transaction: %w", err)
 	}
 
-	// msg is nil if transaction doesn't contain a Wormhole message
-	if msg == nil {
-		return nil
+	// Send each message to the processor.
+	for _, msg := range msgs {
+		w.msgChan <- msg
+		xrplMessagesConfirmed.Inc()
+		w.logger.Info("message observed", msg.ZapFields()...)
 	}
-
-	// Send to processor
-	w.msgChan <- msg
-	xrplMessagesConfirmed.Inc()
-
-	w.logger.Info("message observed", msg.ZapFields()...)
 
 	return nil
 }
 
 // fetchAndParseTransaction fetches a specific transaction by hash for reobservation.
-func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublication, error) {
+func (w *Watcher) fetchAndParseTransaction(txHash []byte) ([]*common.MessagePublication, error) {
 	// Fetch transaction by hash
 	txReq := &transactions.TxRequest{
 		Transaction: hex.EncodeToString(txHash),

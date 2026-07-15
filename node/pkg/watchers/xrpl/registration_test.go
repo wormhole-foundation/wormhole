@@ -1,6 +1,7 @@
 package xrpl
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/common"
 )
 
 // testRegCoreAccount is the core (GMP) account that registration publishes target.
@@ -90,8 +93,16 @@ func buildXregPeerXRP(manager [20]byte, peerChain uint16, peerAddr [32]byte) []b
 	return out
 }
 
+// regTicketSequence is the ticket the manager-built registration Payment consumes.
+const regTicketSequence = uint64(42)
+
 // regTxStream builds a registration publish signed by `sender` (the XRPL
 // Account field) carrying the given XREG memo, targeting the core account.
+//
+// It mirrors the real manager-built XrplRelease: a ticketed Payment (it sets
+// TicketSequence), so the watcher must recognize it as a registration AND ack the
+// ticket. (The earlier version omitted TicketSequence, which masked the bug where
+// parseXACKTransaction would consume the tx before registration parsing.)
 func regTxStream(sender string, memoData []byte) *streamtypes.TransactionStream {
 	return &streamtypes.TransactionStream{
 		Hash:         "ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890",
@@ -102,6 +113,7 @@ func regTxStream(sender string, memoData []byte) *streamtypes.TransactionStream 
 			"TransactionType": "Payment",
 			"Account":         sender,
 			"Destination":     testRegCoreAccount,
+			"TicketSequence":  float64(regTicketSequence),
 			"meta": map[string]any{
 				"TransactionResult": "tesSUCCESS",
 			},
@@ -121,6 +133,29 @@ func regTxStream(sender string, memoData []byte) *streamtypes.TransactionStream 
 	}
 }
 
+// findRegistration returns the synthesized registration message (a
+// TransceiverInfo or TransceiverRegistration) from a parse result, or nil.
+func findRegistration(msgs []*common.MessagePublication) *common.MessagePublication {
+	for _, m := range msgs {
+		if len(m.Payload) >= 4 &&
+			(bytes.Equal(m.Payload[0:4], transceiverInfoPrefix[:]) ||
+				bytes.Equal(m.Payload[0:4], transceiverRegPrefix[:])) {
+			return m
+		}
+	}
+	return nil
+}
+
+// findXACK returns the XACK message from a parse result, or nil.
+func findXACK(msgs []*common.MessagePublication) *common.MessagePublication {
+	for _, m := range msgs {
+		if len(m.Payload) >= 4 && bytes.Equal(m.Payload[0:4], xackPrefix[:]) {
+			return m
+		}
+	}
+	return nil
+}
+
 // managerToEmitter mirrors the transfer-path manager32 derivation (20-byte
 // account id left-padded into 32 bytes).
 func manager32From20(m [20]byte) [32]byte {
@@ -133,9 +168,14 @@ func TestRegistration_HubXRP_EmitterMatchesTransferPath(t *testing.T) {
 	manager := testRegManager20()
 	p := newRegParser(t, manager)
 
-	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubXRP(manager)))
+	msgs, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubXRP(manager)))
 	require.NoError(t, err)
-	require.NotNil(t, msg, "registration publish should produce a message")
+
+	// The registration Payment is a ticketed Payment from a managed account, so it
+	// yields BOTH the registration and the XACK that clears its ticket.
+	msg := findRegistration(msgs)
+	require.NotNil(t, msg, "registration publish should produce a registration message")
+	assertRegistrationXACK(t, msgs)
 
 	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
 
@@ -155,6 +195,19 @@ func TestRegistration_HubXRP_EmitterMatchesTransferPath(t *testing.T) {
 	assert.Equal(t, uint8(xrpDecimals), msg.Payload[69])
 }
 
+// assertRegistrationXACK checks the parse result also contains the XACK that
+// clears the ticket the registration Payment consumed: a Release (tx_type=0)
+// success XACK echoing regTicketSequence.
+func assertRegistrationXACK(t *testing.T, msgs []*common.MessagePublication) {
+	t.Helper()
+	xack := findXACK(msgs)
+	require.NotNil(t, xack, "registration Payment must also emit an XACK to clear its ticket")
+	require.Equal(t, xackPayloadLen, len(xack.Payload))
+	assert.Equal(t, regTicketSequence, binary.BigEndian.Uint64(xack.Payload[4:12]), "XACK ticket")
+	assert.Equal(t, uint8(1), xack.Payload[12], "XACK success")
+	assert.Equal(t, uint8(xackTxTypeRelease), xack.Payload[13], "XACK tx_type Release")
+}
+
 func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
 	manager := testRegManager20()
 	p := newRegParser(t, manager)
@@ -166,9 +219,11 @@ func TestRegistration_HubIOU_EmitterMatchesTransferPath(t *testing.T) {
 		issuer[i] = byte(0xA0 + i)
 	}
 
-	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubIOU(manager, currency, issuer, 9)))
+	msgs, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubIOU(manager, currency, issuer, 9)))
 	require.NoError(t, err)
+	msg := findRegistration(msgs)
 	require.NotNil(t, msg)
+	assertRegistrationXACK(t, msgs)
 
 	// Build the expected IOU sourceToken the SAME way the transfer path does:
 	// 0x01 || keccak256(currency20 || issuer20)[1:].
@@ -199,8 +254,9 @@ func TestRegistration_HubIOU_BurningWhenManagerIsIssuer(t *testing.T) {
 	// issuer == manager => Burning mode.
 	issuer := manager
 
-	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubIOU(manager, currency, issuer, 9)))
+	msgs, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubIOU(manager, currency, issuer, 9)))
 	require.NoError(t, err)
+	msg := findRegistration(msgs)
 	require.NotNil(t, msg)
 
 	require.Equal(t, transceiverInfoLen, len(msg.Payload))
@@ -218,8 +274,9 @@ func TestRegistration_HubMPT_BurningWhenManagerIsIssuer(t *testing.T) {
 	mptID[3] = 0x07               // arbitrary sequence (first 4 bytes)
 	copy(mptID[4:24], manager[:]) // issuer is the last 20 bytes
 
-	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubMPT(manager, mptID, 6)))
+	msgs, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubMPT(manager, mptID, 6)))
 	require.NoError(t, err)
+	msg := findRegistration(msgs)
 	require.NotNil(t, msg)
 
 	require.Equal(t, transceiverInfoLen, len(msg.Payload))
@@ -236,9 +293,11 @@ func TestRegistration_PeerXRP(t *testing.T) {
 	}
 	const peerChain = uint16(6) // Avalanche
 
-	msg, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregPeerXRP(manager, peerChain, peerAddr)))
+	msgs, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregPeerXRP(manager, peerChain, peerAddr)))
 	require.NoError(t, err)
+	msg := findRegistration(msgs)
 	require.NotNil(t, msg)
+	assertRegistrationXACK(t, msgs)
 
 	// Emitter is keyed on the SAME (manager, XRP token) as the hub/transfers.
 	var zeroToken [32]byte
@@ -270,13 +329,13 @@ func TestRegistration_WrongMemoFormat_NotRegistration(t *testing.T) {
 	memo["MemoFormat"] = coreMemoFormat
 	memo["MemoData"] = hex.EncodeToString(coreMemo)
 
-	// A valid core publish parses (as a generic core message), but must NOT be a
-	// transceiver-info payload — proving the registration parser declined it.
-	msg, err := p.ParseTransactionStream(tx)
+	// The memo is no longer a registration memo, so no registration message must
+	// be produced. (The tx is a managed account's ticketed Payment, so it is acked
+	// as an XACK — that is expected and fine; we only assert registration absence.)
+	msgs, err := p.ParseTransactionStream(tx)
 	require.NoError(t, err)
-	require.NotNil(t, msg)
-	assert.NotEqual(t, transceiverInfoPrefix[:], msg.Payload[0:4],
-		"non-XREG memo must not synthesize a transceiver-info payload")
+	assert.Nil(t, findRegistration(msgs),
+		"non-XREG memo must not synthesize a transceiver registration")
 }
 
 // TestRegistration_UntrustedSender_Declined ensures a registration publish from
@@ -294,9 +353,12 @@ func TestRegistration_UntrustedSender_Declined(t *testing.T) {
 	}
 	tx := regTxStream(managerAddress(t, attacker), buildXregHubXRP(manager))
 
-	msg, err := p.ParseTransactionStream(tx)
+	// The sender is NOT a managed account, so registration is declined AND the
+	// XACK path also declines (its first gate is managed membership) => no messages.
+	msgs, err := p.ParseTransactionStream(tx)
 	require.NoError(t, err)
-	assert.Nil(t, msg, "registration from an untrusted sender must be declined")
+	assert.Nil(t, findRegistration(msgs), "registration from an untrusted sender must be declined")
+	assert.Empty(t, msgs, "an untrusted (unmanaged) sender must produce no messages")
 }
 
 // TestRegistration_ManagerMismatch_Declined ensures the XREG manager field must
@@ -313,7 +375,38 @@ func TestRegistration_ManagerMismatch_Declined(t *testing.T) {
 	p := newRegParser(t, sender)
 	tx := regTxStream(managerAddress(t, sender), buildXregHubXRP(otherManager))
 
-	msg, err := p.ParseTransactionStream(tx)
+	// Registration is declined (manager != sender), but the sender IS a managed
+	// account with a ticket, so the XACK is still emitted to clear that ticket.
+	msgs, err := p.ParseTransactionStream(tx)
 	require.NoError(t, err)
-	assert.Nil(t, msg, "registration whose manager != sender must be declined")
+	assert.Nil(t, findRegistration(msgs), "registration whose manager != sender must be declined")
+	assert.NotNil(t, findXACK(msgs), "the managed sender's ticket must still be acked")
+}
+
+// TestRegistration_TicketedPayment_YieldsBothRegistrationAndXACK is the
+// regression test for the collision the reviewer found: the manager relays the
+// registration as a ticketed XrplRelease Payment. Because that Payment is from a
+// managed account with a TicketSequence, parseXACKTransaction would otherwise
+// consume it before parseRegistrationTransaction runs — dropping the
+// registration. The watcher must yield BOTH the registration (for the accountant)
+// AND the XACK (to clear the ticket).
+func TestRegistration_TicketedPayment_YieldsBothRegistrationAndXACK(t *testing.T) {
+	manager := testRegManager20()
+	p := newRegParser(t, manager)
+
+	msgs, err := p.ParseTransactionStream(regTxStream(managerAddress(t, manager), buildXregHubXRP(manager)))
+	require.NoError(t, err)
+	require.Len(t, msgs, 2, "a ticketed registration Payment must yield exactly two messages")
+
+	// Registration present (for the accountant).
+	reg := findRegistration(msgs)
+	require.NotNil(t, reg, "registration message must be present")
+	assert.Equal(t, transceiverInfoPrefix[:], reg.Payload[0:4])
+
+	// XACK present, clearing the ticket the registration consumed.
+	assertRegistrationXACK(t, msgs)
+
+	// Ordering: the registration comes first, then the XACK.
+	assert.Equal(t, transceiverInfoPrefix[:], msgs[0].Payload[0:4], "registration first")
+	assert.Equal(t, xackPrefix[:], msgs[1].Payload[0:4], "XACK second")
 }
