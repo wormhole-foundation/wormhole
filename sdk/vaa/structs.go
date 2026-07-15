@@ -377,6 +377,8 @@ const (
 	ChainIDArc ChainID = 71
 	// ChainIDRobinhoodChain is the ChainID of Robinhood Chain
 	ChainIDRobinhoodChain ChainID = 72
+	// ChainIDHydration is the ChainID of Hydration
+	ChainIDHydration ChainID = 73
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104

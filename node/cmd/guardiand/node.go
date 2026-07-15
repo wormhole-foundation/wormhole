@@ -238,6 +238,9 @@ var (
 	arcRPC      *string
 	arcContract *string
 
+	hydrationRPC      *string
+	hydrationContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -508,6 +511,9 @@ func init() {
 
 	arcRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arcRPC", "Arc RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
 	arcContract = NodeCmd.Flags().String("arcContract", "", "Arc contract address")
+
+	hydrationRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "hydrationRPC", "Hydration RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
+	hydrationContract = NodeCmd.Flags().String("hydrationContract", "", "Hydration contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -933,6 +939,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*tempoContract = checkEvmArgs(logger, *tempoRPC, *tempoContract, vaa.ChainIDTempo)
 	*nexusContract = checkEvmArgs(logger, *nexusRPC, *nexusContract, vaa.ChainIDNexus)
 	*arcContract = checkEvmArgs(logger, *arcRPC, *arcContract, vaa.ChainIDArc)
+	*hydrationContract = checkEvmArgs(logger, *hydrationRPC, *hydrationContract, vaa.ChainIDHydration)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
@@ -1680,6 +1687,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDArc,
 			Rpc:              *arcRPC,
 			Contract:         *arcContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(hydrationRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "hydration",
+			ChainID:          vaa.ChainIDHydration,
+			Rpc:              *hydrationRPC,
+			Contract:         *hydrationContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
