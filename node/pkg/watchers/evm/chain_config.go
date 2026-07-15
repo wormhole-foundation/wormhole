@@ -73,6 +73,7 @@ var (
 		vaa.ChainIDKlaytn:    {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 8217, PublicRPC: "https://public-en.node.kaia.io", ContractAddr: "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"},
 		vaa.ChainIDCelo:      {Finalized: true, Safe: false, EvmChainID: 42220, PublicRPC: "https://celo-rpc.publicnode.com", ContractAddr: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E"},
 		vaa.ChainIDMoonbeam:  {Finalized: true, Safe: true, EvmChainID: 1284, PublicRPC: "https://moonbeam-rpc.publicnode.com", ContractAddr: "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"},
+		vaa.ChainIDTaifoon:   {Finalized: true, Safe: true, EvmChainID: 36927, PublicRPC: "https://rpc.taifoon.network", ContractAddr: "0x0000000000000000000000000000000000000000"}, // TODO: Taifoon Core Bridge address once deployed
 		vaa.ChainIDArbitrum:  {Finalized: true, Safe: true, EvmChainID: 42161, PublicRPC: "https://arbitrum-one-rpc.publicnode.com", ContractAddr: "0xa5f208e072434bC67592E4C49C1B991BA79BCA46"},
 		vaa.ChainIDOptimism:  {Finalized: true, Safe: true, EvmChainID: 10, PublicRPC: "https://optimism-rpc.publicnode.com", ContractAddr: "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"},
 		// vaa.ChainIDGnosis:     Not supported in the guardian.

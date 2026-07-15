@@ -377,6 +377,8 @@ const (
 	ChainIDArc ChainID = 71
 	// ChainIDRobinhoodChain is the ChainID of Robinhood Chain
 	ChainIDRobinhoodChain ChainID = 72
+	// ChainIDTaifoon is the ChainID of Taifoon (Moonbeam fork, EVM chainId 36927)
+	ChainIDTaifoon ChainID = 73
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
