@@ -469,7 +469,8 @@ func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, e
 	}
 	if regMsg != nil {
 		msgs := []*common.MessagePublication{regMsg}
-		ackMsg, err := p.parseXACKTransaction(tx)
+		var ackMsg *common.MessagePublication
+		ackMsg, err = p.parseXACKTransaction(tx)
 		if err != nil {
 			return nil, err
 		}
