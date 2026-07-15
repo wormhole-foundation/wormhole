@@ -96,6 +96,8 @@ var (
 
 	moonbeamRPC      *string
 	moonbeamContract *string
+	taifoonRPC       *string
+	taifoonContract  *string
 
 	terra2WS       *string
 	terra2LCD      *string
@@ -366,6 +368,8 @@ func init() {
 
 	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
+	taifoonRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "taifoonRPC", "Taifoon parachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	taifoonContract = NodeCmd.Flags().String("taifoonContract", "", "Taifoon Core Bridge contract address")
 
 	terra2WS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2WS", "Path to terrad root for websocket connection", "ws://terra2-terrad:26657/websocket", []string{"ws", "wss"})
 	terra2LCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2LCD", "Path to LCD service root for http calls", "http://terra2-terrad:1317", []string{"http", "https"})
@@ -900,6 +904,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*klaytnContract = checkEvmArgs(logger, *klaytnRPC, *klaytnContract, vaa.ChainIDKlaytn)
 	*celoContract = checkEvmArgs(logger, *celoRPC, *celoContract, vaa.ChainIDCelo)
 	*moonbeamContract = checkEvmArgs(logger, *moonbeamRPC, *moonbeamContract, vaa.ChainIDMoonbeam)
+	*taifoonContract = checkEvmArgs(logger, *taifoonRPC, *taifoonContract, vaa.ChainIDTaifoon)
 	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, vaa.ChainIDArbitrum)
 	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, vaa.ChainIDOptimism)
 	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, vaa.ChainIDBase)
@@ -1074,6 +1079,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
+	rpcMap["taifoonRPC"] = *taifoonRPC
 	rpcMap["injectiveLCD"] = *injectiveLCD
 	rpcMap["injectiveWS"] = *injectiveWS
 	// ChainIDOsmosis is not supported in the guardian.
@@ -1393,6 +1399,19 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:          *moonbeamContract,
 			CcqBackfillCache:  *ccqBackfillCache,
 			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMoonbeam),
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(taifoonRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:         "taifoon",
+			ChainID:           vaa.ChainIDTaifoon,
+			Rpc:               *taifoonRPC,
+			Contract:          *taifoonContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDTaifoon),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
