@@ -438,3 +438,20 @@ func TestRegistration_FailedPayment_YieldsFailureXACKNoRegistration(t *testing.T
 	assert.Equal(t, uint8(0), xack.Payload[12], "XACK success=0 (failed)")
 	assert.Equal(t, uint8(xackTxTypeRelease), xack.Payload[13], "XACK tx_type Release")
 }
+
+func TestRegistration_MalformedMemo_StillYieldsXACK(t *testing.T) {
+	manager := testRegManager20()
+	p := newRegParser(t, manager)
+	badXreg := append([]byte{}, xregPrefix[:]...)
+	badXreg = append(badXreg, xregKindHub)
+	badXreg = append(badXreg, manager[:]...)
+	badXreg = append(badXreg, xregTokenXRP) // token_id, but no trailing decimals byte
+	tx := regTxStream(managerAddress(t, manager), badXreg)
+	msgs, err := p.ParseTransactionStream(tx)
+	require.NoError(t, err, "a malformed registration memo must not abort the dispatch")
+	assert.Nil(t, findRegistration(msgs), "malformed XREG must not synthesize a registration")
+	xack := findXACK(msgs)
+	require.NotNil(t, xack, "a ticketed managed Payment must still emit an XACK even if the XREG is malformed")
+	assert.Equal(t, regTicketSequence, binary.BigEndian.Uint64(xack.Payload[4:12]), "XACK ticket")
+	assert.Equal(t, uint8(xackTxTypeRelease), xack.Payload[13], "XACK tx_type Release")
+}

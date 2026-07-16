@@ -518,28 +518,19 @@ func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePubl
 	}
 
 	destination, err := p.extractDestination(tx.Transaction)
-	if err != nil {
-		return nil, err
-	}
-	if destination != p.coreAccount {
-		return nil, nil
+	if err != nil || destination != p.coreAccount {
+		return nil, nil //nolint:nilerr // Intentional: not a registration; fall through to the other parsers.
 	}
 
 	// Read the registration memo (memo[0], regMemoFormat). nil => not an XREG.
 	regData, err := p.parseRegistrationMemoData(tx.Transaction)
-	if err != nil {
-		return nil, err
-	}
-	if regData == nil {
-		return nil, nil
+	if err != nil || regData == nil {
+		return nil, nil //nolint:nilerr // Intentional: not a (valid) registration; fall through to the XACK handler.
 	}
 
 	senderID, err := p.registrationSenderAccountID(tx.Transaction)
-	if err != nil {
-		return nil, err
-	}
-	if senderID == nil {
-		return nil, nil
+	if err != nil || senderID == nil {
+		return nil, nil //nolint:nilerr // Intentional: fall through to the XACK handler.
 	}
 	// manager occupies bytes [xregManagerOffset:xregHeaderLen] of the XREG payload.
 	if len(regData) < xregHeaderLen || !bytes.Equal(senderID, regData[xregManagerOffset:xregHeaderLen]) {
@@ -558,15 +549,18 @@ func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePubl
 		return nil, nil //nolint:nilerr // Intentional: non-Payment falls through to the other parsers.
 	}
 
+	// From here the tx is a confirmed registration that consumed a ticket. If the
+	// tx metadata or the payload can't be built, still decline (nil, nil) so the
+	// XACK handler runs and clears the ticket — never abort the dispatch.
 	txHash, sequence, err := p.extractTxHashAndSequence(tx)
 	if err != nil {
-		return nil, err
+		return nil, nil //nolint:nilerr // Intentional: fall through to the XACK handler so the ticket is acked.
 	}
 
 	// Synthesize the canonical transceiver payload + re-keyed emitter.
 	payload, emitter, err := buildRegistrationMessage(regData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build registration message: %w", err)
+		return nil, nil //nolint:nilerr // Intentional: fall through to the XACK handler so the ticket is acked.
 	}
 
 	return &common.MessagePublication{

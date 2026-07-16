@@ -3643,7 +3643,7 @@ func TestParseXACKTransaction_TransactionIndexOverflow(t *testing.T) {
 }
 
 func TestParseXACKTransaction_DispatchedFromParseTransaction(t *testing.T) {
-	p := NewParser("", []string{testManagedAccount}, nil)
+	p := NewParser(testCoreAccount, []string{testManagedAccount}, nil)
 
 	// A Release Payment with TicketSequence should produce XACK through parseTransaction
 	tx := createXACKTx(testManagedAccount, "Payment", 42, "tesSUCCESS")
@@ -3656,7 +3656,7 @@ func TestParseXACKTransaction_DispatchedFromParseTransaction(t *testing.T) {
 }
 
 func TestParseXACKTransaction_FailedTicketCreateDispatch(t *testing.T) {
-	p := NewParser("", []string{testManagedAccount}, nil)
+	p := NewParser(testCoreAccount, []string{testManagedAccount}, nil)
 
 	// A failed TicketCreate with TicketSequence should fall through XTCF and produce XACK
 	tx := createXACKTx(testManagedAccount, "TicketCreate", 50, "tecNO_PERMISSION")
@@ -3675,7 +3675,9 @@ func TestParseXACKTransaction_FailedTicketCreateDispatch(t *testing.T) {
 }
 
 func TestParseXACKTransaction_SuccessfulTicketCreateStillXTCF(t *testing.T) {
-	p := NewParser("", []string{testManagedAccount}, nil)
+	// coreAccount set (realistic): a successful TicketCreate (no Destination) must
+	// still be claimed as XTCF, falling through the registration parser.
+	p := NewParser(testCoreAccount, []string{testManagedAccount}, nil)
 
 	// A successful TicketCreate should still be handled by XTCF, not XACK
 	tx := createTicketCreateTx(testManagedAccount, []float64{200, 201, 202})
@@ -3858,7 +3860,7 @@ func TestParseXACKTransaction_NonNoOpAccountSetSkipped(t *testing.T) {
 }
 
 func TestParseXACKTransaction_BurnDispatch(t *testing.T) {
-	p := NewParser("", []string{testManagedAccount}, nil)
+	p := NewParser(testCoreAccount, []string{testManagedAccount}, nil)
 
 	// An AccountSet with TicketSequence should produce XACK through parseTransaction
 	tx := createXACKTx(testManagedAccount, "AccountSet", 77, "tesSUCCESS")
