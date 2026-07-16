@@ -141,8 +141,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
 
-	// Initialize the parser with the watcher's fetchMPTAssetScale method
-	w.parser = NewParser(w.contract, w.nttAccounts, w.fetchMPTAssetScale)
+	// Initialize the parser with the watcher's fetchMPTAssetScale method and logger.
+	w.parser = NewParser(w.contract, w.nttAccounts, w.fetchMPTAssetScale).withLogger(w.logger)
 
 	// Create the transaction channel once - handlers will write to this channel
 	w.txChan = make(chan *streamtypes.TransactionStream, txChanBufferSize)
@@ -245,7 +245,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				logger.Info("Received reobservation request",
 					zap.String("txHash", hex.EncodeToString(txHash)))
 
-				msgs, err := w.fetchAndParseTransaction(txHash)
+				msgs, err := w.fetchAndParseTransactionMessages(txHash)
 				if err != nil {
 					logger.Error("Failed to fetch transaction for reobservation",
 						zap.String("txHash", hex.EncodeToString(txHash)),
@@ -357,8 +357,9 @@ func (w *Watcher) processTransaction(tx *streamtypes.TransactionStream) error {
 	return nil
 }
 
-// fetchAndParseTransaction fetches a specific transaction by hash for reobservation.
-func (w *Watcher) fetchAndParseTransaction(txHash []byte) ([]*common.MessagePublication, error) {
+// fetchAndParseTransactionMessages fetches a specific transaction by hash for
+// reobservation and returns all Wormhole messages it produces.
+func (w *Watcher) fetchAndParseTransactionMessages(txHash []byte) ([]*common.MessagePublication, error) {
 	// Fetch transaction by hash
 	txReq := &transactions.TxRequest{
 		Transaction: hex.EncodeToString(txHash),

@@ -22,6 +22,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/xrpl/currencycodec"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 )
 
 // nttMemoFormat is the hex-encoded MemoFormat for NTT transfers: "application/x-ntt-transfer"
@@ -224,6 +225,12 @@ type Parser struct {
 	coreAccount        string              // Core Wormhole manager account — payments to this account are not NTT
 	managedAccounts    map[string]struct{} // Managed accounts (NTT accounts) — TicketCreate on these emits XTCF
 	fetchMPTAssetScale MPTAssetScaleFetcher
+	logger             *zap.Logger // optional; set by the watcher via withLogger. nil in most unit tests.
+}
+
+func (p *Parser) withLogger(logger *zap.Logger) *Parser {
+	p.logger = logger
+	return p
 }
 
 // The stream and request return different transaction structs
@@ -453,13 +460,14 @@ func (p *Parser) parseNttTransaction(
 // registration consumed on the sequencer. Every other transaction yields at most
 // one message.
 //
-// Returns an empty slice if none matched.
+// Returns nil if none matched.
 func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, error) {
 	msg, err := p.parseTicketCreateTransaction(tx)
 	if err != nil {
 		return nil, err
 	}
 	if msg != nil {
+		p.logDetected(tx, "ticket_create_xtcf")
 		return []*common.MessagePublication{msg}, nil
 	}
 
@@ -477,6 +485,7 @@ func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, e
 		if ackMsg != nil {
 			msgs = append(msgs, ackMsg)
 		}
+		p.logDetected(tx, "registration+xack")
 		return msgs, nil
 	}
 
@@ -485,6 +494,7 @@ func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, e
 		return nil, err
 	}
 	if msg != nil {
+		p.logDetected(tx, "xack")
 		return []*common.MessagePublication{msg}, nil
 	}
 
@@ -493,6 +503,7 @@ func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, e
 		return nil, err
 	}
 	if msg != nil {
+		p.logDetected(tx, "core")
 		return []*common.MessagePublication{msg}, nil
 	}
 
@@ -501,10 +512,21 @@ func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, e
 		return nil, err
 	}
 	if msg != nil {
+		p.logDetected(tx, "ntt")
 		return []*common.MessagePublication{msg}, nil
 	}
 
 	return nil, nil
+}
+
+func (p *Parser) logDetected(tx GenericTx, kind string) {
+	if p.logger == nil {
+		return
+	}
+	p.logger.Debug("xrpl parse: detected message type",
+		zap.String("txHash", tx.Hash),
+		zap.String("kind", kind),
+	)
 }
 
 // parseRegistrationTransaction parses an XREG registration publish (payment to
@@ -1276,7 +1298,7 @@ func (p *Parser) addressToEmitter(address string) (vaa.Address, error) {
 	}
 
 	// Right-align the 20-byte account id in a 32-byte vaa.Address (left-padded
-	// with 12 zero bytes). Uses the SDK helper rather than hand-rolled copying.
+	// with 12 zero bytes).
 	emitter, err := vaa.BytesToAddress(accountID)
 	if err != nil {
 		return vaa.Address{}, fmt.Errorf("failed to pad account id: %w", err)
@@ -1634,7 +1656,6 @@ func (p *Parser) scaleAmount(amount uint64, fromDecimals, toDecimals uint8) (uin
 
 // calculateEmitterAddress calculates the emitter address from source NTT manager and source token.
 // emitter = keccak256("ntt" + source_ntt_manager_address + source_token)
-// It is a pure function of its inputs (no Parser state), so it is a free function.
 func calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte) vaa.Address {
 	const addrLen = len(sourceNTTManager)
 	data := make([]byte, nttEmitterDomainLen+2*addrLen)
