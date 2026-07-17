@@ -455,3 +455,31 @@ func TestRegistration_MalformedMemo_StillYieldsXACK(t *testing.T) {
 	assert.Equal(t, regTicketSequence, binary.BigEndian.Uint64(xack.Payload[4:12]), "XACK ticket")
 	assert.Equal(t, uint8(xackTxTypeRelease), xack.Payload[13], "XACK tx_type Release")
 }
+
+func TestRegistration_TrailingBytes_Declined(t *testing.T) {
+	manager := testRegManager20()
+	var peerAddr [32]byte
+	copy(peerAddr[:], manager[:])
+	cases := []struct {
+		name string
+		xreg []byte
+	}{
+		{"hub", buildXregHubXRP(manager)},
+		{"peer", buildXregPeerXRP(manager, 2, peerAddr)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newRegParser(t, manager)
+			// An otherwise-valid payload plus one trailing byte must be declined.
+			xreg := append(tc.xreg, 0xFF)
+			tx := regTxStream(managerAddress(t, manager), xreg)
+			msgs, err := p.ParseTransactionStream(tx)
+			require.NoError(t, err, "trailing bytes must not abort the dispatch")
+			assert.Nil(t, findRegistration(msgs), "XREG with trailing bytes must not synthesize a registration")
+			xack := findXACK(msgs)
+			require.NotNil(t, xack, "a ticketed managed Payment must still emit an XACK")
+			assert.Equal(t, regTicketSequence, binary.BigEndian.Uint64(xack.Payload[4:12]), "XACK ticket")
+			assert.Equal(t, uint8(xackTxTypeRelease), xack.Payload[13], "XACK tx_type Release")
+		})
+	}
+}

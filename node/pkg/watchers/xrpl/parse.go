@@ -694,15 +694,15 @@ func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
 
 	switch kind {
 	case xregKindHub:
-		if len(tail) < 1 {
-			return nil, emitter, fmt.Errorf("xreg hub missing decimals")
+		if len(tail) != xregHubTailLen {
+			return nil, emitter, fmt.Errorf("xreg hub tail length %d, want %d", len(tail), xregHubTailLen)
 		}
 		decimals := tail[0]
 		mode := nttManagerModeFromWire(manager20, tokenWire)
 		return buildTransceiverInfoPayload(manager32, sourceToken, mode, decimals), emitter, nil
 	case xregKindPeer:
-		if len(tail) < xregPeerTailLen {
-			return nil, emitter, fmt.Errorf("xreg peer tail too short: %d", len(tail))
+		if len(tail) != xregPeerTailLen {
+			return nil, emitter, fmt.Errorf("xreg peer tail length %d, want %d", len(tail), xregPeerTailLen)
 		}
 		peerChain := binary.BigEndian.Uint16(tail[0:2])
 		var peerAddr [32]byte

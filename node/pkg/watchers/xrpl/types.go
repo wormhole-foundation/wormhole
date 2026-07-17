@@ -29,6 +29,7 @@ const (
 
 	xregManagerOffset = 5  // offset of the manager field: after prefix(4) + kind(1)
 	xregHeaderLen     = 25 // prefix(4) + kind(1) + manager(20); token_id + tail follow
+	xregHubTailLen    = 1  // hub tail: token_decimals(1)
 	xregPeerTailLen   = 34 // peer tail: peer_chain(2) + peer_address(32)
 
 	xregTokenXRPWireLen = 1  // XRP wire token_id: type(1)
