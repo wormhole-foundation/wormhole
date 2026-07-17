@@ -471,14 +471,10 @@ func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, e
 		return []*common.MessagePublication{msg}, nil
 	}
 
-	regMsg, err := p.parseRegistrationTransaction(tx)
-	if err != nil {
-		return nil, err
-	}
+	regMsg := p.parseRegistrationTransaction(tx)
 	if regMsg != nil {
 		msgs := []*common.MessagePublication{regMsg}
-		var ackMsg *common.MessagePublication
-		ackMsg, err = p.parseXACKTransaction(tx)
+		ackMsg, err := p.parseXACKTransaction(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -533,56 +529,57 @@ func (p *Parser) logDetected(tx GenericTx, kind string) {
 // the core account with regMemoFormat) and synthesizes the canonical NTT
 // transceiver registration message under the NTT transceiver emitter.
 //
-// Returns (nil, nil) if this is not a registration publish.
-func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePublication, error) {
+// Returns nil if this is not a registration publish. Every non-match is a
+// decline (nil) rather than an error: a failed/malformed registration Payment
+// still consumed its ticket on XRPL and must fall through to the XACK handler,
+// so aborting the dispatch with an error would leave the ticket stuck.
+func (p *Parser) parseRegistrationTransaction(tx GenericTx) *common.MessagePublication {
 	if p.coreAccount == "" {
-		return nil, nil
+		return nil
 	}
 
 	destination, err := p.extractDestination(tx.Transaction)
 	if err != nil || destination != p.coreAccount {
-		return nil, nil //nolint:nilerr // Intentional: not a registration; fall through to the other parsers.
+		return nil // not a registration; fall through to the other parsers.
 	}
 
 	// Read the registration memo (memo[0], regMemoFormat). nil => not an XREG.
 	regData, err := p.parseRegistrationMemoData(tx.Transaction)
 	if err != nil || regData == nil {
-		return nil, nil //nolint:nilerr // Intentional: not a (valid) registration; fall through to the XACK handler.
+		return nil // not a (valid) registration; fall through to the XACK handler.
 	}
 
 	senderID, err := p.registrationSenderAccountID(tx.Transaction)
 	if err != nil || senderID == nil {
-		return nil, nil //nolint:nilerr // Intentional: fall through to the XACK handler.
+		return nil // fall through to the XACK handler.
 	}
 	// manager occupies bytes [xregManagerOffset:xregHeaderLen] of the XREG payload.
 	if len(regData) < xregHeaderLen || !bytes.Equal(senderID, regData[xregManagerOffset:xregHeaderLen]) {
-		return nil, nil
+		return nil
 	}
 
-	// Decline (nil, nil) — rather than error — if the transaction did not succeed
-	// or is not a Payment. A FAILED registration Payment still consumed its ticket
-	// on XRPL, so it must fall through to parseXACKTransaction, which emits a
-	// failure XACK that clears the ticket on the sequencer. Returning
-	// an error here would abort the whole dispatch and leave the ticket stuck.
+	// A FAILED registration Payment or a non-Payment still consumed its ticket, so
+	// fall through to parseXACKTransaction (which emits the failure XACK) instead of
+	// aborting the dispatch.
 	if err = validateTransactionResult(tx); err != nil {
-		return nil, nil //nolint:nilerr // Intentional: failed registration Payment falls through to the XACK handler.
+		return nil // failed registration Payment falls through to the XACK handler.
 	}
 	if err = validateTransactionType(tx.Transaction); err != nil {
-		return nil, nil //nolint:nilerr // Intentional: non-Payment falls through to the other parsers.
+		return nil // non-Payment falls through to the other parsers.
 	}
 
 	// From here the tx is a confirmed registration that consumed a ticket. If the
-	// tx metadata or the payload can't be built, still decline (nil, nil) so the
-	// XACK handler runs and clears the ticket — never abort the dispatch.
+	// tx metadata or the payload can't be built, still decline (nil) so the XACK
+	// handler runs and clears the ticket — never abort the dispatch.
 	txHash, sequence, err := p.extractTxHashAndSequence(tx)
 	if err != nil {
-		return nil, nil //nolint:nilerr // Intentional: fall through to the XACK handler so the ticket is acked.
+		return nil // fall through to the XACK handler so the ticket is acked.
 	}
 
 	// Synthesize the canonical transceiver payload + re-keyed emitter.
 	payload, emitter, err := buildRegistrationMessage(regData)
 	if err != nil {
-		return nil, nil //nolint:nilerr // Intentional: fall through to the XACK handler so the ticket is acked.
+		return nil // fall through to the XACK handler so the ticket is acked.
 	}
 
 	return &common.MessagePublication{
@@ -596,7 +593,7 @@ func (p *Parser) parseRegistrationTransaction(tx GenericTx) (*common.MessagePubl
 		ConsistencyLevel: 0,
 		IsReobservation:  false,
 		Unreliable:       false,
-	}, nil
+	}
 }
 
 // parseRegistrationMemoData extracts the raw XREG bytes from memo[0] when its
