@@ -93,7 +93,7 @@ func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 
 	for idx, block := range lastBlocks {
 		p.logger.Info(fmt.Sprintf("publishing initial %s block", p.batchData[idx].finality), zap.Uint64("initial_block", block.Number.Uint64()))
-		sink <- block // //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
+		sink <- block //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 		if p.generateSafe && p.batchData[idx].finality == Finalized {
 			safe := block.Copy(Safe)
 			p.logger.Info("publishing generated initial safe block", zap.Uint64("initial_block", safe.Number.Uint64()))
