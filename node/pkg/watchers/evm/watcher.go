@@ -543,7 +543,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if err := w.processNewBlock(ctx, ev, &stats); err != nil {
 					common.WriteToChannelWithoutBlocking(errC, err, "evm_errc")
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					return nil //nolint:nilerr // error propagated via errC
+					return nil
 				}
 			}
 		}
