@@ -1,25 +1,7 @@
 package solana
 
-// This file contains the bootstrap machinery for the deterministic Solana replay
-// tests. The committed bundle JSON already describes transactions, metadata, and
-// account data; these helpers translate that data into the in-memory solanaRPCClient
-// responses consumed by the real watcher entrypoints.
-//
-// The setup deliberately avoids a JSON-RPC HTTP server. Each test flow talks to the
-// same solanaRPCClient interface used by production code, but all getAccountInfo,
-// getBlock, getTransaction, and getSignaturesForAddress responses are served from the
-// bundle. This keeps tests deterministic and fast while still exercising the watcher at
-// high-level boundaries.
-//
-// Non-obvious replay details handled here:
-//   - Bundles decoded from JSON lose solana-go's private version marker, so ALT-backed
-//     transactions are re-marked versioned before being serialized into mock RPC data.
-//   - fetchBlock filters transactions by Wormhole-looking logs before parsing
-//     instructions, so generated bundles without logs receive minimal synthetic logs.
-//   - getTransaction fixtures round-trip through JSON to populate solana-go's private
-//     transaction envelope fields exactly like a real base64 RPC response.
-//   - Normal test runs drain known per-flow publication counts without sleeping; the
-//     quiet-window drain is reserved for explicit first-time fixture generation.
+// This file contains the loading of test cases for Solana regression tests.
+// Contains a mock Solana RPC implementation as well.
 
 import (
 	"context"
@@ -27,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -38,22 +19,18 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// The replay matrix is split across two minified JSON files, each an array of bundles,
-// read together by the replay test:
+// The replay test cases are split across two minified JSON files that are generated as so:
 //
-//   - generatedBundlesFile: the builder-generated (synthetic) matrix. Regenerate with:
-//     go run ./pkg/watchers/solana/testgen/cmd --out ./pkg/watchers/solana/testdata/generated_bundles.json
-//   - realBundlesFile: live-collected real Solana transactions, produced by
-//     testgen/collect_wormhole_solana_logs.py.
-//
-// They are kept separate so regenerating the synthetic matrix never disturbs the
-// live-collected fixtures (and vice versa). Recorded `expected` blocks are written back
-// into whichever file a bundle came from.
-const generatedBundlesFile = "testdata/generated_bundles.json"
-const realBundlesFile = "testdata/real_bundles.json"
+//   - staticBundlesFile: the builder-generated (synthetic) matrix. Regenerate with:
+//     go run ./pkg/watchers/solana/testgen/cmd static
+//   - liveBundlesFile: live-collected Solana transactions. Regenerate with:
+//     go run ./pkg/watchers/solana/testgen/cmd live --rpc "$SOLANA_RPC_URL"
+
+const staticBundlesFile = "testdata/static_bundles.json"
+const liveBundlesFile = "testdata/live_bundles.json"
 
 // bundleFiles is every fixture file the replay test loads, in read order.
-var bundleFiles = []string{generatedBundlesFile, realBundlesFile}
+var bundleFiles = []string{staticBundlesFile, liveBundlesFile}
 
 const updateReplayFixturesEnv = "UPDATE_SOLANA_REPLAY_FIXTURES"
 
@@ -67,10 +44,7 @@ type replayBundle struct {
 	Transaction  solana.Transaction  `json:"transaction"`
 	Meta         rpc.TransactionMeta `json:"meta"`
 	Accounts     []replayAccount     `json:"accounts"`
-	// Expected is the recorded output of replaying this bundle through the four
-	// high-level flows. It is generated in explicit fixture-update mode and asserted
-	// on every normal run.
-	Expected *expectedOutput `json:"expected,omitempty"`
+	Expected     *expectedOutput     `json:"expected,omitempty"`
 }
 
 type replayAccount struct {
@@ -79,12 +53,8 @@ type replayAccount struct {
 	Data   []string         `json:"data"` // [base64Data, "base64"]
 }
 
-// expectedOutput is the reproducible signature of a replay: the sorted per-message
-// digests (CreateDigest) published by each replay flow, recorded separately. Each flow
-// is asserted against its own exact digest list; this preserves intentional differences
-// between normal observation, transaction polling, and reobservation behavior.
-//
-// The four flows:
+// expectedOutput is the reproducible outcome of a replay.
+// The four Solana flows:
 //   - Reobservation: handleReobservationRequest(txID).
 //   - Observation: fetchBlock, the normal guardian block-observation path.
 //   - Polling: processNewTransactions, the getSignaturesForAddress -> getTransaction path.
@@ -105,7 +75,7 @@ func newReplayWatcher(t *testing.T, b *replayBundle, msgC chan<- *common.Message
 	s.errC = make(chan error, 64)
 	s.ctx = context.Background()
 	s.contract = b.Contract
-	s.whLogPrefix = fmt.Sprintf("Program %s", b.Contract)
+	s.whLogPrefix = fmt.Sprintf("Program %s", b.Contract) // Necessary for the observation flow
 	s.shimContractAddr = b.ShimContract
 	s.shimContractStr = b.ShimContract.String()
 	s.shimSetup()
@@ -126,9 +96,6 @@ func seedReplayRPCClient(t *testing.T, b *replayBundle) *mockSolanaRPCClient {
 	}
 
 	tx := b.Transaction // addressable copy
-	// A bundle loaded from JSON loses the message version (a private field with no custom
-	// UnmarshalJSON), so IsVersioned would be false and the watcher would skip ALT
-	// resolution. Re-mark it as versioned before serializing it into RPC responses.
 	if len(tx.Message.AddressTableLookups) > 0 {
 		tx.Message.SetAddressTableLookups(tx.Message.AddressTableLookups)
 	}
@@ -178,8 +145,8 @@ func makeGetTransactionResult(t *testing.T, slot uint64, txBytes []byte, meta *r
 	return &result
 }
 
-// drain collects the published MessagePublication digests for one flow. The digest is
-// the regression signal: it commits to the msgpub fields that form the VAA body/hash.
+// drain collects the published MessagePublication digests for one of the four flows. The digest is then
+// compared with previously saved digests for the regression check
 func drain(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
 	if expect < 0 {
@@ -282,9 +249,7 @@ func processNewTransactionsOutput(t *testing.T, b *replayBundle, expect int) (di
 	return drain(t, msgC, s.errC, expect)
 }
 
-// reobserveAccountOutput feeds every served account through the by-account reobservation
-// path. Non-message accounts simply produce no publication, so no transaction parsing is
-// needed here to identify message-account keys.
+// reobserveAccountOutput feeds every served account through the by-account reobservation path.
 func reobserveAccountOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
 
@@ -304,19 +269,22 @@ func reobserveAccountOutput(t *testing.T, b *replayBundle, expect int) (digests 
 	return drain(t, msgC, s.errC, expect)
 }
 
-// insertExpected returns a copy of a single bundle's raw JSON with a freshly recorded
-// expected block appended before its closing brace. Every original field is preserved
-// byte-for-byte; the value is inserted compactly and re-indented with the whole array.
+// insertExpected sets the "expected" field on a bundle's JSON object. It decodes the
+// bundle into a map of raw fields so the existing transaction/meta/account values are
+// preserved verbatim, adds (or replaces) the expected entry, and re-encodes.
 func insertExpected(raw json.RawMessage, exp *expectedOutput) (json.RawMessage, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, fmt.Errorf("decode bundle object: %w", err)
+	}
 	expJSON, err := json.Marshal(exp)
 	if err != nil {
 		return nil, fmt.Errorf("marshal expected: %w", err)
 	}
-	trimmed := strings.TrimRight(string(raw), " \t\r\n")
-	idx := strings.LastIndex(trimmed, "}")
-	if idx < 0 {
-		return nil, fmt.Errorf("bundle is not a JSON object")
+	fields["expected"] = expJSON
+	out, err := json.Marshal(fields)
+	if err != nil {
+		return nil, fmt.Errorf("encode bundle object: %w", err)
 	}
-	body := strings.TrimRight(trimmed[:idx], " \t\r\n")
-	return json.RawMessage(body + `,"expected":` + string(expJSON) + `}`), nil
+	return out, nil
 }
