@@ -96,9 +96,10 @@ func TestGrpcClientGetTransaction(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	require.NotNil(t, tx.Digest)
+	require.NotNil(t, tx.TxDigest)
+	require.Equal(t, transactionDigest, *tx.TxDigest)
 
-	fmt.Println("[+] Transaction Digest: ", *tx.Digest)
+	fmt.Println("[+] Transaction Digest: ", *tx.TxDigest)
 	for _, ev := range tx.Events {
 		fmt.Printf("\tEventType=%s\n", ev.EventType)
 		fmt.Println("\t\tPackageID:", ev.PackageID)
