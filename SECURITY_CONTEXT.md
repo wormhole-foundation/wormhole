@@ -68,16 +68,20 @@ provided a quorum of the new set are signers. This is the responsibility of cons
 on the destination chain.
 VAAs are bound to a specific guardian set index; cross-set replay is prevented by on-chain validation.
 
-### Multiple Guardian Sets may be active for a short time during a guardian set rotation
+### Multiple Guardian Sets may be active for a short time during a guardian set rotation / Old delegate guardian sets can influence observations for a short time period
 
 **Justification:**
 When rotating Guardian Sets, the old set stays active for a short time in order to prevent bricking
 in-flight transfers.
 
+Delegated Guardian Set updates follow the same transition model: observations already grouped under the previous delegated 
+configuration may complete against that configuration after a rotation or removal, preventing in-flight messages from being stranded.
+
 ### A malicious Guardian sends a small number of p2p requests with very large size to other Guardians to try to cause DoS
 
 **Justification:**
-libp2p has a 1MB limit per message by default. It's not possible for Guardians to stuff huge amounts of data in a small number of messages. Large numbers of messages are considered volumetric attacks and are out of scope.
+libp2p has a 1MB limit per message by default. It's not possible for Guardians to stuff huge amounts of data in a small 
+number of messages. Large numbers of messages are considered volumetric attacks and are out of scope.
 
 ### Truncation in Governor calculations due to use of floats and rounding
 
