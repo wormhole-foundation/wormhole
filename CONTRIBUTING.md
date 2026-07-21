@@ -6,6 +6,25 @@ appreciated and will be reviewed swiftly.
 Wormhole is a mission-critical, high-stakes project. We optimize for quality over quantity. Design processes
 and code reviews are our most important tools to accomplish that.
 
+## Who can contribute?
+
+Due to the high-stakes nature of making changes to Wormhole, we have a strict policy on who can contribute to the project.
+Typically, we only accept contributions from people who we already trust and/or who have a history of contributing to
+the project. This policy is in place to ensure that we maintain the security and stability of project, including
+its CI infrastructure.
+
+The right way to get started with contributing is to reach out to us directly, introduce yourself, and ask for guidance on how to contribute to the project.
+Drive-by pull requests will be closed without review or explanation. Typically, we already have a good visibility into
+existing bugs and feature requests, and our preference to to have our own developers and their LLMs implement the changes.
+
+In general, we will not upstream changes to the project unless we have a tangible need for them.
+
+Security-related issues **must** be reported via our bug bounty program. See [SECURITY.md](./SECURITY.md) for more information.
+We do not accept security-related PRs from external contributors, including from bug bounty reporters, regardless of whether
+or not the reporter has found a valid issue.
+
+The above policy applies to all projects in the Wormhole ecosystem maintained by the Wormhole Foundation.
+
 ## Development and Code Review Process
 
 **Before contributing code, read [SAFETY_CRITICAL_CODE.md](./SAFETY_CRITICAL_CODE.md).**
@@ -13,23 +32,29 @@ and code reviews are our most important tools to accomplish that.
 - All new features must first be discussed in a GitHub issue before starting to implement them. For
   complex features, it can be useful to open a thread on [GitHub Discussions](https://github.com/wormhole-foundation/wormhole/discussions).
 
-- Development happens on a long-lived development branch (`main` and `dev.v1`).
+- Development happens on a long-lived development branch (`main`).
   Every change going into a development branch is reviewed individually (see below). Release branches may be used
   to support in-the-wild releases of Wormhole. We aim to support at most two release
   branches at the same time. Changes can be cherry-picked from the development branch to release branches, but
   never from release branches to a development branch.
+
 - Releases are first tested on a testnet.
 
 - Commits should be small and have a meaningful commit message. One commit should, roughly, be "one idea" and
   be as atomic as possible. A feature can consist of many such commits.
+
 - Where possible, use standard libraries, common dependencies, or SDK functions instead of re-implementing validation
 from scratch. This helps prevent duplication and drift for routine tasks, and helps the codebase stay lean and well-tested.
+
 - Feature flags and interface evolution are better than breaking changes and long-lived feature branches.
+
 - We optimize for reading, not for writing - over its lifetime, code is read much more often than written.
   Small commits, meaningful commit messages and useful comments make it easier to review code and improve the
   quality of code review as well as review turnaround times. It's much easier to spot mistakes in small,
   well-defined changes.
+
 - PRs that only correct typos or make minor wording adjustments will be rejected. Fixing typos alongside other non-trivial engineering work is welcome.
+
 - Pull requests that modify dependencies must be well-documented so that the benefits of updating can be weighed against
   security and compatibility concerns. Low-effort PRs that update dependencies without any documentation will be rejected.
 
