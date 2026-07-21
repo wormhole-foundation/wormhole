@@ -113,7 +113,7 @@ class AlgoTest(PortalCore):
 
         if (self.INDEXER_ROUND > 512 and not self.args.testnet):  # until they fix it
             print("indexer is broken in local net... stop/clean/restart the sandbox")
-            sys.exit(0)
+            sys.exit(1)
 
         txns = []
 
