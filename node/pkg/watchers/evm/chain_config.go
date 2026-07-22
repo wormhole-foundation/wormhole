@@ -105,6 +105,7 @@ var (
 		vaa.ChainIDTempo:       {Finalized: true, Safe: true, EvmChainID: 4217, PublicRPC: "https://rpc.tempo.xyz", ContractAddr: "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"},
 		vaa.ChainIDArc:         {Finalized: true, Safe: true, EvmChainID: 5042, PublicRPC: "https://rpc.arc.network", ContractAddr: "0xC8aD24fC6063c41cB5C12a8e3851AafC3b3CF027"},
 		vaa.ChainIDHydration:   {Finalized: true, Safe: true, EvmChainID: 222222, PublicRPC: "https://rpc.coke.hydration.cloud", ContractAddr: "0x3792a6d63c31941B2805181771795D9176fA82A1"},
+		vaa.ChainIDTron:        {Finalized: true, Safe: false, EvmChainID: 728126428, PublicRPC: "https://api.trongrid.io/jsonrpc", ContractAddr: "0x3e7d05181025c985603960e6b2f7008f98b95659"},
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
