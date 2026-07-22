@@ -59,7 +59,11 @@ flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
 .env: .env.test
 	cp $< $@
 
-test: test-forge test-identifiers
+test: test-forge test-identifiers test-release-helpers
+
+.PHONY: test-release-helpers
+test-release-helpers:
+	./sh/tests/release_helpers_test.sh
 
 .PHONY: test-upgrade
 test-upgrade: build .env node_modules
