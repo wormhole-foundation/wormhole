@@ -1,8 +1,5 @@
 #!/bin/bash
 
-. .env
-
-
 [[ -z $MNEMONIC ]] && { echo "Missing MNEMONIC"; exit 1; }
 [[ -z $RPC_URL ]] && { echo "Missing RPC_URL"; exit 1; }
 [[ -z $WORMHOLE_ADDRESS ]] && { echo "Missing WORMHOLE_ADDRESS"; exit 1; }
