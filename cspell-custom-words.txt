@@ -121,6 +121,7 @@ kevm
 KEVM
 keymap
 keytool
+killall
 klaytn
 Klaytn
 kompiled
@@ -130,6 +131,7 @@ kujira
 Kujira
 lamports
 lastrun
+libgit
 libp
 Linea
 Litecoin
@@ -238,6 +240,7 @@ structs
 subdenom
 subdenoms
 Subdenoms
+subshells
 suitypes
 supermajority
 superminority
@@ -306,6 +309,7 @@ xack
 XFER
 xlayer
 xpla
+zdiff
 XPLA
 XRPL
 xtcf
