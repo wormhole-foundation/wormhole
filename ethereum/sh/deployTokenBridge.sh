@@ -2,8 +2,6 @@
 
 # MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./sh/deployTokenBridge.sh
 
-. .env
-
 [[ -z $INIT_EVM_CHAIN_ID ]] && { echo "Missing INIT_EVM_CHAIN_ID"; exit 1; }
 
 [[ -z $BRIDGE_INIT_CHAIN_ID ]] && { echo "Missing BRIDGE_INIT_CHAIN_ID"; exit 1; }
