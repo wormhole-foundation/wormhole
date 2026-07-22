@@ -14,10 +14,8 @@ else
   fi
 fi
 
-# Load the environment variables from .env
-if [ -f .env ]; then
-  source .env
-else
+# Keep .env as data for registration VAA collection below; do not execute it.
+if [ ! -f .env ]; then
   echo "The .env file does not exist."
   exit 1
 fi
