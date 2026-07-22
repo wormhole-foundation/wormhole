@@ -587,7 +587,10 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.Timestamp = time.Unix(snumber, 0)
+	evt.Msg.Timestamp, err = vaa.TimeFromUnix(snumber)
+	if err != nil {
+		return evt, err
+	}
 
 	str, err = attributes.GetAsString("message.message")
 	if err != nil {
