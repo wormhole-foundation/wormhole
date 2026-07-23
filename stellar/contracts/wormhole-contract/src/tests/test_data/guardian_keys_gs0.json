@@ -1,0 +1,20 @@
+{
+  "index": 0,
+  "guardians": [
+    {
+      "index": 0,
+      "privateKey": "c14d7269180e9f0fffde0a41a0ba71171515829b11ef50342266090fc7b56f40",
+      "ethereumAddress": "0xC6ef12cBab104F611924c1A66B542231b7261b13"
+    },
+    {
+      "index": 1,
+      "privateKey": "6786429260f1dd14eda4d78e0a64192f497c3e2d5ae5c98d35515cc5cb1377b0",
+      "ethereumAddress": "0x371d9330a9d31B0CE7a063aBaDAd0e2978a691F3"
+    },
+    {
+      "index": 2,
+      "privateKey": "144d4aebee5d7b8e75a47b9a2cfe658fd319bac9ddcb560224eafa8c45908b4f",
+      "ethereumAddress": "0xfeE1C1102079Fd09ce8984b52e00dAB8C29d1e14"
+    }
+  ]
+}

@@ -45,6 +45,7 @@ collateralization
 colour
 Concat
 conftest
+contractimpl
 cooldowns
 Cosm
 cosmoshub
@@ -214,6 +215,8 @@ solana
 Solana
 Solana's
 solshim
+Soroban
+soroban
 spydk
 Starport
 statesync
