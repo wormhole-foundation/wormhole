@@ -1,0 +1,13 @@
+deployer: "deployer"  # stellar keys identity name
+friendbot_url: "https://friendbot.stellar.org"
+
+# Standard Wormhole governance emitter address (32 bytes hex)
+# 0x0000...0004 is the canonical governance emitter
+governance_emitter: "0000000000000000000000000000000000000000000000000000000000000004"
+
+guardians:
+  # These must match guardian_keys_gs0.json (used to sign the test VAAs)
+  - "C6ef12cBab104F611924c1A66B542231b7261b13"
+  - "371d9330a9d31B0CE7a063aBaDAd0e2978a691F3"
+  - "feE1C1102079Fd09ce8984b52e00dAB8C29d1e14"
+
