@@ -4,8 +4,8 @@
 //	testgen live  --rpc URL  collect on-chain transactions -> <out-dir>/live_bundles.json
 //	testgen all   --rpc URL  both
 //
-// Overwriting an existing fixture prompts for confirmation, since it destroys the recorded
-// `expected` hashes.
+// Overwriting an existing fixture prompts for confirmation because it removes the recorded
+// `expected` VAA signing digests.
 package main
 
 import (
@@ -66,7 +66,7 @@ Usage:
   live    on-chain txs        -> <out-dir>/%s
   all     both (requires --rpc)
 
-Overwriting an existing fixture prompts for confirmation (it destroys recorded hashes).
+Overwriting an existing fixture prompts for confirmation (it removes recorded VAA signing digests).
 `, testgen.StaticBundlesFilename, testgen.LiveBundlesFilename)
 }
 
