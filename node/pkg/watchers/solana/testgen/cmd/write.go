@@ -77,7 +77,7 @@ func countRecordedHashes(path string) int {
 }
 
 // confirmOverwrite prints the destructive-overwrite warning and reads a y/N answer from stdin.
-// A non-interactive / EOF stdin returns false, so automation can never overwrite.
+// EOF aborts the overwrite; scripted stdin can still confirm it explicitly.
 func confirmOverwrite(path string) bool {
 	printOverwriteWarning(path)
 	fmt.Fprint(os.Stderr, "Overwrite? [y/N]: ")
@@ -96,8 +96,8 @@ func printOverwriteWarning(path string) {
 	fmt.Fprintf(os.Stderr, "                              *** WARNING ***\n")
 	fmt.Fprintf(os.Stderr, "%s\n\n", rule)
 	fmt.Fprintf(os.Stderr, "  %s\n", path)
-	fmt.Fprintf(os.Stderr, "  already exists with %d bundle(s) carrying recorded `expected` hashes.\n\n", countRecordedHashes(path))
-	fmt.Fprintf(os.Stderr, "  Overwriting DESTROYS those recorded regression hashes. Only proceed if\n")
+	fmt.Fprintf(os.Stderr, "  already exists with %d bundle(s) carrying recorded `expected` VAA signing digests.\n\n", countRecordedHashes(path))
+	fmt.Fprintf(os.Stderr, "  Overwriting DESTROYS those recorded regression digests. Only proceed if\n")
 	fmt.Fprintf(os.Stderr, "  you intend to re-record them (re-run the replay test afterwards).\n\n")
 	fmt.Fprintf(os.Stderr, "%s\n\n", rule)
 }

@@ -1,8 +1,8 @@
-// Command testgen builds the Solana watcher replay fixtures.
+// Command testgen rebuilds synthetic Solana watcher fixtures and collects fresh live artifacts.
 //
 //	testgen static           build the synthetic matrix -> <out-dir>/static_bundles.json
 //	testgen live  --rpc URL  collect on-chain transactions -> <out-dir>/live_bundles.json
-//	testgen all   --rpc URL  both
+//	testgen all   --rpc URL  rebuild synthetic fixtures and collect fresh live artifacts
 //
 // Overwriting an existing fixture prompts for confirmation because it removes the recorded
 // `expected` VAA signing digests.
@@ -55,16 +55,16 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `testgen builds the Solana watcher replay fixtures.
+	fmt.Fprintf(os.Stderr, `testgen rebuilds synthetic Solana watcher fixtures and collects fresh live artifacts.
 
 Usage:
   testgen static [--out-dir DIR]
   testgen live  --rpc URL [flags] [--out-dir DIR]
   testgen all   --rpc URL [flags] [--out-dir DIR]
 
-  static  synthetic matrix   -> <out-dir>/%s
-  live    on-chain txs        -> <out-dir>/%s
-  all     both (requires --rpc)
+  static  deterministically rebuild the synthetic corpus -> <out-dir>/%s
+  live    collect a fresh corpus from on-chain history    -> <out-dir>/%s
+  all     rebuild the synthetic corpus and collect a fresh live corpus (requires --rpc)
 
 Overwriting an existing fixture prompts for confirmation (it removes recorded VAA signing digests).
 `, testgen.StaticBundlesFilename, testgen.LiveBundlesFilename)
