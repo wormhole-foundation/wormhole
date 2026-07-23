@@ -1,9 +1,9 @@
 # testgen - Solana watcher replay fixtures
 
-The Solana watcher turns on-chain transactions into Wormhole message publications. `testgen`
-builds transaction bundles that the regression test replays through the watcher. For each bundle,
-the test compares the emitted VAA signing digests with a recorded baseline. This pins behavior for
-the covered corpus; it does not prove injectivity for every possible Solana transaction.
+The Solana watcher turns on-chain transactions into Wormhole message publications. The regression
+test replays captured transaction bundles through the watcher and compares the emitted VAA signing
+digests with a recorded baseline. This pins behavior for the covered corpus; it does not prove
+injectivity for every possible Solana transaction.
 
 The fixtures live in `testdata/` in two files:
 
@@ -13,20 +13,39 @@ The fixtures live in `testdata/` in two files:
   covering what synthetic cases can't (e.g. versioned transactions that resolve accounts
   through Address Lookup Tables).
 
-## Regenerating the fixtures
+## Rebuilding synthetic fixtures
 
 Run from the `node/` directory:
 
 ```sh
-go run ./pkg/watchers/solana/testgen/cmd static                        # synthetic matrix (no network)
-go run ./pkg/watchers/solana/testgen/cmd live --rpc "$SOLANA_RPC_URL"  # live on-chain txs
-go run ./pkg/watchers/solana/testgen/cmd all  --rpc "$SOLANA_RPC_URL"  # both
+go run ./pkg/watchers/solana/testgen/cmd static
 ```
 
-## Recording the expected output
+This deterministically rebuilds `static_bundles.json` from the synthetic scenario matrix without
+network access.
 
-The generator emits bundles with no `expected` block. The replay test produces the digests and
-fails until they are recorded:
+## Collecting new live artifacts
+
+```sh
+go run ./pkg/watchers/solana/testgen/cmd live --rpc "$SOLANA_RPC_URL"
+```
+
+This scans current on-chain history and replaces `live_bundles.json` with a newly selected corpus.
+It does not reproduce the existing file: the selected transactions can change with the chain tip,
+RPC availability, and account availability.
+
+The `all` command rebuilds the synthetic corpus and collects a fresh live corpus in one run:
+
+```sh
+go run ./pkg/watchers/solana/testgen/cmd all --rpc "$SOLANA_RPC_URL"
+```
+
+Both operations remove recorded expectations from the files they replace.
+
+## Recording expected signing digests
+
+Newly built or collected bundles have no `expected` block. The replay test produces the signing
+digests and fails until they are recorded:
 
 ```sh
 UPDATE_SOLANA_REPLAY_FIXTURES=1 go test -v ./pkg/watchers/solana/ -run TestReplayGeneratedBundles
