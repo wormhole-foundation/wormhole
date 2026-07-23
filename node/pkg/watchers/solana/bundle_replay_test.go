@@ -1,8 +1,8 @@
 package solana
 
-// This file contains the main regression test for the Solana watcher backtesting fixtures.
-// This helps keep the invariant that the Solana watcher is idompotent now, and for all changes in the future.
-// Add 'UPDATE_SOLANA_REPLAY_FIXTURES=1' to write back the digests at the end of execution.
+// This file contains the main regression test for the Solana watcher replay fixtures.
+// It pins the VAA signing digests emitted for a finite corpus of synthetic and mainnet inputs.
+// Set UPDATE_SOLANA_REPLAY_FIXTURES=1 to re-record the digests after execution.
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Regression tests that uses generated test cases, and real txs from mainnet.
+// TestReplayGeneratedBundles replays synthetic cases and transactions captured from mainnet.
 func TestReplayGeneratedBundles(t *testing.T) {
 	updateFixtures := os.Getenv(updateReplayFixturesEnv) == "1"
 
@@ -49,10 +49,10 @@ func TestReplayGeneratedBundles(t *testing.T) {
 					pollDigests, pollErrs := processNewTransactionsOutput(t, &b, pollExpect)
 					acctDigests, acctErrs := reobserveAccountOutput(t, &b, acctExpect)
 
-					assert.Empty(t, reobErrs, "no scissored errors expected (reobservation)")
-					assert.Empty(t, obsErrs, "no scissored errors expected (observation)")
-					assert.Empty(t, pollErrs, "no scissored errors expected (transaction polling)")
-					assert.Empty(t, acctErrs, "no scissored errors expected (account reobservation)")
+					assert.Empty(t, reobErrs, "no asynchronous watcher errors expected (reobservation)")
+					assert.Empty(t, obsErrs, "no asynchronous watcher errors expected (observation)")
+					assert.Empty(t, pollErrs, "no asynchronous watcher errors expected (transaction polling)")
+					assert.Empty(t, acctErrs, "no asynchronous watcher errors expected (account reobservation)")
 
 					if expected == nil {
 						recordExpected(t, b.Name, i, src.recorded, reobDigests, obsDigests, pollDigests, acctDigests)
