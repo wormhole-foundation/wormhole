@@ -1,9 +1,9 @@
-// Package testgen is a builder/dev API for constructing realistic inputs to the
-// Solana watcher's SolanaWatcher.processTransaction().
+// Package testgen constructs realistic bundles for the Solana watcher's observation
+// and reobservation replay paths.
 //
 // The builder owns all account-key indexing — the part that is tedious and
 // error-prone to do by hand — so callers describe messages in high-level terms and
-// get back a Bundle with properly created Txs.
+// get back a Bundle containing a correctly indexed transaction.
 package testgen
 
 import (
@@ -46,7 +46,7 @@ const (
 	wrongProgramTag byte = 0x77 // a non-core, non-shim program used for WrongCoreProgram cases
 )
 
-// Top level or inner instruction
+// Location identifies a top-level or inner instruction.
 type Location int
 
 const (
@@ -104,7 +104,7 @@ type WormholeFields struct {
 	Timestamp      uint32 // shim MessageEvent timestamp and account SubmissionTime
 }
 
-// AccountContent various components of a generated message
+// AccountContent describes the generated message account data.
 type AccountContent struct {
 	Prefix           string            // overrides "msg"/"msu"; empty => derived from Kind
 	Owner            *solana.PublicKey // overrides owner; nil => core contract
@@ -175,7 +175,7 @@ func (a AccountInfoResponse) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// Bundle is the generated set of inputs for a single processTransaction call.
+// Bundle is the generated input for the watcher replay paths.
 type Bundle struct {
 	Name         string                `json:"name"`
 	Slot         uint64                `json:"slot"`
@@ -544,8 +544,8 @@ func (b *Builder) AddClose(spec CloseSpec) *Builder {
 		Accounts:       b.accountRefs(n, msgIdx),
 		Data:           solana.Base58{closePostedMessageInstructionID},
 	}
-	// The close event data carries msu-prefixed content in practice, but the prefix
-	// is caller-controllable via AccountContent. Default to reliable "msg".
+	// Captured close events are "msg"-prefixed by default. AccountContent.Prefix can
+	// override the prefix to exercise invalid or unreliable account data.
 	eventProgIdx := b.coreIndex()
 	if spec.WrongCoreProgram {
 		eventProgIdx = b.wrongProgramIndex()

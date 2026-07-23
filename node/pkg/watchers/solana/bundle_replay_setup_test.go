@@ -1,7 +1,6 @@
 package solana
 
-// This file contains the loading of test cases for Solana regression tests.
-// Contains a mock Solana RPC implementation as well.
+// This file loads the Solana watcher replay cases and provides their mock RPC client.
 
 import (
 	"context"
@@ -19,7 +18,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// The replay test cases are split across two minified JSON files that are generated as so:
+// The replay cases are split across two minified JSON files generated as follows:
 //
 //   - staticBundlesFile: the builder-generated (synthetic) matrix. Regenerate with:
 //     go run ./pkg/watchers/solana/testgen/cmd static
@@ -53,8 +52,7 @@ type replayAccount struct {
 	Data   []string         `json:"data"` // [base64Data, "base64"]
 }
 
-// expectedOutput is the reproducible outcome of a replay.
-// The four Solana flows:
+// expectedOutput records the VAA signing digests emitted by each replay flow:
 //   - Reobservation: handleReobservationRequest(txID).
 //   - Observation: fetchBlock, the normal guardian block-observation path.
 //   - Polling: processNewTransactions, the getSignaturesForAddress -> getTransaction path.
@@ -145,8 +143,8 @@ func makeGetTransactionResult(t *testing.T, slot uint64, txBytes []byte, meta *r
 	return &result
 }
 
-// drain collects the published MessagePublication digests for one of the four flows. The digest is then
-// compared with previously saved digests for the regression check
+// drain collects the VAA signing digests published by one replay flow. The caller
+// compares the sorted digest list with the recorded regression baseline.
 func drain(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect int) (digests []string, replayErrs []error) {
 	t.Helper()
 	if expect < 0 {
