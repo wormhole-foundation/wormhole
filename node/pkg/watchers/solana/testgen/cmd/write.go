@@ -15,6 +15,11 @@ import (
 // errAborted is returned when the user declines an overwrite.
 var errAborted = errors.New("aborted")
 
+const (
+	directoryPermissions = 0o755
+	fixturePermissions   = 0o644
+)
+
 // writeBundles confirms (if path exists) then writes. Use writeBundlesFile directly when the
 // overwrite has already been confirmed (e.g. the `all` pre-flight).
 func writeBundles(path string, bundles []*testgen.Bundle) error {
@@ -34,12 +39,12 @@ func writeBundlesFile(path string, bundles []*testgen.Bundle) error {
 	buf = append(buf, '\n')
 
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, directoryPermissions); err != nil {
 			return fmt.Errorf("create %s: %w", dir, err)
 		}
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, buf, 0o644); err != nil { //nolint:gosec // fixture file
+	if err := os.WriteFile(tmp, buf, fixturePermissions); err != nil {
 		return fmt.Errorf("write %s: %w", tmp, err)
 	}
 	if err := os.Rename(tmp, path); err != nil {

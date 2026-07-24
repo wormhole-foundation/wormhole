@@ -1,3 +1,4 @@
+//nolint:mnd // Synthetic fixtures intentionally exercise explicit protocol and boundary values.
 package main
 
 import (
@@ -514,7 +515,7 @@ func multiMsgScenarios() []scenario {
 	variants := multiMsgVariants()
 	combos := multiMsgCombos(40)
 
-	var out []scenario
+	out := make([]scenario, 0, len(combos))
 	for idx, combo := range combos {
 		idx, combo := idx, combo
 		v0, v1, v2 := variants[combo[0]], variants[combo[1]], variants[combo[2]]
@@ -523,7 +524,7 @@ func multiMsgScenarios() []scenario {
 			b := testgen.NewBuilder(baseCfg(name))
 			base := idx * 10
 			for p, v := range []multiMsgVariant{v0, v1, v2} {
-				m := fields(uint32(base+p+1), uint64(base+p+1), fmt.Sprintf("m%d-%d", idx, p))
+				m := fields(uint32(base+p+1), uint64(base+p+1), fmt.Sprintf("m%d-%d", idx, p)) //nolint:gosec // idx and p are bounded by the 40 three-message scenarios.
 				addType(b, v.ty, v.outer, m, testgen.AccountContent{}, false, nil, 0)
 			}
 			return b.Build()
@@ -536,7 +537,7 @@ func multiMsgScenarios() []scenario {
 func txStatusScenarios() []scenario {
 	allTypes := []string{"postmessage", "postmessageunreliable", "shim", "close"}
 
-	var out []scenario
+	out := make([]scenario, 0, 2*len(allTypes))
 	for _, ty := range allTypes {
 		for _, outer := range []bool{true, false} {
 			ty, outer := ty, outer
@@ -555,7 +556,7 @@ func txStatusScenarios() []scenario {
 
 // allScenarios returns every bundle scenario across all matrices.
 func allScenarios() []scenario {
-	var scns []scenario
+	var scns []scenario //nolint:prealloc // Each matrix is built independently below.
 	scns = append(scns, scenarios()...)
 	scns = append(scns, dataTypeBoundaryScenarios()...)
 	scns = append(scns, dataValidationScenarios()...)
