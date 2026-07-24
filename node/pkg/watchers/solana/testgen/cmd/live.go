@@ -14,6 +14,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana/testgen"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -41,8 +42,12 @@ const (
 	// instructions) and seeds it directly.
 	defaultCloseAnchor = "3FNV3mYTfQxAP8tk1mPh2hfa7qWoJ85MfmQTiFtrS7TiJAWQqPvxdAupDHWiJKQ4efboznzCtQxAGDJEuGYrVcaM"
 
-	rpcTimeout = 60 * time.Second
-	rpcRetries = 5
+	rpcTimeout            = 60 * time.Second
+	rpcRetries            = 5
+	retryBackoffStep      = 2 * time.Second
+	maxRetryBackoff       = 8 * time.Second
+	wormholescanTimeout   = 20 * time.Second
+	wormholescanBodyLimit = 1 << 20
 )
 
 // shimPostMessageDiscriminator is the 8-byte prefix of a shim post_message instruction.
@@ -101,9 +106,9 @@ func (c *collector) withRetry(name string, fn func() error) error {
 	for attempt := 0; attempt < rpcRetries; attempt++ {
 		if err := fn(); err != nil {
 			last = err
-			backoff := time.Duration(2*(attempt+1)) * time.Second
-			if backoff > 8*time.Second {
-				backoff = 8 * time.Second
+			backoff := time.Duration(attempt+1) * retryBackoffStep
+			if backoff > maxRetryBackoff {
+				backoff = maxRetryBackoff
 			}
 			time.Sleep(backoff) //nolint:forbidigo // dev-only tool, needs RPC back-off
 			continue
@@ -180,7 +185,7 @@ func (c *collector) wormholescanHasTx(signature string) bool {
 		return false
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	body, err := common.SafeRead(io.LimitReader(resp.Body, wormholescanBodyLimit))
 	if err != nil {
 		return false
 	}
@@ -505,7 +510,7 @@ func collectLiveBundles(ctx context.Context, cfg liveConfig) ([]*testgen.Bundle,
 	c := &collector{
 		ctx:    ctx,
 		client: rpc.New(cfg.rpc),
-		http:   &http.Client{Timeout: 20 * time.Second},
+		http:   &http.Client{Timeout: wormholescanTimeout},
 		cfg:    cfg,
 		seen:   map[solana.Signature]bool{},
 		counts: map[string]int{"post_message": 0, "shim": 0, "close": 0},
@@ -521,10 +526,12 @@ func collectLiveBundles(ctx context.Context, cfg liveConfig) ([]*testgen.Bundle,
 	// their historical cluster instead of paging back from the tip.
 	if cfg.postMessage > 0 {
 		fmt.Fprintf(os.Stderr, "Scanning core %s for post_message (from tip) ...\n", coreProgram)
+		//nolint:contextcheck // The collector carries and bounds the caller's context for every RPC.
 		c.collectBulk(coreProgram, "post_message", cfg.postMessage, solana.Signature{}, nil)
 	}
 	if cfg.shim > 0 {
 		fmt.Fprintf(os.Stderr, "Scanning shim %s for shim (from tip) ...\n", shimProgram)
+		//nolint:contextcheck // The collector carries and bounds the caller's context for every RPC.
 		c.collectBulk(shimProgram, "shim", cfg.shim, solana.Signature{}, nil)
 	}
 	if cfg.close > 0 {
@@ -541,6 +548,7 @@ func collectLiveBundles(ctx context.Context, cfg liveConfig) ([]*testgen.Bundle,
 			where = fmt.Sprintf("anchored at %s...", cfg.closeAnchor[:8])
 		}
 		fmt.Fprintf(os.Stderr, "Scanning core %s for close (%s) ...\n", coreProgram, where)
+		//nolint:contextcheck // The collector carries and bounds the caller's context for every RPC.
 		c.collectBulk(coreProgram, "close", cfg.close, anchor, seed)
 	}
 

@@ -33,6 +33,7 @@ go run ./pkg/watchers/solana/testgen/cmd live --rpc "$SOLANA_RPC_URL"
 This scans current on-chain history and replaces `live_bundles.json` with a newly selected corpus.
 It does not reproduce the existing file: the selected transactions can change with the chain tip,
 RPC availability, and account availability.
+If collection does not reach every requested target, the command fails without replacing the file.
 
 The `all` command rebuilds the synthetic corpus and collects a fresh live corpus in one run:
 
