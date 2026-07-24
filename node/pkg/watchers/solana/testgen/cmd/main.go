@@ -20,12 +20,22 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/solana/testgen"
 )
 
-const defaultOutDir = "./pkg/watchers/solana/testdata"
+const (
+	defaultOutDir = "./pkg/watchers/solana/testdata"
+	usageExitCode = 2
+
+	defaultSleepSeconds  = 0.1
+	defaultPostMessages  = 50
+	defaultShimMessages  = 50
+	defaultCloseMessages = 20
+	defaultPageSize      = 100
+	defaultMaxPages      = 200
+)
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < usageExitCode {
 		usage()
-		os.Exit(2)
+		os.Exit(usageExitCode)
 	}
 
 	var err error
@@ -42,12 +52,12 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n", os.Args[1])
 		usage()
-		os.Exit(2)
+		os.Exit(usageExitCode)
 	}
 
 	switch {
 	case errors.Is(err, errShortfall):
-		os.Exit(2)
+		os.Exit(usageExitCode)
 	case err != nil:
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
@@ -95,14 +105,11 @@ func runLive(args []string) error {
 	}
 	cfg.sleep = time.Duration(*sleepSecs * float64(time.Second))
 
-	bundles, cerr := collectLiveBundles(context.Background(), *cfg)
-	if cerr != nil && !errors.Is(cerr, errShortfall) {
-		return cerr
-	}
-	if err := writeBundles(filepath.Join(*outDir, testgen.LiveBundlesFilename), bundles); err != nil {
+	bundles, err := collectLiveBundles(context.Background(), *cfg)
+	if err != nil {
 		return err
 	}
-	return cerr // nil or errShortfall
+	return writeBundles(filepath.Join(*outDir, testgen.LiveBundlesFilename), bundles)
 }
 
 func runAll(args []string) error {
@@ -131,31 +138,32 @@ func runAll(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := writeBundlesFile(staticPath, staticBundles); err != nil {
+	liveBundles, err := collectLiveBundles(context.Background(), *cfg)
+	if err != nil {
 		return err
 	}
 
-	liveBundles, cerr := collectLiveBundles(context.Background(), *cfg)
-	if cerr != nil && !errors.Is(cerr, errShortfall) {
-		return cerr
+	// Do not replace either corpus until both have been built successfully.
+	if err := writeBundlesFile(staticPath, staticBundles); err != nil {
+		return err
 	}
 	if err := writeBundlesFile(livePath, liveBundles); err != nil {
 		return err
 	}
-	return cerr // nil or errShortfall
+	return nil
 }
 
 // liveFlags registers the live-collection flags on fs and returns the config plus a pointer to
 // the raw --sleep seconds (converted to cfg.sleep by the caller after Parse).
 func liveFlags(fs *flag.FlagSet) (*liveConfig, *float64) {
 	cfg := &liveConfig{}
-	sleepSecs := fs.Float64("sleep", 0.1, "delay between RPC calls in seconds (rate limiting)")
+	sleepSecs := fs.Float64("sleep", defaultSleepSeconds, "delay between RPC calls in seconds (rate limiting)")
 	fs.StringVar(&cfg.rpc, "rpc", "", "Solana JSON-RPC URL (required)")
-	fs.IntVar(&cfg.postMessage, "post-message", 50, "number of post_message transactions")
-	fs.IntVar(&cfg.shim, "shim", 50, "number of shim transactions")
-	fs.IntVar(&cfg.close, "close", 20, "number of close_posted_message transactions")
-	fs.IntVar(&cfg.pageSize, "page-size", 100, "getSignaturesForAddress page size (max 1000)")
-	fs.IntVar(&cfg.maxPages, "max-pages", 200, "max signature pages per program scan")
+	fs.IntVar(&cfg.postMessage, "post-message", defaultPostMessages, "number of post_message transactions")
+	fs.IntVar(&cfg.shim, "shim", defaultShimMessages, "number of shim transactions")
+	fs.IntVar(&cfg.close, "close", defaultCloseMessages, "number of close_posted_message transactions")
+	fs.IntVar(&cfg.pageSize, "page-size", defaultPageSize, "getSignaturesForAddress page size (max 1000)")
+	fs.IntVar(&cfg.maxPages, "max-pages", defaultMaxPages, "max signature pages per program scan")
 	fs.StringVar(&cfg.wormholescanBase, "wormholescan-base", defaultWormholescanBase, "WormholeScan API base URL")
 	fs.BoolVar(&cfg.verifyWormholescan, "verify-wormholescan", false, "verify each signature against WormholeScan (off by default)")
 	fs.BoolVar(&cfg.keepMissingAccount, "keep-missing-account", false, "keep post_message records whose message account can no longer be fetched")
