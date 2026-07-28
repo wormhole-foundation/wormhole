@@ -128,6 +128,9 @@ describe("Sui type/address helpers", () => {
     expect(isValidSuiAddress("not-an-address")).toBe(false);
     expect(isValidSuiType("0x2::sui::SUI")).toBe(true);
     expect(isValidSuiType("0x2::sui")).toBe(false);
+    expect(isValidSuiType("not-an-address")).toBe(false);
+    expect(isValidSuiType("")).toBe(false);
+    expect(isValidSuiType("0x2::coin::Coin<0x2::sui::SUI>")).toBe(true);
   });
 
   it("trims leading zeroes in types", () => {
@@ -318,7 +321,7 @@ describe("getOriginalAssetSui", () => {
     ).rejects.toThrow("has not been registered with the token bridge");
   });
 
-  it("selects the branch from the outer struct, not a nested type argument", async () => {
+  it("reads the asset variant from the dynamic field's value type param", async () => {
     const tokenBridgeStateId =
       "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
     const registryId =
@@ -335,9 +338,7 @@ describe("getOriginalAssetSui", () => {
       })
       .mockResolvedValueOnce({
         object: {
-          // A NativeAsset whose type argument names WrappedAsset: substring
-          // matching on the type string would take the wrapped branch here.
-          type: `${tokenBridgeStateId}::native_asset::NativeAsset<${tokenBridgeStateId}::wrapped_asset::WrappedAsset<${coinType}>>`,
+          type: `0x2::dynamic_field::Field<${tokenBridgeStateId}::token_registry::Key<${tokenBridgeStateId}::wrapped_asset::WrappedAsset<${coinType}>>,${tokenBridgeStateId}::native_asset::NativeAsset<${coinType}>>`,
           json: {
             value: {
               token_address: {

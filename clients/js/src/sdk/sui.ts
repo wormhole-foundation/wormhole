@@ -1,5 +1,5 @@
 import { SuiGrpcClient } from "@mysten/sui/grpc";
-import { parseStructTag } from "@mysten/sui/utils";
+import { isValidStructTag, parseStructTag } from "@mysten/sui/utils";
 import { Chain, chainToChainId } from "@wormhole-foundation/sdk";
 import { normalizeSuiAddress } from "../chains/sui/utils";
 
@@ -45,6 +45,18 @@ function getRegistryKeyBcs() {
   }
   return RegistryKeyBcsCache;
 }
+
+const assetStructName = (type: string): string => {
+  const parsed = parseStructTag(type);
+  const value =
+    parsed.module === "dynamic_field" && parsed.name === "Field"
+      ? parsed.typeParams[1]
+      : parsed;
+
+  return typeof value === "object" && value !== null && "module" in value
+    ? `${value.module}::${value.name}`
+    : "";
+};
 
 export interface SuiOriginalAssetInfo {
   isWrapped: boolean;
@@ -104,9 +116,9 @@ export const getOriginalAssetSui = async (
   const type = obj.object.type;
   const value = (obj.object.json as any)?.value;
 
-  // Match the outer struct so a type argument naming the other variant can't win.
-  const { module, name } = parseStructTag(type);
-  const asset = `${module}::${name}`;
+  // The object is a `dynamic_field::Field<Key<CoinType>, Value>`; the asset
+  // variant is the value (second) type parameter, not the outer struct.
+  const asset = assetStructName(type);
 
   if (asset === "wrapped_asset::WrappedAsset") {
     return {
@@ -150,7 +162,7 @@ export const getTokenCoinType = async (
   // defines `token_registry`, which is the package embedded in the state
   // object's type (Move type origins are stable across upgrades), not the
   // upgraded package returned by `getPackageId`.
-  const originalPackageId = state.object.type.split("::")[0];
+  const originalPackageId = parseStructTag(state.object.type).address;
   const keyType = `${originalPackageId}::token_registry::CoinTypeKey`;
   const keyBcs = CoinTypeKeyBcs.serialize({
     chain: tokenChain,
@@ -234,11 +246,5 @@ export const getTableKeyType = (tableType: string): string | null => {
 export const trimSuiType = (type: string): string =>
   type.replace(/(0x)(0*)/g, "0x");
 
-export const isValidSuiType = (type: string): boolean => {
-  const tokens = type.split("::");
-  if (tokens.length !== 3) {
-    return false;
-  }
-
-  return isValidSuiAddress(tokens[0]) && !!tokens[1] && !!tokens[2];
-};
+// Delegates to the SDK, which also accepts generic type arguments.
+export const isValidSuiType = (type: string): boolean => isValidStructTag(type);
