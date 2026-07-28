@@ -8,6 +8,7 @@ import {
   SUI_CLOCK_OBJECT_ID,
 } from "./utils";
 import { getObjectFields } from "../../sdk/sui";
+import { selectCoinsForAmount } from "./selectCoins";
 import {
   Chain,
   Network,
@@ -44,20 +45,23 @@ export async function transferSui(
   const amt = BigInt(amount);
 
   // Collect the sender's coins of the transfer type so they can be merged.
-  const coinObjectIds: string[] = [];
+  const coins: { objectId: string; balance: bigint }[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
   while (hasNextPage) {
     const page = await client.listCoins({ owner, coinType, cursor });
     for (const coin of page.objects) {
-      coinObjectIds.push(coin.objectId);
+      coins.push({ objectId: coin.objectId, balance: BigInt(coin.balance) });
     }
     hasNextPage = page.hasNextPage;
     cursor = page.cursor;
   }
-  if (coinObjectIds.length === 0) {
+  if (coins.length === 0) {
     throw new Error(`No coins of type ${coinType} found for ${owner}`);
   }
+
+  // Largest-first, only as many as needed: merging every coin lets dust bloat the PTB.
+  const coinObjectIds = selectCoinsForAmount(coins, amt);
 
   const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
     getPackageId(client, core),
