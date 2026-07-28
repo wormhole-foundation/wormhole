@@ -243,6 +243,9 @@ var (
 	hydrationRPC      *string
 	hydrationContract *string
 
+	robinhoodChainRPC      *string
+	robinhoodChainContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -517,6 +520,9 @@ func init() {
 
 	hydrationRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "hydrationRPC", "Hydration RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
 	hydrationContract = NodeCmd.Flags().String("hydrationContract", "", "Hydration contract address")
+
+	robinhoodChainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "robinhoodChainRPC", "Robinhood Chain RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
+	robinhoodChainContract = NodeCmd.Flags().String("robinhoodChainContract", "", "Robinhood Chain contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -943,6 +949,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*nexusContract = checkEvmArgs(logger, *nexusRPC, *nexusContract, vaa.ChainIDNexus)
 	*arcContract = checkEvmArgs(logger, *arcRPC, *arcContract, vaa.ChainIDArc)
 	*hydrationContract = checkEvmArgs(logger, *hydrationRPC, *hydrationContract, vaa.ChainIDHydration)
+	*robinhoodChainContract = checkEvmArgs(logger, *robinhoodChainRPC, *robinhoodChainContract, vaa.ChainIDRobinhoodChain)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
@@ -1701,6 +1708,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDHydration,
 			Rpc:              *hydrationRPC,
 			Contract:         *hydrationContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(robinhoodChainRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "robinhoodchain",
+			ChainID:          vaa.ChainIDRobinhoodChain,
+			Rpc:              *robinhoodChainRPC,
+			Contract:         *robinhoodChainContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
