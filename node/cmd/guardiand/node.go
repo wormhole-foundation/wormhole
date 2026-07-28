@@ -29,6 +29,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
+	"github.com/certusone/wormhole/node/pkg/watchers/stellar"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
 	"github.com/certusone/wormhole/node/pkg/watchers/xrpl"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
@@ -122,6 +123,9 @@ var (
 
 	nearRPC      *string
 	nearContract *string
+
+	stellarRPC      *string
+	stellarContract *string
 
 	wormchainURL *string
 
@@ -396,6 +400,9 @@ func init() {
 
 	nearRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nearRPC", "Near RPC URL", "http://near:3030", []string{"http", "https"})
 	nearContract = NodeCmd.Flags().String("nearContract", "", "Near contract")
+
+	stellarRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "stellarRPC", "Stellar Soroban RPC URL", "http://stellar:8000/soroban/rpc", []string{"http", "https"})
+	stellarContract = NodeCmd.Flags().String("stellarContract", "", "Stellar core contract id")
 
 	wormchainURL = node.RegisterFlagWithValidationOrFail(NodeCmd, "wormchainURL", "Wormhole-chain gRPC URL", "wormchain:9090", []string{""})
 
@@ -992,6 +999,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --nearContract and --nearRPC must be set or both unset")
 	}
 
+	if !argsConsistent([]string{*stellarContract, *stellarRPC}) {
+		logger.Fatal("Both --stellarContract and --stellarRPC must be set or both unset")
+	}
+
 	if !argsConsistent([]string{*aptosAccount, *aptosRPC, *aptosHandle}) {
 		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
 	}
@@ -1083,6 +1094,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["nearRPC"] = *nearRPC
+	rpcMap["stellarRPC"] = *stellarRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["injectiveLCD"] = *injectiveLCD
 	rpcMap["injectiveWS"] = *injectiveWS
@@ -1765,6 +1777,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:   vaa.ChainIDNear,
 			Rpc:       *nearRPC,
 			Contract:  *nearContract,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(stellarRPC) {
+		wc := &stellar.WatcherConfig{
+			NetworkID: "stellar",
+			ChainID:   vaa.ChainIDStellar,
+			Rpc:       *stellarRPC,
+			Contract:  *stellarContract,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
