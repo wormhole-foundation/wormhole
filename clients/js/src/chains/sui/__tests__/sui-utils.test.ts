@@ -219,6 +219,15 @@ describe("getOriginalAssetSui", () => {
 
     expect(mockClient.getObject).toHaveBeenCalledTimes(2);
     expect(mockClient.getDynamicField).toHaveBeenCalledTimes(1);
+
+    expect(mockClient.getDynamicField).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: registryId,
+        name: expect.objectContaining({
+          type: `${tokenBridgeStateId}::token_registry::Key<${coinType}>`,
+        }),
+      })
+    );
   });
 
   it("parses a native asset from token registry", async () => {

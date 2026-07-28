@@ -1,4 +1,5 @@
 import { SuiGrpcClient } from "@mysten/sui/grpc";
+import { parseStructTag } from "@mysten/sui/utils";
 import { Chain, chainToChainId } from "@wormhole-foundation/sdk";
 import { normalizeSuiAddress } from "../chains/sui/utils";
 
@@ -74,7 +75,7 @@ export const getOriginalAssetSui = async (
   if (!registryId) {
     throw new Error("Unable to fetch token registry object ID");
   }
-  const originalPackageId = state.object.type.split("::")[0];
+  const originalPackageId = parseStructTag(state.object.type).address;
 
   let fieldId: string;
   try {
