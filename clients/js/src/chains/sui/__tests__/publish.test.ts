@@ -1,25 +1,20 @@
 import { parseTestPublishDigest } from "../publish";
 
 describe("parseTestPublishDigest", () => {
-  it("extracts the digest from output with leading build lines", () => {
-    const output = [
-      "INCLUDING DEPENDENCY Sui",
-      "BUILDING token_bridge",
-      "Skipping dependency verification",
-      JSON.stringify({
-        digest: "BwBvV26C79zyjUxwTCLVyZmjKsBqUGU7a9F5jySoPnVh",
-        effects: { status: { status: "success" } },
-      }),
-    ].join("\n");
+  it("extracts the digest from the `-q --json` payload", () => {
+    const output = JSON.stringify({
+      digest: "BwBvV26C79zyjUxwTCLVyZmjKsBqUGU7a9F5jySoPnVh",
+      effects: { status: { status: "success" } },
+    });
 
     expect(parseTestPublishDigest(output)).toBe(
       "BwBvV26C79zyjUxwTCLVyZmjKsBqUGU7a9F5jySoPnVh"
     );
   });
 
-  it("throws when there is no JSON object in the output", () => {
+  it("throws when the output is not JSON", () => {
     expect(() => parseTestPublishDigest("error: command failed")).toThrow(
-      /No JSON output/
+      /Unexpected non-JSON output/
     );
   });
 

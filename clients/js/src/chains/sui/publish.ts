@@ -68,17 +68,20 @@ export const publishPackage = async (
 };
 
 /**
- * Extract the transaction digest from `sui client test-publish --json` output.
- * The CLI prepends human-readable build lines before the JSON object, so the
- * payload is sliced from the first brace. Only the digest is read here; the
- * transaction's effects are fetched separately over gRPC.
+ * Extract the transaction digest from `sui client test-publish -q --json`
+ * output. `-q` keeps the human-readable build lines on stderr, so stdout is a
+ * single JSON object and needs no text slicing. Only the digest is read here;
+ * the transaction's effects are fetched separately over gRPC.
  */
 export const parseTestPublishDigest = (output: string): string => {
-  const jsonStart = output.indexOf("{");
-  if (jsonStart === -1) {
-    throw new Error(`No JSON output from test-publish: ${output}`);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    throw new Error(`Unexpected non-JSON output from test-publish: ${output}`);
   }
-  const digest = JSON.parse(output.slice(jsonStart))?.digest;
+
+  const digest = parsed?.digest;
   if (typeof digest !== "string") {
     throw new Error(`No transaction digest in test-publish output: ${output}`);
   }
@@ -104,7 +107,9 @@ const publishPackageTestPublish = async (
   // `--build-env testnet` selects testnet dependency pins (localnet is not a
   // pinned environment); `--publish-unpublished-deps` publishes dependencies
   // that are not yet on-chain for this network.
-  const cmd = `sui client test-publish ${packagePath} --publish-unpublished-deps --build-env testnet --json 2>&1`;
+  // `-q` keeps the build progress lines on stderr so stdout carries only the
+  // `--json` payload.
+  const cmd = `sui client test-publish ${packagePath} --publish-unpublished-deps --build-env testnet -q --json 2>&1`;
 
   let output: string;
   try {
