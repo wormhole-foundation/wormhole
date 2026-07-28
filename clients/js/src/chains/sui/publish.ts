@@ -39,17 +39,27 @@ export const buildPackage = (
 
   const env = getEnvironmentFlag(network);
   const envFlag = env ? `-e ${env}` : "";
-  const cmd = `sui move build --dump-bytecode-as-base64 ${envFlag} --path ${packagePath} 2>&1`;
+  // `-q` sends the build progress lines to stderr; stderr is kept separate from
+  // stdout (no `2>&1`) so stdout is a single JSON object.
+  const cmd = `sui move build --dump-bytecode-as-base64 -q ${envFlag} --path ${packagePath}`;
+
+  let stdout: string;
+  try {
+    // stderr is piped rather than merged so build warnings cannot corrupt the
+    // JSON payload; it is only read back when the command fails.
+    stdout = execSync(cmd, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (e: any) {
+    const detail = [e.stderr, e.stdout, e.message].filter(Boolean).join("\n");
+    throw new Error(`Failed to build package: ${detail}\nCommand: ${cmd}`);
+  }
 
   try {
-    const output = execSync(cmd, { encoding: "utf-8" });
-    const jsonStart = output.indexOf("{");
-    if (jsonStart === -1) {
-      throw new Error(`No JSON output from build command: ${output}`);
-    }
-    return JSON.parse(output.slice(jsonStart));
-  } catch (e: any) {
-    throw new Error(`Failed to build package: ${e.message}\nCommand: ${cmd}`);
+    return JSON.parse(stdout);
+  } catch {
+    throw new Error(`Unexpected non-JSON output from build command: ${stdout}`);
   }
 };
 
@@ -108,14 +118,19 @@ const publishPackageTestPublish = async (
   // pinned environment); `--publish-unpublished-deps` publishes dependencies
   // that are not yet on-chain for this network.
   // `-q` keeps the build progress lines on stderr so stdout carries only the
-  // `--json` payload.
-  const cmd = `sui client test-publish ${packagePath} --publish-unpublished-deps --build-env testnet -q --json 2>&1`;
+  // `--json` payload; the streams are left split (no `2>&1`).
+  const cmd = `sui client test-publish ${packagePath} --publish-unpublished-deps --build-env testnet -q --json`;
 
   let output: string;
   try {
-    output = execSync(cmd, { encoding: "utf-8" });
+    // stderr is piped rather than merged so compiler warnings cannot corrupt
+    // the JSON payload; it is only read back when the command fails.
+    output = execSync(cmd, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
   } catch (e: any) {
-    const detail = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");
+    const detail = [e.stderr, e.stdout, e.message].filter(Boolean).join("\n");
     throw new Error(`test-publish failed:\n${detail}`);
   }
 
