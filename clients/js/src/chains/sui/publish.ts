@@ -1,6 +1,6 @@
 import { Transaction } from "@mysten/sui/transactions";
 import { fromBase64 } from "@mysten/sui/utils";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import { SuiBuildOutput } from "./types";
 import {
@@ -29,18 +29,6 @@ const getEnvironmentFlag = (network: Network): string | undefined => {
   }
 };
 
-/**
- * Resolve `packagePath` to a real directory on this system.
- *
- * `realpathSync` resolves symlinks and throws if the path does not exist; the
- * `isDirectory` check then rejects regular files, which the previous
- * `existsSync` test accepted. Passing the *resolved* path on to the CLI also
- * narrows the command-injection surface, since a payload such as
- * `foo; curl evil.com` does not resolve to a real path. Note that this is not
- * a complete injection defense by itself — a directory can legitimately contain
- * shell metacharacters in its name — so the argument is additionally passed via
- * `execFileSync`'s argv rather than through a shell.
- */
 const resolvePackageDir = (packagePath: string): string => {
   let resolved: string;
   try {
@@ -63,18 +51,27 @@ export const buildPackage = (
   const packageDir = resolvePackageDir(packagePath);
 
   const env = getEnvironmentFlag(network);
-  const envFlag = env ? `-e ${env}` : "";
-  const cmd = `sui move build --dump-bytecode-as-base64 -q ${envFlag} --path ${packageDir}`;
+  const args = [
+    "move",
+    "build",
+    "--dump-bytecode-as-base64",
+    "-q",
+    ...(env ? ["-e", env] : []),
+    "--path",
+    packageDir,
+  ];
 
   let stdout: string;
   try {
-    stdout = execSync(cmd, {
+    stdout = execFileSync("sui", args, {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
     });
   } catch (e: any) {
     const detail = [e.stderr, e.stdout, e.message].filter(Boolean).join("\n");
-    throw new Error(`Failed to build package: ${detail}\nCommand: ${cmd}`);
+    throw new Error(
+      `Failed to build package: ${detail}\nCommand: sui ${args.join(" ")}`
+    );
   }
 
   try {
@@ -142,11 +139,20 @@ const publishPackageTestPublish = async (
   // that are not yet on-chain for this network.
   // `-q` keeps the build progress lines on stderr so stdout carries only the
   // `--json` payload; the streams are left split (no `2>&1`).
-  const cmd = `sui client test-publish ${packageDir} --publish-unpublished-deps --build-env testnet -q --json`;
+  const args = [
+    "client",
+    "test-publish",
+    packageDir,
+    "--publish-unpublished-deps",
+    "--build-env",
+    "testnet",
+    "-q",
+    "--json",
+  ];
 
   let output: string;
   try {
-    output = execSync(cmd, {
+    output = execFileSync("sui", args, {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
     });
