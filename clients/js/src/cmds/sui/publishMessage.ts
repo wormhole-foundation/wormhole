@@ -100,6 +100,18 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       // In the gRPC event JSON, `payload` (vector<u8>) is base64 while
       // `sender` (ID) is a 0x-prefixed hex string.
       const parsed = event.json as any;
+      if (typeof parsed?.payload !== "string") {
+        throw new Error(
+          `Unexpected event payload in ${event.eventType}: ` +
+            JSON.stringify(event.json, null, 2)
+        );
+      }
+      if (typeof parsed.sender !== "string") {
+        throw new Error(
+          `Unexpected event emitter in ${event.eventType}: ` +
+            JSON.stringify(event.json, null, 2)
+        );
+      }
       console.log("Publish message succeeded:", {
         sender: event.sender,
         type: event.eventType,

@@ -113,6 +113,9 @@ export async function transferSui(
     typeArguments: [coinType],
   });
 
+  // prepare_transfer truncates the amount to Wormhole's 8 decimals and hands
+  // back the remainder. Coin has no `drop`, so it must be consumed: this returns
+  // it to the sender (or destroys it when zero) and the PTB won't build without it.
   tx.moveCall({
     target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
     arguments: [dust],
