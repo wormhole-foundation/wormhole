@@ -104,7 +104,11 @@ export const getOriginalAssetSui = async (
   const type = obj.object.type;
   const value = (obj.object.json as any)?.value;
 
-  if (type.includes("wrapped_asset::WrappedAsset<")) {
+  // Match the outer struct so a type argument naming the other variant can't win.
+  const { module, name } = parseStructTag(type);
+  const asset = `${module}::${name}`;
+
+  if (asset === "wrapped_asset::WrappedAsset") {
     return {
       isWrapped: true,
       chainId: Number(value.info.token_chain),
@@ -112,7 +116,7 @@ export const getOriginalAssetSui = async (
         Buffer.from(value.info.token_address.value.data, "base64")
       ),
     };
-  } else if (type.includes("native_asset::NativeAsset<")) {
+  } else if (asset === "native_asset::NativeAsset") {
     return {
       isWrapped: false,
       chainId: chainToChainId("Sui"),

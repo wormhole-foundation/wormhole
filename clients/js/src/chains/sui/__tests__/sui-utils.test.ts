@@ -318,6 +318,50 @@ describe("getOriginalAssetSui", () => {
     ).rejects.toThrow("has not been registered with the token bridge");
   });
 
+  it("selects the branch from the outer struct, not a nested type argument", async () => {
+    const tokenBridgeStateId =
+      "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId =
+      "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const coinType = "0x2::sui::SUI";
+    const tokenAddress = Buffer.alloc(32, 7);
+
+    (mockClient.getObject as jest.Mock)
+      .mockResolvedValueOnce({
+        object: {
+          type: `${tokenBridgeStateId}::token_bridge::State`,
+          json: { token_registry: { id: registryId } },
+        },
+      })
+      .mockResolvedValueOnce({
+        object: {
+          // A NativeAsset whose type argument names WrappedAsset: substring
+          // matching on the type string would take the wrapped branch here.
+          type: `${tokenBridgeStateId}::native_asset::NativeAsset<${tokenBridgeStateId}::wrapped_asset::WrappedAsset<${coinType}>>`,
+          json: {
+            value: {
+              token_address: {
+                value: { data: tokenAddress.toString("base64") },
+              },
+            },
+          },
+        },
+      });
+
+    (mockClient.getDynamicField as jest.Mock).mockResolvedValueOnce({
+      dynamicField: { fieldId: "0x" + "c".repeat(64) },
+    });
+
+    const result = await getOriginalAssetSui(
+      mockClient,
+      tokenBridgeStateId,
+      coinType
+    );
+
+    expect(result.isWrapped).toBe(false);
+    expect(result.chainId).toBe(21);
+  });
+
   it("propagates non-'not found' dynamic field errors unchanged", async () => {
     const tokenBridgeStateId =
       "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
