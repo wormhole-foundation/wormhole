@@ -317,4 +317,39 @@ describe("getOriginalAssetSui", () => {
       getOriginalAssetSui(mockClient, tokenBridgeStateId, coinType)
     ).rejects.toThrow("has not been registered with the token bridge");
   });
+
+  it("propagates non-'not found' dynamic field errors unchanged", async () => {
+    const tokenBridgeStateId =
+      "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42";
+    const registryId =
+      "0x8f52cdc82ea6b81c8bfbffa76a82ee88076b9a2e89c6ba08b5bb7e9a2badc00c";
+    const coinType =
+      "0x1234567890123456789012345678901234567890123456789012345678901234::coin::COIN";
+
+    (mockClient.getObject as jest.Mock).mockResolvedValueOnce({
+      object: {
+        type: "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8dc369bad5de42::token_bridge::State",
+        json: {
+          token_registry: { id: registryId },
+        },
+      },
+    });
+
+    // A transport failure must not be reported as a registration problem.
+    (mockClient.getDynamicField as jest.Mock).mockRejectedValueOnce(
+      new Error("14 UNAVAILABLE: connection refused")
+    );
+
+    const message = await getOriginalAssetSui(
+      mockClient,
+      tokenBridgeStateId,
+      coinType
+    ).then(
+      () => "resolved unexpectedly",
+      (e: Error) => e.message
+    );
+
+    expect(message).toBe("14 UNAVAILABLE: connection refused");
+    expect(message).not.toMatch(/has not been registered/);
+  });
 });

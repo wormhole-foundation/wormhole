@@ -87,10 +87,14 @@ export const getOriginalAssetSui = async (
       },
     });
     fieldId = res.dynamicField.fieldId;
-  } catch {
-    throw new Error(
-      `Token of type ${coinType} has not been registered with the token bridge`
-    );
+  } catch (e) {
+    // Only a missing dynamic field means unregistered; anything else propagates.
+    if (e instanceof Error && e.message.endsWith("not found")) {
+      throw new Error(
+        `Token of type ${coinType} has not been registered with the token bridge (${e.message})`
+      );
+    }
+    throw e;
   }
 
   const obj = await client.getObject({
