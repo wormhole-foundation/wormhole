@@ -1,4 +1,5 @@
 import { Transaction } from "@mysten/sui/transactions";
+import { randomInt } from "crypto";
 import {
   executeTransactionBlock,
   getPackageId,
@@ -96,8 +97,8 @@ export async function transferSui(
     typeArguments: [coinType],
   });
 
-  // Random 32-bit transfer nonce.
-  const nonce = Math.floor(Math.random() * 0xffffffff);
+  // 32-bit transfer nonce from a cryptographic RNG, so it is not predictable.
+  const nonce = randomInt(0, 0xffffffff);
 
   const [transferTicket, dust] = tx.moveCall({
     target: `${tokenBridgePackageId}::transfer_tokens::prepare_transfer`,
