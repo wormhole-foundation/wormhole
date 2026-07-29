@@ -1,6 +1,6 @@
 FROM cli-gen AS cli-export
 FROM const-gen AS const-export
-FROM ghcr.io/wormhole-foundation/sui:1.63.2-testnet@sha256:1663379de7f58ffb5ca595235c7494e0b6e69a2953a08cab237e28601c33da4c AS sui
+FROM ghcr.io/wormhole-foundation/sui:1.75.2-testnet@sha256:8c615701a008714bd1e9fcde40940c22083792a692494c6bc58739bb55a69efa AS sui
 
 # Install git (needed by Sui CLI for package resolution)
 RUN apt-get update && apt-get install -y git
