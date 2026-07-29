@@ -1,0 +1,9 @@
+current_set_index:  7
+messages:  {
+  sequence:  7300248843808034522
+  nonce:  1101752903
+  delegated_guardians_config:  {
+    config:  "{\n  \"51\": {\n    \"keys\" : [\n\t    \"0xD2CC37A4dc036a8D232b48f62cDD4731412f4890\",\n\t    \"0x938f104AEb5581293216ce97d771e0CB721221B1\",\n\t    \"0xaE565927Bb8dB25CD8Bf3e7BB663D70023e4Ea78\",\n\t    \"0x42579bFFbCF4276E290aB8E4C162bd4052b97970\",\n\t    \"0x9D16870160e703324D057c3361c34C5beFBa2c34\",\n\t    \"0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811\",\n\t    \"0xfF6CB952589BDE862c25Ef4392132fb9D4A42157\"\n    ],\n    \"threshold\": 5\n  },\n  \"73\": {\n    \"keys\" : [\n\t    \"0xD2CC37A4dc036a8D232b48f62cDD4731412f4890\",\n\t    \"0x938f104AEb5581293216ce97d771e0CB721221B1\",\n\t    \"0x3F851Ad586A47ceF8d04748f33ab0D71395f06b4\",\n\t    \"0x114De8460193bdf3A2fCf81f86a09765F4762fD1\",\n\t    \"0xaE565927Bb8dB25CD8Bf3e7BB663D70023e4Ea78\",\n\t    \"0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811\",\n\t    \"0x5893B5A76c3f739645648885bDCcC06cd70a3Cd3\"\n    ],\n    \"threshold\": 5\n  }\n}"
+    config_index:  8
+  }
+}
