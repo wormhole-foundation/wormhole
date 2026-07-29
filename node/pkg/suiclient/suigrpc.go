@@ -24,6 +24,7 @@ var suiGrpcNilResponses = promauto.NewCounter(
 		Help: "Total number of nil checkpoint responses received from the Sui gRPC subscription stream",
 	})
 
+// https://github.com/MystenLabs/sui/blob/9ae15a17984ae6c3abd37289edfee5c961d3d93e/crates/sui-protocol-config/src/lib.rs#L2573
 const suiGrpcMaxReceiveMessageSize = 32 * 1024 * 1024
 
 type GrpcLedgerServiceClientInterface interface {
