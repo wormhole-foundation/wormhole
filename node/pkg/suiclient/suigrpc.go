@@ -24,6 +24,8 @@ var suiGrpcNilResponses = promauto.NewCounter(
 		Help: "Total number of nil checkpoint responses received from the Sui gRPC subscription stream",
 	})
 
+const suiGrpcMaxReceiveMessageSize = 32 * 1024 * 1024
+
 type GrpcLedgerServiceClientInterface interface {
 	GetObject(ctx context.Context, req *pb.GetObjectRequest) (*pb.GetObjectResponse, error)
 	GetCheckpoint(ctx context.Context, req *pb.GetCheckpointRequest) (*pb.GetCheckpointResponse, error)
@@ -359,8 +361,12 @@ func NewSuiGrpcClient(rpcURL string, logger *zap.Logger, extraOpts ...grpc.DialO
 	creds := credentials.NewTLS(&tls.Config{
 		MinVersion: tls.VersionTLS12,
 	})
-	opts := make([]grpc.DialOption, 0, 1+len(extraOpts))
-	opts = append(opts, grpc.WithTransportCredentials(creds))
+	defaultOpts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(suiGrpcMaxReceiveMessageSize)),
+	}
+	opts := make([]grpc.DialOption, 0, len(defaultOpts)+len(extraOpts))
+	opts = append(opts, defaultOpts...)
 	opts = append(opts, extraOpts...)
 
 	conn, err := grpc.NewClient(rpcURL, opts...)
