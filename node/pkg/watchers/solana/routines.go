@@ -119,9 +119,9 @@ func (s *SolanaWatcher) runWatcher(ctx context.Context, logger *zap.Logger, poll
 
 				// Requesting each slot
 				for slotIdx := rangeStart; slotIdx <= rangeEnd; slotIdx++ {
-					slot := slotIdx
+					fetchSlot := slotIdx
 					common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
-						return s.runSlotFetcher(ctx, logger, slot)
+						return s.runSlotFetcher(ctx, logger, fetchSlot)
 					})
 				}
 			}
