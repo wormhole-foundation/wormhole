@@ -15,6 +15,22 @@ describe("parseTestPublishDigest", () => {
     );
   });
 
+  it("extracts the digest when the CLI prints build lines before the JSON", () => {
+    const output = [
+      "INCLUDING DEPENDENCY MoveStdlib",
+      "INCLUDING DEPENDENCY Sui",
+      "BUILDING wormhole",
+      JSON.stringify({
+        digest: "BwBvV26C79zyjUxwTCLVyZmjKsBqUGU7a9F5jySoPnVh",
+        effects: { status: { status: "success" } },
+      }),
+    ].join("\n");
+
+    expect(parseTestPublishDigest(output)).toBe(
+      "BwBvV26C79zyjUxwTCLVyZmjKsBqUGU7a9F5jySoPnVh"
+    );
+  });
+
   it("throws when the output is not JSON", () => {
     expect(() => parseTestPublishDigest("error: command failed")).toThrow(
       /Unexpected non-JSON output/

@@ -97,14 +97,21 @@ export const publishPackage = async (
 
 /**
  * Extract the transaction digest from `sui client test-publish -q --json`
- * output. `-q` keeps the human-readable build lines on stderr, so stdout is a
- * single JSON object and needs no text slicing. Only the digest is read here;
- * the transaction's effects are fetched separately over gRPC.
+ * output. Despite `-q --json`, the Sui CLI still prints Move build progress
+ * (`INCLUDING DEPENDENCY ...`, `BUILDING ...`) to stdout ahead of the JSON
+ * payload, so the JSON object is sliced from the first `{` before parsing. Only
+ * the digest is read here; the transaction's effects are fetched separately
+ * over gRPC.
  */
 export const parseTestPublishDigest = (output: string): string => {
+  const jsonStart = output.indexOf("{");
+  if (jsonStart === -1) {
+    throw new Error(`Unexpected non-JSON output from test-publish: ${output}`);
+  }
+
   let parsed: any;
   try {
-    parsed = JSON.parse(output);
+    parsed = JSON.parse(output.slice(jsonStart));
   } catch {
     throw new Error(`Unexpected non-JSON output from test-publish: ${output}`);
   }
@@ -137,8 +144,9 @@ const publishPackageTestPublish = async (
   // `--build-env testnet` selects testnet dependency pins (localnet is not a
   // pinned environment); `--publish-unpublished-deps` publishes dependencies
   // that are not yet on-chain for this network.
-  // `-q` keeps the build progress lines on stderr so stdout carries only the
-  // `--json` payload; the streams are left split (no `2>&1`).
+  // Streams are left split (no `2>&1`). Note the Sui CLI still writes Move build
+  // progress to stdout even with `-q --json`, so `parseTestPublishDigest`
+  // slices the JSON object out of the leading preamble.
   const args = [
     "client",
     "test-publish",
