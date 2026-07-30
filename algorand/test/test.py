@@ -685,7 +685,6 @@ class AlgoTest(PortalCore):
 
             assert result, f"!!! ERR: sending same VAA twice worked. offending vaa hex:\n{vaa.hex()}"
             seq+=1
-        return
 
         def sending_vaa_version_not_one_fails(seq, version):
             vaa = bytearray.fromhex(gt.genRandomValidTransfer(
