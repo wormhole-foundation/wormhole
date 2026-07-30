@@ -64,6 +64,18 @@ type expectedOutput struct {
 	Account       []string `json:"account"`
 }
 
+type expectedCount struct {
+	count             int
+	collectUntilQuiet bool
+}
+
+type replayExpectedCounts struct {
+	reobservation expectedCount
+	observation   expectedCount
+	polling       expectedCount
+	account       expectedCount
+}
+
 // newReplayWatcher builds the minimum watcher state needed to exercise the real Solana
 // observation and reobservation entrypoints.
 func newReplayWatcher(t *testing.T, b *replayBundle, msgC chan<- *common.MessagePublication) *SolanaWatcher {
@@ -145,12 +157,25 @@ func makeGetTransactionResult(t *testing.T, slot uint64, txBytes []byte, meta *r
 
 // drain collects the VAA signing digests published by one replay flow. The caller
 // compares the sorted digest list with the recorded regression baseline.
-func drain(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect int) (digests []string, replayErrs []error) {
+func drain(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect expectedCount) (digests []string, replayErrs []error) {
 	t.Helper()
-	if expect < 0 {
+	if expect.collectUntilQuiet {
 		return collectUntilQuiet(t, msgC, errC)
 	}
-	return collectExpected(t, msgC, errC, expect)
+	return collectExpected(t, msgC, errC, expect.count)
+}
+
+// drainPolling collects output from processNewTransactions, which returns before
+// processTransactionWithRetry finishes. Zero-output fixtures must wait for the
+// channel to stay quiet, otherwise a delayed unexpected publication can be missed.
+// Future refactor: split the watcher async boundaries so RunWithScissors wrappers
+// spawn deterministic serial workers that replay tests can call directly.
+func drainPolling(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect expectedCount) (digests []string, replayErrs []error) {
+	t.Helper()
+	if expect.collectUntilQuiet || expect.count == 0 {
+		return collectUntilQuiet(t, msgC, errC)
+	}
+	return collectExpected(t, msgC, errC, expect.count)
 }
 
 func collectExpected(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error, expect int) (digests []string, replayErrs []error) {
@@ -168,8 +193,9 @@ func collectExpected(t *testing.T, msgC <-chan *common.MessagePublication, errC 
 	return finishDrain(digests, msgC, errC)
 }
 
-// collectUntilQuiet is used only during fixture generation, when a flow's count is not
-// yet known. Normal runs use collectExpected and do not wait in the happy path.
+// collectUntilQuiet is used during fixture generation, when a flow's count is not
+// yet known, and for zero-output polling fixtures where processNewTransactions
+// returns before its worker goroutine has necessarily finished.
 func collectUntilQuiet(t *testing.T, msgC <-chan *common.MessagePublication, errC <-chan error) (digests []string, replayErrs []error) {
 	t.Helper()
 	const settle = 1 * time.Second
@@ -206,7 +232,7 @@ func finishDrain(digests []string, msgC <-chan *common.MessagePublication, errC 
 	}
 }
 
-func reobserveTransactionOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
+func reobserveTransactionOutput(t *testing.T, b *replayBundle, expect expectedCount) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	msgC := make(chan *common.MessagePublication, 64)
@@ -222,7 +248,7 @@ func reobserveTransactionOutput(t *testing.T, b *replayBundle, expect int) (dige
 	return drain(t, msgC, s.errC, expect)
 }
 
-func fetchBlockOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
+func fetchBlockOutput(t *testing.T, b *replayBundle, expect expectedCount) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	msgC := make(chan *common.MessagePublication, 64)
@@ -233,7 +259,7 @@ func fetchBlockOutput(t *testing.T, b *replayBundle, expect int) (digests []stri
 	return drain(t, msgC, s.errC, expect)
 }
 
-func processNewTransactionsOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
+func processNewTransactionsOutput(t *testing.T, b *replayBundle, expect expectedCount) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	msgC := make(chan *common.MessagePublication, 64)
@@ -244,11 +270,11 @@ func processNewTransactionsOutput(t *testing.T, b *replayBundle, expect int) (di
 	s.rpcClient = m
 
 	require.NoError(t, s.processNewTransactions(), "process new transactions")
-	return drain(t, msgC, s.errC, expect)
+	return drainPolling(t, msgC, s.errC, expect)
 }
 
 // reobserveAccountOutput feeds every served account through the by-account reobservation path.
-func reobserveAccountOutput(t *testing.T, b *replayBundle, expect int) (digests []string, replayErrs []error) {
+func reobserveAccountOutput(t *testing.T, b *replayBundle, expect expectedCount) (digests []string, replayErrs []error) {
 	t.Helper()
 
 	msgC := make(chan *common.MessagePublication, 64)
