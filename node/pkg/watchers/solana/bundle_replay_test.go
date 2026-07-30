@@ -43,11 +43,11 @@ func TestReplayGeneratedBundles(t *testing.T) {
 						expected = nil
 					}
 
-					reobExpect, obsExpect, pollExpect, acctExpect := expectedCounts(expected)
-					reobDigests, reobErrs := reobserveTransactionOutput(t, &b, reobExpect)
-					obsDigests, obsErrs := fetchBlockOutput(t, &b, obsExpect)
-					pollDigests, pollErrs := processNewTransactionsOutput(t, &b, pollExpect)
-					acctDigests, acctErrs := reobserveAccountOutput(t, &b, acctExpect)
+					expects := expectedCounts(expected)
+					reobDigests, reobErrs := reobserveTransactionOutput(t, &b, expects.reobservation)
+					obsDigests, obsErrs := fetchBlockOutput(t, &b, expects.observation)
+					pollDigests, pollErrs := processNewTransactionsOutput(t, &b, expects.polling)
+					acctDigests, acctErrs := reobserveAccountOutput(t, &b, expects.account)
 
 					assert.Empty(t, reobErrs, "no asynchronous watcher errors expected (reobservation)")
 					assert.Empty(t, obsErrs, "no asynchronous watcher errors expected (observation)")
@@ -184,11 +184,23 @@ func requireRecordedExpectations(t *testing.T, sources []*bundleSource) {
 		numMissing, total, missing, elided, updateReplayFixturesEnv)
 }
 
-func expectedCounts(exp *expectedOutput) (reob, obs, poll, acct int) {
+func expectedCounts(exp *expectedOutput) replayExpectedCounts {
 	if exp == nil {
-		return -1, -1, -1, -1
+		// Fixture regeneration mode: there is no baseline count yet, so each
+		// flow discovers its emitted digests by collecting until quiet.
+		return replayExpectedCounts{
+			reobservation: expectedCount{collectUntilQuiet: true},
+			observation:   expectedCount{collectUntilQuiet: true},
+			polling:       expectedCount{collectUntilQuiet: true},
+			account:       expectedCount{collectUntilQuiet: true},
+		}
 	}
-	return len(exp.Reobservation), len(exp.Observation), len(exp.Polling), len(exp.Account)
+	return replayExpectedCounts{
+		reobservation: expectedCount{count: len(exp.Reobservation)},
+		observation:   expectedCount{count: len(exp.Observation)},
+		polling:       expectedCount{count: len(exp.Polling)},
+		account:       expectedCount{count: len(exp.Account)},
+	}
 }
 
 // recordExpected stages a bundle's freshly replayed digests for write-back. It is only ever
@@ -233,7 +245,7 @@ func writeRecordedExpectations(t *testing.T, path string, rawBundles []json.RawM
 	// Minified to keep the fixture file small; the decoder ignores whitespace on read.
 	out, err := json.Marshal(rawBundles)
 	require.NoError(t, err, "marshal bundle array")
-	require.NoError(t, os.WriteFile(path, append(out, '\n'), 0644), "write %s", path)
+	require.NoError(t, os.WriteFile(path, append(out, '\n'), 0600), "write %s", path)
 	t.Logf("recorded expected output into %s; re-run to assert against them", path)
 }
 

@@ -27,6 +27,9 @@ const (
 
 	postMessageMinNumAccounts = 8 // client.go: postMessageInstructionMinNumAccounts
 	closeMinNumAccounts       = 6 // close_event.go: closePostedMessageMinNumAccounts
+	messageAccountRefIndex    = 1
+	minAccountRefs            = messageAccountRefIndex + 1
+	finalizedAccountLevel     = 32
 
 	prefixReliable   = "msg" // client.go: accountPrefixReliable
 	prefixUnreliable = "msu" // client.go: accountPrefixUnreliable
@@ -262,7 +265,7 @@ func genKey(tag byte, n int) solana.PublicKey {
 	for i := range raw {
 		raw[i] = tag
 	}
-	raw[31] = byte(n)
+	raw[31] = byte(n) // #nosec G115 -- generated test keys use tiny per-role counters
 	return solana.PublicKeyFromBytes(raw[:])
 }
 
@@ -295,11 +298,11 @@ func (b *Builder) addInnerSet(index uint16, insts []solana.CompiledInstruction) 
 }
 
 func (b *Builder) accountRefs(minLen int, msgIdx uint16) []uint16 {
-	if minLen < 2 {
-		minLen = 2
+	if minLen < minAccountRefs {
+		minLen = minAccountRefs
 	}
 	a := make([]uint16, minLen)
-	a[1] = msgIdx
+	a[messageAccountRefIndex] = msgIdx
 	return a
 }
 
@@ -328,7 +331,7 @@ func accountConsistency(c Commitment) uint8 {
 	if c == Confirmed {
 		return 1
 	}
-	return 32
+	return finalizedAccountLevel
 }
 
 func toAddr(b [32]byte) vaa.Address {
@@ -430,6 +433,8 @@ func (b *Builder) closeEventData(kind MessageKind, m WormholeFields, ac AccountC
 }
 
 // AddPostMessage adds a post_message call.
+//
+//nolint:unparam // The returned builder is used by cross-package fluent fixture definitions.
 func (b *Builder) AddPostMessage(spec PostMessageSpec) *Builder {
 	msgKey := genKey(messageTag, b.msgCounter)
 	if spec.MessageAccountKey != nil {
@@ -473,6 +478,8 @@ func (b *Builder) AddPostMessage(spec PostMessageSpec) *Builder {
 }
 
 // AddShim adds a shim publication
+//
+//nolint:unparam // The returned builder is used by cross-package fluent fixture definitions.
 func (b *Builder) AddShim(spec ShimSpec) *Builder {
 	if !b.shimEnabled {
 		b.fail(fmt.Errorf("AddShim requires Config.ShimContract to be set"))
@@ -491,7 +498,7 @@ func (b *Builder) AddShim(spec ShimSpec) *Builder {
 			progIdx, data = b.shimIndex(), b.shimPostData(spec.Msg)
 		case CorePostPart:
 			progIdx, data = b.coreIndex(), b.shimCoreData(spec.Msg)
-		default: // ShimEventPart
+		case ShimEventPart:
 			progIdx, data = b.shimIndex(), b.shimEventData(spec.Msg)
 		}
 		// Redirect this part to a wrong program to exercise the core-bridge
@@ -527,6 +534,8 @@ func (b *Builder) AddShim(spec ShimSpec) *Builder {
 }
 
 // AddClose adds a close_posted_message event.
+//
+//nolint:unparam // The returned builder is used by cross-package fluent fixture definitions.
 func (b *Builder) AddClose(spec CloseSpec) *Builder {
 	msgKey := genKey(messageTag, b.msgCounter)
 	if spec.MessageAccountKey != nil {
