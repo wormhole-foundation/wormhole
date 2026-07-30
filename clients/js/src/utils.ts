@@ -4,6 +4,7 @@ import {
   Network,
   PlatformToChains,
   chainToPlatform,
+  chains,
   toChain,
 } from "@wormhole-foundation/sdk-base";
 import { spawnSync } from "child_process";
@@ -56,6 +57,12 @@ export function chainToChain(input: string): Chain {
   if (input.length < 2) {
     throw new Error(`Invalid chain: ${input}`);
   }
-  const chainStr = input[0].toUpperCase() + input.slice(1).toLowerCase();
-  return toChain(chainStr);
+  // Match case-insensitively and ignore underscores so multi-word chains
+  // work in any spelling (BaseSepolia, basesepolia, base_sepolia).
+  const normalized = input.replace(/_/g, "").toLowerCase();
+  const chain = chains.find((c) => c.toLowerCase() === normalized);
+  if (!chain) {
+    throw new Error(`Invalid chain: ${input}`);
+  }
+  return chain;
 }
