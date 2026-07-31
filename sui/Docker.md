@@ -1,15 +1,7 @@
-# build the image and tag it appropriately
+# build the image, tag it appropriately, and push to ghcr
 
 <!-- cspell:disable -->
 
 ```bash
-cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f sui/Dockerfile.base -t ghcr.io/wormhole-foundation/sui:[tag] .
-```
-
-<!-- cspell:enable -->
-
-# push to ghcr
-
-```bash
-docker push ghcr.io/wormhole-foundation/sui:[tag]
+cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f sui/Dockerfile.base --push -t ghcr.io/wormhole-foundation/sui:[tag] .
 ```
