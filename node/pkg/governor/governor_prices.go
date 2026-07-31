@@ -157,7 +157,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
-				throttle <- 1 // Note on channel capacity: We want this to block for throttling
+				throttle <- 1 //nolint:channelcheck // Blocking used for throttling CoinGecko API requests below.
 			case <-ctx.Done():
 				return
 			}

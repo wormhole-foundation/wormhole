@@ -164,13 +164,13 @@ func publicwebServiceRunnable(
 		}
 
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
-		errC := make(chan error)
+		errC := make(chan error, 1)
 		go func() {
 			logger.Info("publicweb server listening", zap.String("addr", srv.Addr))
 			if tlsHostname != "" {
-				errC <- srv.ServeTLS(listener, "", "") // Note on channel capacity: Only does one write
+				errC <- srv.ServeTLS(listener, "", "") //nolint:channelcheck // Only does one write and one receive.
 			} else {
-				errC <- srv.Serve(listener) // Note on channel capacity: Only does one write
+				errC <- srv.Serve(listener) //nolint:channelcheck // Only does one write and one receive.
 			}
 		}()
 		select {

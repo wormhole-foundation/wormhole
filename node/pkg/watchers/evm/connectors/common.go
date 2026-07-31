@@ -91,7 +91,7 @@ func (sub *PollSubscription) Err() <-chan error {
 func (sub *PollSubscription) Unsubscribe() {
 	sub.errOnce.Do(func() {
 		select {
-		case sub.quit <- ErrUnsubscribed: // Note on channel capacity: We only do a single write.
+		case sub.quit <- ErrUnsubscribed: //nolint:channelcheck // We only do a single write. Additionally, the other receive branch will likely have already triggered.
 			<-sub.unsubDone
 		case <-sub.unsubDone:
 		}
@@ -109,7 +109,7 @@ func (sub *PollSubscription) Unsubscribe() {
 // non-blocking: unsubDone is buffered and only ever needs a single value.
 func (sub *PollSubscription) signalUnsubscribed() {
 	select {
-	case sub.unsubDone <- struct{}{}: //nolint:channelcheck // Buffered; single signal.
+	case sub.unsubDone <- struct{}{}: //nolint:channelcheck // Buffered and single signal. If it's already blocked, then we're in the shutdown phase anyway so we can just continue.
 	default:
 	}
 }

@@ -1,0 +1,6 @@
+version: v2.12.2
+name: wormhole-golangci-lint
+destination: ./bin
+plugins:
+  - module: github.com/wormhole-foundation/wormhole/linters/rules/channelcheck
+    path: ./rules/channelcheck
