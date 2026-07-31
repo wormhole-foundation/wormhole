@@ -100,13 +100,88 @@ uint32 nonce
 []byte payload
 ```
 
-### Initialize Transceiver
+### Registration (Initialize Transceiver & Peer Registration)
 
-> 🚧 TODO
+Because XRPL has no smart contracts, the [`WormholeTransceiverInfo`](https://github.com/wormhole-foundation/native-token-transfers/blob/main/docs/Transceiver.md#initialize-transceiver) (hub init) and
+[`WormholeTransceiverRegistration`](https://github.com/wormhole-foundation/native-token-transfers/blob/main/docs/Transceiver.md#transceiver-peer-registration) (peer) messages cannot be emitted natively.
+Instead, when a custody account is initialized (`initialize`) or a peer is
+registered (`register_peer`), the Solana Sequencer emits the registration as an
+`XrplRelease` (XREL) carrying the `XrplRegistration` (XREG) bytes in its first
+memo. The delegated manager set signs and submits that XREL as a multisig Payment
+to the Core Account (there is no standalone XREG message and the executor is not
+involved). The watcher then re-keys and synthesizes the canonical transceiver
+message under the correct NTT transceiver emitter.
 
-### Transceiver (Peer) Registration
+Upon a Payment to the Core Account, the guardian watcher MUST
 
-> 🚧 TODO
+- Verify that the transaction is `validated`
+- Verify that the transaction result is `tesSUCCESS`
+- Verify that the transaction type is `Payment`
+- Verify that the **first** memo (index 0) has a MemoFormat of
+  `application/x-ntt-registration`, hex-encoded
+- Verify that the MemoData begins with the `XREG` prefix
+
+The MemoData carries the raw `XREG` bytes:
+
+```go
+[4]byte  prefix = "XREG"
+uint8    kind              // 0 = Hub, 1 = Peer
+[20]byte manager           // XRPL custody account id
+[]byte   token_id          // wire form, per the sequencer token_id encoding (see below)
+// Hub tail (kind=0):
+uint8    token_decimals
+// Peer tail (kind=1):
+uint16   peer_chain        // big-endian
+[32]byte peer_address
+```
+
+The `token_id` uses the same encoding as the sequencer's XREL payload:
+
+| Token Type | Byte 0 | Bytes 1+                    | Total    |
+| ---------- | ------ | --------------------------- | -------- |
+| XRP        | 0x00   | (none)                      | 1 byte   |
+| IOU        | 0x01   | currency (20) + issuer (20) | 41 bytes |
+| MPT        | 0x02   | mpt_issuance_id (24)        | 25 bytes |
+
+The watcher derives the NTT transceiver emitter
+`keccak256("ntt" + manager32 + token32)` — the **same** emitter used for
+`NativeTokenTransfer` messages from this manager+token pair — and emits the VAA
+under it, so the accountant keys hub/peer state on the same emitter it sees
+transfers from.
+
+#### Initialize Transceiver (kind = Hub)
+
+Synthesize a `WormholeTransceiverInfo` payload (70 bytes):
+
+```go
+[4]byte  prefix = 0x9c23bd3b
+[32]byte manager_address    // manager32 (left-padded XRPL account)
+uint8    manager_mode        // 0 = Locking, 1 = Burning (see below)
+[32]byte token_address      // token32 derived from token_id
+uint8    token_decimals
+```
+
+`manager_mode` is derived by the watcher from the XREG `manager` and `token_id`:
+an XRPL custody account is in **Burning** mode when it is itself the token's
+issuer (it can mint/burn), and **Locking** mode otherwise (it holds a token
+issued by another account). The issuer is the last 20 bytes of an IOU `token_id`,
+or the first 20 bytes of an MPT `mpt_issuance_id`; XRP has no issuer and is always
+Locking. The `ntt-global-accountant` only accepts Locking hubs, but the init
+message must attest the manager's true mode rather than assume Locking.
+
+#### Transceiver (Peer) Registration (kind = Peer)
+
+Synthesize a `WormholeTransceiverRegistration` payload (38 bytes):
+
+```go
+[4]byte  prefix = 0x18fc67c2
+uint16   chain_id            // big-endian, the peer chain
+[32]byte transceiver_address // the peer address
+```
+
+An operator submits the resulting VAAs to the NTT global accountant via
+`submit_vaas` to establish the hub/peer registration before transfers are
+enforced.
 
 ### NativeTokenTransfer TransceiverMessage
 

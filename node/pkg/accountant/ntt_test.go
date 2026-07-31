@@ -38,6 +38,44 @@ func TestNttParsePayloadNoTransferPrefix(t *testing.T) {
 	assert.False(t, nttIsPayloadNTT(payload))
 }
 
+// xrplXrpCustodyEmitter is the testnet NTT transceiver emitter for the XRP
+// custody account rpQdxE7TGjyhFWQeVrnxYo4j8dqwj9BTLH —
+// keccak256("ntt" + manager32 + zeros32). Registered in nttGetEmitters(TestNet).
+const xrplXrpCustodyEmitter = "264a5b2d2d0d0722a05f3ebe0403aee658729456cb50b8c5d524036bd0c06aaa"
+
+// TestNttXrplEmitterRegisteredTestnet verifies the XRPL custody emitters are
+// present in the testnet config and that an XRPL NTT transfer from one is
+// recognized as a (log-only) NTT message.
+func TestNttXrplEmitterRegisteredTestnet(t *testing.T) {
+	directEmitters, _, err := nttGetEmitters(common.TestNet)
+	require.NoError(t, err)
+
+	emitterAddr, err := vaa.StringToAddress(xrplXrpCustodyEmitter)
+	require.NoError(t, err)
+
+	// Registered, and log-only (enforce flag false) for the initial rollout.
+	enforce, ok := directEmitters[emitterKey{emitterChainId: vaa.ChainIDXRPL, emitterAddr: emitterAddr}]
+	require.True(t, ok, "XRPL XRP custody emitter should be registered on testnet")
+	assert.False(t, enforce, "XRPL emitters should be log-only initially")
+
+	// An XRPL NTT transfer from this emitter is covered as a direct NTT message.
+	payload, err := hex.DecodeString(goodPayload)
+	require.NoError(t, err)
+
+	msg := &common.MessagePublication{
+		TxID:           hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:      time.Unix(int64(1654543099), 0),
+		Sequence:       uint64(123456),
+		EmitterChain:   vaa.ChainIDXRPL,
+		EmitterAddress: emitterAddr,
+		Payload:        payload,
+	}
+
+	isNTT, enforceFlag := nttIsMsgDirectNTT(msg, directEmitters)
+	assert.True(t, isNTT, "XRPL NTT transfer should be recognized")
+	assert.False(t, enforceFlag, "should be log-only")
+}
+
 func TestNttParseMsgSuccess(t *testing.T) {
 	emitterAddr, err := vaa.StringToAddress("000000000000000000000000000000000000000000000000656e64706f696e74")
 	require.NoError(t, err)

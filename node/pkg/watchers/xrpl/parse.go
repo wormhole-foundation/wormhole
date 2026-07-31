@@ -22,6 +22,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/xrpl/currencycodec"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 )
 
 // nttMemoFormat is the hex-encoded MemoFormat for NTT transfers: "application/x-ntt-transfer"
@@ -82,6 +83,107 @@ const (
 // tesSUCCESS is the XRPL transaction result code for successful transactions
 const tesSUCCESS = "tesSUCCESS"
 
+// The XRPL registration (XREG) wire/domain vocabulary — prefixes, discriminants,
+// offsets, and lengths — lives in types.go.
+
+// regSourceTokenFromWire converts an XREG wire token_id (XrplTokenId form) into
+// the 32-byte source_token used by calculateEmitterAddress. It MUST produce the
+// identical bytes to the transfer path's sourceToken derivation so that the
+// synthesized registration emitter matches transfers:
+//
+//	XRP: 32 zeros
+//	IOU: 0x01 || keccak256(currency[20] || issuer[20])[1:]
+//	MPT: 0x02 || 7 zeros || mpt_issuance_id[24]
+//
+// Returns the source_token, the bytes consumed from `wire`, or an error.
+func regSourceTokenFromWire(wire []byte) ([32]byte, int, error) {
+	var sourceToken [32]byte
+	if len(wire) < 1 {
+		return sourceToken, 0, fmt.Errorf("xreg token_id empty")
+	}
+	switch wire[0] {
+	case xregTokenXRP:
+		return sourceToken, xregTokenXRPWireLen, nil // all zeros
+	case xregTokenIOU:
+		if len(wire) < xregTokenIOUWireLen {
+			return sourceToken, 0, fmt.Errorf("xreg IOU token_id too short: %d", len(wire))
+		}
+		// currency[20] || issuer[20] are already the normalized/decoded forms
+		// the transfer path hashes (currencycodec.NormalizedLen == 20, issuer is
+		// the 20-byte account ID), so hash them directly.
+		hash := ethcrypto.Keccak256(wire[1:xregTokenIOUWireLen])
+		sourceToken[0] = tokenTypeIssued
+		copy(sourceToken[1:], hash[1:])
+		return sourceToken, xregTokenIOUWireLen, nil
+	case xregTokenMPT:
+		if len(wire) < xregTokenMPTWireLen {
+			return sourceToken, 0, fmt.Errorf("xreg MPT token_id too short: %d", len(wire))
+		}
+		sourceToken[0] = tokenTypeMPT
+		copy(sourceToken[8:], wire[1:xregTokenMPTWireLen]) // 1 prefix + 7 padding = offset 8
+		return sourceToken, xregTokenMPTWireLen, nil
+	default:
+		return sourceToken, 0, fmt.Errorf("xreg unknown token type: 0x%02x", wire[0])
+	}
+}
+
+// nttManagerModeFromWire determines whether the custody account (manager) runs
+// in Locking or Burning mode for the token described by the XREG wire token_id.
+// The manager is in Burning mode when it is itself the token's issuer.
+//
+//	IOU: issuer is the last 20 bytes of the token_id (currency(20) then issuer(20))
+//	MPT: mpt_issuance_id = Sequence(4) || IssuerAccountID(20) per the XRPL spec,
+//	     so the issuer is the last 20 bytes of the 24-byte id.
+func nttManagerModeFromWire(manager20 [20]byte, wire []byte) byte {
+	if len(wire) < 1 {
+		return nttModeLocking
+	}
+	var issuer []byte
+	switch wire[0] {
+	case xregTokenIOU:
+		if len(wire) < xregTokenIOUWireLen {
+			return nttModeLocking
+		}
+		issuer = wire[xregIouIssuerOffset:xregTokenIOUWireLen]
+	case xregTokenMPT:
+		if len(wire) < xregTokenMPTWireLen {
+			return nttModeLocking
+		}
+		issuer = wire[xregMptIssuerOffset:xregTokenMPTWireLen]
+	default: // XRP has no issuer → Locking
+		return nttModeLocking
+	}
+	if bytes.Equal(issuer, manager20[:]) {
+		return nttModeBurning
+	}
+	return nttModeLocking
+}
+
+// buildTransceiverInfoPayload builds a WormholeTransceiverInfo payload:
+//
+//	prefix(4=0x9c23bd3b) + manager_address(32) + manager_mode(1) +
+//	token_address(32) + token_decimals(1)  = 70 bytes
+func buildTransceiverInfoPayload(manager32, token32 [32]byte, mode, decimals uint8) []byte {
+	out := make([]byte, 0, transceiverInfoLen)
+	out = append(out, transceiverInfoPrefix[:]...)
+	out = append(out, manager32[:]...)
+	out = append(out, mode)
+	out = append(out, token32[:]...)
+	out = append(out, decimals)
+	return out
+}
+
+// buildTransceiverRegistrationPayload builds a WormholeTransceiverRegistration:
+//
+//	prefix(4=0x18fc67c2) + chain_id(2 BE) + transceiver_address(32) = 38 bytes
+func buildTransceiverRegistrationPayload(peerChain uint16, peerAddress [32]byte) []byte {
+	out := make([]byte, 0, transceiverRegLen)
+	out = append(out, transceiverRegPrefix[:]...)
+	out = binary.BigEndian.AppendUint16(out, peerChain)
+	out = append(out, peerAddress[:]...)
+	return out
+}
+
 // txResponseV2 pairs a TxResponse with the close_time_iso field from API v2.
 // These are decoded separately because GetResult uses mapstructure which does
 // not support embedded-struct squashing with TagName:"json".
@@ -123,6 +225,12 @@ type Parser struct {
 	coreAccount        string              // Core Wormhole manager account — payments to this account are not NTT
 	managedAccounts    map[string]struct{} // Managed accounts (NTT accounts) — TicketCreate on these emits XTCF
 	fetchMPTAssetScale MPTAssetScaleFetcher
+	logger             *zap.Logger // optional; set by the watcher via withLogger. nil in most unit tests.
+}
+
+func (p *Parser) withLogger(logger *zap.Logger) *Parser {
+	p.logger = logger
+	return p
 }
 
 // The stream and request return different transaction structs
@@ -157,11 +265,14 @@ func NewParser(coreAccount string, managedAccounts []string, fetchMPTAssetScale 
 // Transaction parsing entry points
 // =============================================================================
 
-// ParseTransactionStream converts an XRPL TransactionStream into a MessagePublication.
+// ParseTransactionStream converts an XRPL TransactionStream into zero or more
+// MessagePublications. A single transaction usually yields one message, but a
+// registration publish (XREG-in-XREL) yields two: the synthesized registration
+// AND the XACK that clears the ticket it consumed.
 //
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check tx.Validated before calling this function.
-func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*common.MessagePublication, error) {
+func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) ([]*common.MessagePublication, error) {
 	// Parse ledger close time
 	timestamp, err := time.Parse(time.RFC3339, tx.CloseTimeISO)
 	if err != nil {
@@ -180,11 +291,13 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 	})
 }
 
-// ParseTxResponse converts a TxResponse (from reobservation) into a MessagePublication.
+// ParseTxResponse converts a TxResponse (from reobservation) into zero or more
+// MessagePublications (see ParseTransactionStream for why there may be more than
+// one).
 //
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check tx.Validated before calling this function.
-func (p *Parser) ParseTxResponse(tx *txResponseV2) (*common.MessagePublication, error) {
+func (p *Parser) ParseTxResponse(tx *txResponseV2) ([]*common.MessagePublication, error) {
 	timestamp, err := time.Parse(time.RFC3339, tx.CloseTimeISO)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse close_time_iso: %w", err)
@@ -285,7 +398,7 @@ func (p *Parser) parseNttTransaction(
 	}
 
 	// Calculate emitter address: keccak256("ntt" + source_ntt_manager + source_token)
-	emitterAddress := p.calculateEmitterAddress(sourceNTTManager, tokenInfo.sourceToken)
+	emitterAddress := calculateEmitterAddress(sourceNTTManager, tokenInfo.sourceToken)
 
 	// Build the NTT payload
 	payload := p.buildNTTPayload(
@@ -321,35 +434,283 @@ func (p *Parser) parseNttTransaction(
 //     produces an XTCF. A failed TicketCreate intentionally falls through here
 //     (parseTicketCreateTransaction returns (nil, nil)) and is handled by
 //     parseXACKTransaction below.
-//  2. parseXACKTransaction — ticket-consuming transactions on a managed account
+//  2. parseRegistrationTransaction — a ticketed Payment to the core account with
+//     the registration MemoFormat (an XREG-in-XREL publish, relayed by the manager
+//     set from the custody/managed account) produces the synthesized NTT
+//     transceiver registration. Because that Payment is also XACK-eligible (managed
+//     sender + TicketSequence), it additionally emits an XACK — see the note below.
+//  3. parseXACKTransaction — ticket-consuming transactions on a managed account
 //     (Release Payments, failed TicketCreate, Burn/AccountSet) produce an XACK.
-//  3. parseCoreTransaction — payments to the core account with a Wormhole core
+//  4. parseCoreTransaction — payments to the core account with a Wormhole core
 //     memo produce a generic Wormhole message.
-//  4. parseNttTransaction — payments to a managed account with an NTT memo
+//  5. parseNttTransaction — payments to a managed account with an NTT memo
 //     produce an NTT transfer message.
 //
-// The order is load-bearing: TicketCreate must run before XACK (so successful
-// TicketCreates are claimed as XTCF rather than XACK), and the Core/NTT parsers
-// come last because they require a Destination field that TicketCreate
-// transactions do not have.
-// Returns (nil, nil) if none matched.
-func (p *Parser) parseTransaction(tx GenericTx) (*common.MessagePublication, error) {
+// The order is load-bearing:
+//   - TicketCreate must run before XACK (so successful TicketCreates are claimed as
+//     XTCF rather than XACK).
+//   - Registration must run before XACK: a registration Payment is a ticketed
+//     Payment from a managed account, so the XACK parser would otherwise consume it
+//     and the registration would be lost.
+//   - Core/NTT come last because they require a Destination field that TicketCreate
+//     transactions do not have.
+//
+// A registration publish is the one case that yields TWO messages: the synthesized
+// registration (for the accountant) AND the XACK that clears the ticket the
+// registration consumed on the sequencer. Every other transaction yields at most
+// one message.
+//
+// Returns nil if none matched.
+func (p *Parser) parseTransaction(tx GenericTx) ([]*common.MessagePublication, error) {
 	msg, err := p.parseTicketCreateTransaction(tx)
-	if msg != nil || err != nil {
-		return msg, err
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		p.logDetected(tx, "ticket_create_xtcf")
+		return []*common.MessagePublication{msg}, nil
+	}
+
+	regMsg := p.parseRegistrationTransaction(tx)
+	if regMsg != nil {
+		msgs := []*common.MessagePublication{regMsg}
+		var ackMsg *common.MessagePublication
+		ackMsg, err = p.parseXACKTransaction(tx)
+		if err != nil {
+			return nil, err
+		}
+		if ackMsg != nil {
+			msgs = append(msgs, ackMsg)
+		}
+		p.logDetected(tx, "registration+xack")
+		return msgs, nil
 	}
 
 	msg, err = p.parseXACKTransaction(tx)
-	if msg != nil || err != nil {
-		return msg, err
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		p.logDetected(tx, "xack")
+		return []*common.MessagePublication{msg}, nil
 	}
 
 	msg, err = p.parseCoreTransaction(tx)
-	if msg != nil || err != nil {
-		return msg, err
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		p.logDetected(tx, "core")
+		return []*common.MessagePublication{msg}, nil
 	}
 
-	return p.parseNttTransaction(tx)
+	msg, err = p.parseNttTransaction(tx)
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		p.logDetected(tx, "ntt")
+		return []*common.MessagePublication{msg}, nil
+	}
+
+	return nil, nil
+}
+
+func (p *Parser) logDetected(tx GenericTx, kind string) {
+	if p.logger == nil {
+		return
+	}
+	p.logger.Debug("xrpl parse: detected message type",
+		zap.String("txHash", tx.Hash),
+		zap.String("kind", kind),
+	)
+}
+
+// parseRegistrationTransaction parses an XREG registration publish (payment to
+// the core account with regMemoFormat) and synthesizes the canonical NTT
+// transceiver registration message under the NTT transceiver emitter.
+//
+// Returns nil if this is not a registration publish. Every non-match is a
+// decline (nil) rather than an error: a failed/malformed registration Payment
+// still consumed its ticket on XRPL and must fall through to the XACK handler,
+// so aborting the dispatch with an error would leave the ticket stuck.
+func (p *Parser) parseRegistrationTransaction(tx GenericTx) *common.MessagePublication {
+	if p.coreAccount == "" {
+		return nil
+	}
+
+	destination, err := p.extractDestination(tx.Transaction)
+	if err != nil || destination != p.coreAccount {
+		return nil // not a registration; fall through to the other parsers.
+	}
+
+	// Read the registration memo (memo[0], regMemoFormat). nil => not an XREG.
+	regData, err := p.parseRegistrationMemoData(tx.Transaction)
+	if err != nil || regData == nil {
+		return nil // not a (valid) registration; fall through to the XACK handler.
+	}
+
+	senderID, err := p.registrationSenderAccountID(tx.Transaction)
+	if err != nil || senderID == nil {
+		return nil // fall through to the XACK handler.
+	}
+	// manager occupies bytes [xregManagerOffset:xregHeaderLen] of the XREG payload.
+	if len(regData) < xregHeaderLen || !bytes.Equal(senderID, regData[xregManagerOffset:xregHeaderLen]) {
+		return nil
+	}
+
+	// A FAILED registration Payment or a non-Payment still consumed its ticket, so
+	// fall through to parseXACKTransaction (which emits the failure XACK) instead of
+	// aborting the dispatch.
+	if err = validateTransactionResult(tx); err != nil {
+		return nil // failed registration Payment falls through to the XACK handler.
+	}
+	if err = validateTransactionType(tx.Transaction); err != nil {
+		return nil // non-Payment falls through to the other parsers.
+	}
+
+	// From here the tx is a confirmed registration that consumed a ticket. If the
+	// tx metadata or the payload can't be built, still decline (nil) so the XACK
+	// handler runs and clears the ticket — never abort the dispatch.
+	txHash, sequence, err := p.extractTxHashAndSequence(tx)
+	if err != nil {
+		return nil // fall through to the XACK handler so the ticket is acked.
+	}
+
+	// Synthesize the canonical transceiver payload + re-keyed emitter.
+	payload, emitter, err := buildRegistrationMessage(regData)
+	if err != nil {
+		return nil // fall through to the XACK handler so the ticket is acked.
+	}
+
+	return &common.MessagePublication{
+		TxID:             txHash,
+		Timestamp:        tx.Timestamp,
+		Nonce:            0,
+		Sequence:         sequence,
+		EmitterChain:     vaa.ChainIDXRPL,
+		EmitterAddress:   emitter,
+		Payload:          payload,
+		ConsistencyLevel: 0,
+		IsReobservation:  false,
+		Unreliable:       false,
+	}
+}
+
+// parseRegistrationMemoData extracts the raw XREG bytes from memo[0] when its
+// MemoFormat is regMemoFormat. Returns (nil, nil) if not a registration memo.
+func (p *Parser) parseRegistrationMemoData(tx transaction.FlatTransaction) ([]byte, error) {
+	memosRaw, ok := tx["Memos"]
+	if !ok {
+		return nil, nil
+	}
+	memos, ok := memosRaw.([]any)
+	if !ok || len(memos) == 0 {
+		return nil, nil
+	}
+	// Only the first memo (index 0), consistent with the NTT/core parsers.
+	memoWrapper, ok := memos[0].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	memoRaw, ok := memoWrapper["Memo"]
+	if !ok {
+		return nil, nil
+	}
+	memo, ok := memoRaw.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	memoFormatStr, ok := memo["MemoFormat"].(string)
+	if !ok || memoFormatStr != regMemoFormat {
+		return nil, nil
+	}
+	memoDataStr, ok := memo["MemoData"].(string)
+	if !ok {
+		return nil, nil
+	}
+	data, err := hex.DecodeString(memoDataStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode registration MemoData: %w", err)
+	}
+	if len(data) < 4 || !bytes.Equal(data[:4], xregPrefix[:]) {
+		return nil, nil
+	}
+	return data, nil
+}
+
+// registrationSenderAccountID returns the sender's 20-byte XRPL account ID when
+// the sender is a managed (guardian-controlled) account, or nil when it is not
+// managed — used to authenticate an XREG registration publish (see the SECURITY
+// note in parseRegistrationTransaction). A missing/malformed Account field is an
+// error; an unmanaged sender is a silent decline (nil, nil).
+func (p *Parser) registrationSenderAccountID(tx transaction.FlatTransaction) ([]byte, error) {
+	account, err := extractAccountString(tx)
+	if err != nil {
+		return nil, err
+	}
+	if _, managed := p.managedAccounts[account]; !managed {
+		return nil, nil
+	}
+	_, accountID, err := addresscodec.DecodeClassicAddressToAccountID(account)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode sender address %s: %w", account, err)
+	}
+	return accountID, nil
+}
+
+// buildRegistrationMessage parses the XREG bytes and returns the canonical
+// transceiver payload plus the NTT transceiver emitter to publish under.
+//
+// XREG layout: prefix(4) + kind(1) + manager(20) + token_id(wire 1-41) + tail
+//
+//	Hub  tail: token_decimals(1)
+//	Peer tail: peer_chain(2 BE) + peer_address(32)
+func buildRegistrationMessage(data []byte) ([]byte, vaa.Address, error) {
+	var emitter vaa.Address
+	if len(data) < xregHeaderLen+1 {
+		return nil, emitter, fmt.Errorf("xreg payload too short: %d", len(data))
+	}
+	kind := data[4]
+	var manager20 [20]byte
+	copy(manager20[:], data[xregManagerOffset:xregHeaderLen])
+
+	// manager32 = the 20-byte account id right-aligned in 32 bytes (same as the
+	// transfer path's sourceNTTManager). vaa.BytesToAddress does the left-pad.
+	manager32Addr, err := vaa.BytesToAddress(manager20[:])
+	if err != nil {
+		return nil, emitter, fmt.Errorf("failed to pad manager: %w", err)
+	}
+	manager32 := [32]byte(manager32Addr)
+
+	tokenWire := data[xregHeaderLen:]
+	sourceToken, consumed, err := regSourceTokenFromWire(tokenWire)
+	if err != nil {
+		return nil, emitter, err
+	}
+	tail := data[xregHeaderLen+consumed:]
+
+	emitter = calculateEmitterAddress(manager32, sourceToken)
+
+	switch kind {
+	case xregKindHub:
+		if len(tail) != xregHubTailLen {
+			return nil, emitter, fmt.Errorf("xreg hub tail length %d, want %d", len(tail), xregHubTailLen)
+		}
+		decimals := tail[0]
+		mode := nttManagerModeFromWire(manager20, tokenWire)
+		return buildTransceiverInfoPayload(manager32, sourceToken, mode, decimals), emitter, nil
+	case xregKindPeer:
+		if len(tail) != xregPeerTailLen {
+			return nil, emitter, fmt.Errorf("xreg peer tail length %d, want %d", len(tail), xregPeerTailLen)
+		}
+		peerChain := binary.BigEndian.Uint16(tail[0:2])
+		var peerAddr [32]byte
+		copy(peerAddr[:], tail[2:xregPeerTailLen])
+		return buildTransceiverRegistrationPayload(peerChain, peerAddr), emitter, nil
+	default:
+		return nil, emitter, fmt.Errorf("xreg unknown kind: 0x%02x", kind)
+	}
 }
 
 // parseCoreTransaction parses a generic Wormhole message (payment to the core account).
@@ -776,19 +1137,28 @@ func validateTransactionType(tx transaction.FlatTransaction) error {
 	return nil
 }
 
+// extractAccountString returns the transaction's `Account` (sender) r-address.
+// Shared by extractSender and registrationSenderAccountID.
+func extractAccountString(tx transaction.FlatTransaction) (string, error) {
+	accountRaw, ok := tx["Account"]
+	if !ok {
+		return "", fmt.Errorf("transaction has no Account field")
+	}
+	account, ok := accountRaw.(string)
+	if !ok {
+		return "", fmt.Errorf("transaction Account field is not a string")
+	}
+	return account, nil
+}
+
 // extractSender extracts the sender address from the transaction Account field
 // and converts it to a 32-byte format.
 func (p *Parser) extractSender(tx transaction.FlatTransaction) ([32]byte, error) {
 	var sender [32]byte
 
-	accountRaw, ok := tx["Account"]
-	if !ok {
-		return sender, fmt.Errorf("transaction has no Account field")
-	}
-
-	account, ok := accountRaw.(string)
-	if !ok {
-		return sender, fmt.Errorf("transaction Account field is not a string")
+	account, err := extractAccountString(tx)
+	if err != nil {
+		return sender, err
 	}
 
 	emitter, err := p.addressToEmitter(account)
@@ -925,11 +1295,12 @@ func (p *Parser) addressToEmitter(address string) (vaa.Address, error) {
 		return vaa.Address{}, fmt.Errorf("unexpected account ID length: got %d, want %d", len(accountID), addresscodec.AccountAddressLength)
 	}
 
-	// Left-pad with zeros to create 32-byte emitter address
-	// vaa.Address is [32]byte, accountID is 20 bytes
-	// Place accountID in the last 20 bytes (indices 12-31)
-	var emitter vaa.Address
-	copy(emitter[32-addresscodec.AccountAddressLength:], accountID)
+	// Right-align the 20-byte account id in a 32-byte vaa.Address (left-padded
+	// with 12 zero bytes).
+	emitter, err := vaa.BytesToAddress(accountID)
+	if err != nil {
+		return vaa.Address{}, fmt.Errorf("failed to pad account id: %w", err)
+	}
 
 	return emitter, nil
 }
@@ -1283,7 +1654,7 @@ func (p *Parser) scaleAmount(amount uint64, fromDecimals, toDecimals uint8) (uin
 
 // calculateEmitterAddress calculates the emitter address from source NTT manager and source token.
 // emitter = keccak256("ntt" + source_ntt_manager_address + source_token)
-func (p *Parser) calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte) vaa.Address {
+func calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte) vaa.Address {
 	const addrLen = len(sourceNTTManager)
 	data := make([]byte, nttEmitterDomainLen+2*addrLen)
 	copy(data[:nttEmitterDomainLen], "ntt")

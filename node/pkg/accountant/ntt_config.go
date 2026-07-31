@@ -48,6 +48,9 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 			{chainId: vaa.ChainIDArbitrumSepolia, addr: "000000000000000000000000fA42603152E4f133F5F3DA610CDa91dF5821d8bc"},
 			{chainId: vaa.ChainIDBaseSepolia, addr: "000000000000000000000000149987472333cD48ac6D28293A338a1EEa6Be7EE"},
 			{chainId: vaa.ChainIDOptimismSepolia, addr: "000000000000000000000000eCF0496DE01e9Aa4ADB50ae56dB550f52003bdB7"},
+			// XRPL NTT custody emitters — one per (custody account, token), keyed on keccak256("ntt" + manager32 + sourceToken32). Log-only until the XREG registration pipeline is live.
+			{chainId: vaa.ChainIDXRPL, addr: "264a5b2d2d0d0722a05f3ebe0403aee658729456cb50b8c5d524036bd0c06aaa", logOnly: true}, // rpQdxE7TGjyhFWQeVrnxYo4j8dqwj9BTLH (XRP)
+			{chainId: vaa.ChainIDXRPL, addr: "31155b0ad6a8e59f4411d0276a915b90f36de48163a5ddc1886b59e4525cac24", logOnly: true}, // rN6CtQsYcAFBRciP9ktiPRv2R6FZ5sk5Fm (IOU "TS1")
 		}
 		arEmitterConfig = sdk.KnownTestnetAutomaticRelayerEmitters
 	} else {
