@@ -257,7 +257,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				if msg != nil {
 					msg.IsReobservation = true
-					w.msgChan <- msg
+					w.msgChan <- msg // Note on channel capacity: We never want to drop messages.
 					watchers.ReobservationsByChain.WithLabelValues("xrpl", "std").Inc()
 				}
 			}
@@ -351,7 +351,7 @@ func (w *Watcher) processTransaction(tx *streamtypes.TransactionStream) error {
 	}
 
 	// Send to processor
-	w.msgChan <- msg
+	w.msgChan <- msg // Note on channel capacity: We never want to drop messages.
 	xrplMessagesConfirmed.Inc()
 
 	w.logger.Info("message observed", msg.ZapFields()...)

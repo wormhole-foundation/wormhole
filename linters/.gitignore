@@ -1,0 +1,7 @@
+# Built binaries.
+/bin/
+
+# Stray root-level builds, e.g. from a bare `go build ./...` (the Makefile
+# targets put these under bin/).
+/wormhole-lint
+/wormhole-golangci-lint
