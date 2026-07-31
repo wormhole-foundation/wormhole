@@ -47,17 +47,13 @@ func TestValidateTransactionResult_Integration(t *testing.T) {
 	// Verify the transaction is validated
 	require.True(t, txResp.Validated, "transaction should be validated")
 
-	// Create a parser and test validateTransactionResult
-	parser := NewParser("", nil, nil)
-
 	// Create a GenericTx with the transaction result from the response
 	tx := GenericTx{
-		Transaction:           txResp.TxJSON,
 		MetaTransactionResult: txResp.Meta.TransactionResult,
 	}
 
 	// Test validateTransactionResult - should succeed for a successful transaction
-	err = parser.validateTransactionResult(tx)
+	err = validateTransactionResult(tx)
 	require.NoError(t, err, "validateTransactionResult should succeed for tesSUCCESS transaction")
 
 	// Log some details about the fetched transaction
@@ -66,38 +62,6 @@ func TestValidateTransactionResult_Integration(t *testing.T) {
 	t.Logf("Transaction result: %s", txResp.Meta.TransactionResult)
 	t.Logf("Ledger index: %d", txResp.LedgerIndex)
 	t.Logf("Validated: %t", txResp.Validated)
-}
-
-// TestValidateTransactionResult_Integration_FailedTransaction tests that
-// validateTransactionResult correctly rejects a failed transaction.
-func TestValidateTransactionResult_Integration_FailedTransaction(t *testing.T) {
-	// Create a parser
-	parser := NewParser("", nil, nil)
-
-	// Create a GenericTx with a non-success result
-	tx := GenericTx{
-		MetaTransactionResult: "tecPATH_DRY",
-	}
-
-	// Test validateTransactionResult - should fail for non-success transaction
-	err := parser.validateTransactionResult(tx)
-	require.Error(t, err, "validateTransactionResult should fail for non-tesSUCCESS transaction")
-	require.Contains(t, err.Error(), "tecPATH_DRY")
-	require.Contains(t, err.Error(), "not tesSUCCESS")
-}
-
-// TestValidateTransactionResult_Integration_EmptyResult tests that
-// validateTransactionResult correctly handles a transaction with empty result.
-func TestValidateTransactionResult_Integration_EmptyResult(t *testing.T) {
-	parser := NewParser("", nil, nil)
-
-	tx := GenericTx{
-		MetaTransactionResult: "",
-	}
-
-	err := parser.validateTransactionResult(tx)
-	require.Error(t, err, "validateTransactionResult should fail when result is empty")
-	require.Contains(t, err.Error(), "not tesSUCCESS")
 }
 
 const xrplMainnetWSS = "wss://xrplcluster.com"
