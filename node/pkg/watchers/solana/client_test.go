@@ -269,23 +269,15 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 			errStr: "",
 		},
 		{
-			name: "success -- trailing bytes are ignored",
+			name: "failure -- trailing bytes are rejected",
 			messageAccountData: func(t *testing.T) MessageAccountData {
 				withTrailingBytes := append([]byte{}, validMessageAccountDataReliable...)
 				withTrailingBytes = append(withTrailingBytes, 0xff, 0xee, 0xdd)
 				return mustNewMessageAccountData(t, withTrailingBytes)
 			},
-			want: &MessagePublicationAccount{
-				VaaVersion:       0,
-				ConsistencyLevel: 32,
-				SubmissionTime:   1770212672,
-				Nonce:            0,
-				Sequence:         1367797,
-				EmitterChain:     1,
-				EmitterAddress:   emitterAddrReliable,
-				Payload:          payload,
-			},
-			errStr: "",
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
+			errStr:  "trailing bytes",
 		},
 		{
 			name: "success -- reliable message with non-zero vaa time",

@@ -332,8 +332,19 @@ type PostMessageData struct {
 	ConsistencyLevel ConsistencyLevel
 }
 
-func decodeBorsh(dst interface{}, data []byte) error {
-	return bin.UnmarshalBorsh(dst, data)
+// decodeBorsh deserializes data into dst, requiring the entire input to be consumed.
+// The Borsh reference implementation (borsh-rs) rejects unconsumed trailing bytes at its
+// API boundary (try_from_slice), but bin.UnmarshalBorsh does not, so we enforce it here.
+// https://github.com/near/borsh#specification
+func decodeBorsh(dst any, data []byte) error {
+	dec := bin.NewBorshDecoder(data)
+	if err := dec.Decode(dst); err != nil {
+		return err
+	}
+	if dec.HasRemaining() {
+		return fmt.Errorf("borsh: %d trailing bytes not consumed", dec.Remaining())
+	}
+	return nil
 }
 
 func NewSolanaWatcher(
