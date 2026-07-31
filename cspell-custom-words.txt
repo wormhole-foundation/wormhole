@@ -112,6 +112,7 @@ kevm
 KEVM
 keymap
 keytool
+killall
 klaytn
 Klaytn
 kompiled
@@ -121,6 +122,7 @@ kujira
 Kujira
 lamports
 lastrun
+libgit
 libp
 Linea
 Litecoin
@@ -143,6 +145,7 @@ Monad
 moonscan
 moretags
 Neodyme
+nearcore
 nhooyr
 obsv
 Obsv
@@ -216,12 +219,15 @@ structs
 subdenom
 subdenoms
 Subdenoms
+subshells
 suitypes
 supermajority
 superminority
 tendermint
 Tendermint
+Tiltfile
 terrad
+testlib
 tokenbridge
 tokenfactory
 traceback
@@ -274,6 +280,7 @@ wormscanurl
 XFER
 xlayer
 xpla
+zdiff
 XPLA
 XRPL
 Zellic
