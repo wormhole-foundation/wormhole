@@ -124,7 +124,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch n := node.(type) {
-			// Fails open by design. Will
+			// Fails open by design.
 			case *ast.SelectStmt: // Select statement for channel matching
 
 				if !settings.CheckBlockingSends {
