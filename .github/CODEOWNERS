@@ -186,6 +186,7 @@ scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bem
 /whitepapers/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Tests
+/node/pkg/testutils/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
 *_test.go @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## CI

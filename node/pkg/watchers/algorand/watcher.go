@@ -179,9 +179,22 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 	}
 
 	for _, obs := range observations {
+		timestamp, err := vaa.TimeFromUnix(b.TimeStamp)
+		if err != nil {
+			logger.Error("invalid block timestamp",
+				zap.Error(err),
+				zap.Int64("timestamp", b.TimeStamp),
+				zap.String("txHash", hex.EncodeToString(txHash.Bytes())),
+				zap.Uint64("nonce", uint64(obs.nonce)),
+				zap.Uint64("sequence", obs.sequence),
+				zap.String("emitter", hex.EncodeToString(obs.emitterAddress[:])),
+			)
+			return
+		}
+
 		observation := &common.MessagePublication{
 			TxID:             txHash.Bytes(),
-			Timestamp:        time.Unix(b.TimeStamp, 0),
+			Timestamp:        timestamp,
 			Nonce:            obs.nonce,
 			Sequence:         obs.sequence,
 			EmitterChain:     vaa.ChainIDAlgorand,

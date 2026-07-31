@@ -580,9 +580,14 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			logger.Error("sequence cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", sequence))
 			continue
 		}
+		timestamp, err := vaa.TimeFromUnix(blockTimeInt)
+		if err != nil {
+			logger.Error("blocktime is outside the supported VAA timestamp range", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime), zap.Error(err))
+			continue
+		}
 		messagePublication := &common.MessagePublication{
 			TxID:             txHashValue.Bytes(),
-			Timestamp:        time.Unix(blockTimeInt, 0),
+			Timestamp:        timestamp,
 			Nonce:            uint32(nonceInt),
 			Sequence:         sequenceInt,
 			EmitterChain:     watcherChainID, // SECURITY: Must not be user controllable

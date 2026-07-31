@@ -17,7 +17,7 @@ const (
 	minNewPkgCoverage  = 10.0
 	// Allow a 1.0% delta in test coverage. This is a trade-off for CI runs such that small formatting changes
 	// don't block a PR.
-	coverageTolerance  = 1.0 
+	coverageTolerance = 1.0
 )
 
 // Colors for terminal output
@@ -419,7 +419,7 @@ func checkNewPackages(baseline, current map[string]float64) (passed, failed int,
 
 // shouldExclude determines if a package should be excluded from new package checks
 func shouldExclude(pkg string) bool {
-	// Exclude cmd/, hack/, tools, proto/, mock/, *abi packages (generated code), root node package
+	// Exclude cmd/, hack/, tools, proto/, mock/, testutils, *abi packages (generated code), root node package
 	excludePatterns := []string{
 		"/cmd/",
 		"/cmd$",
@@ -428,6 +428,8 @@ func shouldExclude(pkg string) bool {
 		"/proto/",
 		"/mock/",
 		"/mock$",
+		"/testutils/",
+		"/testutils$",
 		"abi$",
 	}
 
