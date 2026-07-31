@@ -111,14 +111,15 @@ var depeggedUSDStablecoins = [];
 
 {
   const doc = fs.readFileSync("../../pkg/governor/generated_mainnet_tokens.go", "utf8");
-  var matches = doc.matchAll(/{Chain: (?<chain>[0-9]+).+Addr: "(?<addr>[0-9a-fA-F]+)".*Symbol: "(?<symbol>.*)", CoinGeckoId: "(?<coinGeckoId>.*)", Decimals.*Price: (?<price>.*)}.*\n/g);
+  var matches = doc.matchAll(/{Chain: (?<chain>[0-9]+).+Addr: "(?<addr>[0-9a-fA-F]+)".*Symbol: "(?<symbol>.*)", CoinGeckoId: "(?<coinGeckoId>.*)", Decimals: (?<decimals>[0-9]+), Price: (?<price>.*)}.*\n/g);
   for(let result of matches) {
-    let {chain, addr, symbol, coinGeckoId, price} = result.groups;
+    let {chain, addr, symbol, coinGeckoId, decimals, price} = result.groups;
     if (!existingTokenPrices[chain]) existingTokenPrices[chain] = {};
     existingTokenPrices[chain][addr] = parseFloat(price);
     existingTokenIdentities[tokenIdentityKey(chain, addr)] = {
       symbol: symbol,
       coinGeckoId: coinGeckoId,
+      decimals: parseInt(decimals),
       price: parseFloat(price),
     };
     existingTokenKeys.push(chain + "-" + addr + "-" + symbol);
@@ -154,6 +155,12 @@ function tokenIdentityCountChangesByChain(existingTokenIdentities, newTokenIdent
   return countChanges;
 }
 
+function assertLatestTokenDataResponse(latestTokenData) {
+  if (!latestTokenData || !Array.isArray(latestTokenData.data) || latestTokenData.data.length === 0) {
+    throw Error("The latest token data response is empty; refusing to regenerate the token list.");
+  }
+}
+
 // Builds a lookup from the cloud function's native address to its canonical Wormhole token address.
 // This workaround is only needed for Sui: /tvl emits Sui Move coin types as native addresses, while
 // the old @certusone/wormhole-sdk version used by this script cannot convert Sui Move types to
@@ -185,6 +192,7 @@ axios
       process.exit(1);
     }
 
+    assertLatestTokenDataResponse(latestTokenDataRes.data);
     var latestByNativeAddress = latestTokenDataByNativeAddress(latestTokenDataRes.data);
 
     var content = "";
@@ -209,6 +217,8 @@ axios
     var changedSymbolsWithSameIdentity = [];
     var failedInputValidationTokens = [];
     var newTokensCount = 0;
+    var comparedTokenPrices = 0;
+    var changedTokenConfigs = 0;
 
     for (let chain in res.data.AllTime) {
       for (let addr in res.data.AllTime[chain]) {
@@ -325,6 +335,16 @@ axios
             // This is an existing token
             else {
               var previousPrice = existingTokenPrices[chain][wormholeAddr];
+              comparedTokenPrices += 1;
+              var previousConfig = existingTokenIdentities[tokenIdentityKey(chain, wormholeAddr)];
+              if (
+                previousConfig.symbol !== data.Symbol ||
+                previousConfig.coinGeckoId !== data.CoinGeckoId ||
+                previousConfig.decimals !== data.TokenDecimals ||
+                previousConfig.price !== data.TokenPrice
+              ) {
+                changedTokenConfigs += 1;
+              }
 
               // Price has decreased by > tolerance
               if (data.TokenPrice < previousPrice - (previousPrice * (PriceDeltaTolerance / 100))){
@@ -384,6 +404,13 @@ axios
       }
     }
 
+    if (newTokensCount === 0) {
+      throw Error("The TVL response produced no tokens; refusing to overwrite the generated token list.");
+    }
+    if (comparedTokenPrices === 0) {
+      throw Error("The TVL response has no tokens in common with the generated token list; refusing to overwrite it.");
+    }
+
     for (var token of existingTokenKeys) {
       // A token has been removed from the token list 
       // We cut the symbol off the end of the key as it's possible for a token to change its symbol
@@ -405,6 +432,10 @@ axios
       if (existingTokenIdentity !== undefined && existingTokenIdentity.symbol !== newTokenIdentity.symbol) {
         changedSymbolsWithSameIdentity.push(key + ": " + existingTokenIdentity.symbol + " -> " + newTokenIdentity.symbol + " (https://www.coingecko.com/en/coins/" + newTokenIdentity.coinGeckoId + ")");
       }
+    }
+
+    if (addedTokens.length === 0 && removedTokens.length === 0 && changedTokenConfigs === 0) {
+      throw Error("The upstream snapshot contains no token configuration changes; refusing to create a timestamp-only update.");
     }
 
     var tokenIdentityCountChanges = tokenIdentityCountChangesByChain(existingTokenIdentities, newTokenIdentities);
@@ -473,6 +504,7 @@ axios
   })
   .catch((error) => {
     console.error("Request error:", error);
+    process.exitCode = 1;
   });
 
 
