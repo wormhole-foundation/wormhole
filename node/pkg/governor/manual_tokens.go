@@ -5,6 +5,7 @@ func manualTokenList() []TokenConfigEntry {
 	return []TokenConfigEntry{
 		{Chain: 1, Addr: "04e9da6b6c0093acbdcfa7ba13a6087795069e6846c22e7cf470368144659073", Symbol: "LBTC", CoinGeckoId: "lombard-staked-btc", Decimals: 8, Price: 71314}, // https://www.coingecko.com/en/coins/lombard-staked-btc
 		{Chain: 2, Addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},               // Near on ethereum
+		{Chain: 2, Addr: "000000000000000000000000ad29f2723fcdbcf665f210f25e06f97477e417cf", Symbol: "GRVT", CoinGeckoId: "grvt", Decimals: 18, Price: 0.257904},
 		{Chain: 2, Addr: "0000000000000000000000006a9a65b84843f5fd4ac9a0471c4fc11afffbce4a", Symbol: "ENZOBTC", CoinGeckoId: "lorenzo-wrapped-bitcoin", Decimals: 8, Price: 90_350.44},
 		{Chain: 4, Addr: "000000000000000000000000ffda10b7fd9cf172e0502a6bc0e5e355516c5232", Symbol: "SFUND", CoinGeckoId: "seedify-fund", Decimals: 18, Price: 0.1121},                                             // New contract (Oct 2025) https://x.com/SeedifyFund/status/1976695528902869499
 		{Chain: 5, Addr: "000000000000000000000000fce60bbc52a5705cec5b445501fbaf3274dc43d0", Symbol: "ACRED", CoinGeckoId: "apollo-diversified-credit-securitize-fund", Decimals: 6, Price: 1081},                   // https://www.coingecko.com/en/coins/apollo-diversified-credit-securitize-fund
