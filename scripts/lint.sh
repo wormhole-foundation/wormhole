@@ -55,6 +55,8 @@ format(){
 }
 
 lint(){
+    # Performs Go-related linting.
+
     # === Spell check
     if ! command -v cspell >/dev/null 2>&1; then
         printf "%s\n" "cspell is not installed. Skipping spellcheck"
@@ -74,6 +76,7 @@ lint(){
 
     cd "${ROOT}/sdk"
     golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+
 }
 
 DOCKER="false"

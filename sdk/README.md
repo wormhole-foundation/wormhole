@@ -13,6 +13,8 @@ To add a new ChainID to Wormhole:
    ChainIDNewChain ChainID = 99
    ```
    Keep constants in numerical order and follow the naming convention.
+   
+   **Important:** Preserve the format `ChainID<Name> ChainID = <number>` as the Rust SDK's build script parses this exact pattern.
 
 2. **Regenerate methods** by running:
    ```bash
@@ -20,12 +22,27 @@ To add a new ChainID to Wormhole:
    ```
    This runs `chainid_generator.go` which auto-generates `String()`, `ChainIDFromString()`, and `GetAllNetworkIDs()` methods.
 
-3. **Update other components** as needed:
+3. **Rebuild Rust SDK** (automatic):
+   The Rust SDK will automatically regenerate its `Chain` enum from `vaa/structs.go` on next build. No manual sync required.
+
+4. **Update other components** as needed:
    - Add to governor chain lists (`node/pkg/governor/mainnet_chains.go`)
    - Add manual tokens if required (`node/pkg/governor/manual_tokens.go`)
    - Update any chain-specific configuration files
    - Add the ChainID in `proto/publicrpc/v1/publicrpc.proto`.
    - If watcher support is necessary, update the guardian code.
+
+### Marking Chains as Obsolete
+
+To deprecate a chain, comment it out with `// OBSOLETE:` prefix:
+```go
+// OBSOLETE: ChainIDOldChain ChainID = 7
+```
+
+IMPORTANT: This is a _breaking change_ for any integrators using the Rust SDK,
+so it warrants a major version upgrade in the `Cargo.toml` file for that crate.
+The Rust SDK will automatically map unknown IDs to `Chain::Unknown(n)`, so obsolete
+ChainIDs will ultimately be handled there.
 
 # Directory Structure
 
