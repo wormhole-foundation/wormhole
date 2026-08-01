@@ -1,6 +1,6 @@
 // This file contains the token config to be used in the mainnet environment.
 //
-// This file was generated: Wed Jul 01 2026 00:42:42 GMT+0000 (Coordinated Universal Time) using a min notional of 0
+// This file was generated: Sat Aug 01 2026 00:30:02 GMT+0000 (Coordinated Universal Time) using a min notional of 0
 
 package governor
 
