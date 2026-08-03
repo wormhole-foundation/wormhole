@@ -96,7 +96,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Klaytn", vaa.ChainIDKlaytn},
 		{"Celo", vaa.ChainIDCelo},
 		{"Near", vaa.ChainIDNear},
-		{"Moonbeam", vaa.ChainIDMoonbeam},
 		{"Injective", vaa.ChainIDInjective},
 		// Osmosis is not supported in the guardian.
 		{"Sui", vaa.ChainIDSui},

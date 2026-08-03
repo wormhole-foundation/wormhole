@@ -135,7 +135,7 @@ func makeDelegateObs(t *testing.T, signer ethcommon.Address, txHash []byte, isRe
 		t.Fatal(err)
 	}
 	return &gossipv1.DelegateObservation{
-		EmitterChain:      uint32(vaa.ChainIDMoonbeam),
+		EmitterChain:      uint32(vaa.ChainIDCelo),
 		EmitterAddress:    emitter[:],
 		Sequence:          95838,
 		TxHash:            txHash,
@@ -354,8 +354,8 @@ func TestHandleCanonicalDelegateObservation_TxIDDisagreementWarn(t *testing.T) {
 // What this test does NOT verify:
 //
 //  1. That the notary is skipped on the delegate-consensus path. The notary
-//     in this setup is non-nil but, for Moonbeam, returns Approve immediately
-//     (txverifier doesn't support Moonbeam), so a regression that re-introduces
+//     in this setup is non-nil but, for Celo, returns Approve immediately
+//     (txverifier doesn't support Celo), so a regression that re-introduces
 //     processWithNotary into handleDelegateConsensusMessagePublication would
 //     still pass every assertion here. The notary-skip property is enforced
 //     by code review of handleDelegateConsensusMessagePublication's body
@@ -457,7 +457,7 @@ func TestCheckForDelegateQuorum_ConsensusPathContract(t *testing.T) {
 		Nonce:            0,
 		Sequence:         95838,
 		ConsistencyLevel: 1,
-		EmitterChain:     vaa.ChainIDMoonbeam,
+		EmitterChain:     vaa.ChainIDCelo,
 		EmitterAddress:   emitter,
 		Payload:          []byte("payload"),
 		IsReobservation:  false, // must be forced to true
