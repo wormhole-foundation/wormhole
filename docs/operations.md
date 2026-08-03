@@ -214,6 +214,42 @@ Feel free to run these directly on the `guardiand` node, having previously built
 
 **NOTE**: Share the wormchain public key for your validator with the Wormhole Foundation. It should be in the format: `wormhole1xxx`.
 
+#### Confirm keys exist
+
+List the available keys:
+
+```bash
+$ wormchaind keys list --keyring-backend file
+
+- name: accountant
+  type: local
+  address: wormhole1nugmxrhwke85n7vg3hwahqjs53xs8elrlpvv3v
+  pubkey: '{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"Ars70r0YUo0iMXTyoJS9ID7YpfJjBgC21nOkdJRvoJS0"}'
+  mnemonic: ""
+- name: ntt-accountant
+  type: local
+  address: wormhole1kbgwuswmchqf3vzsjd5sfnzs5jnuk8p936yvgr
+  pubkey: '{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"A2HP1PLn68waZr9hyY1W3WOWvtamq32KkgEFry3ItE42"}'
+  mnemonic: ""
+```
+
+#### Verify balances
+
+Given a key of `wormhole1kbgwuswmchqf3vzsjd5sfnzs5jnuk8p936yvgr`, verify the balance:
+
+```bash
+$ wormchaind query bank balances wormhole1kbgwuswmchqf3vzsjd5sfnzs5jnuk8p936yvgr --node http://localhost:26657 -o json
+{
+  "balances": [],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}
+```
+
+If the balance shows up as zero like this, work with the Wormhole Foundation or another guardian to send you at least 1utest token for gas. If your guardian has a balance and your accountant or ntt-accountant keys do not, you can send them a small amount of gas.
+
 #### Allowlist your new validator
 
 Work with the Wormhole Foundation to have another guardian add your new wormchain validator to the allowlist.
