@@ -115,7 +115,10 @@ func shimParsePostMessage(shimPostMessageDiscriminator []byte, buf []byte) (*Shi
 	}
 
 	data := new(ShimPostMessageData)
-	if err := decodeBorsh(data, buf[len(shimPostMessageDiscriminator):]); err != nil {
+	// The on-chain shim program ignores trailing bytes in post message instruction data,
+	// so the watcher must accept them too or it would fail to observe messages the chain
+	// accepted. All other parse sites mirror strict on-chain parsers and use decodeBorsh.
+	if err := decodeBorshAllowTrailing(data, buf[len(shimPostMessageDiscriminator):]); err != nil {
 		return nil, fmt.Errorf("failed to deserialize shim post message: %w", err)
 	}
 

@@ -347,6 +347,14 @@ func decodeBorsh(dst any, data []byte) error {
 	return nil
 }
 
+// decodeBorshAllowTrailing deserializes data into dst, ignoring any trailing bytes.
+// Use this only where the corresponding on-chain program is also lenient — the watcher
+// must accept exactly what the chain accepted. The shim's post message parser explicitly
+// ignores trailing bytes (svm/wormhole-core-shims/crates/shim/src/post_message.rs).
+func decodeBorshAllowTrailing(dst any, data []byte) error {
+	return bin.UnmarshalBorsh(dst, data)
+}
+
 func NewSolanaWatcher(
 	rpcUrl string,
 	wsUrl string,

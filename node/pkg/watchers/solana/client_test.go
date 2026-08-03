@@ -718,6 +718,16 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			// The core bridge parses its instruction data strictly on-chain (solitaire
+			// uses borsh's try_from_slice, which rejects trailing bytes), so a padded
+			// instruction can never succeed on-chain and the watcher rejects it too.
+			// Contrast with the shim's PostMessage instruction data, which is parsed
+			// leniently on both sides (see Test_shimParsePostMessage).
+			name:    "trailing_bytes_rejected",
+			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, append(encodePostMessageData(t, 7, []byte("test"), consistencyLevelFinalized), 0xff, 0xee)...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			wantErr: true,
+		},
+		{
 			name:    "unsupported_consistency_level",
 			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, encodePostMessageData(t, 7, []byte("test"), ConsistencyLevel(9))...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
 			wantErr: true,

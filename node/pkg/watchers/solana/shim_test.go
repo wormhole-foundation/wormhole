@@ -60,6 +60,26 @@ func Test_shimParsePostMessage(t *testing.T) {
 	assert.Equal(t, 11, len(postMsgData.Payload))
 	assert.True(t, bytes.Equal([]byte("hello world"), postMsgData.Payload))
 
+	// Same payload with trailing bytes appended: must parse successfully.
+	//
+	// PostMessage instruction data is written by the integrator, and the on-chain shim
+	// parses it leniently, explicitly ignoring trailing bytes
+	// (svm/wormhole-core-shims/crates/shim/src/post_message.rs). A padded instruction can
+	// therefore succeed on-chain and emit a legitimate message. The watcher must accept
+	// everything the chain accepted, so it must tolerate trailing bytes here — unlike the
+	// shim's MessageEvent data, which only the shim program itself can write (see
+	// Test_shimParseMessageEvent).
+	withTrailingBytes, err := hex.DecodeString("d63264d12622074c2a000000010b00000068656c6c6f20776f726c64ffeedd")
+	require.NoError(t, err)
+
+	postMsgData, err = shimParsePostMessage(shimPostMessage, withTrailingBytes)
+	require.NoError(t, err)
+	require.NotNil(t, postMsgData)
+
+	assert.Equal(t, uint32(42), postMsgData.Nonce)
+	assert.Equal(t, consistencyLevelFinalized, postMsgData.ConsistencyLevel)
+	assert.True(t, bytes.Equal([]byte("hello world"), postMsgData.Payload))
+
 	// Same payload with the first discriminator byte flipped: prefix no longer
 	// matches the shim PostMessage discriminator. Should fail.
 	mismatched, err := hex.DecodeString("d73264d12622074c2a000000010b00000068656c6c6f20776f726c64")
@@ -113,6 +133,16 @@ func Test_shimVerifyCoreMessage(t *testing.T) {
 			hexData: "082a00", // id=0x08 followed by partial nonce
 			wantErr: true,
 		},
+		{
+			// This is core bridge instruction data, not shim data, so the lenient shim
+			// parsing rules do not apply: the core bridge parses its instruction data
+			// strictly on-chain (solitaire uses borsh's try_from_slice, which rejects
+			// trailing bytes), meaning a padded instruction can never succeed on-chain.
+			// The watcher mirrors that and rejects trailing bytes too.
+			name:    "trailing bytes return an error",
+			hexData: "082a0000000000000001ffee", // valid unreliable data followed by two extra bytes
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -148,6 +178,20 @@ func Test_shimParseMessageEvent(t *testing.T) {
 	assert.True(t, bytes.Equal(expectedEmitter, msgEventData.EmitterAddress[:]))
 	assert.Equal(t, uint64(0), msgEventData.Sequence)
 	assert.Equal(t, uint32(1736530812), msgEventData.Timestamp)
+
+	// Same event with trailing bytes appended: must be rejected.
+	//
+	// Unlike PostMessage instruction data (integrator-written, parsed leniently on-chain —
+	// see Test_shimParsePostMessage), MessageEvent data is never user input: it is the
+	// event self-CPI that the shim program constructs itself, always exactly 60 bytes
+	// (svm/wormhole-core-shims/programs/post-message/src/lib.rs), and the receiving
+	// instruction requires the shim's event authority PDA as signer, which only the shim
+	// program can provide. Trailing bytes therefore cannot occur on-chain, so we reject them
+	// in the Watcher too.
+	withTrailingBytes := append(append([]byte{}, data...), 0xff, 0xee)
+	msgEventData, err = shimParseMessageEvent(shimMessageEvent, withTrailingBytes)
+	require.ErrorContains(t, err, "trailing bytes")
+	assert.Nil(t, msgEventData)
 }
 
 func Test_shimParseMessageEventDiscriminatorMismatch(t *testing.T) {
