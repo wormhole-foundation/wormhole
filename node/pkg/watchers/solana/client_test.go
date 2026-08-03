@@ -196,7 +196,9 @@ func Test_validateTransactionMeta(t *testing.T) {
 
 func TestParseMessagePublicationAccount(t *testing.T) {
 
-	// Define well-formed Solana mainnet PostedMessage account data for reliable and unreliable messages
+	// Define well-formed Solana mainnet PostedMessage account data for reliable and unreliable messages.
+	// The SVM core bridge leaves vaa_time at zero for msg/msu accounts; post_vaa writes
+	// non-zero vaa_time to vaa-prefixed accounts instead.
 	var (
 		// Solana mainnet PostedMessage account: `GU76rcJ4rgw5sZQ2efVRC4yUZyhwrVM6pTGs2kFhckYy`
 		validMessageAccountDataReliable, _ = hex.DecodeString("6d73670020000000000000000000000000000000000000000000000000000000000000000000000000404d836900000000f5de1400000000000100ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5850000000100000000000000000000000000000000000000000000000000009ed268a30dd700000000000000000000000089f4e8011c35831130c4c3ab95e53de9411d2fcc00040000000000000000000000006722b2c28d7d299b56a5febedbbe865a84ee0d7d00040000000000000000000000000000000000000000000000000000000000000000")
@@ -237,17 +239,16 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				return mustNewMessageAccountData(t, validMessageAccountDataReliable)
 			},
 			want: &MessagePublicationAccount{
-				VaaVersion:       0,
-				ConsistencyLevel: 32,
-				EmitterAuthority: vaa.Address{},
-				MessageStatus:    0,
-				Gap:              [3]byte{0, 0, 0},
-				SubmissionTime:   1770212672,
-				Nonce:            0,
-				Sequence:         1367797,
-				EmitterChain:     1,
-				EmitterAddress:   emitterAddrReliable,
-				Payload:          payload,
+				VaaVersion:          0,
+				ConsistencyLevel:    32,
+				VaaTime:             0,
+				VaaSignatureAccount: solana.PublicKey{},
+				SubmissionTime:      1770212672,
+				Nonce:               0,
+				Sequence:            1367797,
+				EmitterChain:        1,
+				EmitterAddress:      emitterAddrReliable,
+				Payload:             payload,
 			},
 			errStr: "",
 		},
@@ -257,18 +258,45 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				return mustNewMessageAccountData(t, validMessageAccountDataUnreliable)
 			},
 			want: &MessagePublicationAccount{
-				VaaVersion:       0,
-				ConsistencyLevel: 1,
-				EmitterAuthority: vaa.Address{},
-				MessageStatus:    0,
-				Gap:              [3]byte{},
-				SubmissionTime:   1770216312,
-				Nonce:            0,
-				Sequence:         3458072,
-				EmitterChain:     1,
-				EmitterAddress:   emitterAddrUnreliable,
-				Payload:          nil, // borsh deserialization results in this being nil rather than an empty slice
+				VaaVersion:          0,
+				ConsistencyLevel:    1,
+				VaaTime:             0,
+				VaaSignatureAccount: solana.PublicKey{},
+				SubmissionTime:      1770216312,
+				Nonce:               0,
+				Sequence:            3458072,
+				EmitterChain:        1,
+				EmitterAddress:      emitterAddrUnreliable,
+				Payload:             nil, // borsh deserialization results in this being nil rather than an empty slice
 			},
+			errStr: "",
+		},
+		{
+			name: "success -- reliable message with non-zero vaa time",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				acct := testMessagePublicationAccount(payload, 32)
+				acct.VaaTime = 1_700_000_000
+				return mustNewMessageAccountData(t, encodeMessagePublicationAccount(t, accountPrefixReliable, acct))
+			},
+			want: func() *MessagePublicationAccount {
+				acct := testMessagePublicationAccount(payload, 32)
+				acct.VaaTime = 1_700_000_000
+				return &acct
+			}(),
+			errStr: "",
+		},
+		{
+			name: "success -- unreliable message with non-zero vaa time",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				acct := testMessagePublicationAccount(nil, 1)
+				acct.VaaTime = 1_700_000_001
+				return mustNewMessageAccountData(t, encodeMessagePublicationAccount(t, accountPrefixUnreliable, acct))
+			},
+			want: func() *MessagePublicationAccount {
+				acct := testMessagePublicationAccount(nil, 1)
+				acct.VaaTime = 1_700_000_001
+				return &acct
+			}(),
 			errStr: "",
 		},
 		{
@@ -426,30 +454,6 @@ func TestProcessMessageAccount(t *testing.T) {
 			payload:          []byte("hello"),
 			consistencyLevel: 32,
 			wantCount:        1,
-		},
-		{
-			name:             "skips_unfinalized",
-			chainID:          vaa.ChainIDSolana,
-			commitment:       rpc.CommitmentFinalized,
-			prefix:           accountPrefixReliable,
-			payload:          []byte("hello"),
-			consistencyLevel: 32,
-			tweakProposal: func(p *MessagePublicationAccount) {
-				copy(p.EmitterAuthority[:], bytes.Repeat([]byte{0x01}, len(p.EmitterAuthority)))
-			},
-		},
-		{
-			name:             "pythnet_bypasses_finalization_check",
-			chainID:          vaa.ChainIDPythNet,
-			commitment:       rpc.CommitmentFinalized,
-			prefix:           accountPrefixReliable,
-			payload:          []byte("hello"),
-			consistencyLevel: 32,
-			tweakProposal: func(p *MessagePublicationAccount) {
-				copy(p.EmitterAuthority[:], bytes.Repeat([]byte{0x01}, len(p.EmitterAuthority)))
-				p.MessageStatus = 1
-			},
-			wantCount: 1,
 		},
 		{
 			name:             "commitment_mismatch",
@@ -1450,7 +1454,6 @@ func testMessagePublicationAccount(payload []byte, consistencyLevel uint8) Messa
 	return MessagePublicationAccount{
 		VaaVersion:       1,
 		ConsistencyLevel: consistencyLevel,
-		MessageStatus:    0,
 		SubmissionTime:   123,
 		Nonce:            7,
 		Sequence:         99,
@@ -1472,9 +1475,8 @@ func encodeMessagePublicationAccount(t *testing.T, prefix string, proposal Messa
 	buf.WriteString(prefix)
 	buf.WriteByte(proposal.VaaVersion)
 	buf.WriteByte(proposal.ConsistencyLevel)
-	buf.Write(proposal.EmitterAuthority[:])
-	buf.WriteByte(proposal.MessageStatus)
-	buf.Write(proposal.Gap[:])
+	writeLE(t, buf, proposal.VaaTime)
+	buf.Write(proposal.VaaSignatureAccount[:])
 	writeLE(t, buf, proposal.SubmissionTime)
 	writeLE(t, buf, proposal.Nonce)
 	writeLE(t, buf, proposal.Sequence)
