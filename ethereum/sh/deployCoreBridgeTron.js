@@ -15,8 +15,7 @@ const FEE_LIMIT_SUN = Number(process.env.TRON_FEE_LIMIT_SUN || 5_000_000_000); /
 const ORIGIN_ENERGY_LIMIT = Number(process.env.TRON_ORIGIN_ENERGY_LIMIT || 10_000_000);
 const USER_FEE_PERCENT = Number(process.env.TRON_USER_FEE_PERCENT || 100);
 
-// .env is shell-sourced, which strips the double quotes around array elements.
-// Re-quote any bare 0x-hex strings so JSON.parse can handle either form.
+// Accept both JSON arrays and the legacy bare-hex array format.
 const INIT_SIGNERS = JSON.parse(
   (process.env.INIT_SIGNERS || '[]')
     .replace(/"/g, '')

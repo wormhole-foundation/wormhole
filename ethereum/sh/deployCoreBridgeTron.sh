@@ -1,13 +1,11 @@
 #!/bin/bash
 # Deploy Wormhole Core to Tron via tronweb-style HTTP API.
-# Usage: from ethereum/, copy env/.env.tron.testnet to .env, fill in TRON_PRIVATE_KEY,
-# then run ./sh/deployCoreBridgeTron.sh
+# Usage: from ethereum/, provide the required values in the operator environment,
+# then run ./sh/deployCoreBridgeTron.sh.
 
 set -euo pipefail
 
-set -a
-. .env
-set +a
+# Configuration must be supplied by the operator environment.
 
 [[ -z "${TRON_PRIVATE_KEY:-${MNEMONIC:-}}" ]] && { echo "Missing TRON_PRIVATE_KEY (or MNEMONIC)"; exit 1; }
 [[ -z "${INIT_SIGNERS:-}" ]] && { echo "Missing INIT_SIGNERS"; exit 1; }

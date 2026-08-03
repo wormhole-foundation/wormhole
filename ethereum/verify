@@ -14,7 +14,7 @@ Usage:
 
   The -n and -r flags are mutually exclusive.
 EOF
-exit 1
+exit 2
 }
 
 chain=""
@@ -56,6 +56,11 @@ fi
 
 set -euo pipefail
 
+# Exit 1 is reserved for a verified bytecode mismatch. Any tooling or RPC
+# failure must use another status so callers do not mistake it for permission
+# to deploy a replacement implementation.
+trap 'exit 2' ERR
+
 # network and rpc flags are mutually exlusive
 [[ -n $network && -n $rpc ]] && usage
 
@@ -65,7 +70,7 @@ if [[ -n $network ]]; then
   if ! command -v worm &> /dev/null
   then
     echo "worm binary could not be found. See installation instructions in clients/js/README.md"
-    exit 1
+    exit 2
   fi
   rpc=$(worm info rpc "$network" "$chain")
 fi
@@ -79,22 +84,28 @@ fi
 deployed=$(mktemp)
 local=$(mktemp)
 
+# Reject missing or malformed local bytecode as an operational error.
 if [[ -z $use_forge ]]; then
-  cat "$json_file" | jq -r .deployedBytecode > "$local"
+  jq -er '.deployedBytecode | select(type == "string" and startswith("0x"))' \
+    "$json_file" > "$local"
 else
-  cat "$json_file" | jq -r .deployedBytecode | jq -r .object > "$local"  
+  jq -er '.deployedBytecode.object | select(type == "string" and startswith("0x"))' \
+    "$json_file" > "$local"
 fi
 
 ret=0
 # Grab bytecode from the JSON RPC using the eth_getCode method.
+# A null or malformed result is not a bytecode mismatch.
 curl "$rpc" \
   -X POST \
   -H "Content-Type: application/json" \
-  --data "{\"method\":\"eth_getCode\",\"params\":[\"$contract_addr\",\"latest\"],\"id\":1,\"jsonrpc\":\"2.0\"}" --silent | jq -r .result > "$deployed" || ret=$?
+  --data "{\"method\":\"eth_getCode\",\"params\":[\"$contract_addr\",\"latest\"],\"id\":1,\"jsonrpc\":\"2.0\"}" --silent \
+  | jq -er '.result | select(type == "string" and startswith("0x"))' \
+  > "$deployed" || ret=$?
 
 if [ $ret -gt 0 ]; then
   printf "\033[0;31mFailed to query eth RPC '%s' while verifying %s on %s\033[0m\n" "$rpc" "$contract_addr" "$chain"
-  exit 1
+  exit 2
 fi
 
 # hash, then see if they match up
