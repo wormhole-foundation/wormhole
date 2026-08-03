@@ -144,7 +144,7 @@ func verifyFinality(ctx context.Context, url string, finalized, safe bool) error
 
 	c, err := rpc.DialContext(timeout, url)
 	if err != nil {
-		return fmt.Errorf("failed to connect to endpoint: %w", err)
+		return fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	type Marshaller struct {
@@ -175,7 +175,7 @@ func verifyContractAddr(ctx context.Context, url string, contractAddr string) er
 
 	rawClient, err := ethRpc.DialContext(timeout, url)
 	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
+		return fmt.Errorf("failed to connect: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	client := ethClient.NewClient(rawClient)
@@ -187,7 +187,7 @@ func verifyContractAddr(ctx context.Context, url string, contractAddr string) er
 
 	_, err = caller.GetCurrentGuardianSetIndex(&ethBind.CallOpts{Context: timeout})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to verify contract address: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	return nil
@@ -199,14 +199,14 @@ func verifyCCLContractAddr(ctx context.Context, url string, contractAddr string)
 
 	rawClient, err := ethRpc.DialContext(timeout, url)
 	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
+		return fmt.Errorf("failed to connect: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	client := ethClient.NewClient(rawClient)
 
 	_, err = evm.CCLReadContract(ctx, client, ethCommon.HexToAddress(contractAddr), ethCommon.Address{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to verify ccl contract address: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	return nil

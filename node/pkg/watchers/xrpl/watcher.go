@@ -118,7 +118,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "xrpl"),
-		zap.String("rpc", w.rpc),
+		zap.String("rpcURL", common.SafeURLForLogging(w.rpc)),
 		zap.String("contract", w.contract),
 		zap.Strings("nttAccounts", w.nttAccounts),
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
@@ -133,13 +133,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	w.client = websocket.NewClient(cfg)
 	if err := w.client.Connect(); err != nil {
-		return fmt.Errorf("failed to connect to XRPL node: %w", err)
+		return fmt.Errorf("failed to connect to XRPL node: %s", common.SafeErrorForLogging(err, w.rpc))
 	}
 	defer func() {
 		_ = w.client.Disconnect()
 	}()
 
-	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
+	logger.Info("Connected to XRPL node", zap.String("rpcURL", common.SafeURLForLogging(w.rpc)))
 
 	// Initialize the parser with the watcher's fetchMPTAssetScale method
 	w.parser = NewParser(w.contract, w.nttAccounts, w.fetchMPTAssetScale)
@@ -294,7 +294,7 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context) error {
 
 	_, err := w.client.Request(subscribeReq)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to accounts %v: %w", accounts, err)
+		return fmt.Errorf("failed to subscribe to accounts %v: %s", accounts, common.SafeErrorForLogging(err, w.rpc))
 	}
 
 	w.logger.Info("Subscribed to accounts",

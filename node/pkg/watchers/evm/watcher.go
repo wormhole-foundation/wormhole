@@ -266,7 +266,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "evm"),
-		zap.String("url", w.url),
+		zap.String("rpcURL", common.SafeURLForLogging(w.url)),
 		zap.String("contract", w.contract.String()),
 		zap.String("networkName", w.networkName),
 		zap.String("chainID", w.chainID.String()),
@@ -299,7 +299,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf(`failed to create connection to url "%s": %w`, w.url, err)
+			return fmt.Errorf(`failed to create connection to url "%s": %s`, common.SafeURLForLogging(w.url), common.SafeErrorForLogging(err, w.url))
 		}
 
 		// Close this Run's connector on return so its goroutines exit.
@@ -347,7 +347,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			}
 			logger.Info("initialized Transfer Verifier",
 				zap.String("watcher_name", "evm"),
-				zap.String("url", w.url),
+				zap.String("rpcURL", common.SafeURLForLogging(w.url)),
 				zap.String("contract", w.contract.String()),
 			)
 		}
@@ -699,7 +699,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 
 		c, err := rpc.DialContext(timeout, w.url)
 		if err != nil {
-			return false, false, fmt.Errorf("failed to connect to endpoint: %w", err)
+			return false, false, fmt.Errorf("failed to connect to endpoint: %s", common.SafeErrorForLogging(err, w.url))
 		}
 		// The context only bounds the dial; the client must be closed explicitly.
 		defer c.Close()
@@ -1254,7 +1254,7 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 
 	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.dgContractAddr, w.logger)
 	if err != nil {
-		err = fmt.Errorf("dialing eth client failed: %w", err)
+		err = fmt.Errorf("dialing eth client failed: %s", common.SafeErrorForLogging(err, url))
 		return
 	}
 

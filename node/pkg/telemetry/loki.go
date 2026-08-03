@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/blendle/zapdriver"
+	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/api/option"
@@ -124,7 +125,7 @@ func NewLokiCloudLogger(ctx context.Context, logger *zap.Logger, url string, pro
 	serverURL := flagext.URLValue{}
 	err := serverURL.Set(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse Loki client url: %v", err)
+		return nil, fmt.Errorf("failed to parse Loki client url: %s", common.SafeErrorForLogging(err, url))
 	}
 
 	cfg := client.Config{

@@ -62,6 +62,14 @@ func NewBatchPollConnector(_ context.Context, logger *zap.Logger, baseConnector 
 	return connector
 }
 
+func (b *BatchPollConnector) RPCURL() string {
+	if connector, ok := b.Connector.(rpcURLErrorSanitizer); ok {
+		return connector.RPCURL()
+	}
+
+	return ""
+}
+
 func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	// Use the standard geth head sink to get latest blocks. We do this so that we will be notified of rollbacks. The following document
 	// indicates that the subscription will receive a replay of all blocks affected by a rollback. This is important for latest because the
@@ -76,8 +84,8 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	// Get the initial blocks.
 	lastBlocks, err := b.getBlocks(ctx, b.logger)
 	if err != nil {
-		b.logger.Error("failed to get initial blocks", zap.Error(err))
-		return headerSubscription, fmt.Errorf("failed to get initial blocks: %w", err)
+		b.logger.Error("failed to get initial blocks", zap.String("error", safeConnectorErrorForLogging(err, b.Connector)))
+		return headerSubscription, fmt.Errorf("failed to get initial blocks: %s", safeConnectorErrorForLogging(err, b.Connector))
 	}
 
 	errCount := 0
@@ -104,9 +112,9 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 				lastBlocks, err = b.pollBlocks(ctx, sink, lastBlocks)
 				if err != nil {
 					errCount++
-					b.logger.Error("batch polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
+					b.logger.Error("batch polling encountered an error", zap.Int("errCount", errCount), zap.String("error", safeConnectorErrorForLogging(err, b.Connector)))
 					if errCount > 3 {
-						errC <- fmt.Errorf("polling encountered too many errors: %w", err) // Note on channel capacity: The watcher will exit anyway
+						errC <- fmt.Errorf("polling encountered too many errors: %s", safeConnectorErrorForLogging(err, b.Connector)) // Note on channel capacity: The watcher will exit anyway
 						return nil
 					}
 				} else if errCount != 0 {
@@ -251,7 +259,7 @@ func (b *BatchPollConnector) getBlocks(ctx context.Context, logger *zap.Logger) 
 
 	err := b.Connector.RawBatchCallContext(timeout, batch)
 	if err != nil {
-		logger.Error("failed to get blocks", zap.Error(err))
+		logger.Error("failed to get blocks", zap.String("error", safeConnectorErrorForLogging(err, b.Connector)))
 		return nil, err
 	}
 

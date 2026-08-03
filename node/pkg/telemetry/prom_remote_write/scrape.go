@@ -3,8 +3,10 @@ package promremotew
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -59,8 +61,9 @@ func ScrapeAndSendLocalMetrics(ctx context.Context, info PromTelemetryInfo, logg
 	// requestURL := fmt.Sprintf("https://%s:%s@%s", info.PromRemoteUser, info.PromRemoteKey, info.PromRemoteURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, info.PromRemoteURL, bodyReader)
 	if err != nil {
-		logger.Error("Could not create request", zap.Error(err))
-		return err
+		safeErr := common.SafeErrorForLogging(err, info.PromRemoteURL)
+		logger.Error("Could not create request", zap.String("error", safeErr))
+		return fmt.Errorf("could not create request: %s", safeErr)
 	}
 	req.Header.Set("Content-Encoding", "snappy")
 	req.Header.Set("Content-Type", "application/x-protobuf")
@@ -70,8 +73,9 @@ func ScrapeAndSendLocalMetrics(ctx context.Context, info PromTelemetryInfo, logg
 	// #nosec G704 -- Prometheus remote write URL from configuration
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logger.Error("Error creating http request", zap.Error(err))
-		return err
+		safeErr := common.SafeErrorForLogging(err, info.PromRemoteURL)
+		logger.Error("Error creating http request", zap.String("error", safeErr))
+		return fmt.Errorf("error creating http request: %s", safeErr)
 	}
 
 	defer res.Body.Close()

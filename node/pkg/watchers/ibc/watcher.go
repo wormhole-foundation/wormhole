@@ -212,9 +212,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	w.logger.Info("Starting watcher",
 		zap.String("watcher_name", "ibc"),
-		zap.String("wsUrl", w.wsUrl),
-		zap.String("lcdUrl", w.lcdUrl),
-		zap.String("blockHeightUrl", w.blockHeightUrl),
+		zap.String("wsURL", common.SafeURLForLogging(w.wsUrl)),
+		zap.String("lcdURL", common.SafeURLForLogging(w.lcdUrl)),
+		zap.String("blockHeightURL", common.SafeURLForLogging(w.blockHeightUrl)),
 		zap.String("contractAddress", w.contractAddress),
 	)
 
@@ -227,9 +227,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 	blockHeightUrl = blockHeightUrl + "/abci_info"
 
 	w.logger.Info("creating watcher",
-		zap.String("wsUrl", w.wsUrl),
-		zap.String("lcdUrl", w.lcdUrl),
-		zap.String("blockHeightUrl", blockHeightUrl),
+		zap.String("wsURL", common.SafeURLForLogging(w.wsUrl)),
+		zap.String("lcdURL", common.SafeURLForLogging(w.lcdUrl)),
+		zap.String("blockHeightURL", common.SafeURLForLogging(blockHeightUrl)),
 		zap.String("contract", w.contractAddress),
 		zap.String("features", GetFeatures()),
 	)
@@ -243,7 +243,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
 		ibcErrors.WithLabelValues("websocket_dial_error").Inc()
-		return fmt.Errorf("failed to establish tendermint websocket connection: %w", err)
+		return fmt.Errorf("failed to establish tendermint websocket connection: %s", common.SafeErrorForLogging(err, w.wsUrl))
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
@@ -388,7 +388,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) e
 		case <-t.C:
 			resp, err := client.Get(queryUrl) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 			if err != nil {
-				return fmt.Errorf("failed to query latest block: %w", err)
+				return fmt.Errorf("failed to query latest block: %s", common.SafeErrorForLogging(err, queryUrl))
 			}
 			body, err := common.SafeRead(resp.Body)
 			resp.Body.Close()
@@ -453,9 +453,10 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 			}
 
 			// Query for tx by hash.
-			resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", w.lcdUrl, reqTxHashStr)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
+			requestURL := fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", w.lcdUrl, reqTxHashStr)
+			resp, err := client.Get(requestURL) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 			if err != nil {
-				w.logger.Error("query tx response error", zap.String("chain", ce.chainName), zap.Error(err))
+				w.logger.Error("query tx response error", zap.String("chain", ce.chainName), zap.String("error", common.SafeErrorForLogging(err, requestURL)))
 				continue
 			}
 			txBody, err := common.SafeRead(resp.Body)
@@ -586,7 +587,10 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.Timestamp = time.Unix(snumber, 0)
+	evt.Msg.Timestamp, err = vaa.TimeFromUnix(snumber)
+	if err != nil {
+		return evt, err
+	}
 
 	str, err = attributes.GetAsString("message.message")
 	if err != nil {
@@ -764,7 +768,7 @@ func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, erro
 	query := fmt.Sprintf(`%s/cosmwasm/wasm/v1/contract/%s/smart/%s`, w.lcdUrl, w.contractAddress, allChannelChainsQuery)
 	resp, err := client.Get(query) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 	if err != nil {
-		return nil, fmt.Errorf("query failed: %w", err)
+		return nil, fmt.Errorf("query failed: %s", common.SafeErrorForLogging(err, query))
 	}
 	body, err := common.SafeRead(resp.Body)
 	if err != nil {

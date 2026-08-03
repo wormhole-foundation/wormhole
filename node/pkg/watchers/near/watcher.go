@@ -280,7 +280,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		zap.String("watcher_name", "near"),
 		zap.Bool("mainnet", e.mainnet),
 		zap.String("wormholeAccount", e.wormholeAccount),
-		zap.String("nearRPC", e.nearRPC),
+		zap.String("rpcURL", common.SafeURLForLogging(e.nearRPC)),
 	)
 
 	e.errC = make(chan error)
@@ -295,7 +295,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	// Get the node version for troubleshooting
 	e.logVersion(ctx, logger)
 
-	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
+	logger.Info("Near watcher connecting to RPC node ", zap.String("rpcURL", common.SafeURLForLogging(e.nearRPC)))
 
 	// start metrics reporter
 	common.RunWithScissors(ctx, e.errC, "metrics", e.runMetrics)

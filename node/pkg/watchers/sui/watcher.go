@@ -130,7 +130,7 @@ func NewWatcher(
 		// Create the Sui gRPC client used by the transfer verifier to query transactions and objects.
 		suiClient, err := suiclient.NewSuiGrpcClient(suiRPC, nil, suiGrpcDialOpts(unsafeDevMode)...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create Sui gRPC client for transfer verifier: %w", err)
+			return nil, fmt.Errorf("failed to create Sui gRPC client for transfer verifier: %s", common.SafeErrorForLogging(err, suiRPC))
 		}
 
 		// Create the new suiTxVerifier
@@ -265,7 +265,7 @@ func (e *Watcher) handleReobservation(ctx context.Context, logger *zap.Logger, c
 		suiclient.TransactionFieldEvents,
 	})
 	if err != nil {
-		logger.Error("sui_fetch_obvs_req failed", zap.String("txhash", tx58), zap.Error(err))
+		logger.Error("sui_fetch_obvs_req failed", zap.String("txhash", tx58), zap.String("error", common.SafeErrorForLogging(err, e.suiRPC)))
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 		return
 	}
@@ -288,7 +288,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "sui"),
-		zap.String("suiRPC", e.suiRPC),
+		zap.String("rpcURL", common.SafeURLForLogging(e.suiRPC)),
 		zap.String("suiMoveEventType", e.suiMoveEventType),
 		zap.Bool("unsafeDevMode", e.unsafeDevMode),
 	)
@@ -301,7 +301,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	if client == nil {
 		grpcClient, err := suiclient.NewSuiGrpcClient(e.suiRPC, logger, suiGrpcDialOpts(e.unsafeDevMode)...)
 		if err != nil {
-			return fmt.Errorf("failed to create Sui gRPC client: %w", err)
+			return fmt.Errorf("failed to create Sui gRPC client: %s", common.SafeErrorForLogging(err, e.suiRPC))
 		}
 		client = grpcClient
 		defer func() {
@@ -314,7 +314,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	// Get the latest checkpoint sequence number to confirm connectivity before reporting healthy.
 	initialCheckpoint, err := client.GetLatestCheckpoint(ctx, []string{suiclient.CheckpointFieldSequenceNumber})
 	if err != nil {
-		return fmt.Errorf("failed to get latest checkpoint sequence number: %w", err)
+		return fmt.Errorf("failed to get latest checkpoint sequence number: %s", common.SafeErrorForLogging(err, e.suiRPC))
 	} else if initialCheckpoint.SequenceNumber == nil {
 		return fmt.Errorf("latest checkpoint response missing sequence number")
 	}
@@ -334,7 +334,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		subscription, err := client.SubscribeToTransactionEvent(ctx, e.suiMoveEventType, eventChan)
 		if err != nil {
-			return fmt.Errorf("sui_data_pump failed to subscribe to events: %w", err)
+			return fmt.Errorf("sui_data_pump failed to subscribe to events: %s", common.SafeErrorForLogging(err, e.suiRPC))
 		}
 		defer subscription.Unsubscribe()
 
@@ -345,7 +345,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return ctx.Err()
 
 			case subErr := <-subscription.Err():
-				return fmt.Errorf("sui_data_pump subscription error: %w", subErr)
+				return fmt.Errorf("sui_data_pump subscription error: %s", common.SafeErrorForLogging(subErr, e.suiRPC))
 
 			case txEvent := <-eventChan:
 				if txEvent.TxDigest == "" {
@@ -370,7 +370,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-timer.C:
 				checkpoint, err := client.GetLatestCheckpoint(ctx, []string{suiclient.CheckpointFieldSequenceNumber})
 				if err != nil {
-					logger.Error("Failed to get latest checkpoint sequence number", zap.Error(err))
+					logger.Error("Failed to get latest checkpoint sequence number", zap.String("error", common.SafeErrorForLogging(err, e.suiRPC)))
 				} else if checkpoint.SequenceNumber == nil {
 					logger.Error("latest checkpoint response missing sequence number")
 				} else {

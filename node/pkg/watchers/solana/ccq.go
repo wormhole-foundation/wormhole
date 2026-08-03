@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -139,7 +140,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			zap.String("requestId", requestId),
 			zap.Any("accounts", accounts),
 			zap.Any("params", params),
-			zap.Error(err),
+			zap.String("error", common.SafeErrorForLogging(err, w.rpcUrl)),
 		)
 
 		w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
@@ -165,7 +166,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			w.ccqLogger.Error(fmt.Sprintf("failed to read block time for %s query request", tag),
 				zap.String("requestId", requestId),
 				zap.Uint64("slotNumber", info.Context.Slot),
-				zap.Error(err),
+				zap.String("error", common.SafeErrorForLogging(err, w.rpcUrl)),
 			)
 
 			w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
@@ -177,7 +178,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			w.ccqLogger.Error(fmt.Sprintf("repeatedly failed to read block time for %s query request, giving up", tag),
 				zap.String("requestId", requestId),
 				zap.Uint64("slotNumber", info.Context.Slot),
-				zap.Error(err),
+				zap.String("error", common.SafeErrorForLogging(err, w.rpcUrl)),
 			)
 
 			w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)

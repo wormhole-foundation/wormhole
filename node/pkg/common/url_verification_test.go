@@ -1,6 +1,8 @@
 package common
 
 import (
+	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,4 +39,53 @@ func TestValidateURL(t *testing.T) {
 		result := ValidateURL(test.urlStr, test.validSchemes)
 		assert.Equal(t, test.expected, result)
 	}
+}
+
+func TestSafeURLForLogging(t *testing.T) {
+	tests := []struct {
+		name     string
+		urlStr   string
+		expected string
+	}{
+		{name: "https with credentials", urlStr: "https://user:pass@example.com/path?api_key=secret", expected: "example.com"},
+		{name: "websocket", urlStr: "wss://rpc.example.com/websocket", expected: "rpc.example.com"},
+		{name: "host port without scheme", urlStr: "example.com:8080/path?token=secret", expected: "example.com:8080"},
+		{name: "credentials without scheme", urlStr: "user:pass@example.com/path?api_key=secret", expected: "example.com"},
+		{name: "ipv6", urlStr: "http://[::1]:8545/path", expected: "[::1]:8545"},
+		{name: "ipv6 without scheme", urlStr: "[::1]:8545/path", expected: "[::1]:8545"},
+		{name: "empty", urlStr: "", expected: ""},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, SafeURLForLogging(test.urlStr))
+		})
+	}
+}
+
+func TestSafeErrorForLogging(t *testing.T) {
+	rawURL := "https://user:pass@example.com/path?api_key=secret"
+	err := assert.AnError
+	assert.Equal(t, err.Error(), SafeErrorForLogging(err, rawURL))
+
+	err = &urlErrorForTest{msg: "failed to dial " + rawURL}
+	assert.Equal(t, "failed to dial example.com", SafeErrorForLogging(err, rawURL))
+
+	err = &url.Error{Op: "Post", URL: "https://user:***@example.com/path?api_key=secret", Err: assert.AnError}
+	assert.Equal(t, "Post \"example.com\": assert.AnError general error for testing", SafeErrorForLogging(err, rawURL))
+
+	err = fmt.Errorf("post failed: %w", err)
+	assert.Equal(t, "post failed: Post \"example.com\": assert.AnError general error for testing", SafeErrorForLogging(err, rawURL))
+
+	rawURL = "https://user:pass@example.com/path with spaces?api_key=secret"
+	err = &urlErrorForTest{msg: "failed to dial https://user:pass@example.com/path%20with%20spaces?api_key=secret"}
+	assert.Equal(t, "failed to dial example.com", SafeErrorForLogging(err, rawURL))
+}
+
+type urlErrorForTest struct {
+	msg string
+}
+
+func (e *urlErrorForTest) Error() string {
+	return e.msg
 }

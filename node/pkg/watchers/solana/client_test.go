@@ -713,7 +713,7 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			found, err := s.processInstruction(context.TODO(), nil, 1, tc.inst, 0, tx, signature, 0, false)
+			found, err := s.processInstruction(context.TODO(), nil, "", 1, tc.inst, 0, tx, signature, 0, false)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -778,7 +778,7 @@ func TestProcessInstructionValidPostMessage(t *testing.T) {
 				Accounts:       []uint16{0, 1, 0, 0, 0, 0, 0, 0},
 			}
 
-			found, err := s.processInstruction(context.Background(), rpcClient, 1, inst, 0, tx, tx.Signatures[0], 0, false)
+			found, err := s.processInstruction(context.Background(), rpcClient, m.URL, 1, inst, 0, tx, tx.Signatures[0], 0, false)
 			require.NoError(t, err)
 			assert.True(t, found)
 
@@ -1090,7 +1090,7 @@ func TestProcessTransaction(t *testing.T) {
 				InnerInstructions: tc.innerInstructions,
 			}
 
-			num := s.processTransaction(context.Background(), rpcClient, tx, meta, 42, false)
+			num := s.processTransaction(context.Background(), rpcClient, m.URL, tx, meta, 42, false)
 			assert.Equal(t, tc.wantObservations, num)
 
 			// Drain published messages and verify count.
@@ -1241,7 +1241,7 @@ func TestFetchMessageAccount(t *testing.T) {
 			m.SetAccount(messageAccount, tc.accountOwner, tc.accountData)
 			rpcClient := rpc.New(m.URL)
 
-			numObservations, retryable := s.fetchMessageAccount(context.TODO(), rpcClient, messageAccount, 1, tc.reobservation, solana.SignatureFromBytes([]byte{}))
+			numObservations, retryable := s.fetchMessageAccount(context.TODO(), rpcClient, m.URL, messageAccount, 1, tc.reobservation, solana.SignatureFromBytes([]byte{}))
 
 			assert.Equal(t, tc.wantObservations, numObservations)
 			assert.Equal(t, tc.retryable, retryable)
@@ -1262,7 +1262,7 @@ func TestFetchMessageAccount(t *testing.T) {
 		defer m.Close()
 		m.SetAccountError(messageAccount, "rpc down")
 
-		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), messageAccount, 1, false, solana.Signature{})
+		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), m.URL, messageAccount, 1, false, solana.Signature{})
 		assert.Equal(t, uint32(0), num)
 		assert.True(t, retryable)
 	})
@@ -1272,7 +1272,7 @@ func TestFetchMessageAccount(t *testing.T) {
 		defer m.Close()
 		// No account registered: handler returns value=null.
 
-		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), messageAccount, 1, false, solana.Signature{})
+		num, retryable := s.fetchMessageAccount(context.TODO(), rpc.New(m.URL), m.URL, messageAccount, 1, false, solana.Signature{})
 		assert.Equal(t, uint32(0), num)
 		assert.True(t, retryable)
 	})

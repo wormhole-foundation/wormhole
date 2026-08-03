@@ -41,6 +41,9 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *common.GuardianSet,
 	_ common.Environment,
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
+	watchers.RegisterRPCURL(wc.ChainID, wc.Rpc)
+	watchers.RegisterRPCURL(wc.ChainID, wc.Websocket)
+
 	solAddress, err := solana_types.PublicKeyFromBase58(wc.Contract)
 	if err != nil {
 		return nil, nil, err

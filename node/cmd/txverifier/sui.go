@@ -124,14 +124,14 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	// Verify CLI parameters
 	if *suiRPC == "" || *suiCoreBridgePackageId == "" || *suiTokenBridgeEmitter == "" || *suiTokenBridgePackageId == "" {
 		logger.Fatal("One or more CLI parameters are empty",
-			zap.String("suiRPC", *suiRPC),
+			zap.String("suiRPC", common.SafeURLForLogging(*suiRPC)),
 			zap.String("suiCoreBridgePackageId", *suiCoreBridgePackageId),
 			zap.String("suiTokenBridgeEmitter", *suiTokenBridgeEmitter),
 			zap.String("suiTokenBridgePackageId", *suiTokenBridgePackageId))
 	}
 
 	logger.Info("Starting Sui transfer verifier")
-	logger.Debug("Sui rpc connection", zap.String("url", *suiRPC))
+	logger.Debug("Sui rpc connection", zap.String("url", common.SafeURLForLogging(*suiRPC)))
 	logger.Debug("Sui core bridge package ID", zap.String("packageId", *suiCoreBridgePackageId))
 	logger.Debug("Sui token bridge package ID", zap.String("packageId", *suiTokenBridgePackageId))
 	logger.Debug("Sui token bridge emitter", zap.String("address", *suiTokenBridgeEmitter))
