@@ -430,7 +430,7 @@ const Testnet = {
     chain_id: 713715,
   },
   Sepolia: {
-    rpc: "https://rpc.ankr.com/eth_sepolia",
+    rpc: "https://ethereum-sepolia-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 11155111,
   },
@@ -523,7 +523,7 @@ const Testnet = {
     chain_id: 84532,
   },
   OptimismSepolia: {
-    rpc: "https://rpc.ankr.com/optimism_sepolia",
+    rpc: "https://optimism-sepolia-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 11155420,
   },
