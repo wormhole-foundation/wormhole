@@ -2,19 +2,17 @@
 
 import os
 from os.path import exists
-from time import time, sleep
-from eth_abi import encode_single, encode_abi
-from typing import List, Tuple, Dict, Any, Optional, Union
+from time import time
+from eth_abi import encode_single
+from typing import List, Dict, Any, Optional
 from base64 import b64decode
 import base64
 import random
 import time
 import hashlib
-import uuid
 import sys
 import json
-import uvarint
-from local_blob import LocalBlob
+import ast
 from wormhole_core import getCoreContracts
 from TmplSig import TmplSig
 import argparse
@@ -37,8 +35,6 @@ from algosdk.future.transaction import LogicSig
 from token_bridge import get_token_bridge
 
 from test_contract import get_test_app
-
-from algosdk.v2client import indexer
 
 import pprint
 
@@ -1557,10 +1553,10 @@ class PortalCore:
             sys.exit(0)
 
         if args.guardianKeys != "":
-            self.gt.guardianKeys = eval(args.guardianKeys)
+            self.gt.guardianKeys = ast.literal_eval(args.guardianKeys)
 
         if args.guardianPrivKeys != "":
-            self.gt.guardianPrivKeyss = eval(args.guardianPrivKeys)
+            self.gt.guardianPrivKeys = ast.literal_eval(args.guardianPrivKeys)
 
         if args.upgradeVAA:
             ret = self.devnetUpgradeVAA()
