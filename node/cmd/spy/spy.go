@@ -217,7 +217,10 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 			// The channel sender locks the subscription mutex before sending to the channel.
 			// If the channel is full, then the sender will block and we'll never be able to lock the mutex (resulting in deadlock).
 			// So we empty the channel before trying acquire the lock.
-			_ = DoWithTimeout(func() error { <-sub.ch; return nil }, time.Millisecond)
+			select {
+			case <-sub.ch:
+			default:
+			}
 			if s.subsSignedVaaMu.TryLock() {
 				delete(s.subsSignedVaa, id)
 				s.subsSignedVaaMu.Unlock()
@@ -231,6 +234,10 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 		case <-resp.Context().Done():
 			return resp.Context().Err()
 		case msg := <-sub.ch:
+			// DoWithTimeout spawns a goroutine for resp.Send and races it against
+			// sendTimeout. If the timeout wins, the goroutine is not cancelled, but
+			// it will exit on its own once gRPC completes or tears down the stream
+			// (which happens when this handler returns). This is not a permanent leak.
 			if err := DoWithTimeout(func() error {
 				return resp.Send(&spyv1.SubscribeSignedVAAResponse{VaaBytes: msg.vaaBytes})
 			}, *sendTimeout); err != nil {
