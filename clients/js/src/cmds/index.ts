@@ -7,6 +7,7 @@ import * as generate from "./generate";
 import * as info from "./info";
 import * as near from "./near";
 import * as parse from "./parse";
+import * as parseGuardianKey from "./parseGuardianKey";
 import * as recover from "./recover";
 import * as submit from "./submit";
 import * as sui from "./sui";
@@ -25,6 +26,7 @@ export const CLI_COMMAND_MODULES = [
   info,
   near,
   parse,
+  parseGuardianKey,
   recover,
   submit,
   sui,
