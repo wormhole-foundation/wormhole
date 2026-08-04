@@ -117,6 +117,10 @@ type mockConnector struct {
 	errors map[eth_common.Hash]error
 	// blockTimes maps blockHash -> time to return from TimeOfBlockByHash
 	blockTimes map[eth_common.Hash]uint64
+	// blockTimeErrors maps blockHash -> error to return from TimeOfBlockByHash. When set for a
+	// hash it takes precedence over blockTimes, letting tests exercise the getBlockTime failure
+	// branches (retryable and non-retryable) in runMessageProcessor.
+	blockTimeErrors map[eth_common.Hash]error
 	// filterer delegates ParseLogMessagePublished to the real ABI parser.
 	filterer *ethabi.AbiFilterer
 }
@@ -128,10 +132,11 @@ func newMockConnector(t *testing.T) *mockConnector {
 	filterer, err := ethabi.NewAbiFilterer(eth_common.Address{}, nil)
 	require.NoError(t, err)
 	return &mockConnector{
-		receipts:   make(map[eth_common.Hash]*types.Receipt),
-		errors:     make(map[eth_common.Hash]error),
-		blockTimes: make(map[eth_common.Hash]uint64),
-		filterer:   filterer,
+		receipts:        make(map[eth_common.Hash]*types.Receipt),
+		errors:          make(map[eth_common.Hash]error),
+		blockTimes:      make(map[eth_common.Hash]uint64),
+		blockTimeErrors: make(map[eth_common.Hash]error),
+		filterer:        filterer,
 	}
 }
 
@@ -176,9 +181,13 @@ func (m *mockConnector) WatchLogMessagePublished(ctx context.Context, errC chan 
 	panic("not implemented")
 }
 
-// TimeOfBlockByHash returns the configured block time for the given hash, or 0 if unset.
-// Tests that care about the exact timestamp should seed blockTimes explicitly.
+// TimeOfBlockByHash returns the configured block time for the given hash, or 0 if unset. If a
+// blockTimeErrors entry is set for the hash it is returned instead, so tests can simulate RPC
+// failures. Tests that care about the exact timestamp should seed blockTimes explicitly.
 func (m *mockConnector) TimeOfBlockByHash(_ context.Context, hash eth_common.Hash) (uint64, error) {
+	if err := m.blockTimeErrors[hash]; err != nil {
+		return 0, err
+	}
 	return m.blockTimes[hash], nil
 }
 
@@ -436,8 +445,14 @@ func newTestLogEventFromParams(p testLogEventParams) *ethabi.AbiLogMessagePublis
 // assertMessageMatchesEvent verifies that all fields on a MessagePublication match the source event.
 func assertMessageMatchesEvent(t *testing.T, msg *common.MessagePublication, ev *ethabi.AbiLogMessagePublished) {
 	t.Helper()
+	assertMessageMatchesEventAtTime(t, msg, ev, testBlockTime)
+}
+
+// assertMessageMatchesEventAtTime verifies the publication fields for a specific block timestamp.
+func assertMessageMatchesEventAtTime(t *testing.T, msg *common.MessagePublication, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
+	t.Helper()
 	assert.Equal(t, ev.Raw.TxHash.Bytes(), msg.TxID)
-	assert.Equal(t, time.Unix(int64(testBlockTime), 0), msg.Timestamp) // #nosec G115 -- test-only
+	assert.Equal(t, time.Unix(int64(blockTime), 0), msg.Timestamp) // #nosec G115 -- test-only
 	assert.Equal(t, ev.Nonce, msg.Nonce)
 	assert.Equal(t, ev.Sequence, msg.Sequence)
 	assert.Equal(t, vaa.ChainIDEthereum, msg.EmitterChain)
@@ -453,3 +468,17 @@ func assertPendingMetadata(t *testing.T, pe *pendingMessage, effectiveCL uint8, 
 	assert.Equal(t, testBlockNumber, pe.height)
 	assert.Equal(t, additionalBlocks, pe.additionalBlocks)
 }
+
+// fakeSubscription is a controllable event.Subscription (and ethereum.Subscription - the method sets
+// are identical) for driving runMessageProcessor / runHeaderProcessor tests. Push an error via fail
+// to exercise the subscription-error branch; Unsubscribe is a no-op.
+type fakeSubscription struct {
+	errC chan error
+}
+
+func newFakeSubscription() *fakeSubscription {
+	return &fakeSubscription{errC: make(chan error, 1)}
+}
+
+func (f *fakeSubscription) Err() <-chan error { return f.errC }
+func (f *fakeSubscription) Unsubscribe()      {}

@@ -191,6 +191,7 @@ reobservation
 Reobservation
 reobservations
 Reobservations
+reobserve
 reobserved
 repoint
 RLUSD
