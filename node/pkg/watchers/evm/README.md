@@ -1,11 +1,31 @@
-# EVM watcher hash regression tests
+# EVM watcher tests
+
+This package has two complementary groups of tests: unit and integration tests
+covering the watcher's behavior, and hash regression tests that pin the exact
+digests the watcher produces for checked-in transaction receipts.
+
+## Unit and integration tests
+
+| File | What it covers |
+| ---- | -------------- |
+| `watcher_test.go` | Message processing: `postMessage` dispatch, immediate publication, pending-message queueing, `processNewBlock` finality handling, `verifyAndPublish`, consistency-level handling, and block-time retry logic. |
+| `reobserve_test.go` | Reobservation request handling: invalid chain IDs, receipt errors, failed transaction status, skipped logs, deterministic ordering, large receipts, and transfer-verifier integration. |
+| `by_transaction_test.go` | Core bridge log validation (`isValidCoreBridgeMessagePublicationLog`): wrong contract, wrong topic, removed logs, malformed topics. |
+| `custom_consistency_level_test.go` | Custom consistency level (CCL) config parsing and effective-consistency-level handling. |
+| `chain_config_test.go` | Per-chain configuration: finality support, EVM chain IDs, mainnet contract addresses. |
+| `blocks_by_timestamp_test.go` | The block-by-timestamp cache used for CCQ. |
+| `ccq_test.go`, `ccq_backfill_test.go` | Cross-chain query (CCQ) request handling and backfill. |
+| `tron_integration_test.go` | Live integration against the Tron Nile testnet (requires network access). |
+| `watcher_test_helpers_test.go` | Shared mock connector and test helpers. |
+
+## Hash regression tests
 
 These fixtures protect the message hash used to match live observations with
 re-observations. The expected hashes are checked in and are constructed without
 calling `MessagePublication.CreateDigest()`, so an accidental change to watcher
 message construction is caught by the tests.
 
-## Source of truth
+### Source of truth
 
 `TestObservationReobservationParity` in
 `observation_reobservation_parity_test.go` loads the canonical receipt vectors
@@ -15,9 +35,11 @@ and sends each receipt through both watcher paths:
 - re-observation: `runReobservationHandler` /
   `handleReobservationRequest`
 
-For every receipt, the test requires both paths to emit the same digest multiset
-and requires that multiset to match the checked-in `expectedMessages[].hash`
-values. It also asserts that `CreateDigest()` and `VAAHash()` remain equivalent.
+For every receipt, the test requires both paths to emit exactly the same
+digests - compared without regard to order, but with every duplicate counted -
+and requires those digests to match the checked-in `expectedMessages[].hash`
+values. It also asserts that `CreateDigest()` and `VAAHash()` remain
+equivalent.
 
 The digest is the double Keccak-256 hash of the serialized VAA body fields:
 
@@ -34,7 +56,7 @@ transaction index, log index, gas fields, bloom, and `IsReobservation` must not
 change the digest. `TestGeneratedReceiptGoldenVectorMetadataIndependence`
 checks this explicitly.
 
-## Receipt fixtures
+### Receipt fixtures
 
 The tests load only these canonical files:
 
@@ -65,7 +87,7 @@ Each vector has this shape:
 bytes without a `0x` prefix. `logIndex` makes message selection explicit for
 receipts containing unrelated logs or multiple Wormhole events.
 
-## Data provenance and hash construction
+### Data provenance and hash construction
 
 The synthetic vectors were built from explicit event fields, ABI-encoded into
 `LogMessagePublished` receipt logs, and paired with independently calculated
@@ -104,7 +126,7 @@ The generated corpus covers:
 `TestGeneratedReceiptGoldenVectorsCoverage` pins these properties so fixture
 changes cannot silently weaken the corpus.
 
-## Tests to run
+### Tests to run
 
 From `node`:
 
