@@ -146,7 +146,6 @@ Monad
 moonscan
 moretags
 multichecker
-multiset
 Neodyme
 nhooyr
 nolint
@@ -192,6 +191,7 @@ reobservation
 Reobservation
 reobservations
 Reobservations
+reobserve
 reobserved
 repoint
 RLUSD
