@@ -258,7 +258,7 @@ func assertGeneratedReceiptGoldenMessage(
 	t.Helper()
 
 	require.Equal(t, vec.WormholeChainID, msg.EmitterChain)
-	require.Equal(t, int64(vec.BlockTime), msg.Timestamp.Unix())
+	require.Equal(t, int64(vec.BlockTime), msg.Timestamp.Unix()) // #nosec G115 -- test-only
 	require.Equal(t, expected.LogIndex, selectedLog.Index)
 	require.GreaterOrEqual(t, len(selectedLog.Topics), 2)
 	require.Equal(t, selectedLog.Topics[1].Bytes(), msg.EmitterAddress.Bytes(),
