@@ -152,6 +152,7 @@ Monad
 moonscan
 moretags
 multichecker
+multiset
 Neodyme
 nhooyr
 nolint
