@@ -15,6 +15,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	dgAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/delegated_guardians"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -653,35 +654,54 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 		w.currentDelegatedGuardianConfigTimestamp = maxTimestamp
 
 		// Build the DelegatedGuardianConfig
-		dgConfig := processor.NewDelegatedGuardianConfig()
-		for _, cfg := range configs {
-			// skip config without keys
-			if len(cfg.Keys) == 0 {
-				w.logger.Info("skipping delegated guardian config with no keys",
-					zap.Uint32("chainID", uint32(cfg.ChainId)),
-					zap.Uint32("timestamp", cfg.Timestamp))
-				continue
-			}
-
-			chainID := vaa.ChainID(cfg.ChainId)
-			chainConfig, err := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
-			if err != nil {
-				w.logger.Error("failed to instantiate delegated guardian chain config", zap.Error(err))
-				return err
-			}
-			dgConfig.Chains[chainID] = chainConfig
-			w.logger.Info("delegated guardian config for chain",
-				zap.Stringer("chainID", chainID),
-				zap.Int("numKeys", len(cfg.Keys)),
-				zap.Uint8("threshold", cfg.Threshold),
-				zap.Uint32("timestamp", cfg.Timestamp))
-		}
+		dgConfig := buildDelegatedGuardianConfig(configs, w.logger)
 
 		w.dgConfigC <- dgConfig // Note on channel capacity: Will only block the delegated guardian config update routine
 		w.logger.Info("sent delegated guardian config update to processor")
 	}
 
 	return nil
+}
+
+// buildDelegatedGuardianConfig converts the on-chain config sets into the processor's
+// DelegatedGuardianConfig. Chains whose config this node cannot accept are skipped
+// (fail closed) rather than aborting the whole update: the on-chain
+// WormholeDelegatedGuardians contract accepts configs the node rejects (threshold
+// above the key count, below the quorum floor, or duplicate keys), and surfacing that
+// as an error would kill the entire EVM watcher via the polling routine's fatal
+// channel — one malformed governance config taking down the chain's whole observation
+// pipeline on every guardian. Skipped chains stay without delegated attestation until
+// a valid config arrives; other chains keep working.
+func buildDelegatedGuardianConfig(configs []dgAbi.WormholeDelegatedGuardiansDelegatedGuardianSet, logger *zap.Logger) *processor.DelegatedGuardianConfig {
+	dgConfig := processor.NewDelegatedGuardianConfig()
+	for _, cfg := range configs {
+		// skip config without keys
+		if len(cfg.Keys) == 0 {
+			logger.Info("skipping delegated guardian config with no keys",
+				zap.Uint32("chainID", uint32(cfg.ChainId)),
+				zap.Uint32("timestamp", cfg.Timestamp))
+			continue
+		}
+
+		chainID := vaa.ChainID(cfg.ChainId)
+		chainConfig, err := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
+		if err != nil {
+			logger.Error("skipping invalid delegated guardian chain config",
+				zap.Error(err),
+				zap.Stringer("chainID", chainID),
+				zap.Int("numKeys", len(cfg.Keys)),
+				zap.Uint8("threshold", cfg.Threshold),
+				zap.Uint32("timestamp", cfg.Timestamp))
+			continue
+		}
+		dgConfig.Chains[chainID] = chainConfig
+		logger.Info("delegated guardian config for chain",
+			zap.Stringer("chainID", chainID),
+			zap.Int("numKeys", len(cfg.Keys)),
+			zap.Uint8("threshold", cfg.Threshold),
+			zap.Uint32("timestamp", cfg.Timestamp))
+	}
+	return dgConfig
 }
 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
