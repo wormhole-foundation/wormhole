@@ -283,7 +283,7 @@ def build_node_yaml():
                     "--suiRPC",
                     "sui:443",
                     "--suiMoveEventType",
-                    "0xf82ef05c95ebafcbeb1cce2b636448b8cd1c6daad201f7d04ecddcda15c19d52::publish_message::WormholeMessage",
+                    "0x70755b37a2957574474efcf40c359f08352bd12937c9e5334a96cd52904e4599::publish_message::WormholeMessage",
                 ]
             
             # Handle evm2 configuration based on guardian count and evm2 flag

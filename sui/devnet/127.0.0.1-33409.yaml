@@ -2,32 +2,31 @@
 protocol-key-pair:
   value: VTDx4HjVmRBqdqBWg2zN+zcFE20io3CrBchGy/iV1lo=
 worker-key-pair:
-  value: ACuZBbNLdga9CYhx5fmHZ9Mu3RMcCNUvnFI7LWWJV2uC
+  value: AA5AwKLce/SgbpJ6HXTzvdGs5A/T+qUQTgJeV29lVE0S
 account-key-pair:
-  value: AIZaQPW5nuoVo2E9vS2rf0JApAL3sqr/Eypl/9eKORov
+  value: AAee+nqT4Cv36jlLrT75QgsvY0Z5aC88SlAcztdOQkKj
 network-key-pair:
-  value: ANAg22ijJUm6etHiB8kxLI+f89d4qq9oJXlTvRTPOAYG
+  value: ACg9cQu20Yy1WxvBFs4rdtXCSOzIM2EQQTOC05vOBhb4
 db-path: /root/.sui/sui_config/authorities_db/99f25ef61f80
-network-address: /ip4/127.0.0.1/tcp/36557/http
-json-rpc-address: "127.0.0.1:42077"
+network-address: /ip4/127.0.0.1/tcp/33409/https
+json-rpc-address: "127.0.0.1:33161"
 rpc: {}
-metrics-address: "127.0.0.1:35685"
-admin-interface-port: 46243
+metrics-address: "127.0.0.1:41901"
+admin-interface-port: 43587
 consensus-config:
   db-path: /root/.sui/sui_config/consensus_db/99f25ef61f80
   db-retention-epochs: ~
   db-pruner-period-secs: ~
   max-pending-transactions: ~
-  max-submit-position: ~
-  submit-delay-step-override-millis: ~
   parameters: ~
 enable-index-processing: true
+sync-post-process-one-tx: false
 jsonrpc-server-type: ~
 grpc-load-shed: ~
 grpc-concurrency-limit: 20000000000
 p2p-config:
-  listen-address: "127.0.0.1:44921"
-  external-address: /ip4/127.0.0.1/udp/44921
+  listen-address: "127.0.0.1:32885"
+  external-address: /ip4/127.0.0.1/udp/32885
   state-sync:
     checkpoint-content-timeout-ms: 10000
 genesis:
@@ -56,9 +55,11 @@ transaction-deny-config:
   package-upgrade-disabled: false
   shared-object-disabled: false
   user-transaction-disabled: false
+  gasless-disabled: false
   receiving-objects-disabled: false
   zklogin-sig-disabled: false
   zklogin-disabled-providers: []
+dev-inspect-disabled: false
 certificate-deny-config: {}
 state-debug-dump-config: {}
 state-archive-read-config: []
@@ -75,8 +76,9 @@ zklogin-oauth-providers:
     - Apple
     - Arden
     - "AwsTenant-region:ap-southeast-1-tenant_id:ap-southeast-1_2QQPyQXDz"
+    - "AwsTenant-region:eu-north-1-tenant_id:eu-north-1_4HdQTpt3E"
+    - "AwsTenant-region:eu-north-1-tenant_id:eu-north-1_Bpct2JyBg"
     - "AwsTenant-region:eu-west-3-tenant_id:eu-west-3_gGVCx53Es"
-    - "AwsTenant-region:us-east-1-tenant_id:us-east-1_qPsZxYqd8"
     - Credenza3
     - EveFrontier
     - Facebook
@@ -92,8 +94,9 @@ zklogin-oauth-providers:
     - Apple
     - Arden
     - "AwsTenant-region:ap-southeast-1-tenant_id:ap-southeast-1_2QQPyQXDz"
+    - "AwsTenant-region:eu-north-1-tenant_id:eu-north-1_4HdQTpt3E"
+    - "AwsTenant-region:eu-north-1-tenant_id:eu-north-1_Bpct2JyBg"
     - "AwsTenant-region:eu-west-3-tenant_id:eu-west-3_gGVCx53Es"
-    - "AwsTenant-region:us-east-1-tenant_id:us-east-1_qPsZxYqd8"
     - Credenza3
     - EveFrontier
     - Facebook
@@ -109,8 +112,9 @@ zklogin-oauth-providers:
     - Apple
     - Arden
     - "AwsTenant-region:ap-southeast-1-tenant_id:ap-southeast-1_2QQPyQXDz"
+    - "AwsTenant-region:eu-north-1-tenant_id:eu-north-1_4HdQTpt3E"
+    - "AwsTenant-region:eu-north-1-tenant_id:eu-north-1_Bpct2JyBg"
     - "AwsTenant-region:eu-west-3-tenant_id:eu-west-3_gGVCx53Es"
-    - "AwsTenant-region:us-east-1-tenant_id:us-east-1_qPsZxYqd8"
     - Credenza3
     - EveFrontier
     - Facebook
@@ -145,6 +149,12 @@ authority-overload-config:
   check-system-overload-at-signing: true
   max-transaction-manager-queue-length: 100000
   max-transaction-manager-per-object-queue-length: 2000
+  admission-queue-capacity-fraction: 0.5
+  admission-queue-bypass-fraction: 0.9
+  admission-queue-enabled: true
+  admission-queue-failover-timeout:
+    secs: 30
+    nanos: 0
 execution-cache:
   writeback-cache:
     max_cache_size: ~
@@ -159,7 +169,6 @@ execution-cache:
     transaction_objects_cache_size: ~
     backpressure_threshold: ~
     backpressure_threshold_for_rpc: ~
-    fastpath_transaction_outputs_cache_size: ~
 enable-soft-bundle: true
 verifier-signing-config:
   max-per-fun-meter-units: ~
