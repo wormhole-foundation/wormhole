@@ -14,6 +14,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"go.uber.org/zap"
 )
 
 func TestSignedHeartbeat(t *testing.T) {
@@ -438,4 +439,67 @@ func TestValidateSignedObservationBatch(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExpandBroadcastDropsStaleSentTimestamp(t *testing.T) {
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	assert.NoError(t, err)
+	gAddr := crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background()))
+
+	gs := &node_common.GuardianSet{
+		Keys:  []common.Address{gAddr},
+		Index: 1,
+	}
+	logger := zap.NewNop()
+
+	broadcast := &gossipv1.DelegateSignaturesBroadcast{
+		Timestamp:        uint32(time.Now().Unix()),
+		Nonce:            1,
+		EmitterChain:     2,
+		EmitterAddress:   make([]byte, 32),
+		Sequence:         42,
+		ConsistencyLevel: 1,
+		Payload:          []byte("payload"),
+		TxHash:           make([]byte, 32),
+	}
+
+	// Sign a reconstructed DelegateObservation exactly as the expander does, once
+	// with a fresh SentTimestamp and once with a stale one. Both signatures are
+	// cryptographically valid — only freshness may distinguish them.
+	makeSig := func(sentTimestamp int64) *gossipv1.DelegateSignature {
+		d := &gossipv1.DelegateObservation{
+			Timestamp:        broadcast.Timestamp,
+			Nonce:            broadcast.Nonce,
+			EmitterChain:     broadcast.EmitterChain,
+			EmitterAddress:   broadcast.EmitterAddress,
+			Sequence:         broadcast.Sequence,
+			ConsistencyLevel: broadcast.ConsistencyLevel,
+			Payload:          broadcast.Payload,
+			TxHash:           broadcast.TxHash,
+			GuardianAddr:     gAddr.Bytes(),
+			SentTimestamp:    sentTimestamp,
+		}
+		b, err := proto.Marshal(d)
+		assert.NoError(t, err)
+		digest := signedDelegateObservationDigest(b)
+		sig, err := guardianSigner.Sign(context.Background(), digest.Bytes())
+		assert.NoError(t, err)
+		return &gossipv1.DelegateSignature{
+			GuardianAddr:  gAddr.Bytes(),
+			SentTimestamp: sentTimestamp,
+			Signature:     sig,
+		}
+	}
+
+	fresh := time.Now().Unix()
+	stale := time.Now().Add(-2 * delegateObservationMaxTimeDifference).Unix()
+
+	broadcast.Signatures = []*gossipv1.DelegateSignature{makeSig(stale), makeSig(fresh)}
+
+	wrapped := expandBroadcastToSignedDelegateObservations(broadcast, gs, logger)
+	assert.Len(t, wrapped, 1, "stale SentTimestamp signature must be dropped like the direct path drops it")
+
+	var obs gossipv1.DelegateObservation
+	assert.NoError(t, proto.Unmarshal(wrapped[0].DelegateObservation, &obs))
+	assert.Equal(t, fresh, obs.SentTimestamp)
 }

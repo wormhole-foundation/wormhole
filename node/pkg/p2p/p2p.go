@@ -1706,6 +1706,16 @@ func expandBroadcastToSignedDelegateObservations(broadcast *gossipv1.DelegateSig
 			}
 		}
 
+		// Enforce the same SentTimestamp freshness bound the direct delegate-observation
+		// path enforces (processSignedDelegateObservation); without it, an inner delegate
+		// signature stays replayable indefinitely when re-broadcast in compact form.
+		if time.Until(time.Unix(sig.SentTimestamp, 0)).Abs() > delegateObservationMaxTimeDifference {
+			logger.Warn("broadcast delegate signature has stale or future SentTimestamp",
+				zap.String("addr", claimedAddr.Hex()),
+				zap.Int64("sent_timestamp", sig.SentTimestamp))
+			continue
+		}
+
 		digest := signedDelegateObservationDigest(b)
 		pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), sig.Signature)
 		if err != nil {
