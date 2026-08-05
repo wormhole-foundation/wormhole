@@ -1,4 +1,4 @@
-import { PaginatedObjectsResponse } from "@mysten/sui/client";
+import type { SuiClientTypes } from "@mysten/sui/client";
 import yargs from "yargs";
 import { getPackageId, getProvider } from "../../chains/sui";
 import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
@@ -25,21 +25,19 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const owner = argv.owner;
 
         const client = getProvider(network, rpc);
-        const objects: PaginatedObjectsResponse["data"] = [];
+        const objects: SuiClientTypes.ListOwnedObjectsResponse["objects"] = [];
 
-        let cursor: PaginatedObjectsResponse["nextCursor"] | undefined =
-          undefined;
-        while (true) {
-          const res: PaginatedObjectsResponse = await client.getOwnedObjects({
-            owner,
-            cursor,
-          });
-          objects.push(...res.data);
-          if (res.hasNextPage) {
-            cursor = res.nextCursor;
-          } else {
-            break;
-          }
+        let cursor: string | null = null;
+        let hasNextPage = true;
+        while (hasNextPage) {
+          const res: SuiClientTypes.ListOwnedObjectsResponse =
+            await client.listOwnedObjects({
+              owner,
+              cursor,
+            });
+          objects.push(...res.objects);
+          hasNextPage = res.hasNextPage;
+          cursor = res.cursor;
         }
 
         console.log("Network", network);
@@ -90,18 +88,24 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const network = getNetwork(argv.network);
         const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
         const provider = getProvider(network, rpc);
+        const res = await provider.getTransaction({
+          digest: argv["transaction-digest"],
+          include: {
+            transaction: true,
+            effects: true,
+            events: true,
+            objectTypes: true,
+          },
+        });
         console.log(
           JSON.stringify(
-            await provider.getTransactionBlock({
-              digest: argv["transaction-digest"],
-              options: {
-                showInput: true,
-                showEffects: true,
-                showEvents: true,
-                showObjectChanges: true,
-              },
-            }),
-            null,
+            res.Transaction ?? res.FailedTransaction,
+            (_key, value) =>
+              value instanceof Uint8Array
+                ? Buffer.from(value).toString("base64")
+                : typeof value === "bigint"
+                ? value.toString()
+                : value,
             2
           )
         );

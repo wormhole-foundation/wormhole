@@ -1,14 +1,15 @@
-import { SuiTransactionBlockResponse } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
-import { fromB64 } from "@mysten/bcs";
-import { execSync } from "child_process";
+import { fromBase64 } from "@mysten/sui/utils";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import { SuiBuildOutput } from "./types";
 import {
   executeTransactionBlock,
-  isSuiPublishEvent,
+  fetchTransactionResult,
+  getPublishedPackageId,
   normalizeSuiAddress,
   SuiSigner,
+  SuiTransactionResult,
 } from "./utils";
 import { Network } from "@wormhole-foundation/sdk";
 
@@ -28,27 +29,55 @@ const getEnvironmentFlag = (network: Network): string | undefined => {
   }
 };
 
+const resolvePackageDir = (packagePath: string): string => {
+  let resolved: string;
+  try {
+    resolved = fs.realpathSync(packagePath);
+  } catch {
+    throw new Error(`Package not found at ${packagePath}`);
+  }
+
+  if (!fs.statSync(resolved).isDirectory()) {
+    throw new Error(`Package path is not a directory: ${packagePath}`);
+  }
+
+  return resolved;
+};
+
 export const buildPackage = (
   packagePath: string,
   network: Network = "Devnet"
 ): SuiBuildOutput => {
-  if (!fs.existsSync(packagePath)) {
-    throw new Error(`Package not found at ${packagePath}`);
-  }
+  const packageDir = resolvePackageDir(packagePath);
 
   const env = getEnvironmentFlag(network);
-  const envFlag = env ? `-e ${env}` : "";
-  const cmd = `sui move build --dump-bytecode-as-base64 ${envFlag} --path ${packagePath} 2>&1`;
+  const args = [
+    "move",
+    "build",
+    "--dump-bytecode-as-base64",
+    "-q",
+    ...(env ? ["-e", env] : []),
+    "--path",
+    packageDir,
+  ];
+
+  let stdout: string;
+  try {
+    stdout = execFileSync("sui", args, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (e: any) {
+    const detail = [e.stderr, e.stdout, e.message].filter(Boolean).join("\n");
+    throw new Error(
+      `Failed to build package: ${detail}\nCommand: sui ${args.join(" ")}`
+    );
+  }
 
   try {
-    const output = execSync(cmd, { encoding: "utf-8" });
-    const jsonStart = output.indexOf("{");
-    if (jsonStart === -1) {
-      throw new Error(`No JSON output from build command: ${output}`);
-    }
-    return JSON.parse(output.slice(jsonStart));
-  } catch (e: any) {
-    throw new Error(`Failed to build package: ${e.message}\nCommand: ${cmd}`);
+    return JSON.parse(stdout);
+  } catch {
+    throw new Error(`Unexpected non-JSON output from build command: ${stdout}`);
   }
 };
 
@@ -59,68 +88,81 @@ export const publishPackage = async (
   signer: SuiSigner,
   network: Network,
   packagePath: string
-) => {
+): Promise<SuiTransactionResult> => {
   if (network === "Devnet") {
-    // test-publish uses the locally configured CLI signer, not the passed signer
-    return publishPackageTestPublish(packagePath);
-  } else {
-    return publishPackageSDK(signer, network, packagePath);
+    return publishPackageTestPublish(signer, packagePath);
   }
+  return publishPackageSDK(signer, network, packagePath);
 };
 
 /**
- * Use `sui client test-publish` for ephemeral/local deployments.
- * This handles dependencies automatically and doesn't require Published.toml manipulation.
- * Note: Uses the locally configured Sui CLI signer, not a programmatic signer.
+ * Extract the transaction digest from `sui client test-publish -q --json`
+ * output. `-q` keeps the human-readable build lines on stderr, so stdout is a
+ * single JSON object and needs no text slicing. Only the digest is read here;
+ * the transaction's effects are fetched separately over gRPC.
  */
-const publishPackageTestPublish = async (packagePath: string) => {
-  // Use test-publish with --publish-unpublished-deps to handle dependencies
-  // --build-env testnet tells it to use testnet dependency resolution
-  const cmd = `sui client test-publish ${packagePath} --publish-unpublished-deps --build-env testnet --json 2>&1`;
-
-  console.log(`Running: ${cmd}`);
-
+export const parseTestPublishDigest = (output: string): string => {
+  let parsed: any;
   try {
-    const output = execSync(cmd, { encoding: "utf-8" });
-    console.log(`test-publish output:\n${output}`);
-
-    // Parse JSON output
-    const jsonStart = output.indexOf("{");
-    if (jsonStart === -1) {
-      throw new Error(`No JSON output from test-publish: ${output}`);
-    }
-
-    const result = JSON.parse(output.slice(jsonStart));
-
-    // Extract published package ID from the result
-    const publishedChanges = result.objectChanges?.filter(
-      (change: any) => change.type === "published"
-    );
-
-    if (!publishedChanges || publishedChanges.length === 0) {
-      throw new Error(
-        `No published package found in test-publish output: ${JSON.stringify(
-          result.objectChanges,
-          null,
-          2
-        )}`
-      );
-    }
-
-    // Find the main package (not dependencies) - it's typically the last one published
-    const mainPackage = publishedChanges[publishedChanges.length - 1];
-    console.log(`Published package ID: ${mainPackage.packageId}`);
-
-    return result;
-  } catch (e: any) {
-    // Print full error details
-    console.error(`test-publish error:`);
-    if (e.stdout) console.error(`stdout: ${e.stdout}`);
-    if (e.stderr) console.error(`stderr: ${e.stderr}`);
-    if (e.status) console.error(`exit code: ${e.status}`);
-    console.error(`message: ${e.message}`);
-    throw new Error(`test-publish failed: ${e.message}`);
+    parsed = JSON.parse(output);
+  } catch {
+    throw new Error(`Unexpected non-JSON output from test-publish: ${output}`);
   }
+
+  const digest = parsed?.digest;
+  if (typeof digest !== "string") {
+    throw new Error(`No transaction digest in test-publish output: ${output}`);
+  }
+  return digest;
+};
+
+/**
+ * Publish via `sui client test-publish` for Devnet/localnet.
+ *
+ * The Sui package system resolves local, not-yet-published dependencies (e.g.
+ * the core bridge imported by the token bridge) per chain id. `test-publish`
+ * performs that resolution together with `--publish-unpublished-deps` without
+ * requiring Published.toml management — something a plain SDK `tx.publish`
+ * cannot reproduce on an ephemeral local network. It signs with the locally
+ * configured CLI keystore and commits on-chain, so the resulting transaction is
+ * read back over gRPC rather than parsed from the CLI's deprecated JSON-RPC
+ * `objectChanges` payload.
+ */
+const publishPackageTestPublish = async (
+  signer: SuiSigner,
+  packagePath: string
+): Promise<SuiTransactionResult> => {
+  const packageDir = resolvePackageDir(packagePath);
+
+  // `--build-env testnet` selects testnet dependency pins (localnet is not a
+  // pinned environment); `--publish-unpublished-deps` publishes dependencies
+  // that are not yet on-chain for this network.
+  // `-q` keeps the build progress lines on stderr so stdout carries only the
+  // `--json` payload; the streams are left split (no `2>&1`).
+  const args = [
+    "client",
+    "test-publish",
+    packageDir,
+    "--publish-unpublished-deps",
+    "--build-env",
+    "testnet",
+    "-q",
+    "--json",
+  ];
+
+  let output: string;
+  try {
+    output = execFileSync("sui", args, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (e: any) {
+    const detail = [e.stderr, e.stdout, e.message].filter(Boolean).join("\n");
+    throw new Error(`test-publish failed:\n${detail}`);
+  }
+
+  const digest = parseTestPublishDigest(output);
+  return fetchTransactionResult(signer.client, digest);
 };
 
 /**
@@ -139,7 +181,7 @@ const publishPackageSDK = async (
 
   const tx = new Transaction();
   const [upgradeCap] = tx.publish({
-    modules: build.modules.map((m) => Array.from(fromB64(m))),
+    modules: build.modules.map((m) => Array.from(fromBase64(m))),
     dependencies: build.dependencies.map((d) => normalizeSuiAddress(d)),
   });
 
@@ -150,17 +192,10 @@ const publishPackageSDK = async (
 
   const res = await executeTransactionBlock(signer, tx);
 
-  console.log(`Transaction status: ${JSON.stringify(res.effects?.status)}`);
+  console.log(`Transaction status: ${res.success ? "success" : res.error}`);
 
-  const publishEvents = res.objectChanges?.filter(isSuiPublishEvent) ?? [];
-  if (publishEvents.length !== 1) {
-    throw new Error(
-      "No publish event found in transaction:" +
-        JSON.stringify(res.objectChanges, null, 2)
-    );
-  }
-
-  console.log(`Published package ID: ${publishEvents[0].packageId}`);
+  // getPublishedPackageId throws if there isn't exactly one published package.
+  console.log(`Published package ID: ${getPublishedPackageId(res)}`);
 
   return res;
 };

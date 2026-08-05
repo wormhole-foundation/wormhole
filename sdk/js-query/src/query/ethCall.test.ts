@@ -976,47 +976,44 @@ describe("eth call", () => {
     ]);
     const chainId = 2;
     for (let bigCount = 0; bigCount < 3; bigCount++) {
-      // We are allowed a burst of two, so these should work.
-      for (let count = 0; count < 2; count++) {
-        const ethQuery = new PerChainQueryRequest(chainId, ethCall);
-        const nonce = count + 1;
-        const request = new QueryRequest(nonce, [ethQuery]);
-        const serialized = request.serialize();
-        const digest = QueryRequest.digest(ENV, serialized);
-        const signature = sign(PRIVATE_KEY, digest);
-        const response = await axios.put(
-          QUERY_URL,
-          {
-            signature,
-            bytes: Buffer.from(serialized).toString("hex"),
-          },
-          { headers: { "X-API-Key": "rate_limited_key" } }
-        );
-        expect(response.status).toBe(200);
-      }
-      // But the next one should fail with a 429.
-      const ethQuery = new PerChainQueryRequest(chainId, ethCall);
-      const nonce = 100;
-      const request = new QueryRequest(nonce, [ethQuery]);
-      const serialized = request.serialize();
-      const digest = QueryRequest.digest(ENV, serialized);
-      const signature = sign(PRIVATE_KEY, digest);
-      let err = false;
-      await axios
-        .put(
-          QUERY_URL,
-          {
-            signature,
-            bytes: Buffer.from(serialized).toString("hex"),
-          },
-          { headers: { "X-API-Key": "rate_limited_key" } }
-        )
-        .catch(function (error) {
-          err = true;
-          expect(error.response.status).toBe(429);
-          expect(error.response.data).toBe("rate limit exceeded\n");
-        });
-      expect(err).toBe(true);
+      // We are allowed a burst of two, so of three concurrent requests
+      // exactly one should be rejected with a 429. The requests must be sent
+      // concurrently: sending them sequentially leaves a full round trip
+      // between arrivals, and on a slow runner that is enough time for the
+      // limiter (one token per second) to refill and let all three through.
+      let successCount = 0;
+      let rateLimitedCount = 0;
+      await Promise.all(
+        [1, 2, 100].map((nonce) => {
+          const ethQuery = new PerChainQueryRequest(chainId, ethCall);
+          const request = new QueryRequest(nonce, [ethQuery]);
+          const serialized = request.serialize();
+          const digest = QueryRequest.digest(ENV, serialized);
+          const signature = sign(PRIVATE_KEY, digest);
+          return axios
+            .put(
+              QUERY_URL,
+              {
+                signature,
+                bytes: Buffer.from(serialized).toString("hex"),
+              },
+              { headers: { "X-API-Key": "rate_limited_key" } }
+            )
+            .then(
+              function (response) {
+                expect(response.status).toBe(200);
+                successCount++;
+              },
+              function (error) {
+                expect(error.response.status).toBe(429);
+                expect(error.response.data).toBe("rate limit exceeded\n");
+                rateLimitedCount++;
+              }
+            );
+        })
+      );
+      expect(successCount).toBe(2);
+      expect(rateLimitedCount).toBe(1);
 
       // But after a sleep, we should be able to go again.
       await sleep(2000);

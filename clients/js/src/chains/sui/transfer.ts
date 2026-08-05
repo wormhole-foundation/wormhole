@@ -1,10 +1,15 @@
-import { transferFromSui } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import { Transaction } from "@mysten/sui/transactions";
+import { randomInt } from "crypto";
 import {
   executeTransactionBlock,
+  getPackageId,
   getProvider,
   getSigner,
   setMaxGasBudgetDevnet,
+  SUI_CLOCK_OBJECT_ID,
 } from "./utils";
+import { getObjectFields } from "../../sdk/sui";
+import { selectCoinsForAmount } from "./selectCoins";
 import {
   Chain,
   Network,
@@ -12,6 +17,8 @@ import {
   contracts,
 } from "@wormhole-foundation/sdk-base";
 import { tryNativeToUint8Array } from "../../sdk/array";
+
+const SUI_TYPE_ARG = "0x2::sui::SUI";
 
 export async function transferSui(
   dstChain: Chain,
@@ -29,27 +36,109 @@ export async function transferSui(
   if (!token_bridge) {
     throw new Error("Token bridge object ID is undefined");
   }
+
   const client = getProvider(network, rpc);
   const signer = getSigner(client, network);
   const owner = signer.keypair.getPublicKey().toSuiAddress();
-  const coinType = tokenAddress === "native" ? "0x2::sui::SUI" : tokenAddress;
-  const coins = (
-    await client.getCoins({
-      owner,
-      coinType,
-    })
-  ).data;
-  const tx = await transferFromSui(
-    client as any,
-    core,
-    token_bridge,
-    coins,
-    coinType,
-    BigInt(amount),
-    chainToChainId(dstChain),
-    tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
-  );
-  setMaxGasBudgetDevnet(network, tx as any);
-  const result = await executeTransactionBlock(signer, tx as any);
+  const coinType = tokenAddress === "native" ? SUI_TYPE_ARG : tokenAddress;
+  const recipientChainId = chainToChainId(dstChain);
+  const recipient = tryNativeToUint8Array(dstAddress, recipientChainId);
+  const amt = BigInt(amount);
+
+  // Collect the sender's coins of the transfer type so they can be merged.
+  const coins: { objectId: string; balance: bigint }[] = [];
+  let cursor: string | null = null;
+  let hasNextPage = true;
+  while (hasNextPage) {
+    const page = await client.listCoins({ owner, coinType, cursor });
+    for (const coin of page.objects) {
+      coins.push({ objectId: coin.objectId, balance: BigInt(coin.balance) });
+    }
+    hasNextPage = page.hasNextPage;
+    cursor = page.cursor;
+  }
+  if (coins.length === 0) {
+    throw new Error(`No coins of type ${coinType} found for ${owner}`);
+  }
+
+  // Largest-first, only as many as needed: merging every coin lets dust bloat the PTB.
+  const coinObjectIds = selectCoinsForAmount(coins, amt);
+
+  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    getPackageId(client, core),
+    getPackageId(client, token_bridge),
+  ]);
+
+  const coreFields = await getObjectFields(client, core);
+  const messageFee = BigInt(coreFields?.fee_collector?.fee_amount ?? 0);
+
+  const tx = new Transaction();
+
+  const [transferCoin] = (() => {
+    if (coinType === SUI_TYPE_ARG) {
+      return tx.splitCoins(tx.gas, [tx.pure("u64", amt)]);
+    }
+    const [primaryCoinId, ...mergeCoinIds] = coinObjectIds;
+    const primaryCoinInput = tx.object(primaryCoinId);
+    if (mergeCoinIds.length) {
+      tx.mergeCoins(
+        primaryCoinInput,
+        mergeCoinIds.map((id) => tx.object(id))
+      );
+    }
+    return tx.splitCoins(primaryCoinInput, [tx.pure("u64", amt)]);
+  })();
+
+  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure("u64", messageFee)]);
+
+  const [assetInfo] = tx.moveCall({
+    target: `${tokenBridgePackageId}::state::verified_asset`,
+    arguments: [tx.object(token_bridge)],
+    typeArguments: [coinType],
+  });
+
+  // 32-bit transfer nonce from a cryptographic RNG, so it is not predictable.
+  const nonce = randomInt(0, 0xffffffff);
+
+  const [transferTicket, dust] = tx.moveCall({
+    target: `${tokenBridgePackageId}::transfer_tokens::prepare_transfer`,
+    arguments: [
+      assetInfo,
+      transferCoin,
+      tx.pure("u16", recipientChainId),
+      tx.pure("vector<u8>", [...recipient]),
+      tx.pure("u64", BigInt(0)),
+      tx.pure("u32", nonce),
+    ],
+    typeArguments: [coinType],
+  });
+
+  // prepare_transfer truncates the amount to Wormhole's 8 decimals and hands
+  // back the remainder. Coin has no `drop`, so it must be consumed: this returns
+  // it to the sender (or destroys it when zero) and the PTB won't build without it.
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+    arguments: [dust],
+    typeArguments: [coinType],
+  });
+
+  const [messageTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::transfer_tokens::transfer_tokens`,
+    arguments: [tx.object(token_bridge), transferTicket],
+    typeArguments: [coinType],
+  });
+
+  tx.moveCall({
+    target: `${coreBridgePackageId}::publish_message::publish_message`,
+    arguments: [
+      tx.object(core),
+      feeCoin,
+      messageTicket,
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  setMaxGasBudgetDevnet(network, tx);
+  const result = await executeTransactionBlock(signer, tx);
   console.log(JSON.stringify(result));
 }
