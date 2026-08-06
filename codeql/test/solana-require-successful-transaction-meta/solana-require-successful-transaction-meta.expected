@@ -1,0 +1,12 @@
+| node/pkg/watchers/solana/positive.go:4:2:4:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:8:6:8:28 | selection of LogMessages | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:12:2:12:36 | call to GetTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:16:2:16:24 | call to GetTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:23:2:23:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:27:2:27:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:38:2:38:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:43:2:43:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:48:2:48:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:60:2:60:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:69:2:69:31 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
+| node/pkg/watchers/solana/positive.go:76:4:76:33 | call to processTransaction | Solana transaction metadata must be validated successful before transaction parsing or metadata use. |
