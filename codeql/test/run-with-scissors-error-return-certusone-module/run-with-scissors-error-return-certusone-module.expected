@@ -1,0 +1,1 @@
+| node/pkg/watchers/scissors/certusone_positive.go:13:3:13:13 | send statement | Return this runnable error instead of sending directly to the RunWithScissors error channel; RunWithScissors forwards returned errors without blocking. |
