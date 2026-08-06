@@ -1,0 +1,10 @@
+| node/pkg/watchers/xrpl/positive.go:19:2:23:2 | range statement | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:32:10:32:17 | index expression | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:37:14:37:57 | call to findMemoWithFormat | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:42:2:46:2 | range statement | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:55:10:55:28 | index expression | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:60:2:64:2 | range statement | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:70:2:74:2 | range statement | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:79:11:79:53 | call to findMemoWithFormat | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:89:2:93:2 | range statement | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
+| node/pkg/watchers/xrpl/positive.go:98:9:98:49 | call to scanMemoWrapper | XRPL Wormhole Core/NTT parsing must inspect only Memos[0]. |
