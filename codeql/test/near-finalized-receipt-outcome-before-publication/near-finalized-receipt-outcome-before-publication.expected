@@ -1,0 +1,15 @@
+| node/pkg/watchers/near/near_miss.go:13:10:13:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/near_miss.go:24:10:24:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:9:10:9:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:18:13:18:69 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:39:10:39:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:52:10:52:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:63:10:63:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:78:10:78:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:92:10:92:66 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:107:10:107:69 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:122:10:122:69 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:136:10:136:69 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:150:10:150:69 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:164:10:164:69 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |
+| node/pkg/watchers/near/positive.go:178:10:178:69 | call to processWormholeLog | NEAR receipt_outcome logs must not be published before proving that the same receipt_outcome.block_hash is finalized. |

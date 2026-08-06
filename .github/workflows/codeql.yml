@@ -1,0 +1,101 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "node/**"
+      - "sdk/**/*.go"
+      - "sdk/**/go.mod"
+      - "sdk/**/go.sum"
+      - "codeql/**"
+      - ".github/workflows/codeql.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "node/**"
+      - "sdk/**/*.go"
+      - "sdk/**/go.mod"
+      - "sdk/**/go.sum"
+      - "codeql/**"
+      - ".github/workflows/codeql.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # Compile the custom query pack and run its unit test fixtures.
+  query-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.25.10"
+      - name: Install CodeQL CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-codeql
+          gh codeql version
+      - name: Install query pack dependencies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: codeql
+        run: gh codeql pack install
+      - name: Compile queries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: codeql
+        run: gh codeql query compile src
+      - name: Run query tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: codeql
+        run: gh codeql test run test
+
+  # Analyze the node and sdk Go modules with the custom query suite and
+  # upload the results to GitHub code scanning.
+  analyze:
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [node, sdk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.25.10"
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        with:
+          languages: go
+          build-mode: manual
+          config: |
+            disable-default-queries: true
+            queries:
+              - uses: ./codeql/suites/wormhole-go.qls
+      # CodeQL extracts Go code while it is compiled, so build only the module
+      # under analysis. -a forces a full rebuild so every file is extracted.
+      - name: Build Go module
+        env:
+          MODULE: ${{ matrix.module }}
+        run: cd "$MODULE" && go build -a ./...
+      - name: Analyze
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        with:
+          category: "wormhole-codeql/${{ matrix.module }}"
