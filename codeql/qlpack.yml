@@ -1,0 +1,34 @@
+---
+library: false
+name: wormhole/wormhole-go-lints
+version: 0.0.1
+extractor: go
+description: Wormhole-specific Go CodeQL lint rules.
+default-suite:
+  - query: src/already-locked-receiver-mutex.ql
+  - query: src/algorand-publication-field-length-check.ql
+  - query: src/canonical-chain-id-parsing.ql
+  - query: src/canonical-vaa-address-parsing.ql
+  - query: src/canonical-vaa-id-parsing.ql
+  - query: src/delegate-consensus-canonical-digest.ql
+  - query: src/delegated-guardian-config-validation.ql
+  - query: src/evm-ccl-signed-message-immutability.ql
+  - query: src/evm-finality-release-and-reorg-checks.ql
+  - query: src/evm-require-successful-receipt-before-observation.ql
+  - query: src/evm-verify-and-publish-gate.ql
+  - query: src/governance-vaa-typed-payload.ql
+  - query: src/guardian-signer-exact-digest-length.ql
+  - query: src/message-publication-canonical-timestamp.ql
+  - query: src/message-publication-safe-serialization.ql
+  - query: src/near-finalized-receipt-outcome-before-publication.ql
+  - query: src/run-with-scissors-error-return.ql
+  - query: src/solana-alt-owner-before-decode.ql
+  - query: src/solana-commitment-match-before-publication.ql
+  - query: src/solana-message-account-validation.ql
+  - query: src/solana-require-successful-transaction-meta.ql
+  - query: src/untrusted-vaa-use-before-verification.ql
+  - query: src/xrpl-derived-generated-emitter.ql
+  - query: src/xrpl-first-memo-only.ql
+  - query: src/xrpl-require-validated-transaction.ql
+dependencies:
+  codeql/go-all: 7.2.0

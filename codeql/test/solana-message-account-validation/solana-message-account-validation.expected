@@ -1,0 +1,9 @@
+| node/pkg/watchers/solana/near_miss.go:19:2:19:37 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/near_miss.go:48:2:48:37 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/positive.go:26:2:26:62 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/positive.go:41:2:41:37 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/positive.go:50:2:50:41 | call to processMessageAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/positive.go:55:2:55:37 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/positive.go:64:2:64:37 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/positive.go:74:2:74:37 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
+| node/pkg/watchers/solana/positive.go:82:2:82:37 | call to ParseMessagePublicationAccount | Solana message account data must be created by NewMessageAccountData before parsing or processing. |
