@@ -4,10 +4,10 @@ import {
   getForeignAssetEth,
   getForeignAssetNear,
   getForeignAssetSolana,
-  getForeignAssetSui,
   getForeignAssetTerra,
   getForeignAssetXpla,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getForeignAsset";
+import { getForeignAssetSui } from "../../sdk/sui";
 import { getForeignAssetInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
 import { impossible } from "../../vaa";
 import { getForeignAssetSei } from "../sei/sdk";
@@ -158,9 +158,9 @@ export const getWrappedAssetAddress = async (
     case "Sui": {
       const provider = getProviderForChain(chainName, network, { rpc });
       return getForeignAssetSui(
-        provider as any,
+        provider,
         tokenBridgeAddress,
-        toChainId(originChain),
+        toChain(originChain),
         originAddressUint8Array
       );
     }

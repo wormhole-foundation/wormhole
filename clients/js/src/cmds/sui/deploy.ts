@@ -1,4 +1,3 @@
-import { SuiTransactionBlockResponse } from "@mysten/sui/client";
 import fs from "fs";
 import yargs from "yargs";
 import {
@@ -9,6 +8,7 @@ import {
   logTransactionDigest,
   logTransactionSender,
   publishPackage,
+  SuiTransactionResult,
 } from "../../chains/sui";
 import {
   DEBUG_OPTIONS,
@@ -65,7 +65,7 @@ export const deploy = async (
   packageDir: string,
   rpc?: string,
   privateKey?: string
-): Promise<SuiTransactionBlockResponse> => {
+): Promise<SuiTransactionResult> => {
   rpc = rpc ?? NETWORKS[network].Sui.rpc;
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);

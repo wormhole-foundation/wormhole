@@ -1,5 +1,6 @@
-import { getObjectFields } from "@certusone/wormhole-sdk/lib/esm/sui";
+import type { SuiClientTypes } from "@mysten/sui/client";
 import { NETWORKS } from "../../consts/networks";
+import { getObjectFields } from "../../sdk/sui";
 import { getProvider } from "./utils";
 import {
   ChainId,
@@ -27,29 +28,38 @@ export async function queryRegistrationsSui(
       throw new Error(`Invalid module: ${module}`);
   }
 
-  const state = await getObjectFields(provider as any, state_object_id);
-  const emitterRegistryId = state!.emitter_registry.fields.id.id;
-
-  // TODO: handle pagination
-  //   - recursive: https://github.com/wormhole-foundation/wormhole/blob/7608b2b740df5d4c2551daaf4d620eac81c07790/sdk/js/src/sui/utils.ts#L175
-  //   - iterative: https://github.com/wormhole-foundation/wormhole/blob/7608b2b740df5d4c2551daaf4d620eac81c07790/sdk/js/src/sui/utils.ts#L199
-  const emitterRegistry = await provider.getDynamicFields({
-    parentId: emitterRegistryId,
-  });
+  const state = await getObjectFields(provider, state_object_id);
+  const emitterRegistryId = state!.emitter_registry.id;
 
   const results: { [key: string]: string } = {};
-  for (let idx = 0; idx < emitterRegistry.data.length; idx++) {
-    const chainId = emitterRegistry.data[idx].name.value as ChainId;
-    for (const { objectId } of emitterRegistry.data.slice(idx, idx + 1)) {
-      const emitter = (await provider.getObject({
-        id: objectId,
-        options: { showContent: true },
-      })) as any;
-      const emitterAddress: Uint8Array =
-        emitter.data?.content?.fields.value.fields.value.fields.data;
-      const emitterAddrStr = Buffer.from(emitterAddress).toString("hex");
-      results[chainIdToChain(chainId)] = emitterAddrStr;
+  let cursor: string | null = null;
+  let hasNextPage = true;
+  while (hasNextPage) {
+    const page: SuiClientTypes.ListDynamicFieldsResponse =
+      await provider.listDynamicFields({
+        parentId: emitterRegistryId,
+        cursor,
+      });
+    for (const field of page.dynamicFields) {
+      const entry = await provider.getObject({
+        objectId: field.fieldId,
+        include: { json: true },
+      });
+      const json = entry.object.json as any;
+      const chainId = json?.name as ChainId;
+      // The gRPC JSON representation encodes the `vector<u8>` emitter address as
+      // base64 under `value.value.data`.
+      const dataB64: string | undefined = json?.value?.value?.data;
+      if (chainId === undefined || dataB64 === undefined) {
+        continue;
+      }
+      results[chainIdToChain(chainId)] = Buffer.from(
+        dataB64,
+        "base64"
+      ).toString("hex");
     }
+    hasNextPage = page.hasNextPage;
+    cursor = page.cursor;
   }
 
   return results;

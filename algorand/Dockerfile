@@ -12,6 +12,7 @@ COPY Pipfile Pipfile
 
 RUN python3 -m pip install pipenv
 RUN pipenv install
+RUN pipenv run pip install "setuptools<81"
 RUN mkdir teal
 
 COPY *.py .
