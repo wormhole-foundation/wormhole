@@ -3,8 +3,6 @@ package db
 import (
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/dgraph-io/badger/v3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,61 +20,18 @@ type Database struct {
 	db *badger.DB
 }
 
-type VAAID struct {
-	EmitterChain   vaa.ChainID
-	EmitterAddress vaa.Address
-	Sequence       uint64
-}
-
-// VaaIDFromString parses a <chain>/<address>/<sequence> string into a VAAID.
-func VaaIDFromString(s string) (*VAAID, error) {
-	parts := strings.Split(s, "/")
-	if len(parts) != 3 {
-		return nil, errors.New("invalid message id")
-	}
-
-	emitterChain, err := strconv.ParseUint(parts[0], 10, 16)
-	if err != nil {
-		return nil, fmt.Errorf("invalid emitter chain: %s", err)
-	}
-
-	emitterAddress, err := vaa.StringToAddress(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid emitter address: %s", err)
-	}
-
-	sequence, err := strconv.ParseUint(parts[2], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid sequence: %s", err)
-	}
-
-	msgId := &VAAID{
-		EmitterChain:   vaa.ChainID(emitterChain),
-		EmitterAddress: emitterAddress,
-		Sequence:       sequence,
-	}
-
-	return msgId, nil
-}
-
-func VaaIDFromVAA(v *vaa.VAA) *VAAID {
-	return &VAAID{
-		EmitterChain:   v.EmitterChain,
-		EmitterAddress: v.EmitterAddress,
-		Sequence:       v.Sequence,
-	}
-}
+type VAAID = vaa.VAAID
 
 var (
 	ErrVAANotFound = errors.New("requested VAA not found in store")
 	nullAddr       = vaa.Address{}
 )
 
-func (i *VAAID) Bytes() []byte {
-	return []byte(fmt.Sprintf("signed/%d/%s/%d", i.EmitterChain, i.EmitterAddress, i.Sequence))
+func vaaKeyBytes(i vaa.VAAID) []byte {
+	return []byte("signed/" + i.String())
 }
 
-func (i *VAAID) EmitterPrefixBytes() []byte {
+func vaaEmitterPrefixBytes(i vaa.VAAID) []byte {
 	if i.EmitterAddress == nullAddr {
 		return []byte(fmt.Sprintf("signed/%d", i.EmitterChain))
 	}
@@ -102,7 +57,7 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 	// TODO: panic on non-identical signing digest?
 
 	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(VaaIDFromVAA(v).Bytes(), b); err != nil {
+		if err := txn.Set(vaaKeyBytes(v.ID()), b); err != nil {
 			return err
 		}
 		return nil
@@ -134,7 +89,7 @@ func (d *Database) StoreSignedVAABatch(vaaBatch []*vaa.VAA) error {
 			panic("StoreSignedVAABatch failed to marshal VAA")
 		}
 
-		err = batchTx.Set(VaaIDFromVAA(v).Bytes(), b)
+		err = batchTx.Set(vaaKeyBytes(v.ID()), b)
 		if err != nil {
 			return err
 		}
@@ -148,7 +103,7 @@ func (d *Database) StoreSignedVAABatch(vaaBatch []*vaa.VAA) error {
 
 func (d *Database) HasVAA(id VAAID) (bool, error) {
 	err := d.db.View(func(txn *badger.Txn) error {
-		_, err := txn.Get(id.Bytes())
+		_, err := txn.Get(vaaKeyBytes(id))
 		return err
 	})
 	if err == nil {
@@ -162,7 +117,7 @@ func (d *Database) HasVAA(id VAAID) (bool, error) {
 
 func (d *Database) GetSignedVAABytes(id VAAID) (b []byte, err error) {
 	if err := d.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(id.Bytes())
+		item, err := txn.Get(vaaKeyBytes(id))
 		if err != nil {
 			return err
 		}
@@ -186,7 +141,7 @@ func (d *Database) FindEmitterSequenceGap(prefix VAAID) (resp []uint64, firstSeq
 	if err = d.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
-		prefix := prefix.EmitterPrefixBytes()
+		prefix := vaaEmitterPrefixBytes(prefix)
 
 		// Find all sequence numbers (the message IDs are ordered lexicographically,
 		// rather than numerically, so we need to sort them in-memory).

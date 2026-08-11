@@ -24,7 +24,7 @@ func (d *Database) PurgeVaas(prefix VAAID, oldestTime time.Time, logOnly bool) (
 	if err := d.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
-		prefix := prefix.EmitterPrefixBytes()
+		prefix := vaaEmitterPrefixBytes(prefix)
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			key := item.Key()
