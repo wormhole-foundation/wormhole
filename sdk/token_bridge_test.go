@@ -125,6 +125,103 @@ func TestEnvironment_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestEmitterType_String(t *testing.T) {
+	tests := []struct {
+		name string
+		et   EmitterType
+		want string
+	}{
+		{name: "unset", et: EmitterTypeUnset, want: "unset"},
+		{name: "Core", et: EmitterCoreBridge, want: "Core"},
+		{name: "TokenBridge", et: EmitterTokenBridge, want: "TokenBridge"},
+		{name: "NFTBridge", et: EmitterNFTBridge, want: "NFTBridge"},
+		{name: "unknown", et: EmitterType(99), want: "unknown emitter type: 99"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.et.String()
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetTokenBridgeEmitters(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     Environment
+		wantLen int
+	}{
+		{name: "MainNet", env: EnvMainNet, wantLen: len(KnownTokenbridgeEmitters)},
+		{name: "TestNet", env: EnvTestNet, wantLen: len(KnownTestnetTokenbridgeEmitters)},
+		{name: "DevNet", env: EnvDevNet, wantLen: len(KnownDevnetTokenbridgeEmitters)},
+		{name: "GoTest", env: EnvGoTest, wantLen: 0},
+		{name: "AccountantMock", env: EnvAccountantMock, wantLen: 0},
+		{name: "Unknown", env: Environment(99), wantLen: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetTokenBridgeEmitters(tt.env)
+			if tt.wantLen == 0 {
+				assert.Nil(t, got)
+			} else {
+				assert.Len(t, got, tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestGetEmitterAddressForChain(t *testing.T) {
+	tests := []struct {
+		name        string
+		chainID     vaa.ChainID
+		emitterType EmitterType
+		wantErr     bool
+	}{
+		{
+			name:        "Ethereum token bridge",
+			chainID:     vaa.ChainIDEthereum,
+			emitterType: EmitterTokenBridge,
+			wantErr:     false,
+		},
+		{
+			name:        "Solana token bridge",
+			chainID:     vaa.ChainIDSolana,
+			emitterType: EmitterTokenBridge,
+			wantErr:     false,
+		},
+		{
+			name:        "Core bridge on Ethereum",
+			chainID:     vaa.ChainIDEthereum,
+			emitterType: EmitterCoreBridge,
+			wantErr:     true,
+		},
+		{
+			name:        "NFT bridge on Solana",
+			chainID:     vaa.ChainIDSolana,
+			emitterType: EmitterNFTBridge,
+			wantErr:     false,
+		},
+		{
+			name:        "Chain with no known emitters",
+			chainID:     vaa.ChainID(9999),
+			emitterType: EmitterTokenBridge,
+			wantErr:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, err := GetEmitterAddressForChain(tt.chainID, tt.emitterType)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, vaa.Address{}, addr)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEqual(t, vaa.Address{}, addr)
+			}
+		})
+	}
+}
+
 func TestIsWTT(t *testing.T) {
 	// Using real mainnet token bridge emitter addresses as hex strings
 	const (
@@ -168,7 +265,7 @@ func TestIsWTT(t *testing.T) {
 		},
 		{
 			name:           "failure - chain without token bridge",
-			emitterChain:   vaa.ChainIDNexus,
+			emitterChain:   vaa.ChainIDOsmosis,
 			emitterAddrHex: ethTokenBridgeHex,
 			payload:        []byte{0x01},
 			env:            EnvMainNet,
