@@ -45,7 +45,7 @@ func runTest(t *testing.T, ctx context.Context, testCase int) (result error) {
 		}
 	}()
 
-	errC := make(chan error)
+	errC := make(chan error, 1)
 
 	switch testCase {
 	case 0:
@@ -115,7 +115,7 @@ func TestRunWithScissorsCleanExit(t *testing.T) {
 
 func TestRunWithScissorsPanicReturned(t *testing.T) {
 	ctx := context.Background()
-	errC := make(chan error)
+	errC := make(chan error, 1)
 
 	itRan := make(chan bool, 1)
 	RunWithScissors(ctx, errC, "TestRunWithScissorsPanicReturned", func(ctx context.Context) error {
@@ -161,7 +161,7 @@ func TestRunWithScissorsPanicDoesNotBlockWhenNoListener(t *testing.T) {
 
 func TestRunWithScissorsErrorReturned(t *testing.T) {
 	ctx := context.Background()
-	errC := make(chan error)
+	errC := make(chan error, 1)
 
 	itRan := make(chan bool, 1)
 	RunWithScissors(ctx, errC, "TestRunWithScissorsErrorReturned", func(ctx context.Context) error {
@@ -227,7 +227,7 @@ func TestStartRunnable_CleanExit(t *testing.T) {
 
 func TestStartRunnable_OnError(t *testing.T) {
 	ctx := context.Background()
-	errC := make(chan error)
+	errC := make(chan error, 1)
 
 	itRan := make(chan bool, 1)
 	StartRunnable(ctx, errC, true, "TestStartRunnable_OnError", func(ctx context.Context) error {
@@ -293,7 +293,7 @@ func TestStartRunnable_DontCatchPanics_OnPanic(t *testing.T) {
 
 func TestStartRunnable_CatchPanics_OnPanic(t *testing.T) {
 	ctx := context.Background()
-	errC := make(chan error)
+	errC := make(chan error, 1)
 
 	itRan := make(chan bool, 1)
 	StartRunnable(ctx, errC, true, "TestStartRunnable_CatchPanics_OnPanic", func(ctx context.Context) error {
