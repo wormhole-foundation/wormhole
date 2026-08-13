@@ -271,8 +271,7 @@ const (
 	ChainIDCelo ChainID = 14
 	// ChainIDNear is the ChainID of Near
 	ChainIDNear ChainID = 15
-	// ChainIDMoonbeam is the ChainID of Moonbeam
-	ChainIDMoonbeam ChainID = 16
+	// OBSOLETE: ChainIDMoonbeam ChainID = 16
 	// OBSOLETE: ChainIDNeon ChainID = 17
 	// WARNING: ChainIDTerra2 is only supported in devnet / Tilt.
 	ChainIDTerra2 ChainID = 18

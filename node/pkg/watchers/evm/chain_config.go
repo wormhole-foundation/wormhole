@@ -72,7 +72,6 @@ var (
 		vaa.ChainIDAvalanche: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 43114, PublicRPC: "https://avalanche-c-chain-rpc.publicnode.com", ContractAddr: "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c"},
 		vaa.ChainIDKlaytn:    {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 8217, PublicRPC: "https://public-en.node.kaia.io", ContractAddr: "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"},
 		vaa.ChainIDCelo:      {Finalized: true, Safe: false, EvmChainID: 42220, PublicRPC: "https://celo-rpc.publicnode.com", ContractAddr: "0xa321448d90d4e5b0A732867c18eA198e75CAC48E"},
-		vaa.ChainIDMoonbeam:  {Finalized: true, Safe: true, EvmChainID: 1284, PublicRPC: "https://moonbeam-rpc.publicnode.com", ContractAddr: "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"},
 		vaa.ChainIDArbitrum:  {Finalized: true, Safe: true, EvmChainID: 42161, PublicRPC: "https://arbitrum-one-rpc.publicnode.com", ContractAddr: "0xa5f208e072434bC67592E4C49C1B991BA79BCA46"},
 		vaa.ChainIDOptimism:  {Finalized: true, Safe: true, EvmChainID: 10, PublicRPC: "https://optimism-rpc.publicnode.com", ContractAddr: "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"},
 		// vaa.ChainIDGnosis:     Not supported in the guardian.
@@ -123,7 +122,6 @@ var (
 		vaa.ChainIDAvalanche: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 43113, PublicRPC: "https://avalanche-fuji-c-chain-rpc.publicnode.com", ContractAddr: "0x7bbcE28e64B3F8b84d876Ab298393c38ad7aac4C"},
 		vaa.ChainIDKlaytn:    {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 1001, PublicRPC: "https://public-en-kairos.node.kaia.io", ContractAddr: "0x1830CC6eE66c84D2F177B94D544967c774E624cA"},
 		vaa.ChainIDCelo:      {Finalized: true, Safe: true, EvmChainID: 44787, PublicRPC: "https://alfajores-forno.celo-testnet.org", ContractAddr: "0x88505117CA88e7dd2eC6EA1E13f0948db2D50D56"},
-		vaa.ChainIDMoonbeam:  {Finalized: true, Safe: true, EvmChainID: 1287, PublicRPC: "https://rpc.api.moonbase.moonbeam.network", ContractAddr: "0xa5B7D85a8f27dd7907dc8FdC21FA5657D5E2F901"},
 		vaa.ChainIDArbitrum:  {Finalized: true, Safe: true, EvmChainID: 421613, ContractAddr: "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e"}, // Arbitrum Goerli is deprecated.
 		vaa.ChainIDOptimism:  {Finalized: true, Safe: true, EvmChainID: 420, ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},    // Optimism Goerli is deprecated.
 		// vaa.ChainIDGnosis:      Not supported in the guardian.

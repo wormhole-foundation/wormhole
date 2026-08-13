@@ -95,9 +95,6 @@ var (
 	celoRPC      *string
 	celoContract *string
 
-	moonbeamRPC      *string
-	moonbeamContract *string
-
 	terra2WS       *string
 	terra2LCD      *string
 	terra2Contract *string
@@ -371,9 +368,6 @@ func init() {
 
 	celoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "celoRPC", "Celo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	celoContract = NodeCmd.Flags().String("celoContract", "", "Celo contract address")
-
-	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
 	terra2WS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2WS", "Path to terrad root for websocket connection", "ws://terra2-terrad:26657/websocket", []string{"ws", "wss"})
 	terra2LCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2LCD", "Path to LCD service root for http calls", "http://terra2-terrad:1317", []string{"http", "https"})
@@ -914,7 +908,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	*avalancheContract = checkEvmArgs(logger, *avalancheRPC, *avalancheContract, vaa.ChainIDAvalanche)
 	*klaytnContract = checkEvmArgs(logger, *klaytnRPC, *klaytnContract, vaa.ChainIDKlaytn)
 	*celoContract = checkEvmArgs(logger, *celoRPC, *celoContract, vaa.ChainIDCelo)
-	*moonbeamContract = checkEvmArgs(logger, *moonbeamRPC, *moonbeamContract, vaa.ChainIDMoonbeam)
 	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, vaa.ChainIDArbitrum)
 	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, vaa.ChainIDOptimism)
 	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, vaa.ChainIDBase)
@@ -1090,7 +1083,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["nearRPC"] = *nearRPC
-	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["injectiveLCD"] = *injectiveLCD
 	rpcMap["injectiveWS"] = *injectiveWS
 	// ChainIDOsmosis is not supported in the guardian.
@@ -1397,19 +1389,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:          *celoContract,
 			CcqBackfillCache:  *ccqBackfillCache,
 			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDCelo),
-		}
-
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if shouldStart(moonbeamRPC) {
-		wc := &evm.WatcherConfig{
-			NetworkID:         "moonbeam",
-			ChainID:           vaa.ChainIDMoonbeam,
-			Rpc:               *moonbeamRPC,
-			Contract:          *moonbeamContract,
-			CcqBackfillCache:  *ccqBackfillCache,
-			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMoonbeam),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
