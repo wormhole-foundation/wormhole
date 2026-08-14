@@ -1,8 +1,10 @@
 package wormconn
 
 import (
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"sync"
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -12,6 +14,7 @@ import (
 	wormchain "github.com/wormhole-foundation/wormchain/app"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -32,11 +35,20 @@ type ClientConn struct {
 	mutex         sync.Mutex // Protects the account / sequence number
 }
 
+func newTransportCredentials(target string) (string, credentials.TransportCredentials) {
+	if strings.HasPrefix(target, "https://") {
+		return strings.TrimPrefix(target, "https://"), credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+	}
+	return target, insecure.NewCredentials()
+}
+
 // NewConn creates a new connection to the wormhole-chain instance at `target`.
 func NewConn(target string, privateKey cryptotypes.PrivKey, chainId string) (*ClientConn, error) {
+	target, creds := newTransportCredentials(target)
+
 	c, err := grpc.NewClient(
 		target,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 	)
 	if err != nil {
 		return nil, err

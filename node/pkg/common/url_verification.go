@@ -17,10 +17,19 @@ func hasKnownSchemePrefix(urlStr string) bool {
 }
 
 func ValidateURL(urlStr string, validSchemes []string) bool {
-	// If no scheme is required, validate host:port format
-	if len(validSchemes) == 1 && validSchemes[0] == "" {
+	if !hasKnownSchemePrefix(urlStr) {
+		allowsBare := false
+		for _, scheme := range validSchemes {
+			if scheme == "" {
+				allowsBare = true
+				break
+			}
+		}
+		if !allowsBare {
+			return false
+		}
 		host, port, err := net.SplitHostPort(urlStr)
-		return err == nil && host != "" && port != "" && !hasKnownSchemePrefix(urlStr)
+		return err == nil && host != "" && port != ""
 	}
 
 	// url.Parse() has to come later because it will fail if the scheme is empty

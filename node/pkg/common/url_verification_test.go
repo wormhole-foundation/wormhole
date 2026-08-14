@@ -31,6 +31,10 @@ func TestValidateURL(t *testing.T) {
 		{[]string{""}, "http://invalid-scheme:8080", false},
 		{[]string{""}, "ws://invalid-scheme:8080", false},
 		{[]string{""}, "170.0.0.1:8080", true},
+		{[]string{"", "https"}, "wormchain:9090", true},
+		{[]string{"", "https"}, "https://wormchain:443", true},
+		{[]string{"", "https"}, "http://wormchain:443", false},
+		{[]string{"", "https"}, "ws://wormchain:443", false},
 	}
 
 	for _, test := range tests {
