@@ -4,9 +4,9 @@
  * Usage:
  *   TESTNET_WALLET_PRIVATE_KEY="suiprivkey1..." \
  *   TESTNET_GUARDIAN_PRIVATE_KEY="<hex>" \
- *   npx tsx scripts/upgrade-token-bridge-grpc.ts
+ *   npx tsx scripts/upgrade-token-bridge.ts
  *
- *   npx tsx scripts/upgrade-token-bridge-grpc.ts --build-only
+ *   npx tsx scripts/upgrade-token-bridge.ts --build-only
  *     Builds, prints the digest, fetches package ids over gRPC, and constructs
  *     the upgrade PTB without signing or executing anything. No keys needed.
  *
@@ -157,18 +157,27 @@ function buildForBytecodeAndDigest(packagePath: string) {
   };
 }
 
-/// UpgradeContract governance VAA: module "TokenBridge", action 2, chain 21,
-/// payload = 32-byte build digest. Signed by the single testnet guardian
-/// (guardian set index 0).
+/// Builds and signs a TokenBridge UpgradeContract governance VAA for Sui.
+/// Formats: whitepapers 0001 (VAA), 0002 (governance header), 0003 (token
+/// bridge actions). Testnet has a single guardian (set index 0), so the VAA
+/// carries exactly one signature.
 function makeUpgradeVaa(digest: Buffer, guardianKeyHex: string): Buffer {
   if (digest.length !== 32) throw new Error("digest must be 32 bytes");
 
+  // Governance payload: module (32 bytes, "TokenBridge" right-aligned),
+  // action (2 = ContractUpgrade), target chain (21 = Sui), then the new
+  // contract. On Sui that field is the 32-byte build digest rather than an
+  // address — upgrade_contract::take_digest pins the upgrade to this exact
+  // bytecode.
   const payload = Buffer.alloc(32 + 1 + 2 + 32);
   payload.write("TokenBridge", 32 - "TokenBridge".length, "ascii");
   payload.writeUInt8(ACTION_UPGRADE_CONTRACT, 32);
   payload.writeUInt16BE(SUI_CHAIN_ID, 33);
   digest.copy(payload, 35);
 
+  // VAA body. Governance messages come from the governance emitter (chain 1,
+  // address 0x...04). The sequence just has to be unique per emitter since
+  // replay protection consumes it, so current unix time works.
   const nowSec = Math.floor(Date.now() / 1000);
   const body = Buffer.alloc(4 + 4 + 2 + 32 + 8 + 1 + payload.length);
   let o = 0;
@@ -180,6 +189,8 @@ function makeUpgradeVaa(digest: Buffer, guardianKeyHex: string): Buffer {
   o = body.writeUInt8(0, o); // consistency level
   payload.copy(body, o);
 
+  // Guardians sign the double keccak of the body. Each signature is 66 bytes
+  // in the envelope: guardian index || r || s || recovery id.
   const sigDigest = keccak_256(keccak_256(body));
   const sig = secp256k1.sign(sigDigest, Buffer.from(guardianKeyHex, "hex"));
 
