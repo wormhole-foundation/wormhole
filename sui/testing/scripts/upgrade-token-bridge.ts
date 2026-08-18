@@ -18,8 +18,8 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 import { SUI_CLOCK_OBJECT_ID, normalizeSuiObjectId } from "@mysten/sui/utils";
-import { secp256k1 } from "@noble/curves/secp256k1";
-import { keccak_256 } from "@noble/hashes/sha3";
+import { secp256k1 } from "@noble/curves/secp256k1.js";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 import { execSync } from "child_process";
 import { resolve } from "path";
 
@@ -192,7 +192,10 @@ function makeUpgradeVaa(digest: Buffer, guardianKeyHex: string): Buffer {
   // Guardians sign the double keccak of the body. Each signature is 66 bytes
   // in the envelope: guardian index || r || s || recovery id.
   const sigDigest = keccak_256(keccak_256(body));
-  const sig = secp256k1.sign(sigDigest, Buffer.from(guardianKeyHex, "hex"));
+  const sig = secp256k1.sign(sigDigest, Buffer.from(guardianKeyHex, "hex"), {
+    format: "recovered",
+    prehash: false,
+  });
 
   const vaa = Buffer.alloc(1 + 4 + 1 + 66 + body.length);
   let p = 0;
@@ -200,8 +203,8 @@ function makeUpgradeVaa(digest: Buffer, guardianKeyHex: string): Buffer {
   p = vaa.writeUInt32BE(0, p); // guardian set index
   p = vaa.writeUInt8(1, p); // num signatures
   p = vaa.writeUInt8(0, p); // guardian index
-  p += Buffer.from(sig.toCompactRawBytes()).copy(vaa, p); // r || s
-  p = vaa.writeUInt8(sig.recovery, p); // recovery id
+  p += Buffer.from(sig.subarray(1)).copy(vaa, p); // r || s
+  p = vaa.writeUInt8(sig[0], p); // recovery id
   body.copy(vaa, p);
   return vaa;
 }
