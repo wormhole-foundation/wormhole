@@ -20,3 +20,4 @@ implied. See the License for the specific language governing permissions and lim
 spoken - this is a very complex piece of software which targets a bleeding-edge, experimental smart contract runtime.
 Mistakes happen, and no matter how hard you try and whether you pay someone to audit it, it may eat your tokens, set
 your printer on fire or startle your cat. Cryptocurrencies are a high-risk investment, no matter how fancy.
+- [SolSniper](https://github.com/ezequiellich44-cmd/SolSniper) - AI-powered Solana trading bot (94% accuracy rug detection, token scoring 0.0-1.0, 0% fees, auto trading, Jito bundles). https://ezequiellich44-cmd.github.io/SolSniper/
