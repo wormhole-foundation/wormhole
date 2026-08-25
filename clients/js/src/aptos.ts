@@ -220,6 +220,8 @@ export async function execute_aptos(
           );
           break;
         }
+        case "SetPauserAddresses":
+          throw new Error("SetPauserAddresses not supported on aptos");
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI");
         default:

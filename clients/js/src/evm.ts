@@ -429,6 +429,20 @@ export async function execute_evm(
           console.log("Registering chain");
           console.log("Hash: " + (await tb.registerChain(vaa, overrides)).hash);
           break;
+        case "SetPauserAddresses": {
+          console.log("Setting pauser addresses");
+          const pauserGovernance = new ethers.Contract(
+            contract_address,
+            ["function submitSetPauserAddresses(bytes memory encodedVM)"],
+            signer
+          );
+          console.log(
+            "Hash: " +
+              (await pauserGovernance.submitSetPauserAddresses(vaa, overrides))
+                .hash
+          );
+          break;
+        }
         case "Transfer":
           console.log("Completing transfer");
           console.log(

@@ -10,13 +10,23 @@ import {
   createRegisterChainInstruction as createTokenBridgeRegisterChainInstruction,
   createUpgradeContractInstruction as createTokenBridgeUpgradeContractInstruction,
   deriveEndpointKey,
+  deriveTokenBridgeConfigKey,
   getEndpointRegistration,
 } from "@certusone/wormhole-sdk/lib/esm/solana/tokenBridge";
 import {
   createTransferFeesInstruction,
   createUpgradeGuardianSetInstruction,
   createUpgradeContractInstruction as createWormholeUpgradeContractInstruction,
+  deriveClaimKey,
+  derivePostedVaaKey,
 } from "@certusone/wormhole-sdk/lib/esm/solana/wormhole";
+import { TokenBridgeInstruction } from "@certusone/wormhole-sdk/lib/esm/solana/tokenBridge/coder/instruction";
+import { parseVaa } from "@certusone/wormhole-sdk/lib/esm/vaa";
+
+// SetPauserAddresses is the instruction added right after the last one the
+// published SDK coder knows about, matching the program's instruction enum
+const SET_PAUSER_ADDRESSES_INSTRUCTION =
+  TokenBridgeInstruction.TransferNativeWithPayload + 1;
 import * as web3s from "@solana/web3.js";
 import base58 from "bs58";
 import { NETWORKS } from "./consts";
@@ -185,6 +195,57 @@ export async function execute_solana(
             vaa
           );
           break;
+        case "SetPauserAddresses": {
+          console.log("Setting pauser addresses");
+          const parsed = parseVaa(vaa);
+          ix = new web3s.TransactionInstruction({
+            programId: tokenBridgeId,
+            keys: [
+              { pubkey: from.publicKey, isSigner: true, isWritable: true },
+              {
+                pubkey: deriveTokenBridgeConfigKey(tokenBridgeId),
+                isSigner: false,
+                isWritable: true,
+              },
+              {
+                pubkey: derivePostedVaaKey(bridgeId, parsed.hash),
+                isSigner: false,
+                isWritable: false,
+              },
+              {
+                pubkey: deriveClaimKey(
+                  tokenBridgeId,
+                  parsed.emitterAddress,
+                  parsed.emitterChain,
+                  parsed.sequence
+                ),
+                isSigner: false,
+                isWritable: true,
+              },
+              {
+                pubkey: PublicKey.findProgramAddressSync(
+                  [Buffer.from("__event_authority")],
+                  tokenBridgeId
+                )[0],
+                isSigner: false,
+                isWritable: false,
+              },
+              { pubkey: tokenBridgeId, isSigner: false, isWritable: false },
+              {
+                pubkey: web3s.SYSVAR_RENT_PUBKEY,
+                isSigner: false,
+                isWritable: false,
+              },
+              {
+                pubkey: web3s.SystemProgram.programId,
+                isSigner: false,
+                isWritable: false,
+              },
+            ],
+            data: Buffer.from([SET_PAUSER_ADDRESSES_INSTRUCTION]),
+          });
+          break;
+        }
         case "Transfer":
           console.log("Completing transfer");
           if (payload.tokenChain === chainToChainId(chain)) {

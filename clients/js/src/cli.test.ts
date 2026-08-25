@@ -341,6 +341,45 @@ describe("Generate Tests", () => {
     expect(outputObject.digest).toMatch(/^0x[0-9a-f]{64}$/);
   }
 
+  it("worm generate set-pauser-addresses", (done) => {
+    exec(
+      "node build/main.js generate set-pauser-addresses --chain ethereum --pauser 0x8F26A0025dcCc6Cfc07A7d38756280a10E295ad7 --unpauser 0x8F26A0025dcCc6Cfc07A7d38756280a10E295ad7 --guardian-secret cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
+      (error: any, stdout: string, stderr: any) => {
+        if (error) {
+          return done(new Error(`Execution error during generation: ${error}`));
+        }
+
+        const vaa = stdout.trim();
+        expect(vaa).not.toBeNull();
+
+        exec(
+          `node build/main.js parse ${vaa}`,
+          (error: any, stdout: string, stderr: any) => {
+            if (error) {
+              return done(new Error(`Execution error during parse: ${error}`));
+            }
+            try {
+              const outputObject = JSON.parse(stdout);
+              expectValidVaaEnvelope(outputObject);
+              expect(outputObject.payload).toMatchObject({
+                module: "TokenBridge",
+                type: "SetPauserAddresses",
+                chain: 2,
+                // 20-byte native size on EVM, freezer left unassigned
+                pauser: "0x8f26a0025dccc6cfc07a7d38756280a10e295ad7",
+                freezer: "",
+                unpauser: "0x8f26a0025dccc6cfc07a7d38756280a10e295ad7",
+              });
+              done();
+            } catch (assertionError: any) {
+              done(assertionError);
+            }
+          }
+        );
+      }
+    );
+  });
+
   it("worm generate registration", (done) => {
     exec(
       "node build/main.js generate registration --module NFTBridge --chain bsc --contract-address 0x706abc4E45D419950511e474C7B9Ed348A4a716c --guardian-secret cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",

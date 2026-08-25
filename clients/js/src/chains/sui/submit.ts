@@ -7,6 +7,7 @@ import {
 import { Payload, impossible } from "../../vaa";
 import {
   assertSuccess,
+  buildTokenBridgePackage,
   executeTransactionBlock,
   getOriginalPackageId,
   getPackageId,
@@ -14,10 +15,14 @@ import {
   getPublishedPackageId,
   getSigner,
   getUpgradeCapObjectId,
+  migrateTokenBridge,
   normalizeSuiAddress,
   registerChain,
   setMaxGasBudgetDevnet,
+  setPauserAddresses,
   SUI_CLOCK_OBJECT_ID,
+  upgradeTokenBridge,
+  waitForNewPackage,
 } from "./utils";
 import { SuiGrpcClient } from "@mysten/sui/grpc";
 import {
@@ -204,13 +209,83 @@ export const submit = async (
 
           break;
         }
-        case "ContractUpgrade":
-          throw new Error("ContractUpgrade not supported on Sui");
+        case "ContractUpgrade": {
+          console.log("Upgrading contract");
+          // On Sui the VAA authorizes a build digest, and the upgrade
+          // transaction itself carries the compiled bytecode — build the
+          // package locally and refuse to submit if it doesn't reproduce the
+          // authorized digest (the chain would reject it anyway).
+          const { modules, dependencies, digest } =
+            buildTokenBridgePackage(network);
+          const authorized = payload.address.replace(/^0x/, "");
+          if (digest.toString("hex") !== authorized) {
+            throw new Error(
+              `local build digest ${digest.toString(
+                "hex"
+              )} does not match the digest authorized by the VAA (${authorized}); ` +
+                "rebuild from the proposal's commit with the proposal's sui CLI version"
+            );
+          }
+          const oldPackage = await getPackageId(
+            client,
+            tokenBridgeStateObjectId
+          );
+          const tx = await upgradeTokenBridge(
+            client,
+            network,
+            vaa,
+            coreBridgeStateObjectId,
+            tokenBridgeStateObjectId,
+            modules,
+            dependencies
+          );
+          setMaxGasBudgetDevnet(network, tx);
+          const res = await executeTransactionBlock(signer, tx);
+          console.log(JSON.stringify(res));
+          assertSuccess(res, "Upgrade failed.");
+
+          // The upgrade only publishes the new package; it becomes active
+          // once migrate flips the version on the state object.
+          const newPackage = await waitForNewPackage(
+            client,
+            tokenBridgeStateObjectId,
+            oldPackage
+          );
+          console.log(`New package: ${newPackage}`);
+
+          console.log("Migrating");
+          const migrateTx = await migrateTokenBridge(
+            client,
+            network,
+            vaa,
+            coreBridgeStateObjectId,
+            tokenBridgeStateObjectId
+          );
+          setMaxGasBudgetDevnet(network, migrateTx);
+          const migrateRes = await executeTransactionBlock(signer, migrateTx);
+          console.log(JSON.stringify(migrateRes));
+          assertSuccess(migrateRes, "Migrate failed.");
+          break;
+        }
         case "RecoverChainId":
           throw new Error("RecoverChainId not supported on Sui");
         case "RegisterChain": {
           console.log("Registering chain");
           const tx = await registerChain(
+            client,
+            network,
+            vaa,
+            coreBridgeStateObjectId,
+            tokenBridgeStateObjectId
+          );
+          setMaxGasBudgetDevnet(network, tx);
+          const res = await executeTransactionBlock(signer, tx);
+          console.log(JSON.stringify(res));
+          break;
+        }
+        case "SetPauserAddresses": {
+          console.log("Setting pauser addresses");
+          const tx = await setPauserAddresses(
             client,
             network,
             vaa,
