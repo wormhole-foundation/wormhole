@@ -76,7 +76,6 @@ Options:
   --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
-
 </details>
 
 <details>
@@ -87,7 +86,6 @@ Options:
   --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
-
 </details>
 
 <details>
@@ -118,7 +116,6 @@ Options:
   -p, --payload                    payload in hex format                [string]
       --guardian-secret, --gs      Guardian's secret key                [string]
 ```
-
 </details>
 
 <details>
@@ -145,7 +142,6 @@ Options:
   --version  Show version number                                       [boolean]
   --rpc      RPC endpoint                                               [string]
 ```
-
 </details>
 
 <details>
@@ -157,7 +153,9 @@ worm generate [command]
 Commands:
   worm generate registration                Generate registration VAA
   worm generate upgrade                     Generate contract upgrade VAA
-  worm generate set-pauser-addresses        Generate a token bridge SetPauserAddresses VAA
+  worm generate set-pauser-addresses        Generate a token bridge
+                                            SetPauserAddresses VAA (whitepaper
+                                            0003)
   worm generate attestation                 Generate a token attestation VAA
   worm generate recover-chain-id            Generate a recover chain ID VAA
   worm generate                             Sets the default delivery provider
@@ -168,7 +166,6 @@ Options:
       --version          Show version number                           [boolean]
   -g, --guardian-secret  Guardians' secret keys (CSV)        [string] [required]
 ```
-
 </details>
 
 <details>
@@ -200,7 +197,6 @@ Options:
   --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
-
 </details>
 
 <details>
@@ -227,7 +223,6 @@ Options:
       --key       Near private key                                      [string]
   -r, --rpc       Override default rpc endpoint url                     [string]
 ```
-
 </details>
 
 <details>
@@ -241,7 +236,6 @@ Options:
   --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
-
 </details>
 
 <details>
@@ -256,7 +250,6 @@ Options:
   --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
-
 </details>
 
 <details>
@@ -279,7 +272,6 @@ Options:
                           chain specified in the payload
                                                       [boolean] [default: false]
 ```
-
 </details>
 
 <details>
@@ -311,7 +303,6 @@ Options:
   --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
-
 </details>
 
 <details>
@@ -331,7 +322,6 @@ Options:
   -n, --network     Network [required] [choices: "mainnet", "testnet", "devnet"]
       --rpc         RPC endpoint                                        [string]
 ```
-
 </details>
 
 <details>
@@ -344,7 +334,6 @@ Options:
   -v, --vaa      vaa in hex format                           [string] [required]
   -n, --network  Network    [required] [choices: "mainnet", "testnet", "devnet"]
 ```
-
 </details>
 
 <details>
@@ -361,7 +350,6 @@ Options:
   --help     Show help                                                 [boolean]
   --version  Show version number                                       [boolean]
 ```
-
 </details>
 <!--CLI_USAGE-->
 
