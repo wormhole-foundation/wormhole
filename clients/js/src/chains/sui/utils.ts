@@ -3,6 +3,9 @@ import type { SuiClientTypes } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromBase64 } from "@mysten/sui/utils";
+import { execSync } from "child_process";
+import { existsSync } from "fs";
+import { resolve } from "path";
 import { NETWORKS } from "../../consts";
 import { Payload, VAA, parse, serialiseVAA } from "../../vaa";
 import { Network } from "@wormhole-foundation/sdk";
@@ -170,7 +173,7 @@ export const toSuiTransactionResult = (
     success: tx.status.success,
     error: tx.status.success
       ? undefined
-      : tx.status.error?.message ?? JSON.stringify(tx.status.error),
+      : (tx.status.error?.message ?? JSON.stringify(tx.status.error)),
     sender: tx.transaction?.sender ?? undefined,
     changedObjects: (tx.effects?.changedObjects ?? []).map((o) => ({
       objectId: o.objectId,
@@ -528,6 +531,279 @@ export const registerChain = async (
   // Register chain
   tx.moveCall({
     target: `${tokenBridgePackageId}::register_chain::register_chain`,
+    arguments: [tx.object(tokenBridgeStateObjectId), decreeReceipt],
+  });
+
+  return tx;
+};
+
+/**
+ * Build the token bridge Move package and return its bytecode plus the build
+ * digest. On Sui the governance VAA authorizes a *digest*, not an address —
+ * the upgrade transaction itself carries the compiled bytecode and the chain
+ * rejects it unless it hashes to the authorized digest, so the executor must
+ * reproduce the exact build the guardians signed off on (same source, same
+ * `sui` CLI version).
+ *
+ * The package directory defaults to `sui/token_bridge` in the wormhole repo
+ * checkout the CLI was built from; override with SUI_PACKAGE_DIR.
+ */
+export const buildTokenBridgePackage = (
+  network: Network
+): { modules: string[]; dependencies: string[]; digest: Buffer } => {
+  if (network === "Devnet") {
+    throw new Error(
+      "Building for Devnet is not supported (no devnet environment in Published.toml)"
+    );
+  }
+  const env = network === "Mainnet" ? "mainnet" : "testnet";
+
+  // Locate the package by walking up from this file to the wormhole repo
+  // root, wherever that is relative to the executing bundle (the bundled CLI
+  // runs from clients/js/build, tests run from src/chains/sui).
+  let packagePath = process.env.SUI_PACKAGE_DIR;
+  if (!packagePath) {
+    for (let dir = __dirname; ; ) {
+      const candidate = resolve(dir, "sui/token_bridge");
+      if (existsSync(`${candidate}/Move.toml`)) {
+        packagePath = candidate;
+        break;
+      }
+      const parent = resolve(dir, "..");
+      if (parent === dir) break; // filesystem root reached
+      dir = parent;
+    }
+  }
+  if (!packagePath || !existsSync(`${packagePath}/Move.toml`)) {
+    throw new Error(
+      `token bridge package not found above ${__dirname}; set SUI_PACKAGE_DIR`
+    );
+  }
+
+  const buildOutput: {
+    modules: string[];
+    dependencies: string[];
+    digest: number[];
+  } = JSON.parse(
+    execSync(
+      `sui move build --dump-bytecode-as-base64 -e ${env} -p ${packagePath} 2> /dev/null`,
+      { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 }
+    )
+  );
+  return {
+    modules: buildOutput.modules, // base64 strings, accepted by tx.upgrade
+    dependencies: buildOutput.dependencies.map(normalizeSuiAddress),
+    digest: Buffer.from(buildOutput.digest),
+  };
+};
+
+/**
+ * Build the token bridge upgrade PTB: parse_and_verify -> authorize_governance
+ * -> verify_vaa -> authorize_upgrade -> Upgrade -> commit_upgrade, all against
+ * the CURRENT package
+ */
+export const upgradeTokenBridge = async (
+  client: SuiGrpcClient,
+  network: Network,
+  vaa: Buffer,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  modules: string[],
+  dependencies: string[]
+): Promise<Transaction> => {
+  if (network === "Devnet") {
+    // Modify the VAA to only have 1 guardian signature (see registerChain).
+    const parsedVaa = parse(vaa);
+    parsedVaa.signatures = [parsedVaa.signatures[0]];
+    vaa = Buffer.from(serialiseVAA(parsedVaa as VAA<Payload>), "hex");
+  }
+
+  const coreBridgePackageId = await getPackageId(
+    client,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    client,
+    tokenBridgeStateObjectId
+  );
+
+  // Leaving the budget for the simulation, as it's an heavy operation
+  const tx = new Transaction();
+
+  const [verifiedVaa] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure("vector<u8>", [...vaa]),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  const [decreeTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::upgrade_contract::authorize_governance`,
+    arguments: [tx.object(tokenBridgeStateObjectId)],
+  });
+
+  const [decreeReceipt] = tx.moveCall({
+    target: `${coreBridgePackageId}::governance_message::verify_vaa`,
+    arguments: [tx.object(coreBridgeStateObjectId), verifiedVaa, decreeTicket],
+    typeArguments: [
+      `${tokenBridgePackageId}::upgrade_contract::GovernanceWitness`,
+    ],
+  });
+
+  const [upgradeTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::upgrade_contract::authorize_upgrade`,
+    arguments: [tx.object(tokenBridgeStateObjectId), decreeReceipt],
+  });
+
+  const [upgradeReceipt] = tx.upgrade({
+    modules,
+    dependencies,
+    package: tokenBridgePackageId,
+    ticket: upgradeTicket,
+  });
+
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::upgrade_contract::commit_upgrade`,
+    arguments: [tx.object(tokenBridgeStateObjectId), upgradeReceipt],
+  });
+
+  return tx;
+};
+
+/**
+ * Build the migrate PTB against the NEW package
+ * Until migrate succeeds the previous version stays active
+ */
+export const migrateTokenBridge = async (
+  client: SuiGrpcClient,
+  network: Network,
+  vaa: Buffer,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string
+): Promise<Transaction> => {
+  if (network === "Devnet") {
+    const parsedVaa = parse(vaa);
+    parsedVaa.signatures = [parsedVaa.signatures[0]];
+    vaa = Buffer.from(serialiseVAA(parsedVaa as VAA<Payload>), "hex");
+  }
+
+  const coreBridgePackageId = await getPackageId(
+    client,
+    coreBridgeStateObjectId
+  );
+  const newTokenBridgePackageId = await getPackageId(
+    client,
+    tokenBridgeStateObjectId
+  );
+
+  const tx = new Transaction();
+
+  const [verifiedVaa] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure("vector<u8>", [...vaa]),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  const [decreeTicket] = tx.moveCall({
+    target: `${newTokenBridgePackageId}::upgrade_contract::authorize_governance`,
+    arguments: [tx.object(tokenBridgeStateObjectId)],
+  });
+
+  const [decreeReceipt] = tx.moveCall({
+    target: `${coreBridgePackageId}::governance_message::verify_vaa`,
+    arguments: [tx.object(coreBridgeStateObjectId), verifiedVaa, decreeTicket],
+    typeArguments: [
+      `${newTokenBridgePackageId}::upgrade_contract::GovernanceWitness`,
+    ],
+  });
+
+  tx.moveCall({
+    target: `${newTokenBridgePackageId}::migrate::migrate`,
+    arguments: [tx.object(tokenBridgeStateObjectId), decreeReceipt],
+  });
+
+  return tx;
+};
+
+/**
+ * Poll the state object until its upgrade_cap points at a package other than old one
+ */
+export const waitForNewPackage = async (
+  client: SuiGrpcClient,
+  stateObjectId: string,
+  oldPackage: string
+): Promise<string> => {
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const pkg = await getPackageId(client, stateObjectId);
+    if (pkg !== oldPackage) return pkg;
+  }
+  throw new Error(
+    "state object still reports the old package after 60s — check the upgrade tx"
+  );
+};
+
+export const setPauserAddresses = async (
+  client: SuiGrpcClient,
+  network: Network,
+  vaa: Buffer,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  transaction?: Transaction
+): Promise<Transaction> => {
+  if (network === "Devnet") {
+    const parsedVaa = parse(vaa);
+    parsedVaa.signatures = [parsedVaa.signatures[0]];
+    vaa = Buffer.from(serialiseVAA(parsedVaa as VAA<Payload>), "hex");
+  }
+
+  const coreBridgePackageId = await getPackageId(
+    client,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    client,
+    tokenBridgeStateObjectId
+  );
+
+  let tx = transaction;
+  if (!tx) {
+    tx = new Transaction();
+    tx.setGasBudget(5000000);
+  }
+
+  const [verifiedVaa] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure("vector<u8>", [...vaa]),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  // Get decree ticket
+  const [decreeTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::set_pauser_addresses::authorize_governance`,
+    arguments: [tx.object(tokenBridgeStateObjectId)],
+  });
+
+  // Get decree receipt
+  const [decreeReceipt] = tx.moveCall({
+    target: `${coreBridgePackageId}::governance_message::verify_vaa`,
+    arguments: [tx.object(coreBridgeStateObjectId), verifiedVaa, decreeTicket],
+    typeArguments: [
+      `${tokenBridgePackageId}::set_pauser_addresses::GovernanceWitness`,
+    ],
+  });
+
+  // Set the pauser/freezer/unpauser addresses
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::set_pauser_addresses::set_pauser_addresses`,
     arguments: [tx.object(tokenBridgeStateObjectId), decreeReceipt],
   });
 

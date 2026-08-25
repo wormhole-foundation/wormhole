@@ -116,6 +116,8 @@ export const submit = async (
         case "AttestMeta":
           console.log("Creating wrapped token");
           break;
+        case "SetPauserAddresses":
+          throw new Error("SetPauserAddresses not supported on sei");
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI");
         default:

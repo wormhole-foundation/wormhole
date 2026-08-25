@@ -120,6 +120,8 @@ export const execute_near = async (
         case "AttestMeta":
           console.log("Creating wrapped token");
           break;
+        case "SetPauserAddresses":
+          throw new Error("SetPauserAddresses not supported on near");
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI");
         default:

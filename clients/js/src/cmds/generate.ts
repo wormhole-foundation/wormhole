@@ -18,6 +18,7 @@ import {
   serialiseVAA,
   sign,
   TokenBridgeAttestMeta,
+  TokenBridgeSetPauserAddresses,
   VAA,
   WormholeRelayerSetDefaultDeliveryProvider,
 } from "../vaa";
@@ -108,11 +109,11 @@ export const builder = function (y: typeof yargs) {
           let emitterAddress = argv.platform
             ? parseAddressByPlatform(argv.platform, argv["contract-address"])
             : argv.chain
-            ? parseAddress(
-                chainToCliChain(argv.chain),
-                argv["contract-address"]
-              )
-            : undefined;
+              ? parseAddress(
+                  chainToCliChain(argv.chain),
+                  argv["contract-address"]
+                )
+              : undefined;
           if (emitterAddress === undefined) {
             throw new Error("emitterAddress is undefined");
           }
@@ -165,6 +166,55 @@ export const builder = function (y: typeof yargs) {
             type: "ContractUpgrade",
             chain: cliChainToChainId(chain),
             address: parseCodeAddress(chain, argv["contract-address"]),
+          };
+          const vaa = makeVAA(
+            GOVERNANCE_CHAIN,
+            GOVERNANCE_EMITTER,
+            argv["guardian-secret"].split(","),
+            payload
+          );
+          console.log(serialiseVAA(vaa));
+        }
+      )
+      .command(
+        "set-pauser-addresses",
+        "Generate a token bridge SetPauserAddresses VAA (whitepaper 0003)",
+        (yargs) =>
+          yargs
+            .option("chain", {
+              alias: "c",
+              describe:
+                "Chain to set the pauser addresses on. To see a list of supported chains, run `worm chains`",
+              type: "string",
+              demandOption: true,
+            } as const)
+            .option("pauser", {
+              describe:
+                "Pauser address, in the chain's native size (omit to leave the role unassigned)",
+              type: "string",
+              demandOption: false,
+            })
+            .option("freezer", {
+              describe:
+                "Freezer address, in the chain's native size (omit to leave the role unassigned)",
+              type: "string",
+              demandOption: false,
+            })
+            .option("unpauser", {
+              describe:
+                "Unpauser address, in the chain's native size (omit to leave the role unassigned)",
+              type: "string",
+              demandOption: false,
+            }),
+        (argv) => {
+          const chain = chainToCliChain(argv.chain);
+          const payload: TokenBridgeSetPauserAddresses = {
+            module: "TokenBridge",
+            type: "SetPauserAddresses",
+            chain: cliChainToChainId(chain),
+            pauser: parsePauserAddress(chain, argv.pauser),
+            freezer: parsePauserAddress(chain, argv.freezer),
+            unpauser: parsePauserAddress(chain, argv.unpauser),
           };
           const vaa = makeVAA(
             GOVERNANCE_CHAIN,
@@ -367,4 +417,28 @@ function parseCodeAddress(chain: CliChain, address: string): string {
   } else {
     return parseAddress(chain, address);
   }
+}
+
+// Native address sizes for the SetPauserAddresses roles
+const PAUSER_ADDRESS_SIZE: Partial<Record<Platform, number>> = {
+  Evm: 20,
+  Solana: 32,
+  Sui: 32,
+};
+
+function parsePauserAddress(chain: CliChain, address?: string): string {
+  if (!address) {
+    return "";
+  }
+  const platform = cliChainToPlatform(chain);
+  const size = PAUSER_ADDRESS_SIZE[platform];
+  if (size === undefined) {
+    throw Error(`SetPauserAddresses is not supported on platform ${platform}`);
+  }
+  const padded = parseAddress(chain, address).slice(2);
+  const excess = padded.slice(0, (32 - size) * 2);
+  if (!/^0*$/.test(excess)) {
+    throw Error(`address ${address} does not fit in ${size} bytes`);
+  }
+  return "0x" + padded.slice((32 - size) * 2);
 }

@@ -100,6 +100,8 @@ export async function execute_algorand(
         case "AttestMeta":
           console.log("Creating wrapped token");
           break;
+        case "SetPauserAddresses":
+          throw new Error("SetPauserAddresses not supported on algorand");
         case "TransferWithPayload":
           throw Error("Can't complete payload 3 transfer from CLI");
         default:
