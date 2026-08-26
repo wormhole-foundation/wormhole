@@ -24,8 +24,9 @@ var suiGrpcNilResponses = promauto.NewCounter(
 		Help: "Total number of nil checkpoint responses received from the Sui gRPC subscription stream",
 	})
 
-// https://github.com/MystenLabs/sui/blob/9ae15a17984ae6c3abd37289edfee5c961d3d93e/crates/sui-protocol-config/src/lib.rs#L2573
-// We add a 2 MiB buffer to the Sui gRPC max receive message size, since the Sui gRPC server has a 30 MiB limit, and we want to avoid hitting that limit in practice.
+// suiGrpcMaxReceiveMessageSize raises grpc-go's 4 MiB default so most normal checkpoints
+// fit. A large enough checkpoint will still be dropped, and the Guardian will
+// skip the messages in it.
 const suiGrpcMaxReceiveMessageSize = 32 * 1024 * 1024
 
 type GrpcLedgerServiceClientInterface interface {
