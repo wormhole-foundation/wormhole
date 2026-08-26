@@ -173,7 +173,7 @@ export const toSuiTransactionResult = (
     success: tx.status.success,
     error: tx.status.success
       ? undefined
-      : (tx.status.error?.message ?? JSON.stringify(tx.status.error)),
+      : tx.status.error?.message ?? JSON.stringify(tx.status.error),
     sender: tx.transaction?.sender ?? undefined,
     changedObjects: (tx.effects?.changedObjects ?? []).map((o) => ({
       objectId: o.objectId,
