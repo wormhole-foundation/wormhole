@@ -109,11 +109,11 @@ export const builder = function (y: typeof yargs) {
           let emitterAddress = argv.platform
             ? parseAddressByPlatform(argv.platform, argv["contract-address"])
             : argv.chain
-              ? parseAddress(
-                  chainToCliChain(argv.chain),
-                  argv["contract-address"]
-                )
-              : undefined;
+            ? parseAddress(
+                chainToCliChain(argv.chain),
+                argv["contract-address"]
+              )
+            : undefined;
           if (emitterAddress === undefined) {
             throw new Error("emitterAddress is undefined");
           }
