@@ -1,0 +1,6 @@
+diff --git a/relayer/src/vaa_parser.rs b/relayer/src/vaa_parser.rs
+@@ -45,3 +45,7 @@ pub fn parse_vaa(data: &[u8]) -> Result<VAA, RelayerError> {
+-    let signatures = &data[HEADER_LEN..HEADER_LEN + sig_count * 66];
++    let sig_end = HEADER_LEN.checked_add(sig_count * 66).ok_or(RelayerError::Overflow)?;
++    if data.len() < sig_end { return Err(RelayerError::TruncatedPayload); }
++    let signatures = &data[HEADER_LEN..sig_end];
