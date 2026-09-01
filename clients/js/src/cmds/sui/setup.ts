@@ -28,7 +28,7 @@ import {
 import { YargsAddCommandsFn } from "../Yargs";
 import { deploy } from "./deploy";
 import { initExampleApp, initTokenBridge, initWormhole } from "./init";
-import { Chain, chainIdToChain, toChainId } from "@wormhole-foundation/sdk";
+import { CliChain, cliChainIdToChain } from "../../utils";
 
 export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
@@ -194,14 +194,14 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 
       const tx = new Transaction();
       setMaxGasBudgetDevnet("Devnet", tx);
-      const registrations: { chain: Chain; module: string }[] = [];
+      const registrations: { chain: CliChain; module: string }[] = [];
       for (const key in process.env) {
         if (/^REGISTER_(.+)_TOKEN_BRIDGE_VAA$/.test(key)) {
           // Get VAA info
           const vaa = Buffer.from(String(process.env[key]), "hex");
           const { foreignChain, module } =
             parseTokenBridgeRegisterChainVaa(vaa);
-          const chain = chainIdToChain(toChainId(foreignChain));
+          const chain = cliChainIdToChain(foreignChain);
           registrations.push({ chain, module });
 
           // Register

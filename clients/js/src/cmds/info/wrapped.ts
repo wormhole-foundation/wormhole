@@ -1,7 +1,7 @@
 import yargs from "yargs";
 import { getWrappedAssetAddress } from "../../chains/generic/getWrappedAssetAddress";
 import { RPC_OPTIONS } from "../../consts";
-import { chainToChain, getNetwork } from "../../utils";
+import { chainToCliChain, getNetwork } from "../../utils";
 
 export const command = "wrapped <origin-chain> <origin-address> <target-chain>";
 export const desc =
@@ -43,9 +43,9 @@ export const handler = async (
   const consoleWarnTemp = console.warn;
   console.warn = () => {};
 
-  const originChain = chainToChain(argv["origin-chain"]);
+  const originChain = chainToCliChain(argv["origin-chain"]);
   const originAddress = argv["origin-address"];
-  const targetChain = chainToChain(argv["target-chain"]);
+  const targetChain = chainToCliChain(argv["target-chain"]);
   const network = getNetwork(argv.network);
 
   console.log(

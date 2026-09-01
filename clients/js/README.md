@@ -435,17 +435,11 @@ For example, to submit a guardian set upgrade on all chains, simply run:
 
 ```sh
 $ worm-fetch-governance 13940208096455381020 > guardian-upgrade.txt
-$ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain oasis
-$ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain aurora
-$ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain fantom
-$ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain karura
-$ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain acala
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain klaytn
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain avalanche
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain polygon
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain bsc
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain solana
-$ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain terra
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain ethereum
 $ worm submit $(cat guardian-upgrade.txt) --network mainnet --chain celo
 ```
@@ -472,15 +466,9 @@ $ worm evm info -c bsc -n mainnet -m TokenBridge
   "registrations": {
     "solana": "0xec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5",
     "ethereum": "0x0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585",
-    "terra": "0x0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2",
     "polygon": "0x0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde",
     "avalanche": "0x0000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052",
-    "oasis": "0x0000000000000000000000005848c791e09901b40a9ef749f2a6735b418d7564",
     "algorand": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "aurora": "0x00000000000000000000000051b5123a7b0f9b2ba265f9c4c8de7d78d52f510f",
-    "fantom": "0x0000000000000000000000007c9fc5741288cdfdd83ceb07f3ea7e22618d79d2",
-    "karura": "0x000000000000000000000000ae9d7fe007b3327aa64a32824aaac52c42a6e624",
-    "acala": "0x000000000000000000000000ae9d7fe007b3327aa64a32824aaac52c42a6e624",
     "klaytn": "0x0000000000000000000000005b08ac39eaed75c0439fc750d9fe7e1f9dd0193f",
     "celo": "0x000000000000000000000000796dff6d74f3e27060b71255fe517bfb23c93eed",
     "near": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -489,11 +477,8 @@ $ worm evm info -c bsc -n mainnet -m TokenBridge
     "sui": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "aptos": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "moonbeam": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "neon": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "terra2": "0xa463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3",
     "arbitrum": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "optimism": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "gnosis": "0x0000000000000000000000000000000000000000000000000000000000000000",
   }
 }
 

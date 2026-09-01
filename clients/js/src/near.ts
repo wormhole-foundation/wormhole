@@ -7,13 +7,9 @@ import {
   transferNearFromNear,
   transferTokenFromNear,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
-import {
-  Chain,
-  chainToChainId,
-  contracts,
-  Network,
-} from "@wormhole-foundation/sdk-base";
-import { tryNativeToUint8Array } from "./sdk/array";
+import { contracts, Network } from "@wormhole-foundation/sdk-base";
+import { toLegacyChainId, tryNativeToUint8Array } from "./sdk/array";
+import { CliChain } from "./utils";
 
 export function keyPairToImplicitAccount(keyPair: KeyPair): string {
   return Buffer.from(keyPair.getPublicKey().data).toString("hex");
@@ -179,7 +175,7 @@ export const execute_near = async (
 };
 
 export async function transferNear(
-  dstChain: Chain,
+  dstChain: CliChain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
@@ -215,8 +211,8 @@ export async function transferNear(
       core,
       token_bridge,
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain),
+      tryNativeToUint8Array(dstAddress, dstChain),
+      toLegacyChainId(dstChain),
       BigInt(0)
     );
     const result = await nearAccount.functionCall(msg);
@@ -229,8 +225,8 @@ export async function transferNear(
       token_bridge,
       tokenAddress,
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain),
+      tryNativeToUint8Array(dstAddress, dstChain),
+      toLegacyChainId(dstChain),
       BigInt(0)
     );
     for (const msg of msgs) {

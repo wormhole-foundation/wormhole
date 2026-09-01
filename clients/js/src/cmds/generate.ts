@@ -3,7 +3,13 @@ import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
 import { GOVERNANCE_CHAIN, GOVERNANCE_EMITTER } from "../consts";
-import { chainToChain, evm_address } from "../utils";
+import {
+  CliChain,
+  chainToCliChain,
+  cliChainToChainId,
+  cliChainToPlatform,
+  evm_address,
+} from "../utils";
 import {
   ContractUpgrade,
   Payload,
@@ -15,13 +21,7 @@ import {
   VAA,
   WormholeRelayerSetDefaultDeliveryProvider,
 } from "../vaa";
-import {
-  Chain,
-  chainToPlatform,
-  Platform,
-  platforms,
-  toChainId,
-} from "@wormhole-foundation/sdk-base";
+import { Platform, platforms } from "@wormhole-foundation/sdk-base";
 
 function makeVAA(
   emitterChain: number,
@@ -100,7 +100,7 @@ export const builder = function (y: typeof yargs) {
           }
           const module = argv["module"];
           const emitterChain = argv.chain
-            ? toChainId(chainToChain(argv.chain))
+            ? cliChainToChainId(chainToCliChain(argv.chain))
             : argv["chain-id"];
           if (emitterChain === undefined) {
             throw new Error("emitterChain is undefined");
@@ -108,7 +108,10 @@ export const builder = function (y: typeof yargs) {
           let emitterAddress = argv.platform
             ? parseAddressByPlatform(argv.platform, argv["contract-address"])
             : argv.chain
-            ? parseAddress(chainToChain(argv.chain), argv["contract-address"])
+            ? parseAddress(
+                chainToCliChain(argv.chain),
+                argv["contract-address"]
+              )
             : undefined;
           if (emitterAddress === undefined) {
             throw new Error("emitterAddress is undefined");
@@ -155,12 +158,12 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             } as const),
         (argv) => {
-          const chain = chainToChain(argv.chain);
+          const chain = chainToCliChain(argv.chain);
           const module = argv["module"];
           const payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
-            chain: toChainId(chain),
+            chain: cliChainToChainId(chain),
             address: parseCodeAddress(chain, argv["contract-address"]),
           };
           const vaa = makeVAA(
@@ -222,20 +225,20 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             }),
         (argv) => {
-          const emitter_chain = chainToChain(argv["emitter-chain"]);
-          const chain = chainToChain(argv.chain);
+          const emitter_chain = chainToCliChain(argv["emitter-chain"]);
+          const chain = chainToCliChain(argv.chain);
           const payload: TokenBridgeAttestMeta = {
             module: "TokenBridge",
             type: "AttestMeta",
             chain: 0,
             tokenAddress: parseAddress(chain, argv["token-address"]),
-            tokenChain: toChainId(chain),
+            tokenChain: cliChainToChainId(chain),
             decimals: argv["decimals"],
             symbol: argv["symbol"],
             name: argv["name"],
           };
           const vaa = makeVAA(
-            toChainId(emitter_chain),
+            cliChainToChainId(emitter_chain),
             parseAddress(emitter_chain, argv["emitter-address"]),
             argv["guardian-secret"].split(","),
             payload
@@ -304,11 +307,11 @@ export const builder = function (y: typeof yargs) {
             });
         },
         (argv) => {
-          const chain = chainToChain(argv.chain);
+          const chain = chainToCliChain(argv.chain);
           const payload: WormholeRelayerSetDefaultDeliveryProvider = {
             module: "WormholeRelayer",
             type: "SetDefaultDeliveryProvider",
-            chain: toChainId(chain),
+            chain: cliChainToChainId(chain),
             relayProviderAddress: parseAddress(
               chain,
               argv["delivery-provider-address"]
@@ -354,43 +357,12 @@ function parseAddressByPlatform(platform: Platform, address: string): string {
   }
 }
 
-function parseAddress(chain: Chain, address: string): string {
-  if (chainToPlatform(chain) === "Evm") {
-    return "0x" + evm_address(address);
-  } else if (chainToPlatform(chain) === "Cosmwasm") {
-    return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
-  } else if (chain === "Solana" || chain === "Pythnet") {
-    return "0x" + toHex(base58.decode(address)).padStart(64, "0");
-  } else if (chain === "Algorand") {
-    // TODO: is there a better native format for algorand?
-    return "0x" + evm_address(address);
-  } else if (chain === "Near") {
-    return "0x" + evm_address(address);
-  } else if (chain === "Sui") {
-    return "0x" + evm_address(address);
-  } else if (chain === "Aptos") {
-    if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
-      return "0x" + evm_address(address);
-    }
-
-    return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
-  } else if (chain === "Btc") {
-    throw Error("btc is not supported yet");
-  } else if (chain === "Cosmoshub") {
-    throw Error("cosmoshub is not supported yet");
-  } else if (chain === "Evmos") {
-    throw Error("evmos is not supported yet");
-  } else if (chain === "Kujira") {
-    throw Error("kujira is not supported yet");
-  } else if (chain === "Rootstock") {
-    throw Error("rootstock is not supported yet");
-  } else {
-    throw Error(`Unsupported chain: ${chain}`);
-  }
+function parseAddress(chain: CliChain, address: string): string {
+  return parseAddressByPlatform(cliChainToPlatform(chain), address);
 }
 
-function parseCodeAddress(chain: Chain, address: string): string {
-  if (chainToPlatform(chain) === "Cosmwasm") {
+function parseCodeAddress(chain: CliChain, address: string): string {
+  if (cliChainToPlatform(chain) === "Cosmwasm") {
     return "0x" + parseInt(address, 10).toString(16).padStart(64, "0");
   } else {
     return parseAddress(chain, address);

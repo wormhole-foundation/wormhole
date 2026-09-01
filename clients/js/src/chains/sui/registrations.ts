@@ -2,12 +2,8 @@ import type { SuiClientTypes } from "@mysten/sui/client";
 import { NETWORKS } from "../../consts/networks";
 import { getObjectFields } from "../../sdk/sui";
 import { getProvider } from "./utils";
-import {
-  ChainId,
-  Network,
-  chainIdToChain,
-  contracts,
-} from "@wormhole-foundation/sdk";
+import { Network, contracts } from "@wormhole-foundation/sdk";
+import { cliChainIdToChain } from "../../utils";
 
 export async function queryRegistrationsSui(
   network: Network,
@@ -46,14 +42,14 @@ export async function queryRegistrationsSui(
         include: { json: true },
       });
       const json = entry.object.json as any;
-      const chainId = json?.name as ChainId;
+      const chainId = json?.name as number;
       // The gRPC JSON representation encodes the `vector<u8>` emitter address as
       // base64 under `value.value.data`.
       const dataB64: string | undefined = json?.value?.value?.data;
       if (chainId === undefined || dataB64 === undefined) {
         continue;
       }
-      results[chainIdToChain(chainId)] = Buffer.from(
+      results[cliChainIdToChain(chainId)] = Buffer.from(
         dataB64,
         "base64"
       ).toString("hex");

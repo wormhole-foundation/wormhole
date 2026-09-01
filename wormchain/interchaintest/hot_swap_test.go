@@ -155,9 +155,11 @@ func TestValidatorHotswap(t *testing.T) {
 	// ============================
 
 	// Ensure chain can produce blocks with the last validator shut down,
-	// as it is not in the active set
+	// as it is not in the active set.
+	// Wait via firstVal's node, not the chain object: chain-level queries always
+	// go through wormchain.Validators[0], which may be the very node stopped here.
 	newVal.Validator.StopContainer(ctx)
-	err = testutil.WaitForBlocks(ctx, 10, wormchain)
+	err = testutil.WaitForBlocks(ctx, 10, firstVal.Validator)
 	require.NoError(t, err)
 	newVal.Validator.StartContainer(ctx)
 

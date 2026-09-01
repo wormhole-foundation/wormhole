@@ -10,18 +10,14 @@ import {
 } from "./utils";
 import { getObjectFields } from "../../sdk/sui";
 import { selectCoinsForAmount } from "./selectCoins";
-import {
-  Chain,
-  Network,
-  chainToChainId,
-  contracts,
-} from "@wormhole-foundation/sdk-base";
+import { Network, contracts } from "@wormhole-foundation/sdk-base";
 import { tryNativeToUint8Array } from "../../sdk/array";
+import { CliChain, cliChainToChainId } from "../../utils";
 
 const SUI_TYPE_ARG = "0x2::sui::SUI";
 
 export async function transferSui(
-  dstChain: Chain,
+  dstChain: CliChain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
@@ -41,8 +37,8 @@ export async function transferSui(
   const signer = getSigner(client, network);
   const owner = signer.keypair.getPublicKey().toSuiAddress();
   const coinType = tokenAddress === "native" ? SUI_TYPE_ARG : tokenAddress;
-  const recipientChainId = chainToChainId(dstChain);
-  const recipient = tryNativeToUint8Array(dstAddress, recipientChainId);
+  const recipientChainId = cliChainToChainId(dstChain);
+  const recipient = tryNativeToUint8Array(dstAddress, dstChain);
   const amt = BigInt(amount);
 
   // Collect the sender's coins of the transfer type so they can be merged.

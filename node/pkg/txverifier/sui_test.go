@@ -478,7 +478,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 			name: "TestProcessObjectWrongPackageIdType",
 			objectChanges: []ObjectChange{
 				{
-					ObjectType:      "0x2::dynamic_field::Field<0xa340e3db1332c21f20f5c08bef0fa459e733575f9a7e2f5faca64f72cd5a54f2::token_registry::Key<0x2::sui::SUI>, 0xa340e3db1332c21f20f5c08bef0fa459e733575f9a7e2f5faca64f72cd5a54f2::native_asset::NativeAsset<0x2::sui::SUI>",
+					ObjectType:      "0x2::dynamic_field::Field<0xa340e3db1332c21f20f5c08bef0fa459e733575f9a7e2f5faca64f72cd5a54f2::token_registry::Key<0x2::sui::SUI>, 0xa340e3db1332c21f20f5c08bef0fa459e733575f9a7e2f5faca64f72cd5a54f2::native_asset::NativeAsset<0x2::sui::SUI>>",
 					Version:         normalVersion,
 					PreviousVersion: normalPreviousVersion,
 					ObjectId:        normalObjectNativeId,
@@ -494,7 +494,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 			name: "TestProcessObjectNotDynamicField",
 			objectChanges: []ObjectChange{
 				{
-					ObjectType:      "0x11111111111111111111::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x2::sui::SUI>",
+					ObjectType:      "0x11111111111111111111::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x2::sui::SUI>>",
 					Version:         normalVersion,
 					PreviousVersion: normalPreviousVersion,
 					ObjectId:        normalObjectNativeId,
@@ -510,7 +510,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 			name: "TestProcessObjectMismatchedCoinTypes",
 			objectChanges: []ObjectChange{
 				{
-					ObjectType:      "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x11111111111111111111::sui::SUI>",
+					ObjectType:      "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x11111111111111111111::sui::SUI>>",
 					Version:         normalVersion,
 					PreviousVersion: normalPreviousVersion,
 					ObjectId:        normalObjectNativeId,
@@ -526,7 +526,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 			name: "TestProcessObjectNotAssetType",
 			objectChanges: []ObjectChange{
 				{
-					ObjectType:      "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::not_native_asset::NativeAsset<0x2::sui::SUI>",
+					ObjectType:      "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::not_native_asset::NativeAsset<0x2::sui::SUI>>",
 					Version:         normalVersion,
 					PreviousVersion: normalPreviousVersion,
 					ObjectId:        normalObjectNativeId,
@@ -543,7 +543,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 			objectChanges: []ObjectChange{
 				{ObjectType: normalObjectForeignType, Version: normalVersion, PreviousVersion: normalPreviousVersion, ObjectId: normalObjectForeignId},
 				{
-					ObjectType:      "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::not_native_asset::NativeAsset<0x2::sui::SUI>",
+					ObjectType:      "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::not_native_asset::NativeAsset<0x2::sui::SUI>>",
 					Version:         fmt.Sprintf("%s111", normalVersion),
 					PreviousVersion: normalPreviousVersion,
 					ObjectId:        normalObjectNativeId,
@@ -781,23 +781,112 @@ func TestDecodeSuiAssetObject(t *testing.T) {
 	addr := parseByteCSV("0,0,0,0,0,0,0,0,0,0,0,0,160,184,105,145,198,33,139,54,193,209,157,74,46,158,176,206,54,6,235,72")
 
 	// Unknown asset type -> error.
-	_, err := decodeSuiAssetObject("0x2::dynamic_field::Field<x::token_registry::Key<c>, y::other::Other<c>>", bcsNativeObject(1, addr, 8))
-	assert.Error(t, err)
+	_, err := decodeSuiAssetObject("other::Other", bcsNativeObject(1, addr, 8))
+	assert.ErrorContains(t, err, "neither a native nor wrapped token-bridge asset")
 
 	// Native type but undecodable (truncated) bytes -> error.
-	_, err = decodeSuiAssetObject("a::native_asset::NativeAsset<c>", []byte{0x01, 0x02})
-	assert.Error(t, err)
+	_, err = decodeSuiAssetObject(suiNativeAssetType, []byte{0x01, 0x02})
+	assert.ErrorContains(t, err, "failed to BCS-decode NativeAsset")
 
 	// Wrapped asset with an unknown token chain -> KnownChainIDFromNumber error.
-	_, err = decodeSuiAssetObject("a::wrapped_asset::WrappedAsset<c>", bcsWrappedObject(1, addr, 60000, 8))
-	assert.Error(t, err)
+	_, err = decodeSuiAssetObject(suiWrappedAssetType, bcsWrappedObject(1, addr, 60000, 8))
+	assert.ErrorContains(t, err, "failed to convert token chain 60000")
 
 	// Wrapped asset happy path.
-	info, err := decodeSuiAssetObject("a::wrapped_asset::WrappedAsset<c>", bcsWrappedObject(990, addr, 2, 8))
+	info, err := decodeSuiAssetObject(suiWrappedAssetType, bcsWrappedObject(990, addr, 2, 8))
 	assert.NoError(t, err)
 	assert.True(t, info.isWrapped)
 	assert.Equal(t, uint64(990), info.balance.Uint64())
 	assert.Equal(t, vaa.ChainIDEthereum, info.tokenChain)
+
+	// Native asset happy path.
+	info, err = decodeSuiAssetObject(suiNativeAssetType, bcsNativeObject(990, addr, 8))
+	assert.NoError(t, err)
+	assert.False(t, info.isWrapped)
+	assert.Equal(t, uint64(990), info.balance.Uint64())
+	assert.Equal(t, vaa.ChainIDSui, info.tokenChain)
+}
+
+func TestParseSuiAssetTypeConfusion(t *testing.T) {
+	const pkg = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d"
+
+	// A native asset whose coin type is named to contain the `WrappedAsset` string.
+	coinType := "0xa77ac6e9c1a04ba3af88b6bd1a5b1a48ee0a6e9d5a4a4f4b1c2d3e4f5a6b7c8d::wrapped_asset::WrappedAsset"
+	objectType := fmt.Sprintf(
+		"0x0000000000000000000000000000000000000000000000000000000000000002::dynamic_field::Field<"+
+			"%s::token_registry::Key<%s>,%s::native_asset::NativeAsset<%s>>",
+		pkg, coinType, pkg, coinType)
+
+	assetType, err := parseSuiAssetType(objectType, pkg)
+	assert.NoError(t, err)
+	// The validated verdict must be native, even though the object type string contains the
+	// `WrappedAsset` string inside the coin type.
+	assert.Equal(t, suiNativeAssetType, assetType)
+	assert.Contains(t, objectType, string(suiWrappedAssetType))
+}
+
+// TestParseSuiAssetType exercises each accept and reject branch of parseSuiAssetType directly.
+func TestParseSuiAssetType(t *testing.T) {
+	const pkg = "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d"
+	const otherPkg = "0xa340e3db1332c21f20f5c08bef0fa459e733575f9a7e2f5faca64f72cd5a54f2"
+	const coin = "0x2::sui::SUI"
+
+	// build assembles a token-registry dynamic field object type from its variable parts.
+	build := func(keyPkg, keyCoin, valuePkg, valueAsset, valueCoin string) string {
+		return fmt.Sprintf("0x2::dynamic_field::Field<%s::token_registry::Key<%s>,%s::%s<%s>>",
+			keyPkg, keyCoin, valuePkg, valueAsset, valueCoin)
+	}
+
+	tests := []struct {
+		name          string
+		objectType    string
+		wantAssetType suiAssetType
+		wantErr       error
+	}{
+		{
+			name:          "ValidNative",
+			objectType:    build(pkg, coin, pkg, "native_asset::NativeAsset", coin),
+			wantAssetType: suiNativeAssetType,
+		},
+		{
+			name:          "ValidWrapped",
+			objectType:    build(pkg, coin, pkg, "wrapped_asset::WrappedAsset", coin),
+			wantAssetType: suiWrappedAssetType,
+		},
+		{
+			name:       "MalformedMissingClosingBracket",
+			objectType: strings.TrimSuffix(build(pkg, coin, pkg, "native_asset::NativeAsset", coin), ">"),
+			wantErr:    errNotTokenRegistryField,
+		},
+		{
+			name:       "NotAnAssetType",
+			objectType: build(pkg, coin, pkg, "not_native_asset::NativeAsset", coin),
+			wantErr:    errNotAssetType,
+		},
+		{
+			name:       "WrongPackageIdInKey",
+			objectType: build(otherPkg, coin, pkg, "native_asset::NativeAsset", coin),
+			wantErr:    errWrongPackageId,
+		},
+		{
+			name:       "WrongPackageIdInValue",
+			objectType: build(pkg, coin, otherPkg, "native_asset::NativeAsset", coin),
+			wantErr:    errWrongPackageId,
+		},
+		{
+			name:       "MismatchedCoinTypes",
+			objectType: build(pkg, coin, pkg, "native_asset::NativeAsset", "0x11111111111111111111::sui::SUI"),
+			wantErr:    errMismatchedCoinTypes,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assetType, err := parseSuiAssetType(tt.objectType, pkg)
+			assert.ErrorIs(t, err, tt.wantErr)
+			assert.Equal(t, tt.wantAssetType, assetType)
+		})
+	}
 }
 
 // TestProcessDigestPublic exercises the public ProcessDigest wrapper, including its handling of

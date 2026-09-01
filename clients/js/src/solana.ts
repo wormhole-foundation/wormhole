@@ -38,7 +38,12 @@ import {
   contracts,
   platformToChains,
 } from "@wormhole-foundation/sdk-base";
-import { hexToUint8Array, tryNativeToUint8Array } from "./sdk/array";
+import {
+  hexToUint8Array,
+  toLegacyChainId,
+  tryNativeToUint8Array,
+} from "./sdk/array";
+import { CliChain } from "./utils";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -47,7 +52,6 @@ export async function execute_solana(
   chain: Chain
 ) {
   if (chainToPlatform(chain) !== "Solana") {
-    // This "Solana" platform, also, includes Pythnet
     throw new Error("Invalid chain");
   }
   const { rpc, key } = NETWORKS[network][chain];
@@ -249,14 +253,13 @@ export async function execute_solana(
 
 export async function transferSolana(
   srcChain: PlatformToChains<"Solana">,
-  dstChain: Chain,
+  dstChain: CliChain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
-  platformToChains("Solana");
   const { key } = NETWORKS[network][srcChain];
   if (!key) {
     throw Error(`No ${network} key defined for ${srcChain}`);
@@ -290,8 +293,8 @@ export async function transferSolana(
       tokenBridgeId,
       payerAddress,
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain)
+      tryNativeToUint8Array(dstAddress, dstChain),
+      toLegacyChainId(dstChain)
     );
   } else {
     // find the associated token account
@@ -309,8 +312,8 @@ export async function transferSolana(
       fromAddress,
       tokenAddress, // mintAddress
       BigInt(amount),
-      tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain)
+      tryNativeToUint8Array(dstAddress, dstChain),
+      toLegacyChainId(dstChain)
     );
   }
 

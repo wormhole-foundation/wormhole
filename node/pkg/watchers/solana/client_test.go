@@ -218,10 +218,6 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 	)
 
 	const (
-		// Define error string for testing. This is returned by the borsh-go library when it fails to
-		// deserialize a struct. In this case, we're relying on the library to fail when
-		// the message account data can't be deserialized into [MessagePublicationAccount].
-		errStringBorsh         = "failed to read required bytes"
 		errStringParseTooShort = "message account data is too short"
 	)
 
@@ -230,6 +226,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		// Named input parameters for target function.
 		messageAccountData func(t *testing.T) MessageAccountData
 		want               *MessagePublicationAccount
+		wantErr            bool
 		errStr             string
 	}{
 		{
@@ -272,6 +269,17 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 			errStr: "",
 		},
 		{
+			name: "failure -- trailing bytes are rejected",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				withTrailingBytes := append([]byte{}, validMessageAccountDataReliable...)
+				withTrailingBytes = append(withTrailingBytes, 0xff, 0xee, 0xdd)
+				return mustNewMessageAccountData(t, withTrailingBytes)
+			},
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
+			errStr:  "trailing bytes",
+		},
+		{
 			name: "success -- reliable message with non-zero vaa time",
 			messageAccountData: func(t *testing.T) MessageAccountData {
 				acct := testMessagePublicationAccount(payload, 32)
@@ -304,8 +312,9 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 			messageAccountData: func(t *testing.T) MessageAccountData {
 				return MessageAccountData{}
 			},
-			want:   &MessagePublicationAccount{},
-			errStr: errStringParseTooShort,
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
+			errStr:  errStringParseTooShort,
 		},
 		{
 			name: "failure -- data too short",
@@ -314,47 +323,60 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				// defense-in-depth length check rather than the constructor's validation.
 				return MessageAccountData{[]byte("ms")}
 			},
-			want:   &MessagePublicationAccount{},
-			errStr: errStringParseTooShort,
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
+			errStr:  errStringParseTooShort,
 		},
 		{
 			name: "failure -- no data following prefix (msg)",
 			messageAccountData: func(t *testing.T) MessageAccountData {
 				return mustNewMessageAccountData(t, []byte("msg"))
 			},
-			want:   &MessagePublicationAccount{},
-			errStr: errStringBorsh,
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
 		},
 		{
 			name: "failure -- no data following prefix (msu)",
 			messageAccountData: func(t *testing.T) MessageAccountData {
 				return mustNewMessageAccountData(t, []byte("msu"))
 			},
-			want:   &MessagePublicationAccount{},
-			errStr: errStringBorsh,
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
 		},
 		{
 			name: "failure -- truncated data (msg)",
 			messageAccountData: func(t *testing.T) MessageAccountData {
 				return mustNewMessageAccountData(t, validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1])
 			},
-			want:   &MessagePublicationAccount{},
-			errStr: errStringBorsh,
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
 		},
 		{
 			name: "failure -- truncated data (msu)",
 			messageAccountData: func(t *testing.T) MessageAccountData {
 				return mustNewMessageAccountData(t, validMessageAccountDataUnreliable[:len(validMessageAccountDataUnreliable)-1])
 			},
-			want:   &MessagePublicationAccount{},
-			errStr: errStringBorsh,
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
+		},
+		{
+			name: "failure -- payload length exceeds remaining data",
+			messageAccountData: func(t *testing.T) MessageAccountData {
+				payloadLen := uint32(len(payload) + 1) // #nosec G115 -- Test data, payload length is small.
+				return mustNewMessageAccountData(t, corruptMessagePublicationPayloadLength(t, validMessageAccountDataReliable, payloadLen))
+			},
+			want:    &MessagePublicationAccount{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, gotErr := ParseMessagePublicationAccount(tt.messageAccountData(t))
-			if tt.errStr != "" {
-				require.ErrorContains(t, gotErr, tt.errStr)
+			if tt.wantErr {
+				require.Error(t, gotErr)
+				if tt.errStr != "" {
+					require.ErrorContains(t, gotErr, tt.errStr)
+				}
 				return
 			}
 
@@ -661,6 +683,7 @@ func TestProcessAccountSubscriptionData(t *testing.T) {
 func TestProcessInstructionEarlyReturns(t *testing.T) {
 	// Scenario: instruction filtering should return early for non-matching cases.
 	commitmentMismatchData := encodePostMessageData(t, 42, []byte("hi"), consistencyLevelConfirmed)
+	payloadLenExceedsData := corruptPostMessagePayloadLength(t, encodePostMessageData(t, 7, []byte("test"), consistencyLevelFinalized), 6)
 
 	tests := []struct {
 		name    string
@@ -687,6 +710,21 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 		{
 			name:    "borsh_error",
 			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{postMessageInstructionID}, Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			wantErr: true,
+		},
+		{
+			name:    "payload_length_exceeds_data",
+			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, payloadLenExceedsData...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			wantErr: true,
+		},
+		{
+			// The core bridge parses its instruction data strictly on-chain (solitaire
+			// uses borsh's try_from_slice, which rejects trailing bytes), so a padded
+			// instruction can never succeed on-chain and the watcher rejects it too.
+			// Contrast with the shim's PostMessage instruction data, which is parsed
+			// leniently on both sides (see Test_shimParsePostMessage).
+			name:    "trailing_bytes_rejected",
+			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, append(encodePostMessageData(t, 7, []byte("test"), consistencyLevelFinalized), 0xff, 0xee)...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
 			wantErr: true,
 		},
 		{
@@ -1487,6 +1525,15 @@ func encodeMessagePublicationAccount(t *testing.T, prefix string, proposal Messa
 	return buf.Bytes()
 }
 
+func corruptMessagePublicationPayloadLength(t *testing.T, data []byte, payloadLen uint32) []byte {
+	t.Helper()
+	const payloadLenOffset = 3 + 1 + 1 + 32 + 1 + 3 + 4 + 4 + 8 + 2 + 32
+	ret := append([]byte{}, data...)
+	require.GreaterOrEqual(t, len(ret), payloadLenOffset+4)
+	binary.LittleEndian.PutUint32(ret[payloadLenOffset:payloadLenOffset+4], payloadLen)
+	return ret
+}
+
 func mustDecodeHex(t *testing.T, s string) []byte {
 	t.Helper()
 	b, err := hex.DecodeString(s)
@@ -1515,6 +1562,15 @@ func encodePostMessageData(t *testing.T, nonce uint32, payload []byte, consisten
 	buf.Write(payload)
 	buf.WriteByte(byte(consistency))
 	return buf.Bytes()
+}
+
+func corruptPostMessagePayloadLength(t *testing.T, data []byte, payloadLen uint32) []byte {
+	t.Helper()
+	const payloadLenOffset = 4
+	ret := append([]byte{}, data...)
+	require.GreaterOrEqual(t, len(ret), payloadLenOffset+4)
+	binary.LittleEndian.PutUint32(ret[payloadLenOffset:payloadLenOffset+4], payloadLen)
+	return ret
 }
 
 func buildSubscriptionPayload(t *testing.T, owner, pubkey string, accountData []byte) []byte {

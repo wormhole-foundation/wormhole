@@ -1,25 +1,21 @@
-import {
-  Chain,
-  ChainId,
-  chainToPlatform,
-  toChain,
-} from "@wormhole-foundation/sdk-base";
+import { CliChainLike, cliChainToPlatform, toCliChain } from "./utils";
 import { decodeAddress, getApplicationAddress } from "algosdk";
 import { uint8ArrayToHex } from "./sdk/array";
 import { arrayify, sha256, zeroPad } from "ethers/lib/utils";
 import { bech32 } from "bech32";
 import { PublicKey } from "@solana/web3.js";
 
-export async function getEmitterAddress(chain: ChainId | Chain, addr: string) {
-  const localChain = toChain(chain);
-  if (chainToPlatform(localChain) === "Solana") {
+export async function getEmitterAddress(chain: CliChainLike, addr: string) {
+  const localChain = toCliChain(chain);
+  if (cliChainToPlatform(localChain) === "Solana") {
     const seeds = [Buffer.from("emitter")];
     const programAddr = PublicKey.findProgramAddressSync(
       seeds,
       new PublicKey(addr)
     )[0];
     addr = programAddr.toBuffer().toString("hex");
-  } else if (chainToPlatform(localChain) === "Cosmwasm") {
+  } else if (cliChainToPlatform(localChain) === "Cosmwasm") {
+    // this also covers Terra2, which the CLI's compat layer keeps alive
     addr = Buffer.from(
       zeroPad(bech32.fromWords(bech32.decode(addr).words), 32)
     ).toString("hex");

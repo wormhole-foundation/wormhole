@@ -6,13 +6,17 @@ import yargs from "yargs";
 import { getEmitterAddress } from "../../emitter";
 import {
   Network,
-  chainToPlatform,
   chains,
   contracts,
   toChain,
 } from "@wormhole-foundation/sdk-base";
-import { chainToChain, getNetwork } from "../../utils";
-import { Chain } from "@wormhole-foundation/sdk";
+import {
+  CliChain,
+  assertLiveChain,
+  chainToCliChain,
+  cliChainToPlatform,
+  getNetwork,
+} from "../../utils";
 
 export const command = "registrations <network> <chain> <module>";
 export const desc = "Print chain registrations";
@@ -46,7 +50,10 @@ export const builder = (y: typeof yargs) => {
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  const chain = chainToChain(argv.chain);
+  const chain = chainToCliChain(argv.chain);
+  // deprecated chains can still appear *inside* query results (their ids
+  // linger in on-chain registrations), but they can't be the queried chain
+  assertLiveChain(chain, "its registrations cannot be queried");
   const network = getNetwork(argv.network);
   const module = argv.module;
   if (module !== "TokenBridge" && module !== "NFTBridge") {
@@ -56,12 +63,12 @@ export const handler = async (
   if (chain === "Solana") {
     const solana = require("../../solana");
     results = await solana.queryRegistrationsSolana(network, module);
-  } else if (chainToPlatform(chain) === "Evm") {
+  } else if (chain === "Terra2") {
+    const terra2 = require("../../chains/terra2");
+    results = await terra2.queryRegistrationsTerra2(network, module);
+  } else if (cliChainToPlatform(chain) === "Evm") {
     const evm = require("../../evm");
     results = await evm.queryRegistrationsEvm(network, chain, module);
-  } else if (chain === "Terra" || chain === "Terra2" || chain === "Xpla") {
-    const terra = require("../../terra");
-    results = await terra.queryRegistrationsTerra(network, chain, module);
   } else if (chain === "Injective") {
     const injective = require("../../injective");
     results = await injective.queryRegistrationsInjective(network, module);
@@ -78,7 +85,7 @@ export const handler = async (
     throw Error(`Command not supported for chain ${chain}`);
   }
   if (argv["verify"]) {
-    verifyRegistrations(network, chain, module, results);
+    await verifyRegistrations(network, chain, module, results);
   } else {
     console.log(results);
   }
@@ -87,7 +94,7 @@ export const handler = async (
 // verifyRegistrations takes the results returned above and verifies them against the expected values in the consts file.
 async function verifyRegistrations(
   network: Network,
-  chain: Chain,
+  chain: CliChain,
   module: "NFTBridge" | "TokenBridge",
   input: Object
 ) {

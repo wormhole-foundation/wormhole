@@ -1,6 +1,6 @@
 import yargs from "yargs";
 import { getEmitterAddress } from "../../emitter";
-import { chainToChain } from "../../utils";
+import { chainToCliChain } from "../../utils";
 
 export const command = "emitter <chain> <address>";
 export const desc = "Print address in emitter address format";
@@ -20,5 +20,7 @@ export const builder = (y: typeof yargs) =>
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  console.log(await getEmitterAddress(chainToChain(argv.chain), argv.address));
+  console.log(
+    await getEmitterAddress(chainToCliChain(argv.chain), argv.address)
+  );
 };

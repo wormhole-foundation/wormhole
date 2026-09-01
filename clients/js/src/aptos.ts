@@ -7,15 +7,9 @@ import { Payload, impossible } from "./vaa";
 import { CHAINS, ensureHexPrefix } from "@certusone/wormhole-sdk";
 import { TokenBridgeState } from "@certusone/wormhole-sdk/lib/esm/aptos/types";
 import { generateSignAndSubmitEntryFunction } from "@certusone/wormhole-sdk/lib/esm/utils";
-import {
-  Chain,
-  ChainId,
-  Network,
-  assertChainId,
-  contracts,
-  toChainId,
-} from "@wormhole-foundation/sdk-base";
-import { tryNativeToUint8Array } from "./sdk/array";
+import { Chain, Network, contracts } from "@wormhole-foundation/sdk-base";
+import { toLegacyChainId, tryNativeToUint8Array } from "./sdk/array";
+import { CliChain } from "./utils";
 
 export async function execute_aptos(
   payload: Payload,
@@ -181,7 +175,6 @@ export async function execute_aptos(
           // offline:
           const tokenAddress = payload.tokenAddress;
           const tokenChain = payload.tokenChain;
-          assertChainId(tokenChain);
           let wrappedContract = deriveWrappedAssetAddress(
             hex(contract),
             tokenChain,
@@ -209,7 +202,6 @@ export async function execute_aptos(
           // TODO: only handles wrapped assets for now
           const tokenAddress = payload.tokenAddress;
           const tokenChain = payload.tokenChain;
-          assertChainId(tokenChain);
           let wrappedContract = deriveWrappedAssetAddress(
             hex(contract),
             tokenChain,
@@ -244,7 +236,7 @@ export async function execute_aptos(
 }
 
 export async function transferAptos(
-  dstChain: Chain,
+  dstChain: CliChain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
@@ -269,8 +261,8 @@ export async function transferAptos(
     token_bridge,
     tokenAddress === "native" ? "0x1::aptos_coin::AptosCoin" : tokenAddress,
     amount,
-    toChainId(dstChain),
-    tryNativeToUint8Array(dstAddress, toChainId(dstChain))
+    toLegacyChainId(dstChain),
+    tryNativeToUint8Array(dstAddress, dstChain)
   );
   const tx = (await generateSignAndSubmitEntryFunction(
     client,
@@ -283,7 +275,10 @@ export async function transferAptos(
 
 export function deriveWrappedAssetAddress(
   token_bridge_address: Uint8Array, // 32 bytes
-  origin_chain: ChainId,
+  // A raw wire chain id, not necessarily one the SDK still knows (e.g. a
+  // Terra2 or pre-SDK-6 origin chain in an old AttestMeta/Transfer VAA) —
+  // this only encodes it as a uint16, so it doesn't need to be a known Chain.
+  origin_chain: number,
   origin_address: Uint8Array // 32 bytes
 ): string {
   let chain: Buffer = Buffer.alloc(2);

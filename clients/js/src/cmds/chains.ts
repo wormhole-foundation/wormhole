@@ -1,5 +1,5 @@
 import yargs from "yargs";
-import { chains } from "@wormhole-foundation/sdk";
+import { CLI_CHAINS } from "../utils";
 
 export const command = "chains";
 export const desc = "Print the list of supported chains";
@@ -8,5 +8,5 @@ export const builder = (y: typeof yargs) => {
   return y;
 };
 export const handler = () => {
-  console.log(chains);
+  console.log(CLI_CHAINS);
 };

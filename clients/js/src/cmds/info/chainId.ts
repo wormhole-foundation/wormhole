@@ -1,6 +1,5 @@
 import yargs from "yargs";
-import { chainToChain } from "../../utils";
-import { chainToChainId } from "@wormhole-foundation/sdk";
+import { chainToCliChain, cliChainToChainId } from "../../utils";
 
 export const command = "chain-id <chain>";
 export const desc =
@@ -14,6 +13,6 @@ export const builder = (y: typeof yargs) => {
   } as const);
 };
 export const handler = (argv: Awaited<ReturnType<typeof builder>["argv"]>) => {
-  const inputChain = chainToChain(argv.chain);
-  console.log(chainToChainId(inputChain));
+  const inputChain = chainToCliChain(argv.chain);
+  console.log(cliChainToChainId(inputChain).toString());
 };

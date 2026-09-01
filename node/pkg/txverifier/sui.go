@@ -153,9 +153,10 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 
 		objectType := *objectChange.ObjectType
 
-		// Check that the type information is correct. Doing it here means it's not necessary to do it
-		// again after decoding the object contents.
-		if !validateSuiAssetType(objectType, s.suiTokenBridgePackageId) {
+		// Check that the type information is correct and capture the validated asset type. Doing it
+		// here means it's not necessary to do it again after decoding the object contents.
+		assetType, err := parseSuiAssetType(objectType, s.suiTokenBridgePackageId)
+		if err != nil {
 			continue
 		}
 
@@ -179,13 +180,13 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 			continue
 		}
 
-		currentInfo, err := decodeSuiAssetObject(objectType, currentObject.ContentsBytes)
+		currentInfo, err := decodeSuiAssetObject(assetType, currentObject.ContentsBytes)
 		if err != nil {
 			logger.Error("Error decoding current asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
 			continue
 		}
 
-		previousInfo, err := decodeSuiAssetObject(objectType, previousObject.ContentsBytes)
+		previousInfo, err := decodeSuiAssetObject(assetType, previousObject.ContentsBytes)
 		if err != nil {
 			logger.Error("Error decoding previous asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
 			continue

@@ -6,13 +6,10 @@ import {
 import { WormholeWrappedInfo } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getOriginalAsset";
 import { hexToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils/array";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import {
-  Chain,
-  ChainId,
-  chainToChainId,
-  toChainId,
-} from "@wormhole-foundation/sdk";
+import { chainToChainId } from "@wormhole-foundation/sdk";
 import { fromUint8Array } from "js-base64";
+import { toLegacyChainId } from "../../sdk/array";
+import { CliChainLike } from "../../utils";
 
 /**
  * Returns the address of the foreign asset
@@ -25,7 +22,7 @@ import { fromUint8Array } from "js-base64";
 export async function getForeignAssetSei(
   tokenBridgeAddress: string,
   cosmwasmClient: CosmWasmClient,
-  originChain: ChainId | Chain,
+  originChain: CliChainLike,
   originAsset: Uint8Array
 ): Promise<string | null> {
   try {
@@ -33,7 +30,7 @@ export async function getForeignAssetSei(
       tokenBridgeAddress,
       {
         wrapped_registry: {
-          chain: toChainId(originChain),
+          chain: toLegacyChainId(originChain),
           address: fromUint8Array(originAsset),
         },
       }

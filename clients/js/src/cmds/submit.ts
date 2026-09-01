@@ -8,23 +8,23 @@ import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
 import { execute_solana } from "../solana";
-import { execute_terra } from "../terra";
 import { assertKnownPayload, parse, Payload, VAA } from "../vaa";
-import { execute_xpla } from "../xpla";
-import { NETWORKS } from "../consts";
-import { chainToChain, getNetwork } from "../utils";
 import {
-  Chain,
-  Network,
-  PlatformToChains,
-  assertChain,
-  assertChainId,
-  chainIdToChain,
-  chainToPlatform,
-  chains,
-  contracts,
-  toChain,
-} from "@wormhole-foundation/sdk";
+  CLI_CHAINS,
+  CliChain,
+  assertLiveChain,
+  chainToCliChain,
+  cliChainIdToChain,
+  cliChainToChainId,
+  cliChainToPlatform,
+  getChainRpc,
+  getNetwork,
+  getNftBridgeContract,
+  getTokenBridgeContract,
+} from "../utils";
+import { Network, PlatformToChains } from "@wormhole-foundation/sdk";
+import { TERRA2, execute_terra2 } from "../chains/terra2";
+import { isDeprecatedChain } from "../chains/deprecated";
 
 export const command = "submit <vaa>";
 export const desc = "Execute a VAA";
@@ -106,33 +106,35 @@ export const handler = async (
 
   // if vaa_chain_id is 0, it means the chain is not specified in the VAA.
   // We don't have a notion of an unsupported chain, so we don't want to just assert.
-  let vaa_chain;
+  let vaa_chain: CliChain | undefined;
   if (vaa_chain_id !== 0) {
-    assertChainId(vaa_chain_id);
-    vaa_chain = chainIdToChain(vaa_chain_id);
+    // cliChainIdToChain also covers Terra2 (id 18), which the SDK removed
+    vaa_chain = cliChainIdToChain(vaa_chain_id);
   }
 
-  // get chain from command line arg
-  const cli_chain = argv.chain ? chainToChain(argv.chain) : argv.chain;
+  // get chain from command line arg; chainToCliChain validates the name
+  const cli_chain = argv.chain ? chainToCliChain(argv.chain) : undefined;
 
-  let chain: Chain;
+  let chain: CliChain;
   if (cli_chain !== undefined) {
-    assertChain(cli_chain);
     if (vaa_chain && cli_chain !== vaa_chain) {
       throw Error(
         `Specified target chain (${cli_chain}) does not match VAA target chain (${vaa_chain})`
       );
     }
-    chain = toChain(cli_chain);
+    chain = cli_chain;
   } else {
     if (!vaa_chain) {
       throw Error(
         `VAA does not specify a target chain and one was not provided, please specify one with --chain or -c`
       );
     }
-    assertChain(vaa_chain);
     chain = vaa_chain;
   }
+
+  // the VAA (or --chain) may name a chain the SDK dropped — we can decode
+  // those, but there is nothing live to submit to
+  assertLiveChain(chain, "VAAs cannot be submitted to it");
 
   await executeSubmit(
     vaa_hex,
@@ -150,11 +152,13 @@ async function executeSubmit(
   parsedVaa: VAA<Payload>,
   buf: Buffer,
   network: Network,
-  chain: Chain,
+  chain: CliChain,
   rpc: string | undefined,
   contractAddress: string | undefined
 ) {
-  if (chainToPlatform(chain) === "Evm") {
+  if (chain === TERRA2) {
+    await execute_terra2(parsedVaa.payload, buf, network);
+  } else if (cliChainToPlatform(chain) === "Evm") {
     await execute_evm(
       parsedVaa.payload,
       buf,
@@ -163,10 +167,13 @@ async function executeSubmit(
       contractAddress,
       rpc
     );
-  } else if (chain === "Terra" || chain === "Terra2") {
-    await execute_terra(parsedVaa.payload, buf, network, chain);
-  } else if (chain === "Solana" || chain === "Pythnet") {
-    await execute_solana(parsedVaa, buf, network, chain);
+  } else if (cliChainToPlatform(chain) === "Solana") {
+    await execute_solana(
+      parsedVaa,
+      buf,
+      network,
+      chain as PlatformToChains<"Solana">
+    );
   } else if (chain === "Algorand") {
     await execute_algorand(
       parsedVaa.payload,
@@ -177,8 +184,6 @@ async function executeSubmit(
     await execute_near(parsedVaa.payload, vaaHex, network);
   } else if (chain === "Injective") {
     await execute_injective(parsedVaa.payload, buf, network);
-  } else if (chain === "Xpla") {
-    await execute_xpla(parsedVaa.payload, buf, network);
   } else if (chain === "Sei") {
     await submitSei(parsedVaa.payload, buf, network, rpc);
   } else if (chain === "Sui") {
@@ -196,32 +201,40 @@ async function submitToAll(
   buf: Buffer,
   network: Network
 ) {
-  let skip_chain: Chain;
+  // the skip chain is compared by chain id: the VAA may reference a chain the
+  // SDK no longer knows (e.g. Terra2)
+  let skip_chain_id: number;
   if (parsedVaa.payload.type === "RegisterChain") {
-    skip_chain = toChain(parsedVaa.payload.emitterChain);
+    skip_chain_id = parsedVaa.payload.emitterChain;
   } else if (parsedVaa.payload.type === "AttestMeta") {
-    skip_chain = toChain(parsedVaa.payload.tokenChain);
+    skip_chain_id = parsedVaa.payload.tokenChain;
   } else {
     throw Error(
       `Invalid VAA payload type (${parsedVaa.payload.type}), only "RegisterChain" and "AttestMeta" are supported with --all-chains`
     );
   }
 
-  for (const chain of chains) {
-    const n = NETWORKS[network][chain];
-    if (chain == skip_chain) {
+  for (const chain of CLI_CHAINS) {
+    if (isDeprecatedChain(chain)) {
+      console.log(
+        `Skipping ${chain} because it was dropped from the SDK and has no live bridge`
+      );
+      continue;
+    }
+    const rpc = getChainRpc(network, chain);
+    if (cliChainToChainId(chain) === skip_chain_id) {
       console.log(`Skipping ${chain} because it's the origin chain`);
       continue;
     }
-    if (!n || !n.rpc) {
+    if (!rpc) {
       console.log(`Skipping ${chain} because the rpc is not defined`);
       continue;
     }
+    const tokenBridge = getTokenBridgeContract(network, chain);
+    const nftBridge = getNftBridgeContract(network, chain);
     if (
-      (parsedVaa.payload.module === "TokenBridge" &&
-        !contracts.tokenBridge.get(network, chain)) ||
-      (parsedVaa.payload.module === "NFTBridge" &&
-        !contracts.nftBridge.get(network, chain))
+      (parsedVaa.payload.module === "TokenBridge" && !tokenBridge) ||
+      (parsedVaa.payload.module === "NFTBridge" && !nftBridge)
     ) {
       console.log(`Skipping ${chain} because the contract is not defined`);
       continue;

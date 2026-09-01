@@ -18,14 +18,15 @@ import {
   RPC_OPTIONS,
 } from "../consts";
 import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
-import { checkBinary, evm_address, getNetwork, hex } from "../utils";
 import {
-  assertChain,
-  chainToChainId,
-  contracts,
-  toChain,
-  toChainId,
-} from "@wormhole-foundation/sdk-base";
+  checkBinary,
+  chainToCliChain,
+  cliChainToChainId,
+  evm_address,
+  getNetwork,
+  hex,
+} from "../utils";
+import { chainToChainId, contracts } from "@wormhole-foundation/sdk-base";
 
 const APTOS_NODE_URL = "http://0.0.0.0:8080/v1";
 const APTOS_FAUCET_URL = "http://0.0.0.0:8081";
@@ -310,8 +311,7 @@ export const builder = (y: typeof yargs) =>
         let address: string = contracts.tokenBridge(network, "Aptos");
         if (address.startsWith("0x")) address = address.substring(2);
         const token_bridge_address = Buffer.from(address, "hex");
-        assertChain(toChain(argv.chain));
-        const chain = toChainId(argv.chain);
+        const chain = cliChainToChainId(chainToCliChain(argv.chain));
         const origin_address = Buffer.from(
           evm_address(argv["origin-address"]),
           "hex"

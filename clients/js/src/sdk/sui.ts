@@ -1,7 +1,8 @@
 import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { isValidStructTag, parseStructTag } from "@mysten/sui/utils";
-import { Chain, chainToChainId } from "@wormhole-foundation/sdk";
+import { chainToChainId } from "@wormhole-foundation/sdk-base";
 import { normalizeSuiAddress } from "../chains/sui/utils";
+import { CliChain, cliChainToChainId } from "../utils";
 
 // BCS schema for the `token_registry::CoinTypeKey` dynamic-field key used to look
 // up a wrapped/native coin type by (chain, address). Field order must match the
@@ -24,10 +25,10 @@ export const CoinTypeKeyBcs = {
 export async function getForeignAssetSui(
   client: SuiGrpcClient,
   tokenBridgeStateObjectId: string,
-  originChain: Chain,
+  originChain: CliChain,
   originAddress: Uint8Array
 ): Promise<string | null> {
-  const originChainId = chainToChainId(originChain);
+  const originChainId = cliChainToChainId(originChain);
   return getTokenCoinType(
     client,
     tokenBridgeStateObjectId,

@@ -11,7 +11,7 @@ import {
 import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
 import {
   assertEVMChain,
-  chainToChain,
+  chainToCliChain,
   evm_address,
   getNetwork,
 } from "../utils";
@@ -113,7 +113,7 @@ export const builder = function (y: typeof yargs) {
             demandOption: false,
           }),
       async (argv) => {
-        const chain = chainToChain(argv.chain);
+        const chain = chainToCliChain(argv.chain);
         assertEVMChain(chain);
         const network = getNetwork(argv.network);
         const module = argv.module;

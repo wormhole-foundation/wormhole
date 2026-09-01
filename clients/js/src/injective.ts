@@ -11,19 +11,19 @@ import {
   PrivateKey,
   TxGrpcApi,
 } from "@injectivelabs/sdk-ts";
-import { DEFAULT_STD_FEE, getStdFee } from "@injectivelabs/utils";
+import { DEFAULT_GAS_LIMIT, getStdFee } from "@injectivelabs/utils";
 import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
 import { impossible, Payload } from "./vaa";
 import { transferFromInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
 import {
-  Chain,
   chainToChainId,
   contracts,
   Network,
 } from "@wormhole-foundation/sdk-base";
 import { chains } from "@wormhole-foundation/sdk";
-import { tryNativeToUint8Array } from "./sdk/array";
+import { toLegacyChainId, tryNativeToUint8Array } from "./sdk/array";
+import { CliChain } from "./utils";
 
 export async function execute_injective(
   payload: Payload,
@@ -169,7 +169,7 @@ export async function execute_injective(
 }
 
 export async function transferInjective(
-  dstChain: Chain,
+  dstChain: CliChain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
@@ -197,11 +197,13 @@ export async function transferInjective(
     token_bridge,
     tokenAddress,
     amount,
-    chainToChainId(dstChain),
-    tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
+    toLegacyChainId(dstChain),
+    tryNativeToUint8Array(dstAddress, dstChain)
   );
 
-  await signAndSendTx(walletPK, network, msgs);
+  // the legacy SDK bundles its own (older) @injectivelabs/sdk-ts, but its
+  // message objects are runtime-compatible with the current createTransaction
+  await signAndSendTx(walletPK, network, msgs as unknown as Msgs[]);
 }
 
 async function signAndSendTx(
@@ -221,7 +223,7 @@ async function signAndSendTx(
   const { signBytes, txRaw } = createTransaction({
     message: msgs,
     memo: "",
-    fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
+    fee: getStdFee({ gas: DEFAULT_GAS_LIMIT * 2.5 }),
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(

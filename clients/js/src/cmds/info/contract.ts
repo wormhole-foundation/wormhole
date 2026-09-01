@@ -1,7 +1,13 @@
 import yargs from "yargs";
 import { impossible } from "../../vaa";
-import { contracts } from "@wormhole-foundation/sdk-base";
-import { chainToChain, getNetwork } from "../../utils";
+import {
+  chainToCliChain,
+  getCoreContract,
+  getNetwork,
+  getNftBridgeContract,
+  getRelayerContract,
+  getTokenBridgeContract,
+} from "../../utils";
 
 export const command = "contract <network> <chain> <module>";
 export const desc = "Print contract address";
@@ -27,26 +33,22 @@ export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
   const network = getNetwork(argv.network);
-  const chain = chainToChain(argv.chain);
+  const chain = chainToCliChain(argv.chain);
   const module = argv["module"];
 
   let addr: string | undefined;
   switch (module) {
     case "Core":
-      addr = contracts.coreBridge.get(network, chain);
+      addr = getCoreContract(network, chain);
       break;
     case "NFTBridge":
-      addr = contracts.nftBridge.get(network, chain);
-      if (!addr) {
-        throw new Error(`NFTBridge not deployed on ${chain}`);
-      }
-
+      addr = getNftBridgeContract(network, chain);
       break;
     case "TokenBridge":
-      addr = contracts.tokenBridge.get(network, chain);
+      addr = getTokenBridgeContract(network, chain);
       break;
     case "WormholeRelayer":
-      addr = contracts.relayer.get(network, chain);
+      addr = getRelayerContract(network, chain);
       break;
     default:
       impossible(module);
