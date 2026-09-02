@@ -2,10 +2,12 @@ package evm
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -14,7 +16,9 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -978,4 +982,61 @@ func TestConsistencyLevelMatches(t *testing.T) {
 	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, vaa.ConsistencyLevelPublishImmediately))
 	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, 0))
 	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelSafe, 0))
+}
+
+func TestFigureOutTestData(t *testing.T) {
+	// Observation data:
+	//   guardianSet:      7 (not part of the signing digest)
+	//   timestamp:        1783494394
+	//   nonce:            1300271749
+	//   emitterChain:     Solana
+	//   emitterAddress:   Gv1KWf8DT1jKv5pKBmGaTmVszqa56Xn8YGx2Pg7i7qAk
+	//   sequence:         1407438
+	//   consistencyLevel: 32
+	payload, err := hex.DecodeString("010000000000000000000000000000000000000000000000000000041d44ea298c0000000000000000000000008dce83eca4af45dbe618da1779f9aaca4320108400020000000000000000000000003e0954d9b32f823aff2f66173ffed5f453dedd9300020000000000000000000000000000000000000000000000000000000000000000")
+	require.NoError(t, err)
+
+	// Solana emitter addresses are base58-encoded and decode directly to 32 bytes (no padding).
+	emitterBytes, err := base58.Decode("Gv1KWf8DT1jKv5pKBmGaTmVszqa56Xn8YGx2Pg7i7qAk")
+	require.NoError(t, err)
+	var emitterAddress vaa.Address
+	copy(emitterAddress[:], emitterBytes)
+
+	msg := common.MessagePublication{
+		Timestamp:        time.Unix(1783494394, 0),
+		Nonce:            1300271749,
+		Sequence:         1407438,
+		ConsistencyLevel: 32,
+		EmitterChain:     vaa.ChainIDSolana,
+		EmitterAddress:   emitterAddress,
+		Payload:          payload,
+	}
+
+	// There are two related hashes here, and it's easy to confuse them:
+	//
+	//   body       = serialized VAA body (timestamp, nonce, chain, emitter, sequence, consistency, payload)
+	//   vaaHash    = keccak256(body)              -- the VAA "hash" shown by Wormholescan / the SDK's .hash
+	//   digest     = keccak256(keccak256(body))   -- the SIGNING DIGEST
+	//
+	// The signing digest is the double-keccak256 of the body (guardian set index is NOT included).
+	// This is the value guardians actually sign (see processor.SigningDigest) and the value EVM
+	// contracts use for signature verification and replay protection (Bridge.sol setTransferCompleted(vm.hash)).
+	// The single-keccak vaaHash is the explorer/SDK identifier for the VAA and the double-keccak preimage;
+	// it is NOT signed and NOT the EVM replay key. (Solana's sig-verify instruction is passed this first
+	// hash to save space, then hashes once more to recover the digest.)
+	// The VAA body is the double-keccak preimage. There's no exported body accessor, but Marshal()
+	// with no signatures lays out a fixed 6-byte header (version[1] + guardianSetIndex[4] + sigCount[1]=0)
+	// followed by the body, so we can recover the body as the suffix.
+	marshaled, err := msg.CreateVAA(0).Marshal()
+	require.NoError(t, err)
+	body := marshaled[6:]
+	vaaHash := hex.EncodeToString(crypto.Keccak256(body))
+	digest := msg.CreateDigest()
+
+	t.Logf("VAA hash (keccak256(body), Wormholescan): %s", vaaHash)
+	t.Logf("signing digest (double keccak):           %s", digest)
+
+	// Wormholescan's "hash" is the single-keccak VAA hash, not the signing digest.
+	require.Equal(t, "d663f03067d95fc160dae2be9d89b632a3f9f4f972b508afbce622aa5928bdbd", vaaHash)
+	require.Equal(t, "22b600c23ee95f323e5577fa8012e00bffd611f0ae65cae7ec66e7b2734b86a2", digest)
 }

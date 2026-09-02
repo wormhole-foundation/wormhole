@@ -26,45 +26,6 @@ import (
 // The max / default is 1000. You can set this to something smaller (like 5) to test pagination.
 const MaxSignaturesPerQuery = 1000
 
-// transactionProcessor is the entry point of the runnable that periodically queries for new Wormhole observations.
-// It uses the standard `DefaultPollDelay`, although the timing will vary based on query delays. Each interval, it
-// looks for new transactions involving the core contract by using the `GetSignaturesForAddressWithOpts` RPC call.
-// Any transactions that are detected are processed using the standard transaction processing code.
-// Note: This is a separate runnable so that query delays don't impact the standard block height reporting.
-func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
-	// Initialize our starting point. If we already have a previous signature, that means there has been a watcher restart
-	// (rather than a guardian restart), so we want to preserve that value and start where we left off.
-	if s.pollPrevWormholeSignature.IsZero() {
-		var err error
-		s.pollPrevWormholeSignature, err = s.getPrevWormholeSignature()
-		if err != nil {
-			s.logger.Error("failed to get the last wormhole signature on start up", zap.Error(err))
-			s.errC <- err // Note on channel capacity: Error channel. Should never be stuck for long periods of time.
-			return err
-		}
-	}
-
-	s.logger.Info("starting from previous wormhole signature", zap.Stringer("prevSig", s.pollPrevWormholeSignature))
-
-	timer := time.NewTicker(DefaultPollDelay)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-timer.C:
-			//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
-			err := s.processNewTransactions()
-			if err != nil {
-				s.logger.Error("failed to get transactions", zap.Error(err))
-				s.errC <- err // Note on channel capacity: Error channel. Should never be stuck for long periods of time.
-				return err
-			}
-		}
-	}
-}
-
 // getPrevWormholeSignature reads the most recent transaction involving the Wormhole core contract and returns it.
 // If the read is successful, but there are no transactions yet, the null signature is returned. This is fine, the
 // `getSignaturesForAddress` will just return all available transactions, or no transactions until there is one.
