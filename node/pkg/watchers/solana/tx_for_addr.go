@@ -17,6 +17,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"go.uber.org/zap"
@@ -76,7 +77,7 @@ func (s *SolanaWatcher) getPrevWormholeSignature() (solana.Signature, error) {
 	})
 
 	if err != nil {
-		return solana.Signature{}, err
+		return solana.Signature{}, fmt.Errorf("%s", common.SafeErrorForLogging(err, s.rpcUrl))
 	}
 
 	if len(signatures) == 0 {
@@ -132,7 +133,7 @@ func (s *SolanaWatcher) getTransactionSignatures() ([]*rpc.TransactionSignature,
 			Limit:      &limit,
 		})
 		if err != nil {
-			return results, fmt.Errorf("GetSignaturesForAddressWithOpts failed: %w", err)
+			return results, fmt.Errorf("GetSignaturesForAddressWithOpts failed: %s", common.SafeErrorForLogging(err, s.rpcUrl))
 		}
 		if len(batchSignatures) == 0 {
 			break
@@ -175,7 +176,7 @@ func (s *SolanaWatcher) processTransactionWithRetry(signature solana.Signature) 
 				continue
 			}
 
-			s.logger.Error("failed to get transaction for signature", zap.Stringer("signature", signature), zap.Error(err))
+			s.logger.Error("failed to get transaction for signature", zap.Stringer("signature", signature), zap.String("error", common.SafeErrorForLogging(err, s.rpcUrl)))
 			return
 		}
 
@@ -193,7 +194,7 @@ func (s *SolanaWatcher) processTransactionWithRetry(signature solana.Signature) 
 			return
 		}
 
-		_ = s.processTransaction(s.ctx, s.rpcClient, tx, result.Meta, result.Slot, false)
+		_ = s.processTransaction(s.ctx, s.rpcClient, s.rpcUrl, tx, result.Meta, result.Slot, false)
 		return
 	}
 

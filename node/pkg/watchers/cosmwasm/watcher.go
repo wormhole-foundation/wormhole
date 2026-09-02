@@ -153,20 +153,20 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "cosmwasm"),
-		zap.String("urlWS", e.urlWS),
-		zap.String("urlLCD", e.urlLCD),
+		zap.String("wsURL", common.SafeURLForLogging(e.urlWS)),
+		zap.String("lcdURL", common.SafeURLForLogging(e.urlLCD)),
 		zap.String("contract", e.contract),
 		zap.String("chainID", e.chainID.String()),
 	)
 
-	logger.Info("connecting to websocket", zap.String("network", e.networkName), zap.String("url", e.urlWS))
+	logger.Info("connecting to websocket", zap.String("network", e.networkName), zap.String("wsURL", common.SafeURLForLogging(e.urlWS)))
 
 	//nolint:bodyclose // The close is down below. The linter misses it.
 	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(e.networkName, "websocket_dial_error").Inc()
-		return fmt.Errorf("websocket dial failed: %w", err)
+		return fmt.Errorf("websocket dial failed: %s", common.SafeErrorForLogging(err, e.urlWS))
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
@@ -213,9 +213,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-t.C:
 				msm := time.Now()
 				// Query and report height and set currentSlotHeight
-				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
+				requestURL := fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL)
+				resp, err := client.Get(requestURL) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
-					logger.Error("query latest block response error", zap.String("network", e.networkName), zap.Error(err))
+					logger.Error("query latest block response error", zap.String("network", e.networkName), zap.String("error", common.SafeErrorForLogging(err, requestURL)))
 					continue
 				}
 				blocksBody, err := common.SafeRead(resp.Body)
@@ -269,9 +270,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				// Query for tx by hash
-				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
+				requestURL := fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx)
+				resp, err := client.Get(requestURL) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
-					logger.Error("query tx response error", zap.String("network", e.networkName), zap.Error(err))
+					logger.Error("query tx response error", zap.String("network", e.networkName), zap.String("error", common.SafeErrorForLogging(err, requestURL)))
 					continue
 				}
 				txBody, err := common.SafeRead(resp.Body)

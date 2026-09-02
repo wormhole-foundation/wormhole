@@ -21,6 +21,22 @@ var (
 	LogMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
 
+type connectorWithRPCURL interface {
+	RPCURL() string
+}
+
+func safeConnectorErrorForLogging(err error, ethConn any) string {
+	if err == nil {
+		return ""
+	}
+
+	if connector, ok := ethConn.(connectorWithRPCURL); ok {
+		return common.SafeErrorForLogging(err, connector.RPCURL())
+	}
+
+	return err.Error()
+}
+
 // isValidCoreBridgeMessagePublicationLog checks that a log entry was emitted by the expected contract,
 // has the expected LogMessagePublished event topic, and has not been removed
 // due to a chain reorganization. This is called from both the real-time
@@ -55,7 +71,7 @@ func MessageEventsForTransaction(
 	// API only returns transactions that have been included in a block. Nothing in the mempool
 	receipt, err := ethConn.TransactionReceipt(ctx, tx)
 	if receipt == nil || err != nil {
-		return nil, 0, nil, fmt.Errorf("failed to get transaction receipt: %w", err)
+		return nil, 0, nil, fmt.Errorf("failed to get transaction receipt: %s", safeConnectorErrorForLogging(err, ethConn))
 	}
 
 	// SECURITY
@@ -74,7 +90,7 @@ func MessageEventsForTransaction(
 	// Get block
 	blockTime, err := ethConn.TimeOfBlockByHash(ctx, receipt.BlockHash)
 	if err != nil {
-		return nil, 0, nil, fmt.Errorf("failed to get block time: %w", err)
+		return nil, 0, nil, fmt.Errorf("failed to get block time: %s", safeConnectorErrorForLogging(err, ethConn))
 	}
 
 	msgs := make([]*common.MessagePublication, 0, len(receipt.Logs))

@@ -9,6 +9,7 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"github.com/btcsuite/btcutil/bech32"
+	"github.com/certusone/wormhole/node/pkg/common"
 	wormchain "github.com/wormhole-foundation/wormchain/app"
 
 	"google.golang.org/grpc"
@@ -39,7 +40,7 @@ func NewConn(target string, privateKey cryptotypes.PrivKey, chainId string) (*Cl
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to dial wormchain target %s: %s", common.SafeURLForLogging(target), common.SafeErrorForLogging(err, target))
 	}
 
 	encCfg := MakeEncodingConfig(wormchain.ModuleBasics)

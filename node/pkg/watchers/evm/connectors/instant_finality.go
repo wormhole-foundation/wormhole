@@ -26,6 +26,14 @@ func NewInstantFinalityConnector(baseConnector Connector, logger *zap.Logger) *I
 	return connector
 }
 
+func (c *InstantFinalityConnector) RPCURL() string {
+	if connector, ok := c.Connector.(rpcURLErrorSanitizer); ok {
+		return connector.RPCURL()
+	}
+
+	return ""
+}
+
 func (c *InstantFinalityConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
 	headSink := make(chan *ethTypes.Header, 2)
 	headerSubscription, err := c.Connector.Client().SubscribeNewHead(ctx, headSink)

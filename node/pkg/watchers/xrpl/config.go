@@ -35,6 +35,7 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *common.GuardianSet,
 	env common.Environment,
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
+	watchers.RegisterRPCURL(wc.ChainID, wc.RPC)
 	var devMode = (env == common.UnsafeDevNet)
 
 	watcher := NewWatcher(

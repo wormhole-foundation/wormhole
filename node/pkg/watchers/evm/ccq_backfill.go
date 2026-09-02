@@ -193,12 +193,12 @@ func ccqBackFillDetermineMaxBatchSize(ctx context.Context, logger *zap.Logger, c
 			}
 			prevSuccess = batchSize
 		} else {
-			logger.Info("batch query failed", zap.Int64("batchSize", batchSize), zap.Error(err))
+			logger.Info("batch query failed", zap.Int64("batchSize", batchSize), zap.String("error", safeConnectorErrorForLogging(err, conn)))
 			prevFailure = batchSize
 		}
 		batchSize = (prevFailure + prevSuccess) / 2
 		if batchSize == 0 {
-			return 0, nil, fmt.Errorf("failed to determine batch size: %w", err)
+			return 0, nil, fmt.Errorf("failed to determine batch size: %s", safeConnectorErrorForLogging(err, conn))
 		}
 
 		time.Sleep(delay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
@@ -254,10 +254,10 @@ func (w *Watcher) ccqBackfillGetBlocks(ctx context.Context, initialBlockNum uint
 			zap.Uint64("initialBlockNum", initialBlockNum),
 			zap.Int64("numBlocks", numBlocks),
 			zap.Uint64("finalBlockNum", blockNum),
-			zap.Error(err),
+			zap.String("error", safeConnectorErrorForLogging(err, w.ethConn)),
 		)
 
-		return nil, err
+		return nil, fmt.Errorf("failed to get batch of blocks: %s", safeConnectorErrorForLogging(err, w.ethConn))
 	}
 
 	blocks := Blocks{}

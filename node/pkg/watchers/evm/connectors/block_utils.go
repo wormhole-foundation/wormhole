@@ -26,7 +26,7 @@ func GetBlock(ctx context.Context, conn Connector, str string, blockFinality Fin
 	var m BlockMarshaller
 	err := conn.RawCallContext(timeout, &m, "eth_getBlockByNumber", str, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get block for %s: %w", str, err)
+		return nil, fmt.Errorf("failed to get block for %s: %s", str, safeConnectorErrorForLogging(err, conn))
 	}
 	if m.Number == nil {
 		return nil, fmt.Errorf("failed to unmarshal block for %s: Number is nil", str)

@@ -37,5 +37,7 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *common.GuardianSet,
 	_ common.Environment,
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
+	watchers.RegisterRPCURL(wc.ChainID, wc.IndexerRPC)
+	watchers.RegisterRPCURL(wc.ChainID, wc.AlgodRPC)
 	return NewWatcher(wc.IndexerRPC, wc.IndexerToken, wc.AlgodRPC, wc.AlgodToken, wc.AppID, msgC, obsvReqC).Run, nil, nil
 }

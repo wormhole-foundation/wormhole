@@ -120,14 +120,14 @@ func (p *PollConnector) SubscribeForBlocks(ctx context.Context, errC chan error,
 				lastBlocks, err = p.pollBlocks(ctx, sink, lastBlocks)
 				if err != nil {
 					errCount++
-					p.logger.Error("poll connector encountered an error", zap.Int("errCount", errCount), zap.Error(err))
+					p.logger.Error("poll connector encountered an error", zap.Int("errCount", errCount), zap.String("error", safeConnectorErrorForLogging(err, p.Connector)))
 					if errCount > pollMaxErrors {
 						// Return the error rather than writing to errC directly: a
 						// blocking send could hang if the watcher is already shutting
 						// down and no longer reading errC, which would prevent the
 						// deferred signalUnsubscribed from running. RunWithScissors
 						// delivers the returned error to errC without blocking.
-						return fmt.Errorf("polling encountered too many errors: %w", err)
+						return fmt.Errorf("polling encountered too many errors: %s", safeConnectorErrorForLogging(err, p.Connector))
 					}
 				} else if errCount != 0 {
 					errCount = 0
@@ -178,13 +178,13 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 				latest, err := GetBlockByFinality(ctx, p.Connector, Latest)
 				if err != nil {
 					errCount++
-					p.logger.Error("log poller failed to get latest block", zap.Int("errCount", errCount), zap.Error(err))
+					p.logger.Error("log poller failed to get latest block", zap.Int("errCount", errCount), zap.String("error", safeConnectorErrorForLogging(err, p.Connector)))
 					if errCount > pollMaxErrors {
 						// Return rather than send to errC directly: a blocking send could hang
 						// during watcher shutdown and strand the deferred signalUnsubscribed,
 						// re-introducing the Unsubscribe deadlock. RunWithScissors forwards
 						// the returned error to errC without blocking.
-						return fmt.Errorf("log polling encountered too many errors: %w", err)
+						return fmt.Errorf("log polling encountered too many errors: %s", safeConnectorErrorForLogging(err, p.Connector))
 					}
 					timer.Reset(p.Delay)
 					continue
@@ -214,13 +214,13 @@ func (p *PollConnector) watchLogMessagePublishedFrom(ctx context.Context, errC c
 					cancel()
 					if err != nil {
 						errCount++
-						p.logger.Error("log poller failed to get logs", zap.Int("errCount", errCount), zap.Error(err), zap.Uint64("fromBlock", fromBlock), zap.Uint64("toBlock", toBlock))
+						p.logger.Error("log poller failed to get logs", zap.Int("errCount", errCount), zap.String("error", safeConnectorErrorForLogging(err, p.Connector)), zap.Uint64("fromBlock", fromBlock), zap.Uint64("toBlock", toBlock))
 						if errCount > pollMaxErrors {
 							// Return rather than send to errC directly: a blocking send could hang
 							// during watcher shutdown and strand the deferred signalUnsubscribed,
 							// re-introducing the Unsubscribe deadlock. RunWithScissors forwards
 							// the returned error to errC without blocking.
-							return fmt.Errorf("log polling encountered too many errors: %w", err)
+							return fmt.Errorf("log polling encountered too many errors: %s", safeConnectorErrorForLogging(err, p.Connector))
 						}
 						timer.Reset(p.Delay)
 						continue
@@ -257,7 +257,7 @@ func (p *PollConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Ha
 	var m *BlockMarshaller
 	err := p.RawCallContext(ctx, &m, "eth_getBlockByHash", hash, false)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get block by hash: %w", err)
+		return 0, fmt.Errorf("failed to get block by hash: %s", safeConnectorErrorForLogging(err, p.Connector))
 	}
 	// eth_getBlockByHash returns a JSON null result for an unknown block, which
 	// unmarshals into a nil pointer without an error. Mirror go-ethereum's
