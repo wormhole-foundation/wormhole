@@ -2277,7 +2277,7 @@ func TestShimProcessRestWithoutCoreEventShouldFail(t *testing.T) {
 		}
 	}
 
-	var filtered []solana.CompiledInstruction
+	var filtered []rpc.CompiledInstruction
 	for _, inst := range txRpc.Meta.InnerInstructions[0].Instructions {
 		if inst.ProgramIDIndex != whProgramIndex && inst.ProgramIDIndex != shimProgramIndex {
 			filtered = append(filtered, inst)
@@ -2309,7 +2309,7 @@ func TestShimProcessRestWithoutShimEventShouldFail(t *testing.T) {
 		}
 	}
 
-	var filtered []solana.CompiledInstruction
+	var filtered []rpc.CompiledInstruction
 	for _, inst := range txRpc.Meta.InnerInstructions[0].Instructions {
 		if inst.ProgramIDIndex != shimProgramIndex {
 			filtered = append(filtered, inst)
@@ -2341,7 +2341,7 @@ func TestShimProcessRestWithMalformedCoreInstructionShouldFail(t *testing.T) {
 		}
 	}
 
-	insts := append([]solana.CompiledInstruction(nil), txRpc.Meta.InnerInstructions[0].Instructions...)
+	insts := append([]rpc.CompiledInstruction(nil), txRpc.Meta.InnerInstructions[0].Instructions...)
 	replaced := false
 	for i := range insts {
 		if insts[i].ProgramIDIndex == whProgramIndex {

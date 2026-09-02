@@ -150,7 +150,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	var block *rpc.GetBlockResult
 	var numBlockReadAttempts int
 	for {
-		maxSupportedTransactionVersion := uint64(0)
+		maxSupportedTransactionVersion := uint64(1)
 		block, err = w.rpcClient.GetBlockWithOpts(rCtx, info.Context.Slot, &rpc.GetBlockOpts{
 			Encoding:                       solana.EncodingBase64,
 			Commitment:                     params.Commitment,
@@ -223,9 +223,18 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			w.ccqSendErrorResponse(queryRequest, query.QueryFatalError)
 			return
 		}
+		var rentEpoch uint64
+		if val.RentEpoch != nil {
+			if !val.RentEpoch.IsUint64() {
+				w.ccqLogger.Error(fmt.Sprintf("read of account for %s query request failed, rent epoch does not fit in uint64", tag), zap.String("requestId", requestId), zap.Any("account", req.Accounts[idx]))
+				w.ccqSendErrorResponse(queryRequest, query.QueryFatalError)
+				return
+			}
+			rentEpoch = val.RentEpoch.Uint64()
+		}
 		results = append(results, query.SolanaAccountResult{
 			Lamports:   val.Lamports,
-			RentEpoch:  val.RentEpoch,
+			RentEpoch:  rentEpoch,
 			Executable: val.Executable,
 			Owner:      val.Owner,
 			Data:       val.Data.GetBinary(),

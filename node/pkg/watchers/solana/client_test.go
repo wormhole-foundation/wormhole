@@ -687,34 +687,34 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		inst    solana.CompiledInstruction
+		inst    rpc.CompiledInstruction
 		wantErr bool
 	}{
 		{
 			name: "program_mismatch",
-			inst: solana.CompiledInstruction{ProgramIDIndex: 1},
+			inst: rpc.CompiledInstruction{ProgramIDIndex: 1},
 		},
 		{
 			name: "empty_data",
-			inst: solana.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{}},
+			inst: rpc.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{}},
 		},
 		{
 			name: "wrong_instruction",
-			inst: solana.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{0x02}},
+			inst: rpc.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{0x02}},
 		},
 		{
 			name:    "too_few_accounts",
-			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{postMessageInstructionID}, Accounts: []uint16{1, 2}},
+			inst:    rpc.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{postMessageInstructionID}, Accounts: []uint16{1, 2}},
 			wantErr: true,
 		},
 		{
 			name:    "borsh_error",
-			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{postMessageInstructionID}, Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			inst:    rpc.CompiledInstruction{ProgramIDIndex: 0, Data: []byte{postMessageInstructionID}, Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
 			wantErr: true,
 		},
 		{
 			name:    "payload_length_exceeds_data",
-			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, payloadLenExceedsData...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			inst:    rpc.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, payloadLenExceedsData...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
 			wantErr: true,
 		},
 		{
@@ -724,17 +724,17 @@ func TestProcessInstructionEarlyReturns(t *testing.T) {
 			// Contrast with the shim's PostMessage instruction data, which is parsed
 			// leniently on both sides (see Test_shimParsePostMessage).
 			name:    "trailing_bytes_rejected",
-			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, append(encodePostMessageData(t, 7, []byte("test"), consistencyLevelFinalized), 0xff, 0xee)...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			inst:    rpc.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, append(encodePostMessageData(t, 7, []byte("test"), consistencyLevelFinalized), 0xff, 0xee)...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
 			wantErr: true,
 		},
 		{
 			name:    "unsupported_consistency_level",
-			inst:    solana.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, encodePostMessageData(t, 7, []byte("test"), ConsistencyLevel(9))...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
+			inst:    rpc.CompiledInstruction{ProgramIDIndex: 0, Data: append([]byte{postMessageInstructionID}, encodePostMessageData(t, 7, []byte("test"), ConsistencyLevel(9))...), Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
 			wantErr: true,
 		},
 		{
 			name: "commitment_mismatch",
-			inst: solana.CompiledInstruction{
+			inst: rpc.CompiledInstruction{
 				ProgramIDIndex: 0,
 				Data:           append([]byte{postMessageInstructionID}, commitmentMismatchData...),
 				Accounts:       make([]uint16, postMessageInstructionMinNumAccounts),
@@ -810,7 +810,7 @@ func TestProcessInstructionValidPostMessage(t *testing.T) {
 			}
 
 			data := encodePostMessageData(t, 7, []byte("hello"), consistencyLevelFinalized)
-			inst := solana.CompiledInstruction{
+			inst := rpc.CompiledInstruction{
 				ProgramIDIndex: 0,
 				Data:           append([]byte{tc.instructionID}, data...),
 				Accounts:       []uint16{0, 1, 0, 0, 0, 0, 0, 0},
@@ -939,7 +939,7 @@ func TestProcessTransaction(t *testing.T) {
 			accountKeys:  standardKeys,
 			instructions: []solana.CompiledInstruction{integratorInstruction},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 0, Instructions: []solana.CompiledInstruction{matchingInstruction}},
+				{Index: 0, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(matchingInstruction)}},
 			},
 			wantObservations: 1,
 		},
@@ -951,7 +951,7 @@ func TestProcessTransaction(t *testing.T) {
 				integratorInstruction,
 			},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 1, Instructions: []solana.CompiledInstruction{matchingInstruction}},
+				{Index: 1, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(matchingInstruction)}},
 			},
 			wantObservations: 2,
 		},
@@ -980,10 +980,10 @@ func TestProcessTransaction(t *testing.T) {
 			accountKeys:  standardKeys,
 			instructions: []solana.CompiledInstruction{integratorInstruction},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 0, Instructions: []solana.CompiledInstruction{
+				{Index: 0, Instructions: []rpc.CompiledInstruction{
 					// Borsh error inner: erroring CPI in front of a valid one.
 					{ProgramIDIndex: contractIdx, Data: []byte{postMessageInstructionID}, Accounts: make([]uint16, postMessageInstructionMinNumAccounts)},
-					matchingInstruction,
+					toRPCCompiledInstruction(matchingInstruction),
 				}},
 			},
 			wantObservations: 1,
@@ -1004,7 +1004,7 @@ func TestProcessTransaction(t *testing.T) {
 			accountKeys:  shimKeys,
 			instructions: []solana.CompiledInstruction{shimTopLevelInst},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 0, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
+				{Index: 0, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(shimCoreInnerInst), toRPCCompiledInstruction(shimEventInnerInst)}},
 			},
 		},
 		{
@@ -1013,7 +1013,7 @@ func TestProcessTransaction(t *testing.T) {
 			accountKeys:  shimKeys,
 			instructions: []solana.CompiledInstruction{shimTopLevelInst},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 0, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
+				{Index: 0, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(shimCoreInnerInst), toRPCCompiledInstruction(shimEventInnerInst)}},
 			},
 			wantObservations: 1,
 		},
@@ -1023,10 +1023,10 @@ func TestProcessTransaction(t *testing.T) {
 			accountKeys:  shimKeys,
 			instructions: []solana.CompiledInstruction{integratorInstruction},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 0, Instructions: []solana.CompiledInstruction{
+				{Index: 0, Instructions: []rpc.CompiledInstruction{
 					{ProgramIDIndex: shimContractIdx, Data: shimPostMsgData},
-					shimCoreInnerInst,
-					shimEventInnerInst,
+					toRPCCompiledInstruction(shimCoreInnerInst),
+					toRPCCompiledInstruction(shimEventInnerInst),
 				}},
 			},
 			wantObservations: 1,
@@ -1040,7 +1040,7 @@ func TestProcessTransaction(t *testing.T) {
 				shimTopLevelInst,
 			},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 1, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
+				{Index: 1, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(shimCoreInnerInst), toRPCCompiledInstruction(shimEventInnerInst)}},
 			},
 			wantObservations: 2,
 		},
@@ -1061,13 +1061,13 @@ func TestProcessTransaction(t *testing.T) {
 				integratorInstruction,
 			},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 1, Instructions: []solana.CompiledInstruction{matchingInstruction}},
-				{Index: 2, Instructions: []solana.CompiledInstruction{nonMatchingInstruction}},
-				{Index: 3, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
-				{Index: 4, Instructions: []solana.CompiledInstruction{
+				{Index: 1, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(matchingInstruction)}},
+				{Index: 2, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(nonMatchingInstruction)}},
+				{Index: 3, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(shimCoreInnerInst), toRPCCompiledInstruction(shimEventInnerInst)}},
+				{Index: 4, Instructions: []rpc.CompiledInstruction{
 					{ProgramIDIndex: shimContractIdx, Data: shimPostMsgData},
-					shimCoreInnerInst,
-					shimEventInnerInst,
+					toRPCCompiledInstruction(shimCoreInnerInst),
+					toRPCCompiledInstruction(shimEventInnerInst),
 				}},
 			},
 			wantObservations: 4,
@@ -1083,7 +1083,7 @@ func TestProcessTransaction(t *testing.T) {
 				shimTopLevelInst,
 			},
 			innerInstructions: []rpc.InnerInstruction{
-				{Index: 1, Instructions: []solana.CompiledInstruction{shimCoreInnerInst, shimEventInnerInst}},
+				{Index: 1, Instructions: []rpc.CompiledInstruction{toRPCCompiledInstruction(shimCoreInnerInst), toRPCCompiledInstruction(shimEventInnerInst)}},
 			},
 			wantObservations: 1,
 		},
@@ -1469,6 +1469,31 @@ func TestPopulateLookupTableAccounts(t *testing.T) {
 			require.Equal(t, tc.wantKeys, []solana.PublicKey(tx.Message.AccountKeys))
 		})
 	}
+}
+
+// TestPopulateLookupTableAccountsV1NoOp confirms that v1 transactions
+// (SIMD-0385) are treated as versioned but require no lookup-table
+// resolution, since the v1 format never carries address table lookups.
+func TestPopulateLookupTableAccountsV1NoOp(t *testing.T) {
+	staticAddr := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x02}, solana.PublicKeyLength))
+
+	tx := &solana.Transaction{
+		Message: solana.Message{
+			AccountKeys: []solana.PublicKey{staticAddr},
+		},
+	}
+	_, err := tx.Message.SetVersion(solana.MessageVersionV1)
+	require.NoError(t, err)
+	require.True(t, tx.Message.IsVersioned())
+	require.Empty(t, tx.Message.GetAddressTableLookups())
+
+	m := newMockRPCServer(t)
+	defer m.Close()
+
+	s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, nil)
+	err = s.populateLookupTableAccounts(context.Background(), rpc.New(m.URL), tx)
+	require.NoError(t, err)
+	require.Equal(t, []solana.PublicKey{staticAddr}, []solana.PublicKey(tx.Message.AccountKeys))
 }
 
 // Test helpers

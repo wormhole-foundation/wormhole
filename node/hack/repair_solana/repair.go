@@ -309,8 +309,10 @@ func process(out *rpc.GetTransactionResult) *solana.PublicKey {
 
 	log.Printf("found Wormhole tx in %s", signature)
 
-	txs := make([]solana.CompiledInstruction, 0, len(tx.Message.Instructions))
-	txs = append(txs, tx.Message.Instructions...)
+	txs := make([]rpc.CompiledInstruction, 0, len(tx.Message.Instructions))
+	for _, inst := range tx.Message.Instructions {
+		txs = append(txs, rpc.CompiledInstruction{ProgramIDIndex: inst.ProgramIDIndex, Accounts: inst.Accounts, Data: inst.Data})
+	}
 	for _, inner := range out.Meta.InnerInstructions {
 		txs = append(txs, inner.Instructions...)
 	}

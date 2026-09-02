@@ -664,7 +664,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	start := time.Now()
 	rewards := false
 
-	maxSupportedTransactionVersion := uint64(0)
+	maxSupportedTransactionVersion := uint64(1)
 	out, err := s.rpcClient.GetBlockWithOpts(rCtx, slot, &rpc.GetBlockOpts{
 		Encoding:                       solana.EncodingBase64, // solana-go doesn't support json encoding.
 		TransactionDetails:             "full",
@@ -872,7 +872,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 				}
 			}
 		} else {
-			found, err := s.processInstruction(ctx, rpcClient, slot, inst, programIndex, tx, signature, i, isReobservation)
+			found, err := s.processInstruction(ctx, rpcClient, slot, toRPCCompiledInstruction(inst), programIndex, tx, signature, i, isReobservation)
 			if err != nil {
 				s.logger.Error("malformed Wormhole instruction",
 					zap.Error(err),
@@ -971,7 +971,19 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 	return
 }
 
-func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.Client, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int, isReobservation bool) (bool, error) {
+// toRPCCompiledInstruction converts a top-level solana.CompiledInstruction
+// (from tx.Message.Instructions) into an rpc.CompiledInstruction, the type
+// used for inner instructions (meta.InnerInstructions[i].Instructions), so
+// both can be passed through the same instruction-processing functions.
+func toRPCCompiledInstruction(inst solana.CompiledInstruction) rpc.CompiledInstruction {
+	return rpc.CompiledInstruction{
+		ProgramIDIndex: inst.ProgramIDIndex,
+		Accounts:       inst.Accounts,
+		Data:           inst.Data,
+	}
+}
+
+func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.Client, slot uint64, inst rpc.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int, isReobservation bool) (bool, error) {
 	if inst.ProgramIDIndex != programIndex {
 		return false, nil
 	}

@@ -39,7 +39,7 @@ func init() {
 
 // isCloseEventInstruction returns true if the instruction data starts with the
 // close event tag and discriminator.
-func isCloseEventInstruction(programIndex uint16, inst solana.CompiledInstruction) bool {
+func isCloseEventInstruction(programIndex uint16, inst rpc.CompiledInstruction) bool {
 	return inst.ProgramIDIndex == programIndex &&
 		len(inst.Data) >= 16 &&
 		bytes.Equal(inst.Data[:8], closeEventTag) &&
@@ -52,7 +52,7 @@ func isCloseEventInstruction(programIndex uint16, inst solana.CompiledInstructio
 // including the 3-byte prefix).
 func resolveCloseEventMessageAccount(
 	tx *solana.Transaction,
-	closeInst solana.CompiledInstruction,
+	closeInst rpc.CompiledInstruction,
 	eventData []byte,
 ) (solana.PublicKey, []byte, error) {
 	if len(eventData) < closeEventMinDataLen {
@@ -87,7 +87,7 @@ func (s *SolanaWatcher) processClosePostedMessageEvent(
 		}
 		for innerIdx, inst := range innerSet.Instructions {
 			if isCloseEventInstruction(programIndex, inst) {
-				messageAccount, accountDataRaw, err := resolveCloseEventMessageAccount(tx, topLevelInst, inst.Data)
+				messageAccount, accountDataRaw, err := resolveCloseEventMessageAccount(tx, toRPCCompiledInstruction(topLevelInst), inst.Data)
 				if err != nil {
 					return false, err
 				}
@@ -112,10 +112,10 @@ func (s *SolanaWatcher) processInnerClosePostedMessageEvent(
 	logger *zap.Logger,
 	programIndex uint16,
 	tx *solana.Transaction,
-	innerInstructions []solana.CompiledInstruction,
+	innerInstructions []rpc.CompiledInstruction,
 	outerIdx int,
 	closeIdx int,
-	closeInst solana.CompiledInstruction,
+	closeInst rpc.CompiledInstruction,
 	alreadyProcessed ShimAlreadyProcessed,
 	signature solana.Signature,
 ) (bool, error) {

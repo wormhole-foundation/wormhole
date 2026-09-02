@@ -26,7 +26,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		signature := solana.SignatureFromBytes(txID)
 		s.logger.Info("received observation request with transaction id", zap.Stringer("signature", signature))
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
-		version := uint64(0)
+		version := uint64(1)
 		result, err := rpcClient.GetTransaction(
 			rCtx,
 			signature,

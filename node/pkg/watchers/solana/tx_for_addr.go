@@ -158,7 +158,7 @@ func (s *SolanaWatcher) processTransactionWithRetry(signature solana.Signature) 
 		}
 
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
-		version := uint64(0)
+		version := uint64(1)
 		result, err := s.rpcClient.GetTransaction(
 			rCtx,
 			signature,
