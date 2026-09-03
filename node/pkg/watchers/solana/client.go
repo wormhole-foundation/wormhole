@@ -1201,9 +1201,13 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 		return nil
 	}
 
-	acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
-	// NOTE: We don't care about the number of observations here so the return value is ignored.
-	// The called function will still publish observations if it is successful.
+	// value.Pubkey is base58-encoded, per the Solana JSON-RPC account notification format.
+	acc, err := solana.PublicKeyFromBase58(value.Pubkey)
+	if err != nil {
+		s.logger.Error("failed to parse account pubkey", zap.String("account", value.Pubkey), zap.Error(err))
+		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+		return nil
+	}
 	s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, solana.Signature{}, false)
 
 	return nil
