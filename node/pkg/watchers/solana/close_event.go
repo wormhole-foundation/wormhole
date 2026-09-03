@@ -80,7 +80,7 @@ func (s *SolanaWatcher) processClosePostedMessageEvent(
 	alreadyProcessed ShimAlreadyProcessed,
 	signature solana.Signature,
 ) (bool, error) {
-	topLevelIdx := uint16(topLevelIndex) // #nosec G115 -- Solana max tx size (1232 bytes) bounds instruction count well within uint16.
+	topLevelIdx := uint16(topLevelIndex) // #nosec G115 -- The solana runtime can only support 64 top-level instructions per transaction max
 	for outerIdx, innerSet := range innerInstructions {
 		if innerSet.Index != topLevelIdx {
 			continue
