@@ -1313,10 +1313,10 @@ func TestShimDirectWithExtraWhEventBeforeShimEventShouldFail(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -1517,10 +1517,10 @@ func TestShimDirectWithExtraShimEventsShouldFail(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -1721,10 +1721,10 @@ func TestShimDirectWithExtraCoreEventShouldFail(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -1913,10 +1913,10 @@ func TestShimTopLevelEmptyInstructionsShouldFail(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -2070,10 +2070,10 @@ func TestShimProcessInnerInstructions_OutOfBoundsStartIndexShouldFail(t *testing
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -2183,10 +2183,10 @@ func TestShimWhPostMessageInUnexpectedFormatShouldNotBeCountedAsShimMessage(t *t
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -2239,10 +2239,10 @@ func TestShimProcessRestWithNullEventShouldFail(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many accounts.
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
