@@ -59,7 +59,7 @@ func main() {
 		log.Fatal("SignatureFromBase58 errored", err)
 	}
 	rpcClient := rpc.New(RPC)
-	maxSupportedTransactionVersion := uint64(0)
+	maxSupportedTransactionVersion := uint64(1)
 	tx, err := rpcClient.GetTransaction(ctx, testTx, &rpc.GetTransactionOpts{
 		Encoding:                       solana.EncodingBase64,
 		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,

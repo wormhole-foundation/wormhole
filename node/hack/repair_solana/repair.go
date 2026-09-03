@@ -247,7 +247,7 @@ func main() {
 }
 
 func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.GetTransactionResult, uint64, error) {
-	maxSupportedTransactionVersion := uint64(0)
+	maxSupportedTransactionVersion := uint64(1)
 	params := rpc.GetTransactionOpts{
 		Encoding:                       solana.EncodingBase64,
 		Commitment:                     rpc.CommitmentConfirmed,
