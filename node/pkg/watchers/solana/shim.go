@@ -179,7 +179,7 @@ func (s *SolanaWatcher) shimProcessTopLevelInstruction(
 	isReobservation bool,
 ) (bool, error) {
 	topLevelIdx := uint16(topLevelIndex) // #nosec G115 -- The solana runtime can only support 64 top-level instructions per transaction max
-	if topLevelIdx >= uint16(len(tx.Message.Instructions)) {
+	if int(topLevelIdx) >= len(tx.Message.Instructions) {
 		return false, fmt.Errorf("topLevelIndex %d is greater than the total number of instructions in the tx message, %d", topLevelIdx, len(tx.Message.Instructions))
 	}
 	inst := tx.Message.Instructions[topLevelIdx]

@@ -576,7 +576,7 @@ func TestProcessMessageAccount(t *testing.T) {
 func TestProcessAccountSubscriptionData(t *testing.T) {
 	// Scenario: subscription messages are validated and decoded; invalid input yields errors or no-ops.
 	rawContract := "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-	pubkey := "01234567890123456789012345678901"
+	pubkey := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0xEE}, solana.PublicKeyLength)).String()
 
 	proposal := testMessagePublicationAccount([]byte("hello"), 32)
 	validAccountData := encodeMessagePublicationAccount(t, accountPrefixReliable, proposal)
