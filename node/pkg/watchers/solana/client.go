@@ -980,6 +980,10 @@ func toRPCCompiledInstruction(inst solana.CompiledInstruction) rpc.CompiledInstr
 		ProgramIDIndex: inst.ProgramIDIndex,
 		Accounts:       inst.Accounts,
 		Data:           inst.Data,
+		// StackHeight reflects RPC-reported CPI depth for inner instructions;
+		// fixed at 0 here since inst is always a top-level instruction.
+		// Trust StackHeight only on instructions sourced directly from the RPC.
+		StackHeight: 0,
 	}
 }
 
