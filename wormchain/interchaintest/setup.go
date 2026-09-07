@@ -85,6 +85,16 @@ func CreateChains(t *testing.T, wormchainVersion string, guardians guardians.Val
 		},
 		{Name: "gaia", Version: "v10.0.1", ChainConfig: ibc.ChainConfig{
 			GasPrices: "0.0uatom",
+			// interchaintest's built-in gaia config still points at
+			// ghcr.io/strangelove-ventures/heighliner/gaia, which no longer
+			// allows anonymous pulls now that heighliner has moved to
+			// amygdala-labs. Override to the new registry location.
+			Images: []ibc.DockerImage{
+				{
+					Repository: "ghcr.io/amygdala-labs/heighliner/gaia",
+					UidGid:     "1025:1025",
+				},
+			},
 		}},
 		{
 			Name:    "osmosis",
@@ -93,6 +103,13 @@ func CreateChains(t *testing.T, wormchainVersion string, guardians guardians.Val
 				ChainID:        "osmosis-1002", // hardcoded handling in osmosis binary for osmosis-1, so need to override to something different.
 				GasPrices:      "1.0uosmo",
 				EncodingConfig: wasm.WasmEncoding(),
+				// See the gaia comment above: heighliner moved to amygdala-labs.
+				Images: []ibc.DockerImage{
+					{
+						Repository: "ghcr.io/amygdala-labs/heighliner/osmosis",
+						UidGid:     "1025:1025",
+					},
+				},
 			},
 		},
 	})
