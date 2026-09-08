@@ -3,7 +3,7 @@ import type { SuiClientTypes } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromBase64 } from "@mysten/sui/utils";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { NETWORKS } from "../../consts";
@@ -585,9 +585,22 @@ export const buildTokenBridgePackage = (
     dependencies: string[];
     digest: number[];
   } = JSON.parse(
-    execSync(
-      `sui move build --dump-bytecode-as-base64 -e ${env} -p ${packagePath} 2> /dev/null`,
-      { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 }
+    execFileSync(
+      "sui",
+      [
+        "move",
+        "build",
+        "--dump-bytecode-as-base64",
+        "-e",
+        env,
+        "-p",
+        packagePath,
+      ],
+      {
+        encoding: "utf-8",
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "ignore"],
+      }
     )
   );
   return {
