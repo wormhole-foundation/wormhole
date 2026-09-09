@@ -6,7 +6,16 @@ FROM --platform=linux/amd64 node:22.16-bullseye-slim@sha256:550b434f7edc3a187586
 # npm wants to clone random Git repositories - lovely.
 # RUN apk add git python make build-base
 # RUN apk update && apk add bash
-RUN apt-get update && apt-get -y install \
+# Debian 11 (bullseye) went EOL on 2026-08-31: its security Release file has expired and the
+# security pool is being removed from the deb.debian.org mirrors (404s mid-install), while
+# archive.debian.org does not carry bullseye-security yet. Install from the immutable snapshot
+# of the last security state instead (plain http; the image has no CA certificates yet).
+RUN printf '%s\n' \
+      'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260901T000000Z bullseye main' \
+      'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260901T000000Z bullseye-updates main' \
+      'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20260901T000000Z bullseye-security main' \
+      > /etc/apt/sources.list && \
+    apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 -y install \
   git python make curl netcat vim
 
 # keep in sync with sdk/js/package.json
