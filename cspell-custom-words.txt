@@ -74,6 +74,7 @@ Fogo
 fogoshim
 forgeable
 FQTs
+friendbot
 frontends
 funder
 gogoproto
@@ -179,6 +180,7 @@ pytest
 Pytest
 pythnet
 QUIC
+quickstart
 ramfs
 readyz
 regen

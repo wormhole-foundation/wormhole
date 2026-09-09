@@ -501,6 +501,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "devnet-emitter"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+ "wormhole-contract",
+ "wormhole-soroban-client",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

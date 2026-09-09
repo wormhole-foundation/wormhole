@@ -60,6 +60,7 @@ config.define_bool("sui", False, "Enable Sui component")
 config.define_bool("btc", False, "Enable BTC component")
 config.define_bool("aptos", False, "Enable Aptos component")
 config.define_bool("algorand", False, "Enable Algorand component")
+config.define_bool("stellar", False, "Enable Stellar component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("solana_watcher", False, "Enable Solana watcher on guardian")
@@ -84,6 +85,7 @@ algorand = cfg.get("algorand", ci)
 near = cfg.get("near", ci)
 aptos = cfg.get("aptos", ci)
 sui = cfg.get("sui", ci)
+stellar = cfg.get("stellar", ci)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 pythnet = cfg.get("pythnet", False)
@@ -98,6 +100,11 @@ ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
 query_server = cfg.get("query_server", ci)
 manager_service = cfg.get("manager_service", False)
+
+if stellar:
+    # The devnet core contract id is deterministic (fixed deployer key and salt, see
+    # stellar/scripts/devnet_deploy.sh), so the guardian can be configured with it up front.
+    stellar_core_contract = read_json("scripts/devnet-consts.json")["chains"]["61"]["contracts"]["coreNativeAddress"]
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -359,6 +366,14 @@ def build_node_yaml():
                     "wormhole.test.near"
                 ]
 
+            if stellar:
+                container["command"] += [
+                    "--stellarRPC",
+                    "http://stellar:8000/soroban/rpc",
+                    "--stellarContract",
+                    stellar_core_contract,
+                ]
+
             if wormchain:
                 container["command"] += [
                     "--wormchainURL",
@@ -476,6 +491,8 @@ if wormchain:
     guardian_resource_deps = guardian_resource_deps + ["wormchain", "wormchain-deploy"]
 if sui:
     guardian_resource_deps = guardian_resource_deps + ["sui"]
+if stellar:
+    guardian_resource_deps = guardian_resource_deps + ["stellar"]
 
 k8s_resource(
     "guardian",
@@ -787,6 +804,19 @@ if ci_tests:
             resource_deps = ["sui"]
         )
 
+    if stellar:
+        k8s_yaml_with_ns(
+            encode_yaml_stream(
+                set_env_in_jobs(read_yaml_stream("devnet/stellar-ci-tests.yaml"), "NUM_GUARDIANS", str(num_guardians))
+            )
+        )
+        k8s_resource(
+            "stellar-ci-tests",
+            labels = ["ci"],
+            trigger_mode = trigger_mode,
+            resource_deps = ["stellar", "guardian"], # publishes a message on the devnet core contract and waits for the guardians' signed VAA
+        )
+
 if terra2 or wormchain:
     docker_build(
         ref = "cosmwasm_artifacts",
@@ -901,6 +931,27 @@ if near:
             port_forward(3031, name = "webserver [:3031]", host = webHost),
         ],
         labels = ["near"],
+        trigger_mode = trigger_mode,
+    )
+
+if stellar:
+    k8s_yaml_with_ns("devnet/stellar-devnet.yaml")
+
+    # Builds the core and devnet-emitter wasm and packages them with the stellar CLI and the
+    # devnet deploy / smoke-test scripts. Used by the deploy sidecar and by stellar-ci-tests.
+    docker_build(
+        ref = "stellar-deploy",
+        context = "stellar",
+        dockerfile = "stellar/Dockerfile",
+        ignore = ["./target", "./contracts/wormhole-contract/test_snapshots"],
+    )
+
+    k8s_resource(
+        "stellar",
+        port_forwards = [
+            port_forward(8000, name = "Soroban RPC [:8000]", host = webHost),
+        ],
+        labels = ["stellar"],
         trigger_mode = trigger_mode,
     )
 
