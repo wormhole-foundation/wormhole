@@ -1,0 +1,17 @@
+[package]
+name = "devnet-emitter"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+wormhole-soroban-client = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+wormhole-contract = { path = "../wormhole-contract" }

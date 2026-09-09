@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: stellar
+  name: stellar
+spec:
+  ports:
+    # quickstart serves soroban rpc (/soroban/rpc and /rpc) and friendbot (/friendbot) on 8000
+    - name: rpc
+      port: 8000
+      targetPort: rpc
+  selector:
+    app: stellar
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: stellar
+  name: stellar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stellar
+  serviceName: stellar
+  template:
+    metadata:
+      labels:
+        app: stellar
+    spec:
+      containers:
+        - name: stellar-node
+          image: stellar/quickstart:v665-b1401.1-latest@sha256:a64f705b88c5d25f6d750c36df3d4d90c70f0d22c555748d7d97e5d9cae28827
+          # Local network (1s ledgers, passphrase "Standalone Network ; February 2017").
+          # rpc also starts friendbot; horizon is not needed by the deploy script or the guardian.
+          # --protocol-version pins the network to the protocol generation of the pinned
+          # stellar-cli (28.x) in stellar/Dockerfile; bump both together. It must also be the
+          # current or previous protocol of the quickstart's bundled stellar-rpc, which can only
+          # simulate those two (older ones fail with Error(Context, InternalError)).
+          args:
+            - --local
+            - --enable
+            - core,rpc
+            - --protocol-version
+            - "28"
+          ports:
+            - containerPort: 8000
+              name: rpc
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                # Block scalar: the plain form would be parsed as a YAML mapping because of the
+                # "Content-Type: " colon-space.
+                - >-
+                  curl -sf -X POST http://localhost:8000/soroban/rpc -H 'Content-Type: application/json'
+                  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' | grep -q '"status":"healthy"'
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 60
+        - name: stellar-deploy
+          image: stellar-deploy
+          command:
+            - /bin/bash
+            - -c
+            - /app/devnet_deploy.sh && touch /app/success && sleep infinity
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - /app/success
+            periodSeconds: 5
+            failureThreshold: 300
+      restartPolicy: Always

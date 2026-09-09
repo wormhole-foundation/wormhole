@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stellar-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: stellar-ci-tests
+          image: stellar-deploy
+          # NUM_GUARDIANS is injected by the Tiltfile (set_env_in_jobs).
+          command:
+            - /bin/bash
+            - -c
+            - /app/devnet_smoke_test.sh && touch /app/success
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - /app/success
+            initialDelaySeconds: 5
+            periodSeconds: 5

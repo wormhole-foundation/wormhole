@@ -159,6 +159,21 @@
         "nftBridgeEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000002"
       }
     },
+    "61": {
+      "rpcUrlTilt": "http://stellar:8000/soroban/rpc",
+      "rpcUrlLocal": "http://localhost:8000/soroban/rpc",
+      "rpcPort": "8000",
+      "networkPassphrase": "Standalone Network ; February 2017",
+      "devnetDeployer": {
+        "public": "GBSGZHGEXQZTAG4NUISDY7SJBVURMKWLL2AFIP5HV7KCAWLADPWJAMB6",
+        "secret": "SBRHZYII7YFXZR75V7N3XHBVJKYGBBSOQRJZM2IQZNMPE22WEWD3DB2A"
+      },
+      "coreDeploySalt": "0000000000000000000000000000000000000000000000000000000000000000",
+      "contracts": {
+        "coreNativeAddress": "CAICJIQ7WBO4OMT5C7KJDYSUDU42WB2CCRPKBSNMFX4WEW3DXHKGG4DQ",
+        "coreEmitterAddress": "1024a21fb05dc7327d17d491e2541d39ab0742145ea0c9ac2df9625b63b9d463"
+      }
+    },
     "3104": {
       "rpcUrlTilt": "http://wormchain:1317",
       "rpcUrlLocal": "http://localhost:1319",
