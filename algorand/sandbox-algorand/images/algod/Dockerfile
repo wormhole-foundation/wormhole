@@ -1,5 +1,5 @@
-ARG GO_VERSION=1.18.2
-FROM golang:$GO_VERSION@sha256:04fab5aaf4fc18c40379924674491d988af3d9e97487472e674d0b5fd837dfac as algorand-algod
+ARG GO_VERSION=1.24-bookworm
+FROM golang:$GO_VERSION@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac as algorand-algod
 
 ARG CHANNEL=master
 ARG URL="https://github.com/algorand/go-algorand"

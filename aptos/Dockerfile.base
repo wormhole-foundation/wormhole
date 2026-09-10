@@ -1,4 +1,4 @@
-FROM rust:1.62@sha256:2cd5c8517d0640bd287b2cfb4c0e62f1a8ed86174764d88280bc2a106d6835db AS aptos-node
+FROM rust:1.75.0-bookworm@sha256:87f3b2f93b82995443a1a558c234212dafe79cfdc3af956539610560369ddcd0 AS aptos-node
 
 RUN apt-get update && apt-get -y install libclang-dev libudev-dev libdw-dev jq cmake curl npm gcc g++ make lld
 
@@ -11,5 +11,5 @@ WORKDIR /tmp/aptos-core
 RUN git reset --hard 6f83bc6d02207298b2dee91133d75538789bf582
 RUN cargo build -p aptos --profile cli
 
-FROM rust:1.62@sha256:2cd5c8517d0640bd287b2cfb4c0e62f1a8ed86174764d88280bc2a106d6835db AS export-stage
+FROM rust:1.75.0-bookworm@sha256:87f3b2f93b82995443a1a558c234212dafe79cfdc3af956539610560369ddcd0 AS export-stage
 COPY --from=aptos-node /tmp/aptos-core/target/cli/aptos /usr/local/cargo/bin/aptos

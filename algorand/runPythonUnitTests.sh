@@ -22,6 +22,12 @@ cd _sandbox
 sed -i -e 's/docker compose help/docker compose --help/' ./sandbox
 sed -i -e 's/-eq 16/-eq 0/' ./sandbox
 
+# NOTE: workaround for the algod image's Debian bullseye base going EOL:
+# security.debian.org no longer reliably serves bullseye-security packages,
+# so apt-get install fails inside the algod build. Move it to a Go image
+# built on a currently-supported Debian release instead.
+sed -i -e 's/ARG GO_VERSION=1.17.5/ARG GO_VERSION=1.24-bookworm/' ./images/algod/Dockerfile
+
 ./sandbox clean
 ./sandbox up -v dev
 cd ..
