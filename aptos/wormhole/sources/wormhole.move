@@ -128,6 +128,17 @@ module wormhole::wormhole {
         initial_guardian: vector<u8>,
         message_fee: u64,
     ): signer {
+        // Wormhole requires AptosCoin to be initialized; so we iniatilize it
+        // if it's not initialized already. If you need AptosCoin in the tests
+        // initialize it before calling this function because AptosCoin can be
+        // initialized only once.
+        if (!coin::is_coin_initialized<AptosCoin>()) {
+            let aptos_framework = std::account::create_account_for_test(@aptos_framework);
+            let (burn_cap, mint_cap) = aptos_framework::aptos_coin::initialize_for_test(&aptos_framework);
+            coin::destroy_mint_cap(mint_cap);
+            coin::destroy_burn_cap(burn_cap);
+        };
+
         let deployer = account::create_account_for_test(@deployer);
         let (wormhole, signer_cap) = account::create_resource_account(&deployer, b"wormhole");
         init_internal(
@@ -172,9 +183,9 @@ module wormhole::wormhole_test {
 
     #[test(aptos_framework = @aptos_framework)]
     public fun test_publish_message(aptos_framework: &signer) {
-        setup(100);
-
         let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+
+        setup(100);
         let fees = coin::mint(100, &mint_cap);
 
         let emitter_cap = wormhole::register_emitter();
