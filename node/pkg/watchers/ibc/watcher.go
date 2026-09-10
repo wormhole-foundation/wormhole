@@ -121,7 +121,10 @@ type (
 		// channelIdToChainIdMap provides a mapping from IBC channel ID to chain ID. Note that there can be multiple channels IDs for the same chain.
 		channelIdToChainIdMap map[string]vaa.ChainID
 
-		// channelIdToChainIdLock protects channelIdToChainIdMap.
+		// channelIdToChainIdMapTime is when channelIdToChainIdMap was last successfully queried from the contract.
+		channelIdToChainIdMapTime time.Time
+
+		// channelIdToChainIdLock protects channelIdToChainIdMap and channelIdToChainIdMapTime.
 		channelIdToChainIdLock sync.Mutex
 
 		// baseFeatures is used to create the feature string. It is the list of chains enabled, without the wormhole version.
@@ -697,32 +700,52 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 	return nil
 }
 
-// getChainIdFromChannelID returns the chain ID associated with the specified IBC channel. It uses a cache to avoid constantly querying
-// wormchain. This works because once an IBC channel is closed its ID will never be reused. This also means that there could be multiple
-// IBC channels for the same chain ID.
-// See the IBC spec for details: https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#closing-handshake
+// channelIdToChainIdMapMaxAge is how long the cached channel ID to chain ID mapping may be used before it is requeried from the contract.
+// An IBC channel ID is never reused once its channel is closed, but governance can update the chain ID associated with an existing
+// channel ID (that is also the only way to revoke a channel, since there is no delete action). Caching an entry forever would mean a
+// running guardian never sees such an update, so the whole mapping is refreshed on the first lookup after it goes stale.
+// See the IBC spec for details on channel IDs: https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#closing-handshake
+const channelIdToChainIdMapMaxAge = time.Minute * 15
+
+// channelIdToChainIdMapMinQueryInterval is how soon the mapping may be requeried when an event arrives on a channel that is not in the
+// cached mapping. Governance may have just registered that channel, and waiting for the full max age would mean dropping valid messages
+// on a newly registered channel until then. It is throttled because anyone can establish a channel to the contract and emit events over
+// it, so an unknown channel must not cause a query on every event.
+const channelIdToChainIdMapMinQueryInterval = time.Second * 15
+
+// getChainIdFromChannelID returns the chain ID associated with the specified IBC channel. It uses a cache to avoid querying wormchain
+// on every event. Note that there could be multiple IBC channels for the same chain ID.
 func (w *Watcher) getChainIdFromChannelID(channelID string) (vaa.ChainID, error) {
+	// We hold the lock across the query because we don't want two routines (event handler and reobservation) both querying at the same time.
 	w.channelIdToChainIdLock.Lock()
 	defer w.channelIdToChainIdLock.Unlock()
+
+	_, exists := w.channelIdToChainIdMap[channelID]
+	age := time.Since(w.channelIdToChainIdMapTime)
+
+	// Requery when the cached mapping is stale, or sooner if this channel is unknown, since governance may have just registered it.
+	if age > channelIdToChainIdMapMaxAge || (!exists && age > channelIdToChainIdMapMinQueryInterval) {
+		channelIdToChainIdMap, err := w.queryChannelIdToChainIdMapping()
+		if err != nil {
+			w.logger.Error("failed to query channelID to chainID mapping", zap.Error(err))
+			if len(w.channelIdToChainIdMap) == 0 {
+				// We have never successfully queried the mapping, so we have nothing to fall back on.
+				return vaa.ChainIDUnset, err
+			}
+			// Otherwise keep using the previous mapping. A transient query failure should not kill the watcher.
+			// Bump the time anyway so that a failing query is retried once per interval rather than on every event.
+			w.channelIdToChainIdMapTime = time.Now()
+		} else {
+			w.channelIdToChainIdMap = channelIdToChainIdMap
+			w.channelIdToChainIdMapTime = time.Now()
+		}
+	}
+
+	// Returns vaa.ChainIDUnset if the channel is not in the mapping, which the caller treats as an unknown channel.
 	chainID, exists := w.channelIdToChainIdMap[channelID]
 	if exists {
 		return chainID, nil
 	}
-
-	// We continue to hold the lock here because we don't want two routines (event handler and reobservation) both querying at the same time.
-	channelIdToChainIdMap, err := w.queryChannelIdToChainIdMapping()
-	if err != nil {
-		w.logger.Error("failed to query channelID to chainID mapping", zap.Error(err))
-		return vaa.ChainIDUnset, err
-	}
-
-	w.channelIdToChainIdMap = channelIdToChainIdMap
-
-	chainID, exists = w.channelIdToChainIdMap[channelID]
-	if exists {
-		return chainID, nil
-	}
-
 	return vaa.ChainIDUnset, nil
 }
 
