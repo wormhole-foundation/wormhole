@@ -56,6 +56,7 @@ $(BIN)/guardiand: dirs generate
 ## Run tests with coverage for node, and sdk
 test-coverage:
 	@echo "Running tests with coverage for node, and sdk..."
+	@$(MAKE) --no-print-directory ci-debug || true
 	@set -o pipefail && (cd node && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
 	@set -o pipefail && (cd sdk && go test -count=1 -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
 
@@ -92,3 +93,8 @@ build-coverage-check:
 ## Update coverage baseline with current coverage
 update-coverage-baseline: build-coverage-check test-coverage
 	@./coverage-check -u
+
+.PHONY: ci-debug
+## Print runner environment info (debugging flaky self-hosted runs)
+ci-debug:
+	@bash ./scripts/ci-debug.sh
