@@ -89,7 +89,7 @@ this design.
 
 ### Post Signatures Technical Details
 
-This instruction creates or appends to a guardian signatures account account for
+This instruction creates or appends to a guardian signatures account for
 subsequent use by the [verify hash instruction](#verify-hash-technical-details).
 This step is necessary because the Wormhole VAA body, which has an arbitrary
 size, and 13 guardian signatures (a quorum of the current 19 mainnet guardians,
