@@ -1,0 +1,6 @@
+| node/pkg/watchers/scissors/positive.go:18:3:18:13 | send statement | Return this runnable error instead of sending directly to the RunWithScissors error channel; RunWithScissors forwards returned errors without blocking. |
+| node/pkg/watchers/scissors/positive.go:26:3:26:15 | send statement | Return this runnable error instead of sending directly to the RunWithScissors error channel; RunWithScissors forwards returned errors without blocking. |
+| node/pkg/watchers/scissors/positive.go:34:3:34:13 | send statement | Return this runnable error instead of sending directly to the RunWithScissors error channel; RunWithScissors forwards returned errors without blocking. |
+| node/pkg/watchers/scissors/positive.go:46:2:46:14 | send statement | Return this runnable error instead of sending directly to the RunWithScissors error channel; RunWithScissors forwards returned errors without blocking. |
+| node/pkg/watchers/scissors/positive.go:57:2:57:10 | send statement | Return this runnable error instead of sending directly to the RunWithScissors error channel; RunWithScissors forwards returned errors without blocking. |
+| node/pkg/watchers/scissors/positive.go:68:2:68:14 | send statement | Return this runnable error instead of sending directly to the RunWithScissors error channel; RunWithScissors forwards returned errors without blocking. |
