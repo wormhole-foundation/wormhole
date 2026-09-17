@@ -15,17 +15,16 @@ To build the contracts:
 
 ### Deploying using Forge
 
-#### Create the ENV file
+#### Provide the deployment environment
 
-Before you can deploy the contracts, you need to create a file in `ethereum/env` with a name like `.env.blast` for mainnet
-or `.env.blast.testnet` for testnet. Substitute the appropriate chain name (as it will be in the worm client) and use the
-mentioned one as an example.
+Release helpers do not source repository `.env` files. Export the required values
+from a trusted operator environment before running them. Files under `ethereum/env`
+may be used as reviewed references, but must not be sourced.
 
-#### Create a symbolic link
-
-```shell
-ethereum$ ln -s env/.env.blast.testnet .env
-```
+`upgrade.sh` resolves an RPC with `worm info rpc` when `RPC_URL` is absent;
+register-all requires an explicit `RPC_URL`. Bulk upgrades clear inherited RPC
+overrides, so use `upgrade.sh` directly for a custom endpoint. `FORGE_ARGS` remains
+a whitespace-separated list of trusted operator-provided Foundry arguments.
 
 #### Deploy the Core contract
 
@@ -70,19 +69,23 @@ This will put the flattened files in `ethereum/flattened`.
 #### Upgrade the Core or TokenBridge Implementation
 
 ```shell
-ethereum$ MNEMONIC= ./sh/upgrade.sh testnet Core blast
-ethereum$ MNEMONIC= ./sh/upgrade.sh testnet TokenBridge blast
+ethereum$ MNEMONIC=<redacted> GUARDIAN_MNEMONIC=<redacted> ./sh/upgrade.sh testnet Core blast
+ethereum$ MNEMONIC=<redacted> GUARDIAN_MNEMONIC=<redacted> ./sh/upgrade.sh testnet TokenBridge blast
+ethereum$ MNEMONIC=<redacted> ./sh/upgrade.sh mainnet Core blast
 ```
 
 #### Registering Other Chains on a New TokenBridge
 
 ```shell
-ethereum$ MNEMONIC= ./sh/registerAllChainsOnTokenBridge.sh <network> <chainName> <tokenBridgeAddress>
+ethereum$ MNEMONIC=<redacted> RPC_URL=<reviewed> ./sh/registerAllChainsOnTokenBridge.sh <network> <chainName> <tokenBridgeAddress>
 ```
 
 ### Testing
 
 Run all ethereum tests using `make test`
+
+Run the release-helper compatibility and security tests without building the
+contracts using `make test-release-helpers`.
 
 ### User methods
 

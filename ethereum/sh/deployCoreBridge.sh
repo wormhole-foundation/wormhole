@@ -2,8 +2,6 @@
 
 # MNEMONIC=<redacted> ./sh/deployCoreBridge.sh
 
-. .env
-
 [[ -z $INIT_SIGNERS ]] && { echo "Missing INIT_SIGNERS"; exit 1; }
 [[ -z $INIT_CHAIN_ID ]] && { echo "Missing INIT_CHAIN_ID"; exit 1; }
 [[ -z $INIT_GOV_CHAIN_ID ]] && { echo "Missing INIT_GOV_CHAIN_ID"; exit 1; }
