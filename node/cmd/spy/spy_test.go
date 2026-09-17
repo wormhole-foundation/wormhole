@@ -153,6 +153,51 @@ func TestSpySubscribeEmitterFilter(t *testing.T) {
 	// just check the subscription can be created without returning an error
 }
 
+// Tests that duplicate (identical) filters supplied at subscribe time are deduplicated.
+// Without dedup, a single VAA would be collected once per duplicate filter in PublishSignedVAA
+// and sent multiple times to the subscription's capacity-1 channel; because that send is
+// intentionally blocking, more than one queued send to a torn-down subscriber could block the
+// single publisher goroutine forever.
+func TestSpySubscribeDeduplicatesFilters(t *testing.T) {
+	ctx, conn, client := grpcClientSetup(t)
+	defer conn.Close()
+
+	// Use a unique emitter so this subscription is unambiguous among any others in the shared server.
+	dedupEmitter := vaa.Address{0xde, 0xdb, 0xee, 0xff} // distinct from govEmitter and differentEmitter
+	emitterFilter := &spyv1.EmitterFilter{
+		ChainId:        publicrpcv1.ChainID(vaa.ChainIDEthereum),
+		EmitterAddress: dedupEmitter.String(),
+	}
+	filter := &spyv1.FilterEntry{Filter: &spyv1.FilterEntry_EmitterFilter{EmitterFilter: emitterFilter}}
+
+	// Subscribe with the same filter three times.
+	req := &spyv1.SubscribeSignedVAARequest{Filters: []*spyv1.FilterEntry{filter, filter, filter}}
+	if _, err := client.SubscribeSignedVAA(ctx, req); err != nil {
+		t.Fatalf("SubscribeSignedVAA failed: %v", err)
+	}
+
+	waitForClientSubscriptionInit(mockedSpyServer)
+
+	// Find the subscription with our unique emitter and assert its filters were deduplicated to one.
+	want := filterSignedVaa{chainId: vaa.ChainIDEthereum, emitterAddr: dedupEmitter}
+	mockedSpyServer.subsSignedVaaMu.Lock()
+	defer mockedSpyServer.subsSignedVaaMu.Unlock()
+	found := false
+	for _, sub := range mockedSpyServer.subsSignedVaa {
+		for _, f := range sub.filters {
+			if f == want {
+				found = true
+				if len(sub.filters) != 1 {
+					t.Fatalf("expected duplicate filters to be deduplicated to 1, got %d", len(sub.filters))
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatal("did not find the subscription with the deduplicated emitter filter")
+	}
+}
+
 // Tests a subscription to spySever with no filters will return message(s)
 func TestSpyHandleGossipVAA(t *testing.T) {
 	ctx, conn, client := grpcClientSetup(t)
