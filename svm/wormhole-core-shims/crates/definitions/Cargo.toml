@@ -33,6 +33,7 @@ from-env = []
 standard-finality = []
 
 ### Specific networks
+fogo = [ "standard-finality" ]
 solana = [ "standard-finality" ]
 
 [dependencies]
