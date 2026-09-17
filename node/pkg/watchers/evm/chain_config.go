@@ -158,6 +158,7 @@ var (
 		vaa.ChainIDTron: {Finalized: true, Safe: false, EvmChainID: 3448148188, PublicRPC: "https://nile.trongrid.io/jsonrpc", ContractAddr: "0x294b5510a771111df96acbc08515678edf0f83e0"},
 		// Arc testnet — USDC-native EVM L2; like Tron above, its public RPC is HTTP-only.
 		vaa.ChainIDArc:             {Finalized: true, Safe: true, EvmChainID: 5042002, PublicRPC: "https://rpc.testnet.arc.network", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
+		vaa.ChainIDRobinhoodChain:  {Finalized: true, Safe: true, EvmChainID: 46630, PublicRPC: "https://rpc.testnet.chain.robinhood.com/rpc", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
 		vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
 		vaa.ChainIDBaseSepolia:     {Finalized: true, Safe: true, EvmChainID: 84532, PublicRPC: "https://base-sepolia-rpc.publicnode.com", ContractAddr: "0x79A1027a6A159502049F10906D333EC57E95F083"},
