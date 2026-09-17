@@ -2,6 +2,7 @@ package accountant
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -22,7 +23,8 @@ import (
 )
 
 const (
-	DefaultSubmitObservationBatchSize = 100             // Observations per batch (limited by wasm contract input size of 64KB)
+	DefaultSubmitObservationBatchSize = 100             // Maximum observations per batch, also subject to maxSubmitObservationsMsgSize
+	maxSubmitObservationsMsgSize      = 64 * 1024       // Maximum size of the marshaled submit_observations message (the wasm contract input is limited to 64KB)
 	batchTimeout                      = 2 * time.Second // Time to collect observations before submitting
 )
 
@@ -95,10 +97,98 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 		return fmt.Errorf("guardian index greater than max uint32 %v", guardianIndex)
 	}
 
-	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag) // #nosec G115 -- This is checked above
+	batches, oversized := packObservationBatches(msgs, acct.submitObservationBatchSize, maxSubmitObservationsMsgSize)
+	if len(batches) > 1 {
+		acct.logger.Info(fmt.Sprintf("split observations for %s into multiple batches to stay within the transaction size limit", tag), zap.Int("numMsgs", len(msgs)), zap.Int("numBatches", len(batches)))
+		batchSizeSplits.Inc()
+	}
+	for _, msg := range oversized {
+		// The message is submitted anyway (alone, so it can't take any other observations down with it) in case our size accounting is too conservative.
+		acct.logger.Error(fmt.Sprintf("observation exceeds the transaction size limit for %s even in a batch by itself", tag), zap.String("msgId", msg.MessageIDString()), zap.Int("payloadLen", len(msg.Payload)))
+		oversizedObservations.Inc()
+	}
+
+	for _, batch := range batches {
+		acct.submitObservationsToContract(batch, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag) // #nosec G115 -- This is checked above
+	}
 	transfersSubmitted.Add(float64(len(msgs)))
 	return nil
 }
+
+// packObservationBatches partitions the messages into batches of at most maxBatchCount messages whose marshaled
+// submit_observations messages each stay within maxMsgSize. Each message is placed in the first batch with enough room for it,
+// so a large message that does not fit in the current batch is deferred to a later batch rather than failing the messages
+// around it. A message too large to fit even in a batch by itself is returned in oversized as well as being placed in its own
+// batch.
+func packObservationBatches(msgs []*common.MessagePublication, maxBatchCount int, maxMsgSize int) (batches [][]*common.MessagePublication, oversized []*common.MessagePublication) {
+	// batchSizes[i] is the size the marshaled observations array for batches[i] would have, including the enclosing brackets.
+	var batchSizes []int
+	for _, msg := range msgs {
+		obsSize := marshaledObservationSize(msg)
+		placed := false
+		for idx := range batches {
+			// Adding an observation to a batch grows the observations array by the observation plus a separating comma.
+			if len(batches[idx]) < maxBatchCount && submitObservationsMsgSize(batchSizes[idx]+obsSize+jsonCommaSize) <= maxMsgSize {
+				batches[idx] = append(batches[idx], msg)
+				batchSizes[idx] += obsSize + jsonCommaSize
+				placed = true
+				break
+			}
+		}
+		if !placed {
+			if submitObservationsMsgSize(obsSize+jsonBracketsSize) > maxMsgSize {
+				oversized = append(oversized, msg)
+			}
+			batches = append(batches, []*common.MessagePublication{msg})
+			batchSizes = append(batchSizes, obsSize+jsonBracketsSize)
+		}
+	}
+	return batches, oversized
+}
+
+// marshaledObservationSize returns the number of bytes the observation for the message occupies in the marshaled observations array.
+func marshaledObservationSize(msg *common.MessagePublication) int {
+	bytes, err := json.Marshal(makeObservation(msg))
+	if err != nil {
+		// Marshaling an Observation cannot fail, since none of its field types can produce a marshaling error.
+		panic(fmt.Sprintf("failed to marshal observation: %v", err))
+	}
+	return len(bytes)
+}
+
+// Sizes of the JSON punctuation accounted for when computing how large a marshaled submit_observations message will be.
+const (
+	jsonQuotesSize   = len(`""`) // The quotes around a JSON string, such as the base64-encoded observations
+	jsonBracketsSize = len(`[]`) // The brackets around a JSON array, such as the marshaled observations
+	jsonCommaSize    = len(`,`)  // The comma between JSON array elements
+)
+
+// submitObservationsMsgSize returns the size of the marshaled submit_observations message for an observations array of
+// obsArraySize bytes, assuming worst-case sizes for the other fields.
+func submitObservationsMsgSize(obsArraySize int) int {
+	// The marshaled observations array appears in the message as a quoted base64 string.
+	return submitObservationsMsgOverhead + jsonQuotesSize + base64.StdEncoding.EncodedLen(obsArraySize)
+}
+
+// submitObservationsMsgOverhead is the number of bytes in a marshaled submit_observations message excluding the base64-encoded
+// observations string, computed with worst-case values for the other fields.
+var submitObservationsMsgOverhead = func() int {
+	sig := make(SignatureBytes, 65) //nolint:mnd // Length of an ECDSA (r, s, v) signature
+	for idx := range sig {
+		sig[idx] = math.MaxUint8
+	}
+	bytes, err := json.Marshal(SubmitObservationsMsg{
+		Params: SubmitObservationsParams{
+			Observations:     []byte{},
+			GuardianSetIndex: math.MaxUint32,
+			Signature:        SignatureType{Index: math.MaxUint32, Signature: sig},
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal submit observations message: %v", err))
+	}
+	return len(bytes) - jsonQuotesSize // Marshaling the empty observations produces just the quotes of an empty string.
+}()
 
 // removeCompleted drops any messages that are no longer in the pending transfer map. This is to handle the case where the contract reports
 // that a transfer is committed while it is in the channel. There is no point in submitting the observation once the transfer is committed.
@@ -187,6 +277,20 @@ type (
 
 var SubmitObservationPrefix = []byte("acct_sub_obsfig_000000000000000000|")
 var NttSubmitObservationPrefix = []byte("ntt_acct_sub_obsfig_00000000000000|")
+
+// makeObservation converts a message publication into the observation that is submitted to the smart contract.
+func makeObservation(msg *common.MessagePublication) Observation {
+	return Observation{
+		TxHash:           msg.TxID,
+		Timestamp:        uint32(msg.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
+		Nonce:            msg.Nonce,
+		EmitterChain:     uint16(msg.EmitterChain),
+		EmitterAddress:   msg.EmitterAddress,
+		Sequence:         msg.Sequence,
+		ConsistencyLevel: msg.ConsistencyLevel,
+		Payload:          msg.Payload,
+	}
+}
 
 func (k TransferKey) String() string {
 	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
@@ -315,16 +419,7 @@ func SubmitObservationsToContract(
 ) (*sdktx.BroadcastTxResponse, error) {
 	obs := make([]Observation, len(msgs))
 	for idx, msg := range msgs {
-		obs[idx] = Observation{
-			TxHash:           msg.TxID,
-			Timestamp:        uint32(msg.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
-			Nonce:            msg.Nonce,
-			EmitterChain:     uint16(msg.EmitterChain),
-			EmitterAddress:   msg.EmitterAddress,
-			Sequence:         msg.Sequence,
-			ConsistencyLevel: msg.ConsistencyLevel,
-			Payload:          msg.Payload,
-		}
+		obs[idx] = makeObservation(msg)
 
 		logger.Debug("in SubmitObservationsToContract, encoding observation",
 			zap.String("contract", contract),
