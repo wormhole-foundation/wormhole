@@ -1621,16 +1621,16 @@ func TestTransferIsValidWithMsgID(t *testing.T) {
 		MsgSender:    tokenBridgeAddr,
 		Sequence:     0,
 	}
-	msgID, err := mocks.transferVerifier.MsgID(message)
+	id, err := mocks.transferVerifier.MsgID(message)
 	require.NoError(t, err)
 
 	txHash := common.HexToHash("0xdeadbeef")
-	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, msgID.String(), txHash, validTransferReceipt(100))
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, id.String(), txHash, validTransferReceipt(100))
 	require.NoError(t, err)
 	assert.True(t, ok)
 
 	// A second call with the same txHash and msgID hits the cached path.
-	ok, err = mocks.transferVerifier.TransferIsValid(*mocks.ctx, msgID.String(), txHash, validTransferReceipt(100))
+	ok, err = mocks.transferVerifier.TransferIsValid(*mocks.ctx, id.String(), txHash, validTransferReceipt(100))
 	require.NoError(t, err)
 	assert.True(t, ok)
 }
@@ -1786,10 +1786,10 @@ func TestParseMsgID(t *testing.T) {
 
 	// A valid msgID for the configured chain and token bridge.
 	valid := "2/" + VAAAddrFrom(tokenBridgeAddr).String() + "/0"
-	msgID, err := mocks.transferVerifier.ParseMsgID(valid)
+	id, err := mocks.transferVerifier.ParseMsgID(valid)
 	require.NoError(t, err)
-	assert.Equal(t, vaa.ChainIDEthereum, msgID.EmitterChain)
-	assert.Equal(t, uint64(0), msgID.Sequence)
+	assert.Equal(t, vaa.ChainIDEthereum, id.EmitterChain)
+	assert.Equal(t, uint64(0), id.Sequence)
 
 	// Wrong emitter chain.
 	_, err = mocks.transferVerifier.ParseMsgID("4/" + VAAAddrFrom(tokenBridgeAddr).String() + "/0")
@@ -1869,10 +1869,10 @@ func TestTransferIsValidMsgUnsafe(t *testing.T) {
 		MsgSender:    tokenBridgeAddr,
 		Sequence:     0,
 	}
-	msgID, err := mocks.transferVerifier.MsgID(message)
+	id, err := mocks.transferVerifier.MsgID(message)
 	require.NoError(t, err)
 
-	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, msgID.String(), common.HexToHash("0xdeadbeef"), receipt)
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, id.String(), common.HexToHash("0xdeadbeef"), receipt)
 	require.NoError(t, err)
 	assert.False(t, ok, "the specific message should be reported as unsafe")
 }

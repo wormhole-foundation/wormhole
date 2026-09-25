@@ -644,27 +644,76 @@ func TestNotary_LoadFromDB(t *testing.T) {
 	})
 }
 
+// signalingGauge is a prometheus.Gauge that closes done the first time Set is
+// called. Tests use it to wait until the notary's background metrics goroutine
+// has completed its initial gauge update. That wait establishes a happens-before
+// edge with any later mutation of the package-level gauge variables, which the
+// race detector otherwise reports as a data race.
+type signalingGauge struct {
+	prometheus.Gauge
+	once sync.Once
+	done chan struct{}
+}
+
+func newSignalingGauge(name string) *signalingGauge {
+	return &signalingGauge{
+		Gauge: prometheus.NewGauge(prometheus.GaugeOpts{Name: name}),
+		done:  make(chan struct{}),
+	}
+}
+
+func (g *signalingGauge) Set(v float64) {
+	g.Gauge.Set(v)
+	g.once.Do(func() { close(g.done) })
+}
+
 func TestNotary_Run(t *testing.T) {
+	// Initialize the real metrics first so Run's initMetrics call is a no-op and
+	// does not overwrite the signaling gauges installed per subtest.
+	initMetrics(zap.NewNop())
+
+	runAndWait := func(t *testing.T, n *Notary) {
+		t.Helper()
+
+		savedDelayed := notaryDelayedMessagesGauge
+		savedBlackholed := notaryBlackholedMessagesGauge
+		// The blackholed gauge is written last by updateGauges, so waiting on it
+		// guarantees every global gauge access in the goroutine has completed.
+		sig := newSignalingGauge("notary_test_run_blackholed")
+		notaryDelayedMessagesGauge = prometheus.NewGauge(prometheus.GaugeOpts{Name: "notary_test_run_delayed"})
+		notaryBlackholedMessagesGauge = sig
+		t.Cleanup(func() {
+			notaryDelayedMessagesGauge = savedDelayed
+			notaryBlackholedMessagesGauge = savedBlackholed
+		})
+
+		require.NoError(t, n.Run())
+
+		select {
+		case <-sig.done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for the notary metrics goroutine")
+		}
+	}
+
 	t.Run("GoTest environment skips database load", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		n := makeTestNotary(t)
 		n.ctx = ctx
 
-		require.NoError(t, n.Run())
-		cancel()
-		time.Sleep(10 * time.Millisecond)
+		runAndWait(t, n)
 	})
 
 	t.Run("non-test environment loads from database", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		database := &configurableMockDB{loadResult: &db.NotaryLoadResult{}}
 		n := makeTestNotaryWithDB(t, database)
 		n.ctx = ctx
 		n.env = common.MainNet
 
-		require.NoError(t, n.Run())
-		cancel()
-		time.Sleep(10 * time.Millisecond)
+		runAndWait(t, n)
 	})
 }
 
