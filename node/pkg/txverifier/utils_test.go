@@ -1,6 +1,7 @@
 package txverifier
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -8,7 +9,10 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -718,4 +722,163 @@ func Test_validateSolvency(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMsgIDEmpty(t *testing.T) {
+	empty := &msgID{}
+	assert.True(t, empty.Empty())
+
+	nonEmpty := &msgID{EmitterChain: vaa.ChainIDEthereum}
+	assert.False(t, nonEmpty.Empty())
+
+	withAddr := &msgID{EmitterAddress: usdcAddrVAA}
+	assert.False(t, withAddr.Empty())
+
+	withSeq := &msgID{Sequence: 1}
+	assert.False(t, withSeq.Empty())
+}
+
+func TestNewMsgIDErrors(t *testing.T) {
+	validAddr := VAAAddrFrom(tokenBridgeAddr).String()
+	zeroAddr := VAAAddrFrom(ZERO_ADDRESS).String()
+
+	tests := map[string]string{
+		"empty":             "",
+		"wrong part count":  "2/" + validAddr,
+		"unknown chain":     "notachain/" + validAddr + "/0",
+		"unsupported chain": "999/" + validAddr + "/0",
+		"invalid address":   "2/notanaddress/0",
+		"invalid sequence":  "2/" + validAddr + "/notanumber",
+		"zero emitter":      "2/" + zeroAddr + "/0",
+	}
+
+	for name, input := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := NewMsgID(input)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestNewMsgIDValid(t *testing.T) {
+	validAddr := VAAAddrFrom(tokenBridgeAddr).String()
+	msgID, err := NewMsgID("2/" + validAddr + "/7")
+	require.NoError(t, err)
+	assert.Equal(t, vaa.ChainIDEthereum, msgID.EmitterChain)
+	assert.Equal(t, uint64(7), msgID.Sequence)
+	assert.Equal(t, VAAAddrFrom(tokenBridgeAddr), msgID.EmitterAddress)
+}
+
+func TestExtractFromJsonPathErrors(t *testing.T) {
+	t.Run("nil data", func(t *testing.T) {
+		_, err := extractFromJsonPath[int](nil, "a")
+		require.Error(t, err)
+	})
+
+	t.Run("invalid json", func(t *testing.T) {
+		_, err := extractFromJsonPath[int](json.RawMessage(`{`), "a")
+		require.Error(t, err)
+	})
+
+	t.Run("intermediate key is not a map", func(t *testing.T) {
+		_, err := extractFromJsonPath[int](json.RawMessage(`{"a": 1}`), "a.b")
+		require.Error(t, err)
+	})
+
+	t.Run("final key has wrong type", func(t *testing.T) {
+		_, err := extractFromJsonPath[int](json.RawMessage(`{"a": "string"}`), "a")
+		require.Error(t, err)
+	})
+
+	t.Run("final key missing", func(t *testing.T) {
+		_, err := extractFromJsonPath[int](json.RawMessage(`{"a": 1}`), "b")
+		require.Error(t, err)
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		v, err := extractFromJsonPath[string](json.RawMessage(`{"a": "hello"}`), "a")
+		require.NoError(t, err)
+		assert.Equal(t, "hello", v)
+	})
+}
+
+func TestValidateChainsExceedsMaxUint16(t *testing.T) {
+	_, err := ValidateChains([]uint{70000})
+	require.Error(t, err)
+}
+
+func TestUpsertNilArguments(t *testing.T) {
+	t.Run("nil map pointer", func(t *testing.T) {
+		err := upsert(nil, "key", big.NewInt(1))
+		require.ErrorIs(t, err, ErrInvalidUpsertArgument)
+	})
+
+	t.Run("nil map", func(t *testing.T) {
+		var m map[string]*big.Int
+		err := upsert(&m, "key", big.NewInt(1))
+		require.ErrorIs(t, err, ErrInvalidUpsertArgument)
+	})
+
+	t.Run("nil amount", func(t *testing.T) {
+		m := map[string]*big.Int{}
+		err := upsert(&m, "key", nil)
+		require.ErrorIs(t, err, ErrInvalidUpsertArgument)
+	})
+
+	t.Run("insert then accumulate", func(t *testing.T) {
+		m := map[string]*big.Int{}
+		require.NoError(t, upsert(&m, "key", big.NewInt(1)))
+		require.NoError(t, upsert(&m, "key", big.NewInt(2)))
+		assert.Equal(t, big.NewInt(3), m["key"])
+	})
+}
+
+// unknownTransferLog implements TransferLog but is not one of the concrete
+// types handled by validate()'s type switch.
+type unknownTransferLog struct{}
+
+func (unknownTransferLog) TransferAmount() *big.Int { return big.NewInt(1) }
+func (unknownTransferLog) Destination() vaa.Address { return eoaAddrVAA }
+func (unknownTransferLog) Emitter() common.Address  { return usdcAddrGeth }
+func (unknownTransferLog) OriginChain() vaa.ChainID { return vaa.ChainIDEthereum }
+func (unknownTransferLog) OriginAddress() vaa.Address {
+	return usdcAddrVAA
+}
+
+func TestValidateUnknownTransferLogType(t *testing.T) {
+	err := validate[unknownTransferLog](unknownTransferLog{})
+	require.Error(t, err)
+	var invalidErr *InvalidLogError
+	require.ErrorAs(t, err, &invalidErr)
+}
+
+func TestSanityCheckNilReceiver(t *testing.T) {
+	var receipt *TransferReceipt
+	err := receipt.SanityCheck()
+	require.ErrorIs(t, err, ErrInvalidReceiptArgument)
+}
+
+func TestParseMsgIDWrongChain(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	// Sepolia is supported by the verifier but is not the chain being monitored.
+	valid := "10002/" + VAAAddrFrom(tokenBridgeAddr).String() + "/0"
+	_, err := mocks.transferVerifier.ParseMsgID(valid)
+	require.Error(t, err)
+}
+
+func TestNativeContractConvertError(t *testing.T) {
+	// A result longer than 32 bytes passes the length check but fails conversion.
+	tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+		return make([]byte, 33), nil
+	})
+	_, err := tv.nativeContract(usdcAddrGeth)
+	require.Error(t, err)
+}
+func TestNewMsgIDUnsupportedKnownChain(t *testing.T) {
+	// Solana is a known chain but is not supported by the Transfer Verifier.
+	validAddr := VAAAddrFrom(tokenBridgeAddr).String()
+	_, err := NewMsgID("solana/" + validAddr + "/0")
+	require.Error(t, err)
 }

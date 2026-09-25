@@ -3,6 +3,7 @@ package txverifier
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	mystenbcs "github.com/block-vision/sui-go-sdk/mystenbcs"
 	"github.com/certusone/wormhole/node/pkg/suiclient"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -54,8 +56,9 @@ type ResultTestCase struct {
 // BCS-encoded object versions keyed by (objectId, version). Only the methods exercised by the
 // verifier are meaningfully implemented.
 type mockSuiClient struct {
-	transaction suiclient.SuiTransaction
-	objects     map[string][]byte
+	transaction       suiclient.SuiTransaction
+	objects           map[string][]byte
+	getTransactionErr error
 }
 
 func newMockSuiClient() *mockSuiClient {
@@ -67,6 +70,9 @@ func objKey(objectId string, version uint64) string {
 }
 
 func (m *mockSuiClient) GetTransaction(ctx context.Context, digest string, fields []string) (suiclient.SuiTransaction, error) {
+	if m.getTransactionErr != nil {
+		return suiclient.SuiTransaction{}, m.getTransactionErr
+	}
 	return m.transaction, nil
 }
 
@@ -921,4 +927,288 @@ func TestProcessDigestPublic(t *testing.T) {
 	ok, err = build("100000", "100000", big.NewInt(100000)).ProcessDigest(ctx, "HASH", "", logger)
 	assert.NoError(t, err)
 	assert.False(t, ok)
+}
+
+const (
+	suiTestVersion     = "6565"
+	suiTestPrevVer     = "4040"
+	suiTestNativeAddr  = "93,75,48,37,6,100,92,55,255,19,59,152,196,181,10,90,225,72,65,101,151,56,214,215,51,213,157,13,33,122,147,191"
+	suiTestNativeChain = "21"
+)
+
+var (
+	suiTestNativeType = "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x2::sui::SUI>>"
+	suiTestNativeID   = "0x831c45a8d512c9cf46e7a8a947f7cbbb5e0a59829aa72450ff26fb1873fd0e94"
+)
+
+func TestExtractBridgeRequestsFromEvents(t *testing.T) {
+	v := newTestSuiTransferVerifier(nil)
+	logger := zap.NewNop()
+	eventType := v.suiEventType
+	emitter := v.suiTokenBridgeEmitter
+	payload := generatePayload(1, big.NewInt(5), SuiUsdcAddress, uint16(vaa.ChainIDSui))
+
+	t.Run("wrong event type is skipped", func(t *testing.T) {
+		events := []suiclient.SuiEvent{makeWormholeEvent("other::Type", emitter, payload, 1)}
+		assert.Empty(t, v.extractBridgeRequestsFromEvents(events, logger))
+	})
+
+	t.Run("undecodable event is skipped", func(t *testing.T) {
+		events := []suiclient.SuiEvent{{EventType: eventType, BcsBytes: []byte{0x01, 0x02}}}
+		assert.Empty(t, v.extractBridgeRequestsFromEvents(events, logger))
+	})
+
+	t.Run("wrong sender is skipped", func(t *testing.T) {
+		events := []suiclient.SuiEvent{makeWormholeEvent(eventType, "0x1234", payload, 1)}
+		assert.Empty(t, v.extractBridgeRequestsFromEvents(events, logger))
+	})
+
+	t.Run("undecodable payload is skipped", func(t *testing.T) {
+		events := []suiclient.SuiEvent{makeWormholeEvent(eventType, emitter, []byte{0x01}, 1)}
+		assert.Empty(t, v.extractBridgeRequestsFromEvents(events, logger))
+	})
+
+	t.Run("valid event produces a request", func(t *testing.T) {
+		events := []suiclient.SuiEvent{makeWormholeEvent(eventType, emitter, payload, 1)}
+		requests := v.extractBridgeRequestsFromEvents(events, logger)
+		require.Len(t, requests, 1)
+		for _, req := range requests {
+			assert.False(t, req.DepositMade)
+			assert.False(t, req.DepositSolvent)
+			assert.Equal(t, big.NewInt(5), req.Amount)
+		}
+	})
+}
+
+func TestExtractTransfersIntoBridgeFromObjectChanges(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.Background()
+	tokenAddress := parseByteCSV(suiTestNativeAddr)
+
+	t.Run("nil fields are skipped", func(t *testing.T) {
+		v := newTestSuiTransferVerifier(nil)
+		outputVersion := uint64(6565)
+		inputVersion := uint64(4040)
+		changes := []suiclient.SuiObjectChange{
+			{ObjectType: &suiTestNativeType, OutputVersion: &outputVersion, InputVersion: &inputVersion},
+			{ObjectID: &suiTestNativeID, OutputVersion: &outputVersion, InputVersion: &inputVersion},
+			{ObjectID: &suiTestNativeID, ObjectType: &suiTestNativeType, InputVersion: &inputVersion},
+			{ObjectID: &suiTestNativeID, ObjectType: &suiTestNativeType, OutputVersion: &outputVersion},
+		}
+		assert.Empty(t, v.extractTransfersIntoBridgeFromObjectChanges(ctx, changes, logger))
+	})
+
+	t.Run("valid native object change", func(t *testing.T) {
+		mock := newMockSuiClient()
+		mock.objects[objKey(suiTestNativeID, 6565)] = bcsNativeObject(1000, tokenAddress, 8)
+		mock.objects[objKey(suiTestNativeID, 4040)] = bcsNativeObject(10, tokenAddress, 8)
+		v := newTestSuiTransferVerifier(mock)
+		changes := []suiclient.SuiObjectChange{toSuiObjectChange(ObjectChange{
+			ObjectType: suiTestNativeType, ObjectId: suiTestNativeID, Version: suiTestVersion, PreviousVersion: suiTestPrevVer,
+		})}
+		transfers := v.extractTransfersIntoBridgeFromObjectChanges(ctx, changes, logger)
+		require.Len(t, transfers, 1)
+		for _, tr := range transfers {
+			assert.False(t, tr.Solvent)
+			assert.Equal(t, big.NewInt(990), tr.Amount)
+		}
+	})
+}
+
+func TestProcessDigestGetTransactionError(t *testing.T) {
+	mock := newMockSuiClient()
+	mock.getTransactionErr = errors.New("rpc down")
+	v := newTestSuiTransferVerifier(mock)
+
+	ok, err := v.processDigestInternal(context.Background(), "HASH", "", zap.NewNop())
+	require.ErrorIs(t, err, ErrFailedToRetrieveTxBlock)
+	assert.False(t, ok)
+}
+
+func TestProcessDigestNoEvents(t *testing.T) {
+	mock := newMockSuiClient()
+	mock.transaction = suiclient.SuiTransaction{}
+	v := newTestSuiTransferVerifier(mock)
+
+	ok, err := v.processDigestInternal(context.Background(), "HASH", "", zap.NewNop())
+	require.NoError(t, err)
+	assert.True(t, ok)
+}
+
+func TestProcessDigestSpecificMsgID(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.Background()
+
+	v := newTestSuiTransferVerifier(nil)
+	eventType := v.suiEventType
+	emitter := v.suiTokenBridgeEmitter
+	sender := strings.TrimPrefix(emitter, "0x")
+
+	buildMock := func(newBalance, oldBalance string, amount *big.Int, seq uint64) (*mockSuiClient, string) {
+		mock := newMockSuiClient()
+		change := ObjectChange{ObjectType: suiTestNativeType, Version: suiTestVersion, PreviousVersion: suiTestPrevVer, ObjectId: suiTestNativeID}
+		mock.registerObject(change, ResultTestCase{
+			tokenChain: suiTestNativeChain, tokenAddress: suiTestNativeAddr, wrapped: false,
+			newBalance: newBalance, oldBalance: oldBalance, decimals: 8,
+		})
+		mock.transaction = suiclient.SuiTransaction{
+			Events:        []suiclient.SuiEvent{makeWormholeEvent(eventType, emitter, generatePayload(1, amount, SuiUsdcAddress, uint16(vaa.ChainIDSui)), seq)},
+			ObjectChanges: toSuiObjectChanges([]ObjectChange{change}),
+		}
+		return mock, fmt.Sprintf("%d/%s/%d", vaa.ChainIDSui, sender, seq)
+	}
+
+	t.Run("valid specific message", func(t *testing.T) {
+		mock, msgID := buildMock("1000", "10", big.NewInt(990), 201)
+		ok, err := newTestSuiTransferVerifier(mock).processDigestInternal(ctx, "HASH", msgID, logger)
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("no deposit for specific message", func(t *testing.T) {
+		mock := newMockSuiClient()
+		mock.transaction = suiclient.SuiTransaction{
+			Events: []suiclient.SuiEvent{makeWormholeEvent(eventType, emitter, generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)), 202)},
+		}
+		msgID := fmt.Sprintf("%d/%s/%d", vaa.ChainIDSui, sender, 202)
+		ok, err := newTestSuiTransferVerifier(mock).processDigestInternal(ctx, "HASH", msgID, logger)
+		require.Error(t, err)
+		assert.False(t, ok)
+		var inv *InvariantError
+		require.ErrorAs(t, err, &inv)
+		assert.Equal(t, INVARIANT_NO_DEPOSIT, inv.Msg)
+	})
+
+	t.Run("insolvent specific message", func(t *testing.T) {
+		mock, msgID := buildMock("100000", "100000", big.NewInt(100000), 203)
+		ok, err := newTestSuiTransferVerifier(mock).processDigestInternal(ctx, "HASH", msgID, logger)
+		require.Error(t, err)
+		assert.False(t, ok)
+		var inv *InvariantError
+		require.ErrorAs(t, err, &inv)
+		assert.Equal(t, INVARIANT_INSUFFICIENT_DEPOSIT, inv.Msg)
+	})
+}
+
+func TestProcessDigestInvariantReturnsFalse(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.Background()
+
+	v := newTestSuiTransferVerifier(nil)
+	eventType := v.suiEventType
+	emitter := v.suiTokenBridgeEmitter
+
+	// No deposit: the else-branch invariant path.
+	mock := newMockSuiClient()
+	mock.transaction = suiclient.SuiTransaction{
+		Events: []suiclient.SuiEvent{makeWormholeEvent(eventType, emitter, generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)), 301)},
+	}
+	ok, err := newTestSuiTransferVerifier(mock).processDigestInternal(ctx, "HASH", "", logger)
+	require.Error(t, err)
+	assert.False(t, ok, "invariant violations must report false")
+}
+
+func TestProcessDigestPublicWrapper(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.Background()
+
+	v := newTestSuiTransferVerifier(nil)
+	eventType := v.suiEventType
+	emitter := v.suiTokenBridgeEmitter
+
+	t.Run("invariant error is swallowed and reports false", func(t *testing.T) {
+		mock := newMockSuiClient()
+		mock.transaction = suiclient.SuiTransaction{
+			Events: []suiclient.SuiEvent{makeWormholeEvent(eventType, emitter, generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)), 401)},
+		}
+		ok, err := newTestSuiTransferVerifier(mock).ProcessDigest(ctx, "HASH", "", logger)
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+
+	t.Run("internal error is propagated", func(t *testing.T) {
+		mock := newMockSuiClient()
+		mock.getTransactionErr = errors.New("rpc down")
+		ok, err := newTestSuiTransferVerifier(mock).ProcessDigest(ctx, "HASH", "", logger)
+		require.Error(t, err)
+		assert.False(t, ok)
+	})
+}
+
+func TestDecodeSuiAssetObjectWrappedTruncated(t *testing.T) {
+	_, err := decodeSuiAssetObject(suiWrappedAssetType, []byte{0x01, 0x02})
+	assert.ErrorContains(t, err, "failed to BCS-decode WrappedAsset")
+}
+func TestProcessDigestInsolventElseBranchReturnsFalse(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.Background()
+
+	v := newTestSuiTransferVerifier(nil)
+	eventType := v.suiEventType
+	emitter := v.suiTokenBridgeEmitter
+
+	// A deposit is made but is insufficient, and no specific message ID is
+	// requested, so the else-branch invariant path is taken.
+	mock := newMockSuiClient()
+	change := ObjectChange{ObjectType: suiTestNativeType, Version: suiTestVersion, PreviousVersion: suiTestPrevVer, ObjectId: suiTestNativeID}
+	mock.registerObject(change, ResultTestCase{
+		tokenChain: suiTestNativeChain, tokenAddress: suiTestNativeAddr, wrapped: false,
+		newBalance: "100000", oldBalance: "100000", decimals: 8,
+	})
+	mock.transaction = suiclient.SuiTransaction{
+		Events:        []suiclient.SuiEvent{makeWormholeEvent(eventType, emitter, generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)), 501)},
+		ObjectChanges: toSuiObjectChanges([]ObjectChange{change}),
+	}
+
+	ok, err := newTestSuiTransferVerifier(mock).processDigestInternal(ctx, "HASH", "", logger)
+	require.Error(t, err)
+	assert.False(t, ok, "an insolvent receipt must report false")
+	var inv *InvariantError
+	require.ErrorAs(t, err, &inv)
+	assert.Equal(t, INVARIANT_INSUFFICIENT_DEPOSIT, inv.Msg)
+}
+func TestValidateSolvencyNilAmounts(t *testing.T) {
+	t.Run("nil request amount", func(t *testing.T) {
+		requests := MsgIdToRequestOutOfBridge{
+			"msg": {AssetKey: "key", Amount: nil},
+		}
+		resolved, err := validateSolvency(requests, AssetKeyToTransferIntoBridge{})
+		require.Error(t, err)
+		assert.NotNil(t, resolved)
+	})
+
+	t.Run("nil transfer amount", func(t *testing.T) {
+		requests := MsgIdToRequestOutOfBridge{
+			"msg": {AssetKey: "key", Amount: big.NewInt(1)},
+		}
+		transfers := AssetKeyToTransferIntoBridge{
+			"key": {Amount: nil},
+		}
+		resolved, err := validateSolvency(requests, transfers)
+		require.Error(t, err)
+		assert.NotNil(t, resolved)
+	})
+}
+func TestValidateSolvencyMarksInsolvent(t *testing.T) {
+	requests := MsgIdToRequestOutOfBridge{
+		"msg": {AssetKey: "key", Amount: big.NewInt(10)},
+	}
+	transfers := AssetKeyToTransferIntoBridge{
+		"key": {Amount: big.NewInt(5)},
+	}
+	resolved, err := validateSolvency(requests, transfers)
+	require.NoError(t, err)
+	require.Contains(t, resolved, "msg")
+	assert.True(t, resolved["msg"].DepositMade)
+	assert.False(t, resolved["msg"].DepositSolvent, "an underfunded request must be marked insolvent")
+}
+func TestValidateSolvencyNoDeposit(t *testing.T) {
+	requests := MsgIdToRequestOutOfBridge{
+		"msg": {AssetKey: "key", Amount: big.NewInt(10)},
+	}
+	resolved, err := validateSolvency(requests, AssetKeyToTransferIntoBridge{})
+	require.NoError(t, err)
+	require.Contains(t, resolved, "msg")
+	assert.False(t, resolved["msg"].DepositMade)
+	assert.False(t, resolved["msg"].DepositSolvent)
 }
