@@ -44,8 +44,8 @@ func Decode(currency string) ([NormalizedLen]byte, error) {
 		return result, fmt.Errorf("invalid standard currency code length: %d", len(currency))
 	}
 
-	// Standard format: [0x00][ASCII bytes][trailing zeros]
-	result[0] = 0x00
+	// Standard format: [0x00][ASCII bytes][trailing zeros]. result is already
+	// zero-valued, so byte 0 stays 0x00 and only the ASCII bytes are written.
 	copy(result[12:12+len(currency)], []byte(currency))
 
 	return result, nil
