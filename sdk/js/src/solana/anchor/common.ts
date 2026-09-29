@@ -1,6 +1,6 @@
 // Borrowed from coral-xyz/anchor
 //
-// https://github.com/coral-xyz/anchor/blob/master/ts/packages/anchor/src/coder/common.ts
+// https://github.com/otter-sec/anchor/blob/master/ts/packages/anchor/src/coder/common.ts
 
 import { Idl, IdlField, IdlTypeDef, IdlEnumVariant, IdlType } from "./idl";
 import { IdlError } from "./error";

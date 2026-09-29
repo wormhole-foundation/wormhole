@@ -11,11 +11,11 @@ export interface SolanaPdaEntry {
 }
 
 // According to the spec, there may be at most 16 seeds.
-// https://github.com/gagliardetto/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L559
+// https://github.com/solana-foundation/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L559
 export const SolanaMaxSeeds = 16;
 
 // According to the spec, a seed may be at most 32 bytes.
-// https://github.com/gagliardetto/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L557
+// https://github.com/solana-foundation/solana-go/blob/6fe3aea02e3660d620433444df033fc3fe6e64c1/keys.go#L557
 export const SolanaMaxSeedLen = 32;
 
 export class SolanaPdaQueryRequest implements ChainSpecificQuery {
