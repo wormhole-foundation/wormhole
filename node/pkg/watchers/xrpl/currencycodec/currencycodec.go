@@ -46,6 +46,8 @@ func Decode(currency string) ([NormalizedLen]byte, error) {
 
 	// Standard format: [0x00][ASCII bytes][trailing zeros]. result is already
 	// zero-valued, so byte 0 stays 0x00 and only the ASCII bytes are written.
+	// Defense-in-depth: ensure the first byte is zero. Bounds-check is guaranteed by [NormalizedLen].
+	result[0] = 0x00
 	copy(result[12:12+len(currency)], []byte(currency))
 
 	return result, nil
