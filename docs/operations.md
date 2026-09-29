@@ -180,7 +180,7 @@ address = "0.0.0.0:9091"
 <!-- cspell:enable -->
 
 For signing, consider setting up a remote threshold signer such as
-[horcrux](https://github.com/strangelove-ventures/horcrux) and adopting the sentry node architecture with sentry nodes
+[horcrux](https://github.com/amygdala-labs/horcrux) and adopting the sentry node architecture with sentry nodes
 in front of your wormchain validator.
 
 #### Retrieve the Genesis File
@@ -558,7 +558,7 @@ $ go run main.go --pubKey 0xDA798F6896A3331F64b48c12D1D57Fd9cbe70811 --bootstrap
 
 ## Native Token Transfers
 
-[NTT](https://github.com/wormhole-foundation/example-native-token-transfers) is an exciting feature of wormhole that builds upon the core bridge to allow mint/burn style transfers. Ensuring it runs correctly requires integrating it with the NTT Accountant. To enable this feature, create a **new** wormchain key. Do not reuse an existing global accountant key and add the following parameters:
+[NTT](https://github.com/wormhole-foundation/native-token-transfers) is an exciting feature of wormhole that builds upon the core bridge to allow mint/burn style transfers. Ensuring it runs correctly requires integrating it with the NTT Accountant. To enable this feature, create a **new** wormchain key. Do not reuse an existing global accountant key and add the following parameters:
 
 <!-- cspell:disable -->
 
