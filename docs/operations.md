@@ -16,7 +16,7 @@ so you can test changes for your mainnet full nodes and gain operational experie
 
 ### Solana node requirements
 
-Refer to the [Solana documentation](https://docs.solanalabs.com/operations/setup-an-rpc-node) on how to run an RPC
+Refer to the [Solana documentation](https://docs.anza.xyz/operations/setup-an-rpc-node) on how to run an RPC
 (full) node. [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding
 operations.
 

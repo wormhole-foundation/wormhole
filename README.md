@@ -6,7 +6,7 @@ To learn about how to use and build on Wormhole read the [docs](https://docs.wor
 
 ----
 
-See [Live Contracts](https://docs.wormholenetwork.com/wormhole/contracts) for current testnet and mainnet deployments of
+See [Live Contracts](https://wormhole.com/docs/reference/contract-addresses/) for current testnet and mainnet deployments of
 the Wormhole smart contracts.
 
 See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet, [CONTRIBUTING.md](CONTRIBUTING.md) for instructions on how to contribute to this project, and [SECURITY.md](SECURITY.md) for more information about our security audits and bug bounty program.
