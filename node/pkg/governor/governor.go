@@ -4,7 +4,7 @@ package governor
 // It works by tracking transfers (types one and three) for a configured set of tokens from a configured set of emitters (chains).
 //
 // To compute the notional value of a transfer, the governor uses the amount from the transfer multiplied by the maximum of
-// a hard coded price and the latest price pulled from CoinkGecko (every five minutes). Once a transfer is published,
+// a hard coded price and the latest price pulled from CoinGecko (every five minutes). Once a transfer is published,
 // its value (as factored into the daily total) is fixed. However the value of pending transfers is computed using the latest price each interval.
 //
 // The governor maintains a rolling 24 hour window of transfers that have been received from a configured chain (emitter)
