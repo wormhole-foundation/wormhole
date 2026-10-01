@@ -240,7 +240,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 					zap.Stringer("cfgPrice", te.cfgPrice),
 				)
 
-				te.price = te.cfgPrice
+				te.price.Set(te.cfgPrice)
 				// Don't update the timestamp so we'll know when we last received an update from CoinGecko.
 			}
 		}
@@ -299,7 +299,7 @@ func (gov *ChainGovernor) revertAllPrices() {
 				zap.Stringer("cfgPrice", te.cfgPrice),
 			)
 
-			te.price = te.cfgPrice
+			te.price.Set(te.cfgPrice)
 			// Don't update the timestamp so we'll know when we last received an update from CoinGecko.
 		}
 	}
