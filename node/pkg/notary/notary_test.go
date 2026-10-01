@@ -571,3 +571,53 @@ func makeUniqueMessagePublication(t *testing.T) *common.MessagePublication {
 
 	return msgpub
 }
+
+// TestNotary_ReobservationDoesNotBypassDelay verifies that once a message is delayed, a
+// reobservation of that message cannot release it early or duplicate its entry in the delayed
+// queue. Reobservation re-runs the transfer verifier from scratch, so the same message can
+// re-enter ProcessMsg carrying a different verification state.
+func TestNotary_ReobservationDoesNotBypassDelay(t *testing.T) {
+	// Verification states that a reobserved message might carry on re-entry.
+	tests := map[string]common.VerificationState{
+		"reobserved as Valid":       common.Valid,
+		"reobserved as Rejected":    common.Rejected,
+		"reobserved as Anomalous":   common.Anomalous,
+		"reobserved as NotVerified": common.NotVerified,
+	}
+
+	for name, reobservedState := range tests {
+		t.Run(name, func(t *testing.T) {
+			n := makeTestNotary(t)
+
+			msg := makeUniqueMessagePublication(t)
+			require.NoError(t, msg.SetVerificationState(common.CouldNotVerify))
+
+			verdict, err := n.ProcessMsg(msg)
+			require.NoError(t, err)
+			require.Equal(t, Delay, verdict)
+			require.True(t, n.IsDelayed(msg))
+			require.Equal(t, 1, n.delayed.Len())
+
+			releaseTime := n.delayed.Peek().ReleaseTime
+
+			// Reobservation republishes the message with the same message ID and has the transfer
+			// verifier evaluate it again from the default state.
+			reobserved := makeUniqueMessagePublication(t)
+			reobserved.Sequence = msg.Sequence
+			reobserved.IsReobservation = true
+			if reobservedState != common.NotVerified {
+				// SetVerificationState refuses to set the state it already holds.
+				require.NoError(t, reobserved.SetVerificationState(reobservedState))
+			}
+			require.Equal(t, msg.MessageIDString(), reobserved.MessageIDString())
+
+			verdict, err = n.ProcessMsg(reobserved)
+			require.NoError(t, err)
+			require.Equal(t, Delay, verdict, "reobservation must not release a delayed message early")
+
+			// The original delayed entry is untouched, so delay() was not called a second time.
+			require.Equal(t, 1, n.delayed.Len())
+			require.Equal(t, releaseTime, n.delayed.Peek().ReleaseTime)
+		})
+	}
+}
