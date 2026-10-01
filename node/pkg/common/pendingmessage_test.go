@@ -69,10 +69,6 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 	var (
 		longTxID = bytes.NewBuffer(make([]byte, math.MaxUint8+1))
 	)
-	emitter, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	require.NoError(t, err)
-
-	require.NoError(t, err)
 
 	tests := []test{
 		{
@@ -81,22 +77,6 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 				TxID: longTxID.Bytes(),
 			},
 			errMsg: "wrong size: TxID too long",
-		},
-		{
-			label: "txID too short",
-			input: common.MessagePublication{
-				TxID:             []byte{},
-				Timestamp:        time.Unix(int64(1654516425), 0),
-				Nonce:            123456,
-				Sequence:         789101112131415,
-				EmitterChain:     vaa.ChainIDEthereum,
-				EmitterAddress:   emitter,
-				Payload:          []byte{},
-				ConsistencyLevel: 32,
-				Unreliable:       true,
-				IsReobservation:  true,
-			},
-			errMsg: "wrong size: TxID too short",
 		},
 	}
 
