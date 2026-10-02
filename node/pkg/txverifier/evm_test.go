@@ -7,26 +7,31 @@
 //   - Variables with the VAA suffix are used to represent the data types represented by the Wormhole VAA package.
 package txverifier
 
-// TODO:
-// - more robust mocking of RPC return values so that we can test multiple cases
-// - add tests checking amount values from ValidateReceipt
-
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	connectors "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	dgAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/delegated_guardians"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	ethClient "github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rpc"
+	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
-	ethereum "github.com/ethereum/go-ethereum"
-
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
-	ipfslog "github.com/ipfs/go-log/v2"
+	"go.uber.org/zap"
 )
 
 // Important addresses for testing. Arbitrary, but Ethereum mainnet values used here.
@@ -105,10 +110,15 @@ func setup() *mockConnections {
 			TokenBridgeAddr:   tokenBridgeAddr,
 			WrappedNativeAddr: nativeAddrGeth,
 		},
-		chainIds:     &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
-		evmConnector: &mockConnector{},
-		client:       &mockClient{},
-		logger:       *logger,
+		chainIds:            &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
+		evmConnector:        &mockConnector{},
+		client:              &mockClient{},
+		logger:              *logger,
+		evaluations:         make(map[common.Hash]*receiptEvaluation),
+		isWrappedCache:      make(map[string]bool),
+		chainIdCache:        make(map[string]vaa.ChainID),
+		nativeContractCache: make(map[string]vaa.Address),
+		decimalsCache:       make(map[common.Address]uint8),
 	}
 	ctx, ctxCancel := context.WithCancel(context.Background()) // #nosec G118 -- Cancel is owned by the test via mocks.ctxCancel().
 
@@ -1489,8 +1499,16 @@ func TestNoPanics(t *testing.T) {
 	}, "UpdateReceiptDetails should handle nil without panicking")
 
 	// Regression check: ensure that a log with no indexed topics does not panic.
-	receipt := transferReceiptGeth
-	receipt.Logs[0].Topics = []common.Hash{}
+	// Deep copy the log so that mutating it does not corrupt the shared fixture.
+	noTopicsLog := *transferLog
+	noTopicsLog.Topics = []common.Hash{}
+	receipt := types.Receipt{
+		Status: types.ReceiptStatusSuccessful,
+		Logs: []*types.Log{
+			&noTopicsLog,
+			validLogMessagedPublishedLog,
+		},
+	}
 	require.NotPanics(t, func() {
 		parsed, err := mocks.transferVerifier.parseReceipt(&receipt)
 		require.NotNil(t, parsed)
@@ -1544,4 +1562,765 @@ func transferTokensPayload(payloadAmount *big.Int, tokenAddress vaa.Address) (da
 	data = append(data, toChain...)
 	data = append(data, fee...)
 	return data
+}
+
+// validTransferReceipt returns a receipt with a block number set, which
+// TransferIsValid requires when it caches the evaluation.
+func validTransferReceipt(blockNumber int64) *types.Receipt {
+	return &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		BlockNumber: big.NewInt(blockNumber),
+		Logs: []*types.Log{
+			transferLog,
+			validLogMessagedPublishedLog,
+		},
+	}
+}
+
+// logMessagePublishedLog builds a LogMessagePublished log with the supplied
+// payload amount for the USDC token.
+func logMessagePublishedLog(amount *big.Int) *types.Log {
+	return &types.Log{
+		Address: coreBridgeAddr,
+		Topics: []common.Hash{
+			common.HexToHash(EVENTHASH_WORMHOLE_LOG_MESSAGE_PUBLISHED),
+			tokenBridgeAddr.Hash(),
+		},
+		Data: receiptData(amount, usdcAddrVAA),
+	}
+}
+
+func TestTransferIsValidHappyPath(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	txHash := common.HexToHash("0xdeadbeef")
+
+	// Whole-receipt check.
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, "", txHash, validTransferReceipt(100))
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	// The evaluation should now be cached.
+	_, cached := mocks.transferVerifier.evaluations[txHash]
+	assert.True(t, cached, "evaluation should be cached after a successful call")
+
+	// A second call with the same txHash hits the cache and returns the same result.
+	ok, err = mocks.transferVerifier.TransferIsValid(*mocks.ctx, "", txHash, validTransferReceipt(100))
+	require.NoError(t, err)
+	assert.True(t, ok)
+}
+
+func TestTransferIsValidWithMsgID(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	// Build the msgID string that corresponds to the LogMessagePublished event.
+	message := &LogMessagePublished{
+		EventEmitter: coreBridgeAddr,
+		MsgSender:    tokenBridgeAddr,
+		Sequence:     0,
+	}
+	id, err := mocks.transferVerifier.MsgID(message)
+	require.NoError(t, err)
+
+	txHash := common.HexToHash("0xdeadbeef")
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, id.String(), txHash, validTransferReceipt(100))
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	// A second call with the same txHash and msgID hits the cached path.
+	ok, err = mocks.transferVerifier.TransferIsValid(*mocks.ctx, id.String(), txHash, validTransferReceipt(100))
+	require.NoError(t, err)
+	assert.True(t, ok)
+}
+
+func TestTransferIsValidZeroTxHash(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, "", ZERO_ADDRESS.Hash(), validTransferReceipt(100))
+	require.ErrorIs(t, err, ErrTxHashIsZeroAddr)
+	assert.False(t, ok)
+}
+
+func TestTransferIsValidInvalidMsgID(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, "not-a-valid-msgid", common.HexToHash("0xdeadbeef"), validTransferReceipt(100))
+	require.Error(t, err)
+	assert.False(t, ok)
+}
+
+func TestTransferIsValidInsolvent(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	// The message requests 2 tokens out but only 1 was transferred in.
+	receipt := &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		BlockNumber: big.NewInt(100),
+		Logs: []*types.Log{
+			transferLog,
+			logMessagePublishedLog(big.NewInt(2)),
+		},
+	}
+
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, "", common.HexToHash("0xdeadbeef"), receipt)
+	require.NoError(t, err)
+	assert.False(t, ok, "insolvent receipt should be reported as invalid")
+}
+
+func TestTransferIsValidParseError(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	// A receipt with no logs cannot be parsed.
+	receipt := &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		BlockNumber: big.NewInt(100),
+		Logs:        []*types.Log{},
+	}
+
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, "", common.HexToHash("0xdeadbeef"), receipt)
+	require.Error(t, err)
+	assert.False(t, ok)
+}
+
+func TestTransferIsValidUpdatesLastBlockNumber(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	_, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, "", common.HexToHash("0xdeadbeef"), validTransferReceipt(500))
+	require.NoError(t, err)
+	assert.Equal(t, uint64(500), mocks.transferVerifier.lastBlockNumber)
+}
+
+func TestPruneCache(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	tv := mocks.transferVerifier
+	tv.pruneHeightDelta = 10
+	tv.lastBlockNumber = 100
+
+	// Old evaluation should be pruned, recent one retained.
+	oldHash := common.HexToHash("0x01")
+	recentHash := common.HexToHash("0x02")
+	summary := NewReceiptSummary()
+	tv.evaluations[oldHash] = &receiptEvaluation{ReceiptSummary: *summary, blockNumber: 50}
+	tv.evaluations[recentHash] = &receiptEvaluation{ReceiptSummary: *summary, blockNumber: 95}
+
+	tv.pruneCache()
+
+	_, oldExists := tv.evaluations[oldHash]
+	_, recentExists := tv.evaluations[recentHash]
+	assert.False(t, oldExists, "old evaluation should be pruned")
+	assert.True(t, recentExists, "recent evaluation should be retained")
+}
+
+func TestAddToCacheDoesNotOverwrite(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	tv := mocks.transferVerifier
+	txHash := common.HexToHash("0x01")
+	first := NewReceiptEvaluation(NewReceiptSummary(), 1)
+	second := NewReceiptEvaluation(NewReceiptSummary(), 2)
+
+	tv.addToCache(txHash, &first)
+	tv.addToCache(txHash, &second)
+
+	assert.Equal(t, uint64(1), tv.evaluations[txHash].blockNumber, "existing cache entry must not be overwritten")
+}
+
+func TestUpdateReceiptDetailsNilReceipt(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	err := mocks.transferVerifier.updateReceiptDetails(nil)
+	require.ErrorIs(t, err, ErrInvalidReceiptArgument)
+}
+
+func TestParseReceiptNilReceipt(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	receipt, err := mocks.transferVerifier.parseReceipt(nil)
+	require.ErrorIs(t, err, ErrInvalidReceiptArgument)
+	assert.Nil(t, receipt)
+}
+
+func TestValidateReceiptNilReceipt(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	summary, err := mocks.transferVerifier.validateReceipt(nil)
+	require.ErrorIs(t, err, ErrInvalidReceiptArgument)
+	assert.Nil(t, summary)
+}
+
+func TestMsgIDNilLog(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	_, err := mocks.transferVerifier.MsgID(nil)
+	require.Error(t, err)
+}
+
+func TestAddrs(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	addrs := mocks.transferVerifier.Addrs()
+	require.NotNil(t, addrs)
+	assert.Equal(t, coreBridgeAddr, addrs.CoreBridgeAddr)
+	assert.Equal(t, tokenBridgeAddr, addrs.TokenBridgeAddr)
+	assert.Equal(t, nativeAddrGeth, addrs.WrappedNativeAddr)
+}
+
+func TestParseMsgID(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	// A valid msgID for the configured chain and token bridge.
+	valid := "2/" + VAAAddrFrom(tokenBridgeAddr).String() + "/0"
+	id, err := mocks.transferVerifier.ParseMsgID(valid)
+	require.NoError(t, err)
+	assert.Equal(t, vaa.ChainIDEthereum, id.EmitterChain)
+	assert.Equal(t, uint64(0), id.Sequence)
+
+	// Wrong emitter chain.
+	_, err = mocks.transferVerifier.ParseMsgID("4/" + VAAAddrFrom(tokenBridgeAddr).String() + "/0")
+	require.Error(t, err)
+
+	// Wrong emitter address.
+	_, err = mocks.transferVerifier.ParseMsgID("2/" + VAAAddrFrom(eoaAddrGeth).String() + "/0")
+	require.Error(t, err)
+}
+
+func TestTransferIsValidCachedPaths(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	tv := mocks.transferVerifier
+	txHash := common.HexToHash("0xdeadbeef")
+
+	// A message ID that is present in the cached evaluation, marked unsafe.
+	cachedMsgID := msgID{
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: VAAAddrFrom(tokenBridgeAddr),
+		Sequence:       0,
+	}
+	// A different message ID that is not present in the cached evaluation.
+	missingMsgID := cachedMsgID
+	missingMsgID.Sequence = 1
+
+	summary := NewReceiptSummary()
+	summary.msgPubResult[cachedMsgID] = false
+	tv.evaluations[txHash] = &receiptEvaluation{ReceiptSummary: *summary, blockNumber: 100}
+
+	// The cached evaluation has no data for this message.
+	ok, err := tv.TransferIsValid(*mocks.ctx, missingMsgID.String(), txHash, nil)
+	require.ErrorIs(t, err, ErrCachedReceiptHasNoDataForMessage)
+	assert.False(t, ok)
+
+	// The cached evaluation has data for this message; it is unsafe.
+	ok, err = tv.TransferIsValid(*mocks.ctx, cachedMsgID.String(), txHash, nil)
+	require.NoError(t, err)
+	assert.False(t, ok)
+}
+
+func TestTransferIsValidUpdateError(t *testing.T) {
+	// isWrappedAsset fails, so updateReceiptDetails fails.
+	tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+		return nil, errors.New("rpc down")
+	})
+	receipt := &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		BlockNumber: big.NewInt(100),
+		Logs: []*types.Log{
+			transferLog,
+			validLogMessagedPublishedLog,
+		},
+	}
+	ok, err := tv.TransferIsValid(context.Background(), "", common.HexToHash("0xdeadbeef"), receipt)
+	require.Error(t, err)
+	assert.False(t, ok)
+}
+
+func TestTransferIsValidMsgUnsafe(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	// The message requests 2 tokens out but only 1 was transferred in.
+	receipt := &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		BlockNumber: big.NewInt(100),
+		Logs: []*types.Log{
+			transferLog,
+			logMessagePublishedLog(big.NewInt(2)),
+		},
+	}
+
+	message := &LogMessagePublished{
+		EventEmitter: coreBridgeAddr,
+		MsgSender:    tokenBridgeAddr,
+		Sequence:     0,
+	}
+	id, err := mocks.transferVerifier.MsgID(message)
+	require.NoError(t, err)
+
+	ok, err := mocks.transferVerifier.TransferIsValid(*mocks.ctx, id.String(), common.HexToHash("0xdeadbeef"), receipt)
+	require.NoError(t, err)
+	assert.False(t, ok, "the specific message should be reported as unsafe")
+}
+
+func TestTransferIsValidBlockNumberBoundary(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	tv := mocks.transferVerifier
+	tv.lastBlockNumber = 100
+
+	// A receipt at exactly the last block number must not lower it.
+	receipt := validTransferReceipt(100)
+	_, err := tv.TransferIsValid(*mocks.ctx, "", common.HexToHash("0x01"), receipt)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(100), tv.lastBlockNumber)
+
+	// A newer receipt must raise the last block number.
+	receiptNewer := validTransferReceipt(200)
+	_, err = tv.TransferIsValid(*mocks.ctx, "", common.HexToHash("0x02"), receiptNewer)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(200), tv.lastBlockNumber)
+}
+
+func TestPruneCacheBoundary(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	tv := mocks.transferVerifier
+	tv.pruneHeightDelta = 10
+	tv.lastBlockNumber = 100
+
+	// Exactly at the boundary: blockNumber == lastBlockNumber - pruneHeightDelta.
+	// The comparison is strict, so this entry must be retained.
+	boundaryHash := common.HexToHash("0x01")
+	summary := NewReceiptSummary()
+	tv.evaluations[boundaryHash] = &receiptEvaluation{ReceiptSummary: *summary, blockNumber: 90}
+
+	tv.pruneCache()
+
+	_, exists := tv.evaluations[boundaryHash]
+	assert.True(t, exists, "entry exactly at the prune boundary must be retained")
+}
+
+func TestInsolventAssetsEmpty(t *testing.T) {
+	summary := NewReceiptSummary()
+	result := summary.insolventAssets()
+	assert.NotNil(t, result, "an empty outbound set must return an empty slice, not nil")
+	assert.Empty(t, result)
+}
+
+func TestParseLogMessagePublishedPayloadError(t *testing.T) {
+	_, err := parseLogMessagePublishedPayload([]byte{0x01})
+	require.Error(t, err)
+}
+
+func TestValidateReceiptErrors(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+	tv := mocks.transferVerifier
+
+	validMessage := func() *LogMessagePublished {
+		return &LogMessagePublished{
+			EventEmitter: coreBridgeAddr,
+			MsgSender:    tokenBridgeAddr,
+			TransferDetails: &TransferDetails{
+				PayloadType:   TransferTokens,
+				TokenChain:    vaa.ChainIDEthereum,
+				TargetAddress: eoaAddrVAA,
+				Amount:        big.NewInt(1),
+				OriginAddress: usdcAddrVAA,
+			},
+		}
+	}
+
+	t.Run("sanity check failure", func(t *testing.T) {
+		_, err := tv.validateReceipt(&TransferReceipt{})
+		require.ErrorIs(t, err, ErrInvalidReceiptArgument)
+	})
+
+	t.Run("invalid deposit", func(t *testing.T) {
+		deposits := []*NativeDeposit{{TokenAddress: ZERO_ADDRESS, TokenChain: vaa.ChainIDEthereum, Receiver: tokenBridgeAddr, Amount: big.NewInt(1)}}
+		transfers := []*ERC20Transfer{}
+		messages := []*LogMessagePublished{validMessage()}
+		_, err := tv.validateReceipt(&TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &messages})
+		require.Error(t, err)
+	})
+
+	t.Run("invalid transfer", func(t *testing.T) {
+		deposits := []*NativeDeposit{}
+		transfers := []*ERC20Transfer{{TokenAddress: ZERO_ADDRESS, TokenChain: vaa.ChainIDEthereum, To: tokenBridgeAddr, Amount: big.NewInt(1)}}
+		messages := []*LogMessagePublished{validMessage()}
+		_, err := tv.validateReceipt(&TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &messages})
+		require.Error(t, err)
+	})
+
+	t.Run("invalid message", func(t *testing.T) {
+		deposits := []*NativeDeposit{}
+		transfers := []*ERC20Transfer{}
+		bad := validMessage()
+		bad.TransferDetails.PayloadType = 0
+		messages := []*LogMessagePublished{bad}
+		_, err := tv.validateReceipt(&TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &messages})
+		require.Error(t, err)
+	})
+
+	t.Run("irrelevant message leaves summary empty", func(t *testing.T) {
+		deposits := []*NativeDeposit{}
+		transfers := []*ERC20Transfer{}
+		irrelevant := validMessage()
+		irrelevant.EventEmitter = usdcAddrGeth
+		messages := []*LogMessagePublished{irrelevant}
+		_, err := tv.validateReceipt(&TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &messages})
+		require.ErrorIs(t, err, ErrInvalidReceiptArgument)
+	})
+}
+
+func TestUpdateReceiptDetailsIsWrappedErrorWithWorkingDecimals(t *testing.T) {
+	// isWrappedAsset fails but decimals() succeeds, so a mutant that ignores the
+	// isWrapped error would incorrectly succeed.
+	tv := setupWithClient(func(_ context.Context, msg ethereum.CallMsg, _ *big.Int) ([]byte, error) {
+		if len(msg.Data) >= 4 && string(msg.Data[:4]) == string(TOKEN_BRIDGE_IS_WRAPPED_ASSET_SIGNATURE) {
+			return nil, errors.New("rpc down")
+		}
+		return common.LeftPadBytes([]byte{0x08}, 32), nil
+	})
+	err := tv.updateReceiptDetails(transferOnlyReceipt())
+	require.Error(t, err)
+}
+
+func TestUpdateReceiptDetailsDecimalsErrorNativePath(t *testing.T) {
+	// isWrappedAsset returns false (native path) but decimals() fails.
+	tv := setupWithClient(func(_ context.Context, msg ethereum.CallMsg, _ *big.Int) ([]byte, error) {
+		if len(msg.Data) >= 4 && string(msg.Data[:4]) == string(TOKEN_BRIDGE_IS_WRAPPED_ASSET_SIGNATURE) {
+			return common.LeftPadBytes([]byte{0x00}, 32), nil
+		}
+		return nil, errors.New("rpc down")
+	})
+	err := tv.updateReceiptDetails(transferOnlyReceipt())
+	require.Error(t, err)
+}
+
+// configurableMockConnector implements the local connector interface with
+// configurable behaviour for the two methods the verifier uses.
+type configurableMockConnector struct {
+	parseLogMessagePublished func(log types.Log) (*ethabi.AbiLogMessagePublished, error)
+	transactionReceipt       func(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+}
+
+func (c *configurableMockConnector) ParseLogMessagePublished(log types.Log) (*ethabi.AbiLogMessagePublished, error) {
+	if c.parseLogMessagePublished != nil {
+		return c.parseLogMessagePublished(log)
+	}
+	return (&mockConnector{}).ParseLogMessagePublished(log)
+}
+
+func (c *configurableMockConnector) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	if c.transactionReceipt != nil {
+		return c.transactionReceipt(ctx, txHash)
+	}
+	return nil, nil
+}
+
+func setupWithConnector(conn *configurableMockConnector) *TransferVerifier[*mockClient, *configurableMockConnector] {
+	logger := ipfslog.Logger("wormhole-transfer-verifier-tests").Desugar()
+	return &TransferVerifier[*mockClient, *configurableMockConnector]{
+		Addresses: &TVAddresses{
+			CoreBridgeAddr:    coreBridgeAddr,
+			TokenBridgeAddr:   tokenBridgeAddr,
+			WrappedNativeAddr: nativeAddrGeth,
+		},
+		chainIds:            &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
+		evmConnector:        conn,
+		client:              &mockClient{},
+		logger:              *logger,
+		evaluations:         make(map[common.Hash]*receiptEvaluation),
+		isWrappedCache:      make(map[string]bool),
+		chainIdCache:        make(map[string]vaa.ChainID),
+		nativeContractCache: make(map[string]vaa.Address),
+		decimalsCache:       make(map[common.Address]uint8),
+	}
+}
+
+func TestTransferIsValidTransactionReceiptError(t *testing.T) {
+	conn := &configurableMockConnector{
+		transactionReceipt: func(context.Context, common.Hash) (*types.Receipt, error) {
+			return nil, errors.New("receipt lookup failed")
+		},
+	}
+	tv := setupWithConnector(conn)
+
+	ok, err := tv.TransferIsValid(context.Background(), "", common.HexToHash("0xdeadbeef"), nil)
+	require.Error(t, err)
+	assert.False(t, ok)
+}
+
+func TestTransferIsValidParseLogMessagePublishedError(t *testing.T) {
+	conn := &configurableMockConnector{
+		parseLogMessagePublished: func(types.Log) (*ethabi.AbiLogMessagePublished, error) {
+			return nil, errors.New("parse failed")
+		},
+	}
+	tv := setupWithConnector(conn)
+
+	receipt := &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		BlockNumber: big.NewInt(100),
+		Logs: []*types.Log{
+			transferLog,
+			validLogMessagedPublishedLog,
+		},
+	}
+	ok, err := tv.TransferIsValid(context.Background(), "", common.HexToHash("0xdeadbeef"), receipt)
+	require.Error(t, err)
+	assert.False(t, ok)
+}
+
+func TestTransferIsValidCachedMsgSafe(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	tv := mocks.transferVerifier
+	txHash := common.HexToHash("0xdeadbeef")
+
+	safeMsgID := msgID{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr), Sequence: 0}
+	unsafeMsgID := safeMsgID
+	unsafeMsgID.Sequence = 1
+
+	summary := NewReceiptSummary()
+	summary.msgPubResult[safeMsgID] = true
+	summary.msgPubResult[unsafeMsgID] = false
+	tv.evaluations[txHash] = &receiptEvaluation{ReceiptSummary: *summary, blockNumber: 100}
+
+	// The receipt as a whole is unsafe, but the requested message is safe.
+	ok, err := tv.TransferIsValid(*mocks.ctx, safeMsgID.String(), txHash, nil)
+	require.NoError(t, err)
+	assert.True(t, ok)
+}
+
+func TestPruneCacheTrimsLargeCaches(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+
+	tv := mocks.transferVerifier
+	tv.pruneHeightDelta = 10
+	tv.lastBlockNumber = 100
+
+	for i := 0; i < CacheMaxSize+1; i++ {
+		tv.chainIdCache[fmt.Sprintf("chain-%d", i)] = vaa.ChainIDEthereum
+		tv.decimalsCache[common.BytesToAddress([]byte{byte(i)})] = 8
+		tv.isWrappedCache[fmt.Sprintf("wrapped-%d", i)] = true
+		tv.nativeContractCache[fmt.Sprintf("native-%d", i)] = usdcAddrVAA
+	}
+
+	tv.pruneCache()
+
+	assert.Less(t, len(tv.chainIdCache), CacheMaxSize+1)
+	assert.Less(t, len(tv.decimalsCache), CacheMaxSize+1)
+	assert.Less(t, len(tv.isWrappedCache), CacheMaxSize+1)
+	assert.Less(t, len(tv.nativeContractCache), CacheMaxSize+1)
+}
+
+// fullMockConnector implements connectors.Connector for NewTransferVerifier and
+// Subscribe tests. Only the methods exercised by those code paths are meaningful.
+type fullMockConnector struct {
+	client   *ethClient.Client
+	watchSub event.Subscription
+	watchErr error
+}
+
+func (c *fullMockConnector) NetworkName() string { return "mock" }
+func (c *fullMockConnector) ContractAddress() common.Address {
+	return coreBridgeAddr
+}
+func (c *fullMockConnector) GetCurrentGuardianSetIndex(context.Context) (uint32, error) {
+	return 0, nil
+}
+func (c *fullMockConnector) GetGuardianSet(context.Context, uint32) (ethabi.StructsGuardianSet, error) {
+	return ethabi.StructsGuardianSet{}, nil
+}
+func (c *fullMockConnector) GetDelegatedGuardianConfig(context.Context) ([]dgAbi.WormholeDelegatedGuardiansDelegatedGuardianSet, error) {
+	return nil, nil
+}
+func (c *fullMockConnector) WatchLogMessagePublished(context.Context, chan error, chan<- *ethabi.AbiLogMessagePublished) (event.Subscription, error) {
+	return c.watchSub, c.watchErr
+}
+func (c *fullMockConnector) TransactionReceipt(context.Context, common.Hash) (*types.Receipt, error) {
+	return nil, nil
+}
+func (c *fullMockConnector) TimeOfBlockByHash(context.Context, common.Hash) (uint64, error) {
+	return 0, nil
+}
+func (c *fullMockConnector) ParseLogMessagePublished(types.Log) (*ethabi.AbiLogMessagePublished, error) {
+	return nil, nil
+}
+func (c *fullMockConnector) SubscribeForBlocks(context.Context, chan error, chan<- *connectors.NewBlock) (ethereum.Subscription, error) {
+	return nil, nil
+}
+func (c *fullMockConnector) GetLatest(context.Context) (uint64, uint64, uint64, error) {
+	return 0, 0, 0, nil
+}
+func (c *fullMockConnector) RawCallContext(context.Context, interface{}, string, ...interface{}) error {
+	return nil
+}
+func (c *fullMockConnector) RawBatchCallContext(context.Context, []rpc.BatchElem) error {
+	return nil
+}
+func (c *fullMockConnector) Client() *ethClient.Client { return c.client }
+func (c *fullMockConnector) SubscribeNewHead(context.Context, chan<- *types.Header) (ethereum.Subscription, error) {
+	return nil, nil
+}
+func (c *fullMockConnector) Close() {}
+
+// newChainIDClient returns an ethclient backed by a JSON-RPC server that reports
+// the supplied chain ID.
+func newChainIDClient(t *testing.T, chainID uint64) *ethClient.Client {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ID json.RawMessage `json:"id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":"0x%x"}`, req.ID, chainID)
+	}))
+	t.Cleanup(srv.Close)
+	client, err := ethClient.Dial(srv.URL)
+	require.NoError(t, err)
+	return client
+}
+
+// newChainIDErrorClient returns an ethclient whose JSON-RPC server always errors.
+func newChainIDErrorClient(t *testing.T) *ethClient.Client {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ID json.RawMessage `json:"id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"error":{"code":-32000,"message":"boom"}}`, req.ID)
+	}))
+	t.Cleanup(srv.Close)
+	client, err := ethClient.Dial(srv.URL)
+	require.NoError(t, err)
+	return client
+}
+
+func TestNewTransferVerifier(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		conn := &fullMockConnector{client: newChainIDClient(t, 1)}
+		tv, err := NewTransferVerifier(context.Background(), conn, &TVAddresses{}, 10, zap.NewNop())
+		require.NoError(t, err)
+		require.NotNil(t, tv)
+		assert.Equal(t, vaa.ChainIDEthereum, tv.chainIds.wormholeChainId)
+		assert.Equal(t, uint64(1), tv.chainIds.evmChainId)
+	})
+
+	t.Run("chain id error", func(t *testing.T) {
+		conn := &fullMockConnector{client: newChainIDErrorClient(t)}
+		_, err := NewTransferVerifier(context.Background(), conn, &TVAddresses{}, 10, zap.NewNop())
+		require.Error(t, err)
+	})
+
+	t.Run("unregistered chain", func(t *testing.T) {
+		conn := &fullMockConnector{client: newChainIDClient(t, 999)}
+		_, err := NewTransferVerifier(context.Background(), conn, &TVAddresses{}, 10, zap.NewNop())
+		require.Error(t, err)
+	})
+}
+
+func TestSubscribeWatchError(t *testing.T) {
+	conn := &fullMockConnector{watchErr: errors.New("watch failed")}
+	sub := NewSubscription(nil, conn)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sub.Subscribe(ctx)
+
+	select {
+	case err := <-sub.Errors():
+		require.Error(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for subscription error")
+	}
+}
+
+func TestSubscribeHandleError(t *testing.T) {
+	errSub := &mockEventSubscription{errC: make(chan error, 1)}
+	errSub.errC <- errors.New("stream failed")
+	conn := &fullMockConnector{watchSub: errSub}
+	sub := NewSubscription(nil, conn)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sub.Subscribe(ctx)
+
+	select {
+	case err := <-sub.Errors():
+		require.Error(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for subscription error")
+	}
+}
+func TestDepositFromLogError(t *testing.T) {
+	// Wrong number of topics.
+	log := &types.Log{
+		Address: nativeAddrGeth,
+		Topics:  []common.Hash{common.HexToHash(EVENTHASH_WETH_DEPOSIT)},
+		Data:    common.LeftPadBytes(big.NewInt(1).Bytes(), EVM_WORD_LENGTH),
+	}
+	deposit, err := DepositFromLog(log, vaa.ChainIDEthereum)
+	require.Error(t, err)
+	assert.Nil(t, deposit)
+}
+func TestERC20TransferFromLogError(t *testing.T) {
+	// Wrong data size.
+	log := &types.Log{
+		Address: usdcAddrGeth,
+		Topics: []common.Hash{
+			common.HexToHash(EVENTHASH_ERC20_TRANSFER),
+			eoaAddrGeth.Hash(),
+			tokenBridgeAddr.Hash(),
+		},
+		Data: []byte{0x01},
+	}
+	transfer, err := ERC20TransferFromLog(log, vaa.ChainIDEthereum)
+	require.Error(t, err)
+	assert.Nil(t, transfer)
+}
+func TestValidateReceiptHappyPaths(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+	tv := mocks.transferVerifier
+
+	t.Run("valid deposit is recorded", func(t *testing.T) {
+		summary, err := tv.validateReceipt(depositOnlyReceipt())
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.True(t, summary.isSafe())
+	})
+
+	t.Run("valid transfer is recorded", func(t *testing.T) {
+		receipt := transferOnlyReceipt()
+		(*receipt.Transfers)[0].OriginAddr = usdcAddrVAA
+		summary, err := tv.validateReceipt(receipt)
+		require.NoError(t, err)
+		require.NotNil(t, summary)
+		assert.True(t, summary.isSafe())
+	})
 }
