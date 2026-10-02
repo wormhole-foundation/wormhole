@@ -1,5 +1,5 @@
 // This test is intended to be run on devnet without an active eth miner
-// see https://github.com/trufflesuite/ganache-cli-archive#custom-methods
+// see https://github.com/ConsenSys-archive/ganache-cli-archive#custom-methods
 
 const {
   NodeHttpTransport,
