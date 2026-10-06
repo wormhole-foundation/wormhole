@@ -198,13 +198,18 @@ impl GovernanceAction for GuardianSetUpgradeAction {
 
     fn execute(
         env: &Env,
-        vaa: &crate::vaa::VAA,
+        _vaa: &crate::vaa::VAA,
         payload: &Self::Payload,
     ) -> Result<(), WormholeError> {
         let old_index = get_current_guardian_set_index(env);
 
-        let expiry_time =
-            u64::from(vaa.timestamp).saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME));
+        // The grace period starts when the upgrade executes on this chain, not at the
+        // VAA's timestamp (which the proposer controls and which guardiand's injected
+        // governance VAAs set to 0). This matches the EVM core's `block.timestamp + 86400`.
+        let expiry_time = env
+            .ledger()
+            .timestamp()
+            .saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME));
         set_expiry(env, old_index, expiry_time);
 
         let new_set = GuardianSetInfo {
@@ -229,7 +234,11 @@ impl GovernanceAction for GuardianSetUpgradeAction {
 mod tests {
     use super::*;
     use crate::Wormhole;
-    use soroban_sdk::{Bytes, BytesN, Env, IntoVal, Symbol, Val, testutils::Events, vec};
+    use soroban_sdk::{
+        Bytes, BytesN, Env, IntoVal, Symbol, Val,
+        testutils::{Events, Ledger},
+        vec,
+    };
     use wormhole_soroban_client::{
         CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE,
         Signature, VAA,
@@ -386,6 +395,8 @@ mod tests {
             consistency_level: wormhole_soroban_client::ConsistencyLevel::Confirmed,
             payload: Bytes::new(&env),
         };
+        let ledger_time = 1_700_000_000u64;
+        env.ledger().set_timestamp(ledger_time);
 
         env.as_contract(&contract_id, || {
             GuardianSetUpgradeAction::execute(&env, &vaa, &payload).unwrap();
@@ -398,7 +409,7 @@ mod tests {
             let expiry = get_guardian_set_expiry(&env, 0).unwrap();
             assert_eq!(
                 expiry,
-                u64::from(vaa.timestamp) + u64::from(GUARDIAN_SET_EXPIRATION_TIME)
+                ledger_time + u64::from(GUARDIAN_SET_EXPIRATION_TIME)
             );
         });
 
@@ -497,7 +508,7 @@ mod tests {
             version: 1,
             guardian_set_index: 0,
             signatures: vec![&env],
-            timestamp: u32::MAX,
+            timestamp: 0,
             nonce: 0,
             emitter_chain: GOVERNANCE_CHAIN_ID,
             emitter_address: BytesN::from_array(&env, &[0u8; 32]),
@@ -505,12 +516,98 @@ mod tests {
             consistency_level: ConsistencyLevel::Confirmed,
             payload: Bytes::new(&env),
         };
+        env.ledger().set_timestamp(u64::MAX);
         env.as_contract(&contract_id, || {
             GuardianSetUpgradeAction::execute(&env, &vaa, &payload).unwrap();
             let expiry = get_guardian_set_expiry(&env, 0).unwrap();
+            assert_eq!(expiry, u64::MAX);
+        });
+    }
+
+    /// Regression test: the old set's grace period must start at the ledger time of the
+    /// upgrade, not at the governance VAA's timestamp. guardiand's injected governance VAAs
+    /// carry timestamp 0, which used to expire the old set immediately and reject in-flight
+    /// VAAs signed by it.
+    #[test]
+    fn test_old_set_stays_valid_for_grace_period_after_upgrade_with_zero_timestamp_vaa() {
+        let env = Env::default();
+        let upgrade_time = 1_700_000_000u64;
+        env.ledger().set_timestamp(upgrade_time);
+
+        // Guardian set 0: a single real key so the governance VAA actually verifies.
+        let old_key_sk = [0x44u8; 32];
+        let new_guardian = BytesN::<20>::from_array(&env, &[5u8; 20]);
+        let payload = build_payload(
+            &env,
+            MODULE_CORE,
+            ACTION_GUARDIAN_SET_UPGRADE,
+            CHAIN_ID_STELLAR,
+            1,
+            core::slice::from_ref(&new_guardian),
+        );
+        let gov_vaa = VAA {
+            version: 1,
+            guardian_set_index: 0,
+            signatures: Vec::new(&env),
+            timestamp: 0, // as produced by `guardiand admin governance-vaa-inject`
+            nonce: 1,
+            emitter_chain: GOVERNANCE_CHAIN_ID,
+            emitter_address: BytesN::from_array(&env, &GOVERNANCE_EMITTER),
+            sequence: 1,
+            consistency_level: ConsistencyLevel::Confirmed,
+            payload,
+        };
+        let (gov_vaa, old_guardian) = sign_vaa_with_key(&env, gov_vaa, old_key_sk);
+        let contract_id = env.register(
+            Wormhole,
+            (
+                vec![&env, old_guardian],
+                BytesN::<32>::from_array(&env, &GOVERNANCE_EMITTER),
+            ),
+        );
+
+        // A message VAA signed by set 0, "in flight" across the upgrade.
+        let msg_vaa = VAA {
+            version: 1,
+            guardian_set_index: 0,
+            signatures: Vec::new(&env),
+            timestamp: 0,
+            nonce: 7,
+            emitter_chain: u32::from(CHAIN_ID_STELLAR),
+            emitter_address: BytesN::from_array(&env, &[0xEEu8; 32]),
+            sequence: 3,
+            consistency_level: ConsistencyLevel::Confirmed,
+            payload: Bytes::from_array(&env, &[0xDE, 0xAD, 0xBE, 0xEF]),
+        };
+        let (msg_vaa, _) = sign_vaa_with_key(&env, msg_vaa, old_key_sk);
+
+        env.as_contract(&contract_id, || {
+            GuardianSetUpgradeAction::submit(&env, serialize_vaa(&env, &gov_vaa)).unwrap();
+            assert_eq!(get_current_guardian_set_index(&env), 1);
             assert_eq!(
-                expiry,
-                u64::from(u32::MAX).saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME))
+                get_guardian_set_expiry(&env, 0),
+                Some(upgrade_time + u64::from(GUARDIAN_SET_EXPIRATION_TIME))
+            );
+        });
+
+        // Inside the grace period the old set still verifies.
+        env.ledger().set_timestamp(upgrade_time + 1);
+        env.as_contract(&contract_id, || {
+            assert_eq!(crate::vaa::verify_vaa_signatures(&msg_vaa, &env), Ok(true));
+        });
+        env.ledger()
+            .set_timestamp(upgrade_time + u64::from(GUARDIAN_SET_EXPIRATION_TIME));
+        env.as_contract(&contract_id, || {
+            assert_eq!(crate::vaa::verify_vaa_signatures(&msg_vaa, &env), Ok(true));
+        });
+
+        // One second past the grace period it is rejected.
+        env.ledger()
+            .set_timestamp(upgrade_time + u64::from(GUARDIAN_SET_EXPIRATION_TIME) + 1);
+        env.as_contract(&contract_id, || {
+            assert_eq!(
+                crate::vaa::verify_vaa_signatures(&msg_vaa, &env),
+                Err(WormholeError::GuardianSetExpired)
             );
         });
     }
