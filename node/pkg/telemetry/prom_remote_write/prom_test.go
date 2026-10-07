@@ -2,9 +2,13 @@ package promremotew
 
 import (
 	"bytes"
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	prometheusv1 "github.com/certusone/wormhole/node/pkg/proto/prometheus/v1"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/stretchr/testify/require"
@@ -204,4 +208,35 @@ func TestMarshalUnmarshal(t *testing.T) {
 	newWr := prometheusv1.WriteRequest{}
 	err = proto.Unmarshal(wrBytes, &newWr)
 	require.NoError(t, err)
+}
+
+func TestScrapeAndSendLocalMetricsReportsReceiverStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  int
+		body    string
+		wantErr string
+	}{
+		{name: "no content", status: http.StatusNoContent},
+		{name: "ok", status: http.StatusOK},
+		{name: "unauthorized", status: http.StatusUnauthorized, body: "authentication error: invalid token\n", wantErr: "remote write returned status 401: authentication error: invalid token"},
+		{name: "server error", status: http.StatusInternalServerError, wantErr: "remote write returned status 500"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			info := PromTelemetryInfo{PromRemoteURL: srv.URL, Labels: map[string]string{"product": "wormhole"}}
+			err := ScrapeAndSendLocalMetrics(context.Background(), info, zap.NewNop())
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
 }

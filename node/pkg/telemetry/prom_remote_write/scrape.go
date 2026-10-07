@@ -3,14 +3,20 @@ package promremotew
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
+
+// maxErrorBodyBytes caps how much of a rejected remote write response is included in the error.
+const maxErrorBodyBytes = 512
 
 type PromTelemetryInfo struct {
 	PromRemoteURL string
@@ -77,9 +83,10 @@ func ScrapeAndSendLocalMetrics(ctx context.Context, info PromTelemetryInfo, logg
 	defer res.Body.Close()
 
 	logger.Debug("Grafana result", zap.Int("status code", res.StatusCode))
-	if res.StatusCode != 200 && res.StatusCode != 204 {
-		logger.Error("Grafana returned a status code other than 200 or 204", zap.Int("status code", res.StatusCode))
-		return err
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		// The response body carries the receiver's reason (e.g. an authentication error).
+		body, _ := common.SafeRead(io.LimitReader(res.Body, maxErrorBodyBytes))
+		return fmt.Errorf("remote write returned status %d: %s", res.StatusCode, bytes.TrimSpace(body))
 	}
 	return nil
 }
