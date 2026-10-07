@@ -705,14 +705,19 @@ can be operated behind a load balancer.
 
 ## Enabling Telemetry
 
-Optionally, the guardian can send telemetry to [Grafana Cloud Logs](https://grafana.com/products/cloud/logs/) aka "loki".
-To enable this functionality, add the following flag:
+On mainnet and testnet, the guardian sends its logs to [Grafana Cloud Logs](https://grafana.com/products/cloud/logs/) aka "loki"
+unless telemetry is disabled with `--disableTelemetry`. It can also push its Prometheus metrics to Grafana Cloud.
+Add the following flags:
 
 ```bash
 --telemetryLokiURL=$PER_GUARDIAN_LOKI_URL_WITH_TOKEN
+--promRemoteURL=$PER_GUARDIAN_PROMETHEUS_URL_WITH_TOKEN
 ```
 
-New guardians should talk to the Wormhole Foundation to get a Loki url.
+Metrics are pushed every 15 seconds by default. Use `--promRemoteInterval` (for example `--promRemoteInterval=1m`) to
+change the interval.
+
+New guardians should talk to the Wormhole Foundation to get these URLs.
 
 ### Binding to privileged ports
 

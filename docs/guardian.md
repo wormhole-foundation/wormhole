@@ -119,7 +119,7 @@ also publishes to Grafana in a non-blocking manner.
 
 The guardian can also be configured to publish metrics to Grafana. To enable this, set the `promRemoteURL`
 config parameter to point at a Grafana endpoint. In this mode, metrics will be posted to Grafana every
-fifteen seconds, also in a non-blocking manner.
+fifteen seconds by default (configurable with `promRemoteInterval`), also in a non-blocking manner.
 
 ## Observation Lifecycle
 
