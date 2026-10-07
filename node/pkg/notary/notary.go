@@ -261,6 +261,19 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		return Blackhole, nil
 	}
 
+	// Return early if the message has already been delayed. A message may be processed here more
+	// than once: reobservation re-runs the transfer verifier from scratch, so the same message can
+	// re-enter with a different verification state. Without this check, a reobservation that
+	// verifies as Valid would return Approve and bypass the remainder of the delay period, and a
+	// reobservation that is delayed again would call delay() a second time, storing a fresh
+	// release time in the database while the in-memory queue keeps the original one.
+	if n.IsDelayed(msg) {
+		n.logger.Warn("notary: got message publication that is already delayed",
+			msg.ZapFields(zap.String("verdict", Delay.String()))...,
+		)
+		return Delay, nil
+	}
+
 	switch msg.VerificationState() {
 	// Both Anomalous and Rejected messages are delayed. In the future, we could consider blackholing
 	// rejected messages, but for now, we are choosing the cautious approach of delaying VAA production
