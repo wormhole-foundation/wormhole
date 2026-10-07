@@ -1286,6 +1286,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 	usingPromRemoteWrite := *promRemoteURL != ""
+	// Metrics are expected alongside Loki logs outside devnet. For now a missing URL only warns;
+	// a future release will make it fatal, and --disableTelemetry will then disable metrics too.
+	if env != common.UnsafeDevNet {
+		if !*disableTelemetry && !usingPromRemoteWrite {
+			logger.Warn("--promRemoteURL is not set. A future release will require it, like --telemetryLokiURL, unless --disableTelemetry is set. Contact the Wormhole Foundation for a URL.")
+		}
+		if *disableTelemetry && usingPromRemoteWrite {
+			logger.Warn("--disableTelemetry does not disable metrics yet, so metrics are still pushed to --promRemoteURL. A future release will stop pushing metrics when --disableTelemetry is set.")
+		}
+	}
 	if usingPromRemoteWrite {
 		if *promRemoteInterval <= 0 {
 			logger.Fatal("--promRemoteInterval must be positive", zap.Duration("promRemoteInterval", *promRemoteInterval))
