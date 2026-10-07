@@ -239,13 +239,18 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						zap.String("firstObserved", s.firstObserved.String()),
 						zap.Int("numSignatures", len(s.signatures)),
 					)
-					req := &gossipv1.ObservationRequest{
-						ChainId:   uint32(s.ourObservation.GetEmitterChain()),
-						TxHash:    s.txHash,
-						Timestamp: time.Now().UnixNano(),
-					}
-					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
-						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
+					// Governance messages are injected by operators and have no source transaction (their TxID is
+					// all zeros), so a re-observation request can't recover them. Rebroadcasting our signature
+					// below still lets Guardians that inject later aggregate it.
+					if !isGovernanceObservation(s.ourObservation) {
+						req := &gossipv1.ObservationRequest{
+							ChainId:   uint32(s.ourObservation.GetEmitterChain()),
+							TxHash:    s.txHash,
+							Timestamp: time.Now().UnixNano(),
+						}
+						if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
+							p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
+						}
 					}
 					if s.ourMsg != nil {
 						// This is the case for immediately published messages (as well as anything still pending from before the cutover).
@@ -328,6 +333,13 @@ func (p *Processor) handleDelegateCleanup() {
 			delegateAggregationStateTimeout.Inc()
 		}
 	}
+}
+
+// isGovernanceObservation reports whether o is a governance message: one emitted by the governance emitter on the
+// governance chain. Watchers never publish these; they only enter through the admin service's governance injection.
+func isGovernanceObservation(o Observation) bool {
+	v, ok := o.(*VAA)
+	return ok && v.EmitterChain == vaa.GovernanceChain && v.EmitterAddress == vaa.GovernanceEmitter
 }
 
 // signedVaaAlreadyInDB checks if the VAA is already in the DB. If it is, it makes sure the hash matches.
