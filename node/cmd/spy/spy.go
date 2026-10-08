@@ -103,6 +103,7 @@ type filterSignedVaa struct {
 type subscriptionSignedVaa struct {
 	filters []filterSignedVaa
 	ch      chan message
+	done    chan struct{}
 }
 
 func subscriptionId() string {
@@ -165,7 +166,13 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 	s.subsSignedVaaMu.Unlock()
 
 	for _, sub := range targets {
-		sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
+		// The send is intentionally blocking: we don't want to drop incoming VAAs for subscribers.
+		// The subscriber may have been torn down after we collected it above, so also select on done
+		// to avoid blocking.
+		select {
+		case sub.ch <- message{vaaBytes: vaaBytes}:
+		case <-sub.done:
+		}
 	}
 
 	return nil
@@ -235,23 +242,19 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 	id := subscriptionId()
 	sub := &subscriptionSignedVaa{
 		ch:      make(chan message, 1),
+		done:    make(chan struct{}),
 		filters: fi,
 	}
 	s.subsSignedVaa[id] = sub
 	s.subsSignedVaaMu.Unlock()
 
 	defer func() {
-		for {
-			// The channel sender locks the subscription mutex before sending to the channel.
-			// If the channel is full, then the sender will block and we'll never be able to lock the mutex (resulting in deadlock).
-			// So we empty the channel before trying acquire the lock.
-			_ = DoWithTimeout(func() error { <-sub.ch; return nil }, time.Millisecond)
-			if s.subsSignedVaaMu.TryLock() {
-				delete(s.subsSignedVaa, id)
-				s.subsSignedVaaMu.Unlock()
-				return
-			}
-		}
+		// Signal the publisher first so any in-flight send to this subscription unblocks, then
+		// remove the subscription so no further sends are attempted.
+		close(sub.done)
+		s.subsSignedVaaMu.Lock()
+		delete(s.subsSignedVaa, id)
+		s.subsSignedVaaMu.Unlock()
 	}()
 
 	for {
