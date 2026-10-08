@@ -43,8 +43,13 @@ jobs:
       - name: Install CodeQL CLI
         env:
           GH_TOKEN: ${{ github.token }}
+          # Keep in sync with the CLI bundled by the pinned github/codeql-action
+          # used in the analyze job (see src/defaults.json at that commit), so
+          # queries are compiled and tested with the same CLI that analyzes the code.
+          CODEQL_CLI_VERSION: "2.26.2"
         run: |
-          gh extension install github/gh-codeql
+          gh extension install github/gh-codeql --pin cb1d8f3754cf1e7d2220959e7ba9611e5e6d4ad6
+          gh codeql set-version "$CODEQL_CLI_VERSION"
           gh codeql version
       - name: Install query pack dependencies
         env:
