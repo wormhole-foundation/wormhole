@@ -77,6 +77,16 @@ in-flight transfers.
 Delegated Guardian Set updates follow the same transition model: observations already grouped under the previous delegated 
 configuration may complete against that configuration after a rotation or removal, preventing in-flight messages from being stranded.
 
+Governance VAAs are also not impacted by this case. Wormhole contracts differ in how they treat
+governance VAAs signed by a retiring (not yet expired) Guardian Set: some only accept governance
+VAAs from the current set, while more permissive implementations accept them from any active set,
+including a retiring one. The permissive behaviour is not an issue. If a Guardian Set were fully
+compromised, rotating to a new set would not be sufficient to recover, since the compromised set
+could already have issued arbitrary governance actions. The protocol is considered lost at that
+point, so a retiring set retaining governance rights for the duration of the transition window does
+not create any additional risk beyond what is already covered by "Any impact that assumes control
+over a quorum of signing keys as a precondition" above.
+
 ### A malicious Guardian sends a small number of p2p requests with very large size to other Guardians to try to cause DoS
 
 **Justification:**
