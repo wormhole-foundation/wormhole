@@ -141,6 +141,16 @@ func WithSignedVAAListener(signedIncomingVaaRecvC chan<- *gossipv1.SignedVAAWith
 	}
 }
 
+// WithVAASender is used to set the channel that signed VAAs are read from and published to the gossip
+// network. This allows non-guardian tooling (e.g. recovery utilities) to broadcast `SignedVAAWithQuorum`
+// messages without having to supply the full set of guardian options.
+func WithVAASender(gossipVaaSendC chan []byte) RunOpt {
+	return func(p *RunParams) error {
+		p.gossipVaaSendC = gossipVaaSendC
+		return nil
+	}
+}
+
 // WithObservationRequestListener is used to set the channel to receive `ObservationRequest` messages.
 func WithObservationRequestListener(obsvReqRecvC chan<- *gossipv1.ObservationRequest) RunOpt {
 	return func(p *RunParams) error {
