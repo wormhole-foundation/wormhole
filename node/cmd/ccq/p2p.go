@@ -40,6 +40,42 @@ type P2PSub struct {
 	host      host.Host
 }
 
+func monitorMissingPeers(
+	ctx context.Context,
+	h host.Host,
+	thReq *pubsub.Topic,
+	bootstrappers []peer.AddrInfo,
+	logger *zap.Logger,
+) {
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Info("Context cancelled, exiting peer monitoring.")
+			return
+		case <-t.C:
+			peers := thReq.ListPeers()
+			logger.Info("current peers", zap.Int("numPeers", len(peers)), zap.Any("peers", peers))
+			peerMap := map[string]struct{}{}
+			for _, peer := range peers {
+				peerMap[peer.String()] = struct{}{}
+			}
+			for _, p := range bootstrappers {
+				if _, exists := peerMap[p.ID.String()]; !exists {
+					logger.Info("attempting to reconnect to peer", zap.String("peer", p.ID.String()))
+					if err := h.Connect(ctx, p); err != nil {
+						logger.Error("failed to reconnect to peer", zap.String("peer", p.ID.String()), zap.Error(err))
+					} else {
+						logger.Info("Reconnected to peer", zap.String("peer", p.ID.String()))
+						peerMap[p.ID.String()] = struct{}{}
+						successfulReconnects.Inc()
+					}
+				}
+			}
+		}
+	}
+}
 func runP2P(
 	ctx context.Context,
 	priv crypto.PrivKey,
@@ -136,34 +172,7 @@ func runP2P(
 
 	if monitorPeers {
 		logger.Info("Will monitor for missing peers once per minute.")
-		go func() {
-			t := time.NewTicker(time.Minute)
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Info("Context cancelled, exiting peer monitoring.")
-				case <-t.C:
-					peers := thReq.ListPeers()
-					logger.Info("current peers", zap.Int("numPeers", len(peers)), zap.Any("peers", peers))
-					peerMap := map[string]struct{}{}
-					for _, peer := range peers {
-						peerMap[peer.String()] = struct{}{}
-					}
-					for _, p := range bootstrappers {
-						if _, exists := peerMap[p.ID.String()]; !exists {
-							logger.Info("attempting to reconnect to peer", zap.String("peer", p.ID.String()))
-							if err = h.Connect(ctx, p); err != nil {
-								logger.Error("failed to reconnect to peer", zap.String("peer", p.ID.String()), zap.Error(err))
-							} else {
-								logger.Info("Reconnected to peer", zap.String("peer", p.ID.String()))
-								peerMap[p.ID.String()] = struct{}{}
-								successfulReconnects.Inc()
-							}
-						}
-					}
-				}
-			}
-		}()
+		go monitorMissingPeers(ctx, h, thReq, bootstrappers, logger)
 	}
 
 	// Fetch the initial current guardian set
