@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	prometheusv1 "github.com/certusone/wormhole/node/pkg/proto/prometheus/v1"
@@ -221,6 +222,7 @@ func TestScrapeAndSendLocalMetricsReportsReceiverStatus(t *testing.T) {
 		{name: "ok", status: http.StatusOK},
 		{name: "unauthorized", status: http.StatusUnauthorized, body: "authentication error: invalid token\n", wantErr: "remote write returned status 401: authentication error: invalid token"},
 		{name: "server error", status: http.StatusInternalServerError, wantErr: "remote write returned status 500"},
+		{name: "oversized body", status: http.StatusBadGateway, body: strings.Repeat("x", maxErrorBodyBytes+1), wantErr: "remote write returned status 502 (response body not included: input data exceeds maximum allowed size)"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

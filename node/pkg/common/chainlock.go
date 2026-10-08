@@ -100,6 +100,8 @@ const MaxSafeInputSize = 128 * 1024 * 1024 // 128MB (arbitrary)
 
 var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
 
+var ErrInvalidReadLimit = errors.New("read limit must be between 1 and MaxSafeInputSize")
+
 var (
 	ErrBinaryWrite         = errors.New("failed to write binary data")
 	ErrTxIDTooLong         = errors.New("field TxID too long")
@@ -762,25 +764,36 @@ func validBinaryBool(b byte) bool {
 // SafeRead reads from r with a size limit to prevent memory exhaustion attacks.
 // It returns an error if the input exceeds MaxSafeInputSize.
 func SafeRead(r io.Reader) ([]byte, error) {
-	// Create a LimitReader that allows reading up to MaxSafeInputSize + 1 bytes.
-	// The extra byte is specifically to detect if the input stream *exceeds* MaxSafeInputSize.
-	lr := io.LimitReader(r, MaxSafeInputSize+1)
+	return SafeReadN(r, MaxSafeInputSize)
+}
 
-	//nolint:forbidigo // SafeRead is intended as a convenient and safe wrapper for ReadAll.
+// SafeReadN is SafeRead with a caller-chosen limit of n bytes, for callers that need a tighter
+// bound than MaxSafeInputSize. It returns ErrInputTooLarge if the input exceeds n bytes, and
+// ErrInvalidReadLimit if n is not between 1 and MaxSafeInputSize.
+func SafeReadN(r io.Reader, n int) ([]byte, error) {
+	if n < 1 || n > MaxSafeInputSize {
+		return nil, ErrInvalidReadLimit
+	}
+
+	// Create a LimitReader that allows reading up to n + 1 bytes.
+	// The extra byte is specifically to detect if the input stream *exceeds* n.
+	lr := io.LimitReader(r, int64(n)+1)
+
+	//nolint:forbidigo // SafeReadN is intended as a convenient and safe wrapper for ReadAll.
 	b, err := io.ReadAll(lr)
 	if err != nil {
 		// Propagate any actual read errors from the underlying reader.
 		return nil, err
 	}
 
-	// If the length of the read bytes is greater than MaxSafeInputSize,
+	// If the length of the read bytes is greater than n,
 	// it means the original reader contained more data than allowed.
 	// In this case, we return an error instead of silently truncating.
-	if len(b) > MaxSafeInputSize {
+	if len(b) > n {
 		return nil, ErrInputTooLarge
 	}
 
-	// If err was nil and len(b) <= MaxSafeInputSize, it means we read all
+	// If err was nil and len(b) <= n, it means we read all
 	// available input (or up to the limit) without exceeding the maximum.
 	return b, nil
 }
