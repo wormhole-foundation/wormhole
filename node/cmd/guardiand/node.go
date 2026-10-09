@@ -288,8 +288,9 @@ var (
 	// Loki cloud logging parameters
 	telemetryLokiURL *string
 
-	// Prometheus remote write URL
-	promRemoteURL *string
+	// Prometheus remote write URL and push interval
+	promRemoteURL      *string
+	promRemoteInterval *time.Duration
 
 	chainGovernorEnabled      *bool
 	governorFlowCancelEnabled *bool
@@ -562,6 +563,7 @@ func init() {
 	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 
 	promRemoteURL = NodeCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
+	promRemoteInterval = NodeCmd.Flags().Duration("promRemoteInterval", 15*time.Second, "Interval between Prometheus remote write pushes (e.g. 15s, 1m)")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 	governorFlowCancelEnabled = NodeCmd.Flags().Bool("governorFlowCancelEnabled", false, "Enable flow cancel on the governor")
@@ -1285,6 +1287,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	usingPromRemoteWrite := *promRemoteURL != ""
 	if usingPromRemoteWrite {
+		if *promRemoteInterval <= 0 {
+			logger.Fatal("--promRemoteInterval must be positive", zap.Duration("promRemoteInterval", *promRemoteInterval))
+		}
+
 		var info promremotew.PromTelemetryInfo
 		info.PromRemoteURL = *promRemoteURL
 		info.Labels = map[string]string{
@@ -1296,9 +1302,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		promLogger := logger.With(zap.String("component", "prometheus_scraper"))
+		promLogger.Info("Pushing metrics with Prometheus remote write", zap.Duration("interval", *promRemoteInterval))
 		errC := make(chan error)
 		common.StartRunnable(rootCtx, errC, false, "prometheus_scraper", func(ctx context.Context) error {
-			t := time.NewTicker(15 * time.Second)
+			t := time.NewTicker(*promRemoteInterval)
 
 			for {
 				select {
