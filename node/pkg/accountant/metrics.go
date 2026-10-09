@@ -62,4 +62,14 @@ var (
 			Name: "global_accountant_channel_submit_timeouts",
 			Help: "Total number of channel submit timeouts during audit",
 		})
+	batchSizeSplits = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "global_accountant_batch_size_splits_total",
+			Help: "Total number of times a batch of observations was split into multiple batches to stay within the transaction size limit",
+		})
+	oversizedObservations = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "global_accountant_oversized_observations_total",
+			Help: "Total number of observations that exceed the transaction size limit even in a batch by themselves",
+		})
 )
