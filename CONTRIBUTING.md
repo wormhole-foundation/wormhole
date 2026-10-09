@@ -272,6 +272,12 @@ For Go specifically:
 - Use `testing.Short()` to gate  tests that are more integration-like or that otherwise are slow.
 - Use `t.Helper()` for any utility/helper functions that are not themselves explicitly tests that you do not want to see in the error traceback.
 
+### Writing Fuzz Tests
+
+Be mindful of opportunities to include fuzz tests for new work. Complex interactions between different components of the Guardian, or even single features that accept many different permutations of input, can be good candidates for fuzzing. In addition to the general testing guidelines above, consider the following when writing fuzzers:
+
+- Fuzzers must be defined as `func Fuzz*` and live in `_test.go` files.
+- Consider seeding the fuzzer using `f.Add()` with a few edge cases and/or legitimate inputs. This not only gives the fuzzer a good seed corpus, but also ensures the fuzzer can be run as a normal test.
 
 ### Unit tests anti-patterns
 
