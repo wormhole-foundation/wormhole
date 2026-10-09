@@ -1,0 +1,4 @@
+# CodeQL output
+*.sarif
+# CodeQL databases
+*-db/
