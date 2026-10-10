@@ -554,11 +554,24 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		logger.Error("consistency level is larger than expected MaxUint8")
 		return
 	}
+	timestamp, err := vaa.TimeFromUnix(ts.Uint())
+	if err != nil {
+		logger.Error("invalid timestamp",
+			zap.Error(err),
+			zap.Uint64("timestamp", ts.Uint()),
+			zap.String("txHash", txHash.Hex()),
+			zap.Uint64("nonce", nonce.Uint()),
+			zap.Uint64("sequence", sequence.Uint()),
+			zap.Stringer("emitter", a),
+			zap.Stringer("chainID", e.chainID),
+		)
+		return
+	}
 
 	observation := &common.MessagePublication{
 		TxID:             txHash.Bytes(),
-		Timestamp:        time.Unix(int64(ts.Uint()), 0), // #nosec G115 -- This conversion is safe indefinitely
-		Nonce:            uint32(nonce.Uint()),           // #nosec G115 -- This is validated above
+		Timestamp:        timestamp,
+		Nonce:            uint32(nonce.Uint()), // #nosec G115 -- This is validated above
 		Sequence:         sequence.Uint(),
 		EmitterChain:     e.chainID,
 		EmitterAddress:   a,

@@ -9,17 +9,18 @@ import (
 	"math/big"
 	"strings"
 	"testing"
-	"time"
 
 	mystenbcs "github.com/block-vision/sui-go-sdk/mystenbcs"
-	"github.com/certusone/wormhole/node/pkg/common"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/suiclient"
-	txverifier "github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/suiclient"
+	"github.com/certusone/wormhole/node/pkg/testutils"
+	txverifier "github.com/certusone/wormhole/node/pkg/txverifier"
 )
 
 // A `WormholeMessage` event captured from mainnet transaction
@@ -157,7 +158,7 @@ func Test_processEvent(t *testing.T) {
 	require.Equal(t, sampleNonce, published.Nonce)
 	require.Equal(t, decodeStringNoError(samplePayloadHex), published.Payload)
 	require.Equal(t, sampleConsistencyLevel, published.ConsistencyLevel)
-	require.Equal(t, time.Unix(int64(sampleTimestamp), 0), published.Timestamp)
+	require.Equal(t, testutils.MustTimeFromUnix(t, sampleTimestamp), published.Timestamp)
 	require.False(t, published.IsReobservation)
 }
 
@@ -339,7 +340,7 @@ func TestVerifyAndPublish_Samples(t *testing.T) {
 
 			msg := &common.MessagePublication{
 				TxID:             []byte(txDigest),
-				Timestamp:        time.Unix(1747215154, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1747215154),
 				Sequence:         tt.sequence,
 				EmitterChain:     vaa.ChainIDSui,
 				EmitterAddress:   vaa.Address(emitter32),
