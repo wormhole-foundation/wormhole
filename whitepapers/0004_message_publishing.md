@@ -32,11 +32,9 @@ claimed by the protocol and collected in a fee pool on Solana where they can be 
 ## Detailed Design
 
 Wormhole core contracts have a `postMessage` method which can be used by EOAs (externally owned accounts) or SCs (smart
-contracts)
-to publish a message via Wormhole.
+contracts) to publish a message via Wormhole.
 
-This method has to perform verification on the payload for the maximum size limitation of **750 bytes**. The message
-should be emitted such that it can be picked up by guardians in a way that allows offline nodes to replay missed blocks.
+The message should be emitted such that it can be picked up by guardians in a way that allows offline nodes to replay missed blocks.
 
 The Wormhole contract will also need to make the emitter of the published message available to the guardians. The
 emitter is either a parameter to the postMessage method if the chain allows proving that the caller controls or is
@@ -62,8 +60,8 @@ anyone sending a transaction is already required to hold such assets in order to
 message, and that the fee will therefore not negatively affect usability of the bridge.
 
 The fee is defined by governance using the `SetMessageFee` VAA. The fees set are denominated in the respective chains
-native currency. Each chain's Wormhole program is supposed to use an on-chain price oracle (e.g. a uniswap pool TWAP or
-Pyth price feed)
+native currency.
+
 Fees are set per chain to allow the protocol to take into consideration the effort required to keep the chain's nodes
 online and account for spam attacks.
 
@@ -122,5 +120,3 @@ A governance decision is required for the collection of fees. This means a lot o
 distribution of fees to stakers and guardians. The lack of a token bridge makes it hard to automate this in the early
 days of the protocol. Also, a transfer primitive is unlikely to support token bridges (which may require smart contract
 calls), so a contract will be required.
-
-## Security Considerations
