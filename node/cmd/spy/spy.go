@@ -103,6 +103,7 @@ type filterSignedVaa struct {
 type subscriptionSignedVaa struct {
 	filters []filterSignedVaa
 	ch      chan message
+	done    chan struct{}
 }
 
 func subscriptionId() string {
@@ -110,8 +111,12 @@ func subscriptionId() string {
 }
 
 func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
+	// Collect matching subscribers under the lock, then send outside the lock.
+	// This prevents a slow subscriber from blocking the mutex and stalling all
+	// other publishers and subscriber cleanup.
+	var targets []*subscriptionSignedVaa
+
 	s.subsSignedVaaMu.Lock()
-	defer s.subsSignedVaaMu.Unlock()
 
 	var v *vaa.VAA
 	var err error
@@ -123,16 +128,18 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 				verified = true
 				v, err = s.verifyVAA(v, vaaBytes)
 				if err != nil {
+					s.subsSignedVaaMu.Unlock()
 					return err
 				}
 			}
-			sub.ch <- message{vaaBytes: vaaBytes} // Note on channel capacity: Don't want to drop incoming VAAs
+			targets = append(targets, sub)
 			continue
 		}
 
 		if v == nil {
 			v, err = vaa.Unmarshal(vaaBytes)
 			if err != nil {
+				s.subsSignedVaaMu.Unlock()
 				return err
 			}
 		}
@@ -143,13 +150,29 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 					verified = true
 					v, err = s.verifyVAA(v, vaaBytes)
 					if err != nil {
+						s.subsSignedVaaMu.Unlock()
 						return err
 					}
 				}
-				sub.ch <- message{vaaBytes: vaaBytes} // Note on channel capacity: Don't want to drop incoming VAAs
+				targets = append(targets, sub)
+				// A VAA has a single (EmitterChain, EmitterAddress), so at most one filter can
+				// match. Stop here so a subscription is never collected more than once.
+				break
 			}
 		}
 
+	}
+
+	s.subsSignedVaaMu.Unlock()
+
+	for _, sub := range targets {
+		// The send is intentionally blocking: we don't want to drop incoming VAAs for subscribers.
+		// The subscriber may have been torn down after we collected it above, so also select on done
+		// to avoid blocking.
+		select {
+		case sub.ch <- message{vaaBytes: vaaBytes}:
+		case <-sub.done:
+		}
 	}
 
 	return nil
@@ -183,6 +206,13 @@ func (s *spyServer) verifyVAA(v *vaa.VAA, vaaBytes []byte) (*vaa.VAA, error) {
 func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, resp spyv1.SpyRPCService_SubscribeSignedVAAServer) error {
 	var fi []filterSignedVaa
 	if req.Filters != nil {
+		// Deduplicate filters. A VAA has a single (EmitterChain, EmitterAddress), so only identical
+		// filters can match it. Without dedup, duplicate filters would cause the same subscription to
+		// be collected multiple times in PublishSignedVAA and the same VAA to be sent more than once
+		// to the subscription's (buffered, capacity 1) channel. Because that send is intentionally
+		// blocking (we don't drop VAAs), more than one queued send to a torn-down subscriber can block
+		// the single publisher goroutine forever, halting delivery to all subscribers.
+		seen := make(map[filterSignedVaa]struct{}, len(req.Filters))
 		for _, f := range req.Filters {
 			switch t := f.Filter.(type) {
 			case *spyv1.FilterEntry_EmitterFilter:
@@ -193,10 +223,15 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 				if t.EmitterFilter.GetChainId() > math.MaxUint16 {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("emitter chain id must be a valid 16 bit unsigned integer: %v", t.EmitterFilter.ChainId.Number()))
 				}
-				fi = append(fi, filterSignedVaa{
+				filter := filterSignedVaa{
 					chainId:     vaa.ChainID(t.EmitterFilter.ChainId), // #nosec G115 -- This is validated above
 					emitterAddr: addr,
-				})
+				}
+				if _, ok := seen[filter]; ok {
+					continue
+				}
+				seen[filter] = struct{}{}
+				fi = append(fi, filter)
 			default:
 				return status.Error(codes.InvalidArgument, "unsupported filter type")
 			}
@@ -207,23 +242,19 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 	id := subscriptionId()
 	sub := &subscriptionSignedVaa{
 		ch:      make(chan message, 1),
+		done:    make(chan struct{}),
 		filters: fi,
 	}
 	s.subsSignedVaa[id] = sub
 	s.subsSignedVaaMu.Unlock()
 
 	defer func() {
-		for {
-			// The channel sender locks the subscription mutex before sending to the channel.
-			// If the channel is full, then the sender will block and we'll never be able to lock the mutex (resulting in deadlock).
-			// So we empty the channel before trying acquire the lock.
-			_ = DoWithTimeout(func() error { <-sub.ch; return nil }, time.Millisecond)
-			if s.subsSignedVaaMu.TryLock() {
-				delete(s.subsSignedVaa, id)
-				s.subsSignedVaaMu.Unlock()
-				return
-			}
-		}
+		// Signal the publisher first so any in-flight send to this subscription unblocks, then
+		// remove the subscription so no further sends are attempted.
+		close(sub.done)
+		s.subsSignedVaaMu.Lock()
+		delete(s.subsSignedVaa, id)
+		s.subsSignedVaaMu.Unlock()
 	}()
 
 	for {
