@@ -12,7 +12,7 @@
   "files": [
     "build/"
   ],
-  "repository": "https://github.com/certusone/wormhole/tree/main/clients/js",
+  "repository": "https://github.com/wormhole-foundation/wormhole/tree/main/clients/js",
   "scripts": {
     "start": "npm run build && node ./build/main.js",
     "build": "esbuild src/main.ts --bundle --outfile=build/main.js --minify --platform=node --target=node22 --tsconfig=tsconfig.build.json",
