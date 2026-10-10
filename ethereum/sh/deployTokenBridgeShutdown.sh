@@ -2,8 +2,6 @@
 
 # MNEMONIC=<redacted> ./sh/deployTokenBridgeShutdown.sh
 
-. .env
-
 [[ -z $INIT_EVM_CHAIN_ID ]] && { echo "Missing INIT_EVM_CHAIN_ID"; exit 1; }
 
 [[ -z $MNEMONIC ]] && { echo "Missing MNEMONIC"; exit 1; }
