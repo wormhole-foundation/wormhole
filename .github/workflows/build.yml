@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25.10"
+          go-version-file: node/go.mod
       - run: make node
 
   algorand:
@@ -252,6 +252,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
+          # Pinned to match the Wormchain Docker images; go.mod only declares Go 1.19 compatibility.
           go-version: "1.19.9"
       - run: |
           cd wormchain
@@ -268,7 +269,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25.10"
+          go-version: "1.26.3"
       - run: cd sdk/vaa && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
@@ -287,7 +288,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25.10"
+          go-version-file: node/go.mod
       - name: Install formatter
         run: go install golang.org/x/tools/cmd/goimports@v0.8.0
       - name: Formatting checks
@@ -331,11 +332,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25.10"
+          go-version-file: node/go.mod
       # /usr/bin/true replaces test-binary execution, so live integration tests are compiled but never run.
       - name: Compile integration-tagged Go tests without running them
         run: make test-integration-compile
-      # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests with coverage
         run: make test-coverage
       - name: Upload coverage output
@@ -353,7 +353,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25.10"
+          go-version-file: scripts/coverage-check/go.mod
       - name: Download coverage output
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
@@ -373,7 +373,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.25.10"
+          go-version-file: linters/go.mod
       - name: Run custom linter tests
         run: make -C linters test
 
