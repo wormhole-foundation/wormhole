@@ -11,6 +11,7 @@ RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   cd tools/ && go build -mod=readonly -o /dlv github.com/go-delve/delve/cmd/dlv
 
 COPY node node
+RUN chmod 0600 node/cmd/ccq/devnet.signing.key
 COPY sdk sdk
 COPY wormchain wormchain
 
