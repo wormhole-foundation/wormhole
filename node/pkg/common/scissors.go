@@ -71,7 +71,6 @@ func StartRunnable(ctx context.Context, errC chan error, catchPanics bool, name 
 					case errC <- err:
 					default:
 					}
-
 				}
 			}()
 		}
