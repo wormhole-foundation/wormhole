@@ -360,7 +360,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	// Get the node version for troubleshooting
 	w.logVersion(ctx)
 
-	errC := make(chan error)
+	// Buffer one error so a child runnable can report the first failure before
+	// Run reaches its final select. Without the buffer, a child runnable could
+	// fail before Run is ready to receive the error, potentially causing the
+	// runnable to exit without restarting.
+	errC := make(chan error, 1)
 
 	// Subscribe to new message publications. We don't use a timeout here because the LogPollConnector
 	// will keep running. Other connectors will use a timeout internally if appropriate.

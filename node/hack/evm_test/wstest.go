@@ -60,7 +60,9 @@ func main() {
 
 	client := ethClient.NewClient(rawClient)
 
-	errC := make(chan error)
+	// Buffer one subscription error so the first failure survives until main
+	// reaches its final select.
+	errC := make(chan error, 1)
 
 	if *blocks {
 		logger.Info("Subscribing for latest blocks")

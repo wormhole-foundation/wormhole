@@ -252,8 +252,10 @@ func NewSubscription(client *ethClient.Client, connector connectors.Connector) *
 		client:    client,
 		connector: connector,
 		logC:      make(chan *ethabi.AbiLogMessagePublished),
-		errC:      make(chan error),
-		quit:      make(chan struct{}),
+		// Buffer one subscription error so it can survive until the main loop is
+		// ready to receive it. Later errors are best-effort because Subscribe retries.
+		errC: make(chan error, 1),
+		quit: make(chan struct{}),
 	}
 }
 
