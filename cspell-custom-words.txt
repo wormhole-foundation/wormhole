@@ -244,7 +244,7 @@ tendermint
 Tendermint
 terrad
 testdata
-tokenbridge
+testutils
 tokenfactory
 traceback
 trustlessly
