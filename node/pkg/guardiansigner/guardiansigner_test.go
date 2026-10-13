@@ -136,10 +136,12 @@ func TestGeneratedSigner(t *testing.T) {
 	sig, err := signer.Sign(ctx, hash.Bytes())
 	require.NoError(t, err)
 
+	// Verify the signature with the correct hash, should succeed
 	valid, err := signer.Verify(ctx, sig, hash.Bytes())
 	require.NoError(t, err)
 	assert.True(t, valid)
 
+	// Verify the signature with an incorrect hash, should fail
 	valid, err = signer.Verify(ctx, sig, crypto.Keccak256Hash([]byte("other data")).Bytes())
 	require.NoError(t, err)
 	assert.False(t, valid)
