@@ -715,7 +715,7 @@ Add the following flags:
 ```
 
 Metrics are pushed every 15 seconds by default. Use `--promRemoteInterval` (for example `--promRemoteInterval=1m`) to
-change the interval.
+push less often; the minimum is 15 seconds.
 
 New guardians should talk to the Wormhole Foundation to get these URLs.
 
