@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
+	GuardianKeyArmoredBlock    = "WORMHOLE GUARDIAN PRIVATE KEY"
+	onlyOwnerReadWritePermMask = 0600
+	forbiddenPermMask          = 0077
 )
 
 // LoadGuardianKey loads a serialized guardian key from disk.
@@ -73,14 +75,15 @@ func ValidatePrivateKeyFilePermissions(filename string) error {
 		return fmt.Errorf("failed to stat private key file: %w", err)
 	}
 
-	if info.Mode().IsRegular() && info.Mode().Perm()&0077 != 0 {
+	if info.Mode().IsRegular() && info.Mode().Perm()&forbiddenPermMask != 0 {
 		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", filename, info.Mode().Perm())
 	}
 
 	return nil
 }
 
-// WriteArmoredKey serializes a key and writes it to disk.
+// WriteArmoredKey serializes a key and writes it to disk. The function creates a new file with read/write permissions
+// for owner only.
 func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string, blockType string, unsafe bool) error {
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		return errors.New("refusing to override existing key")
@@ -98,7 +101,7 @@ func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string,
 		panic(err)
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, onlyOwnerReadWritePermMask)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
