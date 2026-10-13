@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
 	"go.uber.org/zap"
 )
@@ -50,7 +51,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	// we want to avoid going too far back because that would increase the likelihood of error somewhere in the recursion stack.
 	// If we go back too far, we just report the error and terminate early.
 	if recursionDepth > maxFallBehindBlocks {
-		e.eventChan <- EVENT_NEAR_WATCHER_TOO_FAR_BEHIND // Note on channel capacity: Only pauses this watcher
+		common.WriteToChannelWithoutBlocking(e.eventChan, EVENT_NEAR_WATCHER_TOO_FAR_BEHIND, "near_event_chan") // Non-blocking: eventChan is buffered (cap 10) and metrics-only, so dropping an event is preferable to stalling the watcher.
 		return errors.New("recursivelyReadFinalizedBlocks: maxFallBehindBlocks")
 	}
 
@@ -71,7 +72,11 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	chunks := startBlock.ChunkHashes()
 	// process chunks after recursion such that youngest chunks get processed first
 	for i := 0; i < len(chunks); i++ {
-		chunkSink <- chunks[i] // Note on channel capacity: Only pauses this watcher
+		select {
+		case chunkSink <- chunks[i]: //nolint:channelcheck // Blocks on consumer backpressure (chunks are critical data, never dropped); ctx.Done() allows shutdown.
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	return nil
 }
