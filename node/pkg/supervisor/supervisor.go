@@ -110,7 +110,7 @@ func New(ctx context.Context, logger *zap.Logger, rootRunnable Runnable, opts ..
 
 	go sup.processor(ctx)
 
-	sup.pReq <- &processorRequest{ // Note on channel capacity: Only does one write
+	sup.pReq <- &processorRequest{ //nolint:channelcheck // One-shot send to the processor goroutine started above; blocking is the intended startup handshake.
 		schedule: &processorRequestSchedule{dn: "root"},
 	}
 
