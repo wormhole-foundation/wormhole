@@ -7,7 +7,7 @@ github.com/certusone/wormhole/node/cmd 0.0
 github.com/certusone/wormhole/node/cmd/ccq 15.5
 github.com/certusone/wormhole/node/cmd/debug 0.0
 github.com/certusone/wormhole/node/cmd/guardiand 21.6
-github.com/certusone/wormhole/node/cmd/spy 31.2
+github.com/certusone/wormhole/node/cmd/spy 30.8
 github.com/certusone/wormhole/node/cmd/txverifier 0.0
 github.com/certusone/wormhole/node/hack/accountant 0.0
 github.com/certusone/wormhole/node/hack/evm_test 0.0
@@ -33,9 +33,9 @@ github.com/certusone/wormhole/node/pkg/gwrelayer 31.9
 github.com/certusone/wormhole/node/pkg/manager 29.3
 github.com/certusone/wormhole/node/pkg/manager/delegatedmanagersetabi 0.0
 github.com/certusone/wormhole/node/pkg/manager/dogecoin 94.0
-github.com/certusone/wormhole/node/pkg/manager/xrpl 91.9
+github.com/certusone/wormhole/node/pkg/manager/xrpl 95.1
 github.com/certusone/wormhole/node/pkg/node 66.0
-github.com/certusone/wormhole/node/pkg/notary 36.9
+github.com/certusone/wormhole/node/pkg/notary 96.9
 github.com/certusone/wormhole/node/pkg/p2p 40.3
 github.com/certusone/wormhole/node/pkg/processor 25.0
 github.com/certusone/wormhole/node/pkg/proto/gossip/v1 0.0
@@ -44,14 +44,14 @@ github.com/certusone/wormhole/node/pkg/proto/prometheus/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1 0.0
 github.com/certusone/wormhole/node/pkg/proto/spy/v1 0.0
 github.com/certusone/wormhole/node/pkg/publicrpc 12.4
-github.com/certusone/wormhole/node/pkg/query 70.2
+github.com/certusone/wormhole/node/pkg/query 69.9
 github.com/certusone/wormhole/node/pkg/random 0.0
 github.com/certusone/wormhole/node/pkg/readiness 0.0
-github.com/certusone/wormhole/node/pkg/suiclient 71.7
+github.com/certusone/wormhole/node/pkg/suiclient 94.0
 github.com/certusone/wormhole/node/pkg/supervisor 0.0
 github.com/certusone/wormhole/node/pkg/telemetry 16.0
 github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write 59.5
-github.com/certusone/wormhole/node/pkg/txverifier 54.7
+github.com/certusone/wormhole/node/pkg/txverifier 91.2
 github.com/certusone/wormhole/node/pkg/version 0.0
 github.com/certusone/wormhole/node/pkg/watchers/algorand 30.4
 github.com/certusone/wormhole/node/pkg/watchers/aptos 55.7
@@ -68,7 +68,7 @@ github.com/certusone/wormhole/node/pkg/watchers/mock 0.0
 github.com/certusone/wormhole/node/pkg/watchers/near 75.4
 github.com/certusone/wormhole/node/pkg/watchers/near/nearapi 61.8
 github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock 0.0
-github.com/certusone/wormhole/node/pkg/watchers/solana 40.5
+github.com/certusone/wormhole/node/pkg/watchers/solana 40.8
 github.com/certusone/wormhole/node/pkg/watchers/sui 26.9
 github.com/certusone/wormhole/node/pkg/watchers/xrpl 73.0
 github.com/certusone/wormhole/node/pkg/watchers/xrpl/currencycodec 100.0

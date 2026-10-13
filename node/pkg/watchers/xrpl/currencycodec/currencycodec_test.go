@@ -109,6 +109,17 @@ func TestEncode(t *testing.T) {
 			},
 			expected: "000000000000000000000000555344ff00000000",
 		},
+		{
+			// Non-zero prefix with a standard-looking middle but a zero tail. The
+			// prefix alone must mark this non-standard, so it must come back as
+			// hex rather than the "USD" in bytes 12-14.
+			name: "non-standard with nonzero prefix and zero tail",
+			currency: [20]byte{
+				0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x55, 0x53, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
+			},
+			expected: "0100000000000000000000005553440000000000",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, Encode(tc.currency))

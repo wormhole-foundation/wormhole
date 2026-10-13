@@ -2,12 +2,15 @@ package txverifier
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -798,4 +801,556 @@ func TestParseERC20TransferFrom(t *testing.T) {
 		})
 	}
 
+}
+
+// rpcMockClient is a configurable implementation of the evmClient interface.
+// When fn is nil it behaves like mockClient (returns 8 decimals).
+type rpcMockClient struct {
+	fn func(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error)
+}
+
+func (m *rpcMockClient) CallContract(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	if m.fn != nil {
+		return m.fn(ctx, msg, blockNumber)
+	}
+	return common.LeftPadBytes([]byte{0x08}, 32), nil
+}
+
+func setupWithClient(fn func(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error)) *TransferVerifier[*rpcMockClient, *mockConnector] {
+	logger := ipfslog.Logger("wormhole-transfer-verifier-tests").Desugar()
+	return &TransferVerifier[*rpcMockClient, *mockConnector]{
+		Addresses: &TVAddresses{
+			CoreBridgeAddr:    coreBridgeAddr,
+			TokenBridgeAddr:   tokenBridgeAddr,
+			WrappedNativeAddr: nativeAddrGeth,
+		},
+		chainIds:            &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
+		evmConnector:        &mockConnector{},
+		client:              &rpcMockClient{fn: fn},
+		logger:              *logger,
+		evaluations:         make(map[common.Hash]*receiptEvaluation),
+		isWrappedCache:      make(map[string]bool),
+		chainIdCache:        make(map[string]vaa.ChainID),
+		nativeContractCache: make(map[string]vaa.Address),
+		decimalsCache:       make(map[common.Address]uint8),
+	}
+}
+
+func TestGetDecimals(t *testing.T) {
+	t.Run("zero address", func(t *testing.T) {
+		tv := setupWithClient(nil)
+		_, err := tv.getDecimals(ZERO_ADDRESS)
+		require.Error(t, err)
+	})
+
+	t.Run("cache hit does not call the client", func(t *testing.T) {
+		called := false
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			called = true
+			return nil, errors.New("should not be called")
+		})
+		tv.decimalsCache[usdcAddrGeth] = 6
+		decimals, err := tv.getDecimals(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.Equal(t, uint8(6), decimals)
+		assert.False(t, called, "cache hit must not invoke the client")
+	})
+
+	t.Run("client error", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return nil, errors.New("rpc down")
+		})
+		_, err := tv.getDecimals(usdcAddrGeth)
+		require.Error(t, err)
+	})
+
+	t.Run("short result", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return []byte{0x08}, nil
+		})
+		_, err := tv.getDecimals(usdcAddrGeth)
+		require.ErrorIs(t, err, ErrFailedToGetDecimals)
+	})
+
+	t.Run("valid result is cached", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return common.LeftPadBytes([]byte{0x06}, 32), nil
+		})
+		decimals, err := tv.getDecimals(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.Equal(t, uint8(6), decimals)
+		assert.Equal(t, uint8(6), tv.decimalsCache[usdcAddrGeth])
+	})
+}
+
+func TestChainId(t *testing.T) {
+	t.Run("zero address", func(t *testing.T) {
+		tv := setupWithClient(nil)
+		_, err := tv.chainId(ZERO_ADDRESS)
+		require.Error(t, err)
+	})
+
+	t.Run("cache hit", func(t *testing.T) {
+		called := false
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			called = true
+			return nil, errors.New("should not be called")
+		})
+		tv.chainIdCache[usdcAddrGeth.Hex()] = vaa.ChainIDPolygon
+		chainID, err := tv.chainId(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.Equal(t, vaa.ChainIDPolygon, chainID)
+		assert.False(t, called)
+	})
+
+	t.Run("client error", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return nil, errors.New("rpc down")
+		})
+		_, err := tv.chainId(usdcAddrGeth)
+		require.Error(t, err)
+	})
+
+	t.Run("short result", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return []byte{0x02}, nil
+		})
+		_, err := tv.chainId(usdcAddrGeth)
+		require.Error(t, err)
+	})
+
+	t.Run("unknown chain number", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return common.LeftPadBytes(big.NewInt(999999).Bytes(), 32), nil
+		})
+		_, err := tv.chainId(usdcAddrGeth)
+		require.Error(t, err)
+	})
+
+	t.Run("valid result is cached", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return common.LeftPadBytes(big.NewInt(int64(vaa.ChainIDPolygon)).Bytes(), 32), nil
+		})
+		chainID, err := tv.chainId(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.Equal(t, vaa.ChainIDPolygon, chainID)
+		assert.Equal(t, vaa.ChainIDPolygon, tv.chainIdCache[usdcAddrGeth.Hex()])
+	})
+}
+
+func TestNativeContract(t *testing.T) {
+	t.Run("zero address", func(t *testing.T) {
+		tv := setupWithClient(nil)
+		_, err := tv.nativeContract(ZERO_ADDRESS)
+		require.Error(t, err)
+	})
+
+	t.Run("cache hit", func(t *testing.T) {
+		called := false
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			called = true
+			return nil, errors.New("should not be called")
+		})
+		tv.nativeContractCache[usdcAddrGeth.Hex()] = usdcAddrVAA
+		addr, err := tv.nativeContract(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.Equal(t, usdcAddrVAA, addr)
+		assert.False(t, called)
+	})
+
+	t.Run("client error", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return nil, errors.New("rpc down")
+		})
+		_, err := tv.nativeContract(usdcAddrGeth)
+		require.Error(t, err)
+	})
+
+	t.Run("short result", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return []byte{0x01}, nil
+		})
+		_, err := tv.nativeContract(usdcAddrGeth)
+		require.Error(t, err)
+	})
+
+	t.Run("valid result is cached", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return common.LeftPadBytes(usdcAddrGeth.Bytes(), 32), nil
+		})
+		addr, err := tv.nativeContract(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.Equal(t, usdcAddrVAA, addr)
+		assert.Equal(t, usdcAddrVAA, tv.nativeContractCache[usdcAddrGeth.Hex()])
+	})
+}
+
+func TestIsWrappedAsset(t *testing.T) {
+	t.Run("cache hit", func(t *testing.T) {
+		called := false
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			called = true
+			return nil, errors.New("should not be called")
+		})
+		tv.isWrappedCache[usdcAddrGeth.Hex()] = true
+		wrapped, err := tv.isWrappedAsset(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.True(t, wrapped)
+		assert.False(t, called)
+	})
+
+	t.Run("client error", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return nil, errors.New("rpc down")
+		})
+		_, err := tv.isWrappedAsset(usdcAddrGeth)
+		require.Error(t, err)
+	})
+
+	t.Run("short result", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return []byte{0x01}, nil
+		})
+		_, err := tv.isWrappedAsset(usdcAddrGeth)
+		require.ErrorIs(t, err, ErrWrappedAssetResultBadLength)
+	})
+
+	t.Run("true result", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return common.LeftPadBytes([]byte{0x01}, 32), nil
+		})
+		wrapped, err := tv.isWrappedAsset(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.True(t, wrapped)
+	})
+
+	t.Run("false result", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return common.LeftPadBytes([]byte{0x00}, 32), nil
+		})
+		wrapped, err := tv.isWrappedAsset(usdcAddrGeth)
+		require.NoError(t, err)
+		assert.False(t, wrapped)
+	})
+}
+
+// depositOnlyReceipt builds a structurally valid receipt containing a single
+// native deposit and one message publication.
+func depositOnlyReceipt() *TransferReceipt {
+	deposits := []*NativeDeposit{
+		{
+			TokenAddress: nativeAddrGeth,
+			TokenChain:   vaa.ChainIDEthereum,
+			Receiver:     tokenBridgeAddr,
+			Amount:       big.NewInt(1),
+		},
+	}
+	transfers := []*ERC20Transfer{}
+	messages := []*LogMessagePublished{
+		{
+			EventEmitter: coreBridgeAddr,
+			MsgSender:    tokenBridgeAddr,
+			TransferDetails: &TransferDetails{
+				PayloadType:   TransferTokens,
+				TokenChain:    vaa.ChainIDEthereum,
+				TargetAddress: eoaAddrVAA,
+				Amount:        big.NewInt(1),
+				OriginAddress: nativeAddrVAA,
+			},
+		},
+	}
+	return &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &messages}
+}
+
+// transferOnlyReceipt builds a structurally valid receipt containing a single
+// ERC20 transfer and one message publication.
+func transferOnlyReceipt() *TransferReceipt {
+	deposits := []*NativeDeposit{}
+	transfers := []*ERC20Transfer{
+		{
+			From:         eoaAddrGeth,
+			To:           tokenBridgeAddr,
+			TokenAddress: usdcAddrGeth,
+			TokenChain:   vaa.ChainIDEthereum,
+			Amount:       big.NewInt(1),
+		},
+	}
+	messages := []*LogMessagePublished{
+		{
+			EventEmitter: coreBridgeAddr,
+			MsgSender:    tokenBridgeAddr,
+			TransferDetails: &TransferDetails{
+				PayloadType:   TransferTokens,
+				TokenChain:    vaa.ChainIDEthereum,
+				TargetAddress: eoaAddrVAA,
+				Amount:        big.NewInt(1),
+				OriginAddress: usdcAddrVAA,
+			},
+		},
+	}
+	return &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &messages}
+}
+
+func TestUpdateReceiptDetailsDepositDecimalsError(t *testing.T) {
+	tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+		return nil, errors.New("rpc down")
+	})
+	err := tv.updateReceiptDetails(depositOnlyReceipt())
+	require.Error(t, err)
+}
+
+func TestUpdateReceiptDetailsIsWrappedError(t *testing.T) {
+	tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+		return nil, errors.New("rpc down")
+	})
+	err := tv.updateReceiptDetails(transferOnlyReceipt())
+	require.Error(t, err)
+}
+
+func TestUpdateReceiptDetailsNativeTransfer(t *testing.T) {
+	// isWrappedAsset returns false, so the native path is taken.
+	tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+		return common.LeftPadBytes([]byte{0x00}, 32), nil
+	})
+	receipt := transferOnlyReceipt()
+	err := tv.updateReceiptDetails(receipt)
+	require.NoError(t, err)
+	transfer := (*receipt.Transfers)[0]
+	assert.Equal(t, usdcAddrVAA, transfer.OriginAddr)
+	assert.Equal(t, vaa.ChainIDEthereum, transfer.TokenChain)
+}
+
+func TestUpdateReceiptDetailsWrappedTransfer(t *testing.T) {
+	// isWrappedAsset returns true; chainId and nativeContract return valid values.
+	tv := setupWithClient(func(_ context.Context, msg ethereum.CallMsg, _ *big.Int) ([]byte, error) {
+		switch {
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(TOKEN_BRIDGE_IS_WRAPPED_ASSET_SIGNATURE):
+			return common.LeftPadBytes([]byte{0x01}, 32), nil
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(WRAPPED_ERC20_CHAIN_ID_SIGNATURE):
+			return common.LeftPadBytes(big.NewInt(int64(vaa.ChainIDPolygon)).Bytes(), 32), nil
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(WRAPPED_ERC20_NATIVE_CONTRACT_SIGNATURE):
+			return common.LeftPadBytes(usdcAddrGeth.Bytes(), 32), nil
+		default:
+			return common.LeftPadBytes([]byte{0x08}, 32), nil
+		}
+	})
+	receipt := transferOnlyReceipt()
+	err := tv.updateReceiptDetails(receipt)
+	require.NoError(t, err)
+	transfer := (*receipt.Transfers)[0]
+	assert.Equal(t, usdcAddrVAA, transfer.OriginAddr)
+	assert.Equal(t, vaa.ChainIDPolygon, transfer.TokenChain)
+}
+
+func TestUpdateReceiptDetailsWrappedChainIdError(t *testing.T) {
+	tv := setupWithClient(func(_ context.Context, msg ethereum.CallMsg, _ *big.Int) ([]byte, error) {
+		switch {
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(TOKEN_BRIDGE_IS_WRAPPED_ASSET_SIGNATURE):
+			return common.LeftPadBytes([]byte{0x01}, 32), nil
+		default:
+			return nil, errors.New("rpc down")
+		}
+	})
+	err := tv.updateReceiptDetails(transferOnlyReceipt())
+	require.Error(t, err)
+}
+
+func TestUpdateReceiptDetailsWrappedNativeContractError(t *testing.T) {
+	tv := setupWithClient(func(_ context.Context, msg ethereum.CallMsg, _ *big.Int) ([]byte, error) {
+		switch {
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(TOKEN_BRIDGE_IS_WRAPPED_ASSET_SIGNATURE):
+			return common.LeftPadBytes([]byte{0x01}, 32), nil
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(WRAPPED_ERC20_CHAIN_ID_SIGNATURE):
+			return common.LeftPadBytes(big.NewInt(int64(vaa.ChainIDPolygon)).Bytes(), 32), nil
+		default:
+			return nil, errors.New("rpc down")
+		}
+	})
+	err := tv.updateReceiptDetails(transferOnlyReceipt())
+	require.Error(t, err)
+}
+
+func TestUpdateReceiptDetailsWrappedZeroOriginAddress(t *testing.T) {
+	tv := setupWithClient(func(_ context.Context, msg ethereum.CallMsg, _ *big.Int) ([]byte, error) {
+		switch {
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(TOKEN_BRIDGE_IS_WRAPPED_ASSET_SIGNATURE):
+			return common.LeftPadBytes([]byte{0x01}, 32), nil
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(WRAPPED_ERC20_CHAIN_ID_SIGNATURE):
+			return common.LeftPadBytes(big.NewInt(int64(vaa.ChainIDPolygon)).Bytes(), 32), nil
+		case len(msg.Data) >= 4 && string(msg.Data[:4]) == string(WRAPPED_ERC20_NATIVE_CONTRACT_SIGNATURE):
+			return common.LeftPadBytes(ZERO_ADDRESS.Bytes(), 32), nil
+		default:
+			return common.LeftPadBytes([]byte{0x08}, 32), nil
+		}
+	})
+	err := tv.updateReceiptDetails(transferOnlyReceipt())
+	require.Error(t, err)
+}
+
+func TestUpdateReceiptDetailsInvalidReceipt(t *testing.T) {
+	tv := setupWithClient(nil)
+	// A receipt with nil fields fails SanityCheck.
+	err := tv.updateReceiptDetails(&TransferReceipt{})
+	require.ErrorIs(t, err, ErrInvalidReceiptArgument)
+}
+func TestStringMethods(t *testing.T) {
+	deposit := &NativeDeposit{
+		TokenAddress: nativeAddrGeth,
+		TokenChain:   vaa.ChainIDEthereum,
+		Receiver:     tokenBridgeAddr,
+		Amount:       big.NewInt(1),
+	}
+	assert.Contains(t, deposit.String(), "Deposit:")
+
+	transfer := &ERC20Transfer{
+		TokenAddress: usdcAddrGeth,
+		TokenChain:   vaa.ChainIDEthereum,
+		From:         eoaAddrGeth,
+		To:           tokenBridgeAddr,
+		Amount:       big.NewInt(1),
+	}
+	assert.Contains(t, transfer.String(), "ERC20Transfer:")
+
+	message := &LogMessagePublished{
+		EventEmitter: coreBridgeAddr,
+		MsgSender:    tokenBridgeAddr,
+		TransferDetails: &TransferDetails{
+			PayloadType:   TransferTokens,
+			TokenChain:    vaa.ChainIDEthereum,
+			OriginAddress: usdcAddrVAA,
+			TargetAddress: eoaAddrVAA,
+			Amount:        big.NewInt(1),
+		},
+	}
+	assert.Contains(t, message.String(), "LogMessagePublished:")
+
+	details := message.TransferDetails
+	assert.Contains(t, details.String(), "PayloadType:")
+
+	summary := NewReceiptSummary()
+	assert.Contains(t, summary.String(), "receipt summary:")
+
+	inv := &InvariantError{Msg: "boom"}
+	assert.Contains(t, inv.Error(), "boom")
+}
+func TestTransferReceiptStringNilFields(t *testing.T) {
+	// All fields nil.
+	empty := &TransferReceipt{}
+	assert.Contains(t, empty.String(), "receipt:")
+
+	// Non-nil slices containing nil elements.
+	deposits := []*NativeDeposit{nil}
+	transfers := []*ERC20Transfer{nil}
+	messages := []*LogMessagePublished{nil}
+	receipt := &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &messages}
+	assert.Contains(t, receipt.String(), "receipt:")
+}
+func TestReceiptSummaryIsSafeEmpty(t *testing.T) {
+	summary := NewReceiptSummary()
+	assert.False(t, summary.isSafe(), "an empty summary must not be considered safe")
+	assert.Equal(t, 0, summary.invalidMessageCount())
+	assert.True(t, summary.allMsgsSafe())
+}
+func TestIsWrappedAssetCacheFalse(t *testing.T) {
+	called := false
+	tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+		called = true
+		return nil, errors.New("should not be called")
+	})
+	tv.isWrappedCache[usdcAddrGeth.Hex()] = false
+	wrapped, err := tv.isWrappedAsset(usdcAddrGeth)
+	require.NoError(t, err)
+	assert.False(t, wrapped)
+	assert.False(t, called)
+}
+func TestIsWrappedAssetErrorReturnsFalse(t *testing.T) {
+	t.Run("client error", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return nil, errors.New("rpc down")
+		})
+		wrapped, err := tv.isWrappedAsset(usdcAddrGeth)
+		require.Error(t, err)
+		assert.False(t, wrapped)
+	})
+
+	t.Run("short result", func(t *testing.T) {
+		tv := setupWithClient(func(context.Context, ethereum.CallMsg, *big.Int) ([]byte, error) {
+			return []byte{0x01}, nil
+		})
+		wrapped, err := tv.isWrappedAsset(usdcAddrGeth)
+		require.Error(t, err)
+		assert.False(t, wrapped)
+	})
+}
+func TestNewSubscriptionAndAccessors(t *testing.T) {
+	sub := NewSubscription(nil, nil)
+	require.NotNil(t, sub)
+	assert.NotNil(t, sub.Events())
+	assert.NotNil(t, sub.Errors())
+	assert.NotNil(t, sub.quit)
+
+	// Close must close the quit channel exactly once.
+	sub.Close()
+	select {
+	case <-sub.quit:
+	default:
+		t.Fatal("quit channel should be closed after Close()")
+	}
+}
+
+// mockEventSubscription implements event.Subscription for handleSubscription tests.
+type mockEventSubscription struct {
+	errC         chan error
+	unsubscribed bool
+}
+
+func (m *mockEventSubscription) Err() <-chan error { return m.errC }
+func (m *mockEventSubscription) Unsubscribe()      { m.unsubscribed = true }
+func TestHandleSubscription(t *testing.T) {
+	t.Run("context cancellation", func(t *testing.T) {
+		sub := NewSubscription(nil, nil)
+		mock := &mockEventSubscription{errC: make(chan error)}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := sub.handleSubscription(ctx, mock)
+		require.NoError(t, err)
+		assert.True(t, mock.unsubscribed)
+	})
+
+	t.Run("quit channel", func(t *testing.T) {
+		sub := NewSubscription(nil, nil)
+		mock := &mockEventSubscription{errC: make(chan error)}
+		sub.Close()
+
+		err := sub.handleSubscription(context.Background(), mock)
+		require.NoError(t, err)
+		assert.True(t, mock.unsubscribed)
+	})
+
+	t.Run("subscription error", func(t *testing.T) {
+		sub := NewSubscription(nil, nil)
+		mock := &mockEventSubscription{errC: make(chan error, 1)}
+		mock.errC <- errors.New("stream failed")
+
+		err := sub.handleSubscription(context.Background(), mock)
+		require.Error(t, err)
+		assert.True(t, mock.unsubscribed)
+	})
+}
+func TestValidateChainsBoundary(t *testing.T) {
+	// 65535 is the maximum uint16 but is not a known chain ID. The boundary
+	// comparison must not report it as exceeding MaxUint16.
+	_, err := ValidateChains([]uint{65535})
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "exceeds MaxUint16")
+}
+func TestIsSupported(t *testing.T) {
+	assert.True(t, IsSupported(vaa.ChainIDEthereum))
+	assert.False(t, IsSupported(vaa.ChainIDSolana))
+}
+func TestVAAAddrFrom(t *testing.T) {
+	addr := VAAAddrFrom(usdcAddrGeth)
+	assert.Equal(t, usdcAddrVAA, addr)
+	assert.Equal(t, common.LeftPadBytes(usdcAddrGeth.Bytes(), 32), addr.Bytes())
 }

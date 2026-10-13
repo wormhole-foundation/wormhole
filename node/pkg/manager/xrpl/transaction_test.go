@@ -253,6 +253,50 @@ func TestComputeMultisignHash(t *testing.T) {
 	assert.NotEqual(t, hash, hash2)
 }
 
+func TestComputeMultisignHashInvalidSigner(t *testing.T) {
+	payload := &vaa.XRPLReleasePayload{
+		TicketID:       42,
+		CustodyAccount: testCustodyAccountID,
+		Recipient:      testRecipientAccountID,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    vaa.ChainIDSolana,
+		SourceEmitter:  testSourceEmitter,
+		SourceSequence: 100,
+		Token: vaa.XRPLTokenID{
+			Type: vaa.XRPLTokenTypeXRP,
+		},
+	}
+
+	flatTx, err := BuildPaymentTransaction(payload, testManagerSetM)
+	require.NoError(t, err)
+
+	// A signer that is not a valid XRPL account address must surface as an error
+	// from EncodeForMultisigning rather than a zero hash.
+	hash, err := ComputeMultisignHash(flatTx, "not-a-valid-address")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to encode for multisigning")
+	assert.Nil(t, hash)
+}
+
+func TestBuildPaymentTransactionUnsupportedTokenType(t *testing.T) {
+	payload := &vaa.XRPLReleasePayload{
+		TicketID:       42,
+		CustodyAccount: testCustodyAccountID,
+		Recipient:      testRecipientAccountID,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		Token: vaa.XRPLTokenID{
+			Type: vaa.XRPLTokenType(0x99),
+		},
+	}
+
+	flatTx, err := BuildPaymentTransaction(payload, testManagerSetM)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported XRPL token type")
+	assert.Nil(t, flatTx)
+}
+
 func TestEncodeDERSignature(t *testing.T) {
 	// Test with known r and s values
 	r := make([]byte, 32)
@@ -319,6 +363,37 @@ func TestEncodeDERSignatureLengthOverflow(t *testing.T) {
 	t.Run("both too long", func(t *testing.T) {
 		assert.Nil(t, EncodeDERSignature(tooBig, tooBig))
 	})
+}
+
+func TestEncodeDERSignatureMaxComponentLength(t *testing.T) {
+	// r and s are each exactly Secp256k1MaxIntEncodedLen bytes. The leading byte
+	// is non-zero and below 0x80, so canonicalizeInt neither strips it nor adds a
+	// pad. This is the max-length boundary: totalLen == MaxTotalLen and rLen/sLen
+	// == Secp256k1MaxIntEncodedLen, which the guard must accept (it rejects only
+	// strictly greater lengths).
+	maxLen := der.Secp256k1MaxIntEncodedLen
+	r := make([]byte, maxLen)
+	s := make([]byte, maxLen)
+	r[0] = 0x01
+	s[0] = 0x01
+
+	sig := EncodeDERSignature(r, s)
+	require.NotNil(t, sig)
+	assert.Equal(t, byte(0x30), sig[0])
+	assert.Equal(t, byte(der.MaxTotalLen), sig[1])
+	assert.Equal(t, byte(maxLen), sig[3])
+}
+
+func TestCanonicalizeIntEmpty(t *testing.T) {
+	// An empty integer component must be returned unchanged, not indexed.
+	assert.Empty(t, canonicalizeInt(nil))
+	assert.Empty(t, canonicalizeInt([]byte{}))
+
+	// The same must hold through EncodeDERSignature: empty r and s encode as a
+	// well-formed, zero-length INTEGER pair rather than panicking.
+	sig := EncodeDERSignature(nil, nil)
+	require.NotNil(t, sig)
+	assert.Equal(t, []byte{0x30, 0x04, 0x02, 0x00, 0x02, 0x00}, sig)
 }
 
 func TestAccountIDToAddress(t *testing.T) {
@@ -394,6 +469,11 @@ func TestFormatDecimalAmount(t *testing.T) {
 		{"1 with 0 decimals", 1, 0, "1"},
 		{"1 with 15 decimals", 1, 15, "0.000000000000001"},
 		{"1 with 18 decimals", 1, 18, "0.000000000000000001"},
+		// Digits equal to decimals: the whole value is fractional.
+		{"three digits three decimals", 123, 3, "0.123"},
+		// Truncation lands inside the integer part (intPart alone has >15 sig
+		// digits), so the integer part is zero-padded out to its original width.
+		{"max uint64 one decimal", 18446744073709551615, 1, "1844674407370950000"},
 	}
 
 	for _, tc := range tests {
