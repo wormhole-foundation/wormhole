@@ -915,7 +915,9 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 		}()
 
-		errC := make(chan error)
+		// Buffer one error so the first subscription failure survives until Run
+		// reaches its final select.
+		errC := make(chan error, 1)
 
 		// This routine processes control messages received from gossip. //////////////////////////////////////////////
 		if controlSubscription != nil {

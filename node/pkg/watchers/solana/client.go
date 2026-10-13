@@ -504,7 +504,11 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	s.shimSetup()
 
-	s.errC = make(chan error)
+	// Buffer one error so a child runnable can report the first failure before
+	// Run reaches its final select. Without the buffer, a child runnable could
+	// fail before Run is ready to receive the error, potentially causing the
+	// runnable to exit without restarting.
+	s.errC = make(chan error, 1)
 	s.pumpData = make(chan []byte)
 
 	useWs := false
