@@ -148,7 +148,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 		ContractAddress: e.contract,
 	})
 
-	errC := make(chan error)
+	// Buffer one error so a child runnable can report the first failure before
+	// Run reaches its final select. Without the buffer, a child runnable could
+	// fail before Run is ready to receive the error, potentially causing the
+	// runnable to exit without restarting.
+	errC := make(chan error, 1)
+
 	logger := supervisor.Logger(ctx)
 
 	logger.Info("Starting watcher",
