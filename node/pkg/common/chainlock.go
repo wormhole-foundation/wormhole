@@ -38,7 +38,7 @@ const (
 	// the fields plus length information for fields with variable lengths (TxID and Payload).
 	marshaledMsgLenMin = 1 + // TxID length (uint8)
 		TxIDLenMin + // TxID ([]byte), minimum length of 32 bytes (but may be longer)
-		8 + // Timestamp (int64)
+		8 + // Timestamp (uint32)
 		4 + // Nonce (uint32)
 		8 + // Sequence (uint64)
 		1 + // ConsistencyLevel (uint8)
@@ -162,6 +162,12 @@ func (v VerificationState) String() string {
 	}
 }
 
+// MessagePublication is the data that is created based on an on-chain transaction.
+// It is the predecessor to the VAA, and is used to create the VAA.
+//
+// Many of the fields in the MessagePublication are the same as the fields in the VAA.
+// Detailed documentation for the fields can be found in the in the VAA documentation
+// (whitepapers/0001_generic_message_passing.md).
 type MessagePublication struct {
 	// TxID is the chain-native transaction identifier where the wormhole
 	// message was emitted. TxID is per-guardian metadata: it is NOT hashed
@@ -191,24 +197,62 @@ type MessagePublication struct {
 	// whose buckets reach quorum at different observation subsets can still
 	// pick different majorities; recovery for that case is the audit /
 	// missing_observations reobs flow rather than the delegate-quorum path.
-	TxID      []byte
+	TxID []byte
+
+	// Timestamp is the time the message was emitted on the emitter chain. (Not when Wormhole received it.)
+	//
+	// Semantically, Timestamp MUST represent a uint32 value. Go's standard library often treats timestamps as
+	// int64, so this value should be used carefully especially regarding serialization operations.
+	// See also [TimeFromUnix] in the Wormhole Go SDK.
 	Timestamp time.Time
 
-	Nonce            uint32
-	Sequence         uint64
+	// Nonce is an integrator-controlled field. The meaning of this field is up to the integrator and carries no
+	// inherent semantic meaning in Wormhole. It is a convenience field for the integrator to include extra information
+	// in the message (other than the payload).
+	Nonce uint32
+	// Sequence number for the message. Controlled by the core bridge contract on a chain. Must increase monotonically
+	// per-emitter.
+	Sequence uint64
+	// ConsistencyLevel is the level of consistency that the message is being emitted at.
+	// Its meaning depends on the emitter chain and usually related to finality.
+	// Watchers may use this field to determine when a message is safe to be processed.
 	ConsistencyLevel uint8
 	EmitterChain     vaa.ChainID
-	EmitterAddress   vaa.Address
-	// NOTE: there is no upper bound on the size of the payload. Wormhole supports arbitrary payloads
-	// due to the variance in transaction and block sizes between chains. However, during deserialization,
-	// payload lengths are bounds-checked against [PayloadLenMax] to prevent makeslice panics from malformed input.
-	// Similarly, for delegated chains, the entire payload needs to be sent over p2p and thus payload lengths are
-	// bounds-checked against [DelegatedPayloadLenMax] to avoid exceeding the p2p message size limit.
-	Payload         []byte
+	// EmitterAddress is the Wormhole-normalized address of the emitter. It is always a 32-byte address determined by
+	// [vaa.Address]. Chains with addresses of variable length, a length that is > 32 bytes, or that do not use
+	// an address based account model (e.g. UTXO-based chains) will require manual workarounds.
+	EmitterAddress vaa.Address
+
+	// Payload is a byte slice containing the message payload.
+	//
+	// NOTE: There is no a priori upper bound on the size of the payload. Wormhole supports arbitrary payloads
+	// due to the variance in transaction and block sizes between chains.
+	//
+	// However, there are several de facto limits on the size of the payload:
+	// - Payload lengths are bounds-checked against [PayloadLenMax] to prevent makeslice panics from malformed input.
+	// - For Delegated chains, the entire payload needs to be sent over p2p and thus payload lengths are
+	//	bounds-checked against [DelegatedPayloadLenMax] to avoid exceeding the configured p2p message size limit.
+	// - Payloads for WTT and NTT messages will be sent to the Accountant CosmWasm contract. This contract has
+	//	a limit to the maximum message size that can be processed.
+	// - The emitting chain may bound the size of the payload to a maximum message size.
+	// - The emitting chain may support a larger transaction size than the receiving chain. There is no application-level
+	//	limit or check to ensure that a receiving chain can handle a payload of a given size. As a result, there
+	//	is no guarantee that an arbitrary payload can be sent from any pair of chains. Watchers, contracts, and
+	//	off-chain components may be used to split "application-level" payloads into smaller "network-level" chunks.
+	Payload []byte
+
+	// The following fields are not part of the VAA, but are added to the MessagePublication for convenience.
+	// They represent metadata about how the message is processed on the way to becoming a VAA.
+
+	// IsReobservation indicates if this message is currently being re-observed. In the normal flow of on-chain
+	// events, this is false.
 	IsReobservation bool
 
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
-	// reobserved.
+	// reobserved. This is controlled on a per-watcher basis.
+	// The usual case for generating a message is by reading a permanent, on-chain transaction and converting it
+	// into a MessagePublication. However, there are cases where the message relies on data that may not always
+	// be available, such as metadata that may be pruned from the Guardians' local databases.
 	Unreliable bool
 
 	// The `VerificationState` is the result of applying transfer
@@ -229,14 +273,20 @@ func (msg *MessagePublication) TxIDString() string {
 	return "0x" + hex.EncodeToString(msg.TxID)
 }
 
+// MessageID returns a byte slice representation of the [MessagePublication.MessageIDString].
 func (msg *MessagePublication) MessageID() []byte {
 	return []byte(msg.MessageIDString())
 }
 
+// MessageIDString returns a string representation of the MessageID defined as the concatenation of the
+// emitter chain, emitter address, and sequence number.
+// This value SHOULD be unique for a given message. However, the hashed contents of a VAA are the ultimate
+// source of truth the uniqueness of a message.
 func (msg *MessagePublication) MessageIDString() string {
 	return fmt.Sprintf("%v/%v/%v", uint16(msg.EmitterChain), msg.EmitterAddress, msg.Sequence)
 }
 
+// VerificationState returns the verification state of the message. It is a getter for the [MessagePublication.verificationState] field, which should remain private in order to make it order to mutate by mistake.
 func (msg *MessagePublication) VerificationState() VerificationState {
 	return msg.verificationState
 }
@@ -269,7 +319,7 @@ func (msg *MessagePublication) VerificationState() VerificationState {
 //   - IsReobservation: forced true. Canonicals can't trigger a reobservation
 //     for a delegated chain (no watcher is running for it), so treat the
 //     consensus result as already a reobservation and avoid further cycles.
-//   - Unreliable: forced false. Unreliable=true is an SVM-only signal that
+//   - Unreliable: forced false. Unreliable=true is an chain-specific signal that
 //     the source chain can't re-observe the transaction, so the cleanup loop
 //     expires stuck observations after 5 minutes instead of issuing a
 //     re-observation request (see pkg/processor/cleanup.go). A delegate-derived
