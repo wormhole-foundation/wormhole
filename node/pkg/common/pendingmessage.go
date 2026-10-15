@@ -178,6 +178,33 @@ func (q *PendingMessageQueue) Pop() *PendingMessage {
 	return last
 }
 
+// PopReady removes and returns the top element from the heap if its ReleaseTime is before or equal
+// to the specified time. It's meant to provide an atomic peek and pop operation in situtations that
+// could otherwise lead to race conditions if done separately.
+func (q *PendingMessageQueue) PopReady(when time.Time) *PendingMessage {
+	if q == nil {
+		return nil
+	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.heap.Len() == 0 {
+		return nil
+	}
+
+	// Peek at the top element to see if it's ready
+	ready := q.heap[0]
+	if ready.ReleaseTime.After(when) {
+		return nil
+	}
+
+	// The element is ready, and can be popped
+	heap.Pop(&q.heap)
+
+	return ready
+}
+
 // Len returns the number of elements in the queue. Returns 0 if the queue is nil.
 func (q *PendingMessageQueue) Len() int {
 	if q == nil {
