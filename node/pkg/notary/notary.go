@@ -326,16 +326,10 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 	// If errors occur, continue instead of returning early so that other messages
 	// can still be processed.
 	for n.delayed.Len() != 0 {
-		next := n.delayed.Peek()
-		if next == nil || next.ReleaseTime.After(now) {
-			break // No more messages to process or next message not ready
-		}
+		pMsg := n.delayed.PopReady(now)
 
-		// Pop reduces the length of n.delayed
-		pMsg := n.delayed.Pop()
 		if pMsg == nil {
-			n.logger.Error("nil message after pop")
-			continue // Skip if Pop returns nil (shouldn't happen if Peek worked)
+			break // No more messages to process or next message not ready
 		}
 
 		// Update database. Do this before adding the message to the ready list so that we don't
