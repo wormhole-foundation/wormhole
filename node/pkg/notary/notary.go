@@ -142,7 +142,7 @@ func NewNotary(
 		// Get the underlying database connection from the Guardian.
 		database:   db.NewNotaryDB(guardianDB.Conn()),
 		delayed:    common.NewPendingMessageQueue(),
-		blackholed: nil,
+		blackholed: NewSet(),
 		env:        env,
 	}, nil
 }
@@ -657,25 +657,30 @@ func (n *Notary) loadFromDB(logger *zap.Logger) error {
 		return ErrAlreadyInitialized
 	}
 
-	var (
-		delayed    = common.NewPendingMessageQueue()
-		blackholed = NewSet()
-	)
+	// Ensure the delayed queue is initialized before proceeding.
+	if n.delayed == nil {
+		n.delayed = common.NewPendingMessageQueue()
+	}
 
+	// Ensure the blackholed set is initialized before proceeding.
+	if n.blackholed == nil {
+		n.blackholed = NewSet()
+	}
+
+	// Populate the delayed queue from the database result.
 	if len(result.Delayed) > 0 {
 		for entry := range slices.Values(result.Delayed) {
-			delayed.Push(entry)
+			n.delayed.Push(entry)
 		}
 	}
 
+	// Populate the blackholed set from the database result.
 	if len(result.Blackholed) > 0 {
 		for result := range slices.Values(result.Blackholed) {
-			blackholed.Add(result.MessageID())
+			n.blackholed.Add(result.MessageID())
 		}
 	}
 
-	n.blackholed = blackholed
-	n.delayed = delayed
 	n.logger.Info(
 		"initialized notary",
 		zap.Int("delayedMsgs", n.delayed.Len()),
