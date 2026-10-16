@@ -37,7 +37,7 @@ func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)     
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
 
-	return &Notary{
+	n := &Notary{
 		ctx:        context.Background(),
 		logger:     zap.NewNop(),
 		mutex:      sync.RWMutex{},
@@ -46,6 +46,11 @@ func makeTestNotary(t *testing.T) *Notary {
 		blackholed: NewSet(),
 		env:        common.GoTest,
 	}
+
+	// Tests that construct the Notary directly are simulating a Notary that
+	// has already completed Run().
+	n.ready.Store(true)
+	return n
 }
 
 func TestNotary_NilInputsAndDependencies(t *testing.T) {
@@ -65,6 +70,9 @@ func TestNotary_NilInputsAndDependencies(t *testing.T) {
 	notary, err = NewNotary(context.Background(), logger, guardianDB, common.GoTest)
 	require.NoError(t, err)
 	require.NotNil(t, notary)
+
+	// Keep this test focused on nil-message handling rather than readiness.
+	notary.ready.Store(true)
 
 	verdict, err := notary.ProcessMsg(nil)
 	require.Error(t, err)
