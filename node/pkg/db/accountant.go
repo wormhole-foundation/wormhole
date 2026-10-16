@@ -104,11 +104,14 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 }
 
 func (d *Database) AcctStorePendingTransfer(msg *common.MessagePublication) error {
-	b, _ := json.Marshal(msg)
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal accountant pending transfer for tx %s: %w", msg.MessageIDString(), err)
+	}
 
-	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(acctPendingTransferMsgID(msg.MessageIDString()), b); err != nil {
-			return err
+	err = d.db.Update(func(txn *badger.Txn) error {
+		if setErr := txn.Set(acctPendingTransferMsgID(msg.MessageIDString()), b); setErr != nil {
+			return setErr
 		}
 		return nil
 	})

@@ -304,11 +304,14 @@ func setupLogsCapture(t testing.TB) (*zap.Logger, *observer.ObservedLogs) {
 }
 
 func (d *Database) acctStoreOldPendingTransfer(msg *OldMessagePublication) error {
-	b, _ := json.Marshal(msg)
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal old accountant pending transfer for tx %s: %w", msg.MessageIDString(), err)
+	}
 
-	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(acctOldPendingTransferMsgID(msg.MessageIDString()), b); err != nil {
-			return err
+	err = d.db.Update(func(txn *badger.Txn) error {
+		if setErr := txn.Set(acctOldPendingTransferMsgID(msg.MessageIDString()), b); setErr != nil {
+			return setErr
 		}
 		return nil
 	})
