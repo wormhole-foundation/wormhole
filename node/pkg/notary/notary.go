@@ -125,6 +125,10 @@ type (
 
 		// env reports whether the guardian is running in production or a test environment.
 		env common.Environment
+
+		// runOnce ensures that the notary is only started once.
+		runOnce sync.Once
+		runErr  error
 	}
 )
 
@@ -149,10 +153,20 @@ func NewNotary(
 		delayed:    common.NewPendingMessageQueue(),
 		blackholed: NewSet(),
 		env:        env,
+		runOnce:    sync.Once{},
+		runErr:     nil,
 	}, nil
 }
 
 func (n *Notary) Run() error {
+	// The Run function is only meant to be called once.
+	n.runOnce.Do(func() {
+		n.runErr = n.run()
+	})
+	return n.runErr
+}
+
+func (n *Notary) run() error {
 
 	if n.logger == nil {
 		return errors.New("notary: logger must not be nil")

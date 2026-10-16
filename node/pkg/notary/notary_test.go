@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,6 +34,16 @@ func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublicatio
 }
 func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
 func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
+
+type countingNotaryDB struct {
+	MockNotaryDB
+	loadAllCalls atomic.Int32
+}
+
+func (c *countingNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
+	c.loadAllCalls.Add(1)
+	return &db.NotaryLoadResult{}, nil
+}
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
@@ -108,6 +119,31 @@ func TestNotary_AdminReadCommandsRejectNilLoadAllResult(t *testing.T) {
 			require.ErrorIs(t, call(), ErrNilDBResult)
 		})
 	}
+}
+
+func TestNotary_RunCanBeCalledTwice(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	database := &countingNotaryDB{}
+	n := &Notary{
+		ctx:        ctx,
+		logger:     zap.NewNop(),
+		mutex:      sync.RWMutex{},
+		database:   database,
+		delayed:    common.NewPendingMessageQueue(),
+		blackholed: NewSet(),
+		env:        common.MainNet,
+	}
+
+	require.False(t, n.isReady())
+
+	require.NoError(t, n.Run())
+	require.NoError(t, n.Run())
+
+	// Database load should only have happened once
+	require.Equal(t, int32(1), database.loadAllCalls.Load())
+	require.True(t, n.isReady())
 }
 
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
