@@ -12,14 +12,10 @@ import (
 	"math/big"
 	"math/rand"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/holiman/uint256"
 	"github.com/prometheus/client_golang/prometheus"
@@ -44,7 +40,6 @@ import (
 )
 
 const maxResetReleaseTimerDays = 90
-const ecdsaSignatureLength = 65
 
 var (
 	ErrNotaryNotEnabled = errors.New("notary is not enabled")
@@ -69,10 +64,6 @@ type nodePrivilegedService struct {
 	signedInC                 chan<- *gossipv1.SignedVAAWithQuorum
 	governor                  *governor.ChainGovernor
 	notary                    *notary.Notary
-	evmConnector              connectors.Connector
-	gsCache                   sync.Map
-	guardianSigner            guardiansigner.GuardianSigner
-	guardianAddress           ethcommon.Address
 	rpcMap                    map[string]string
 	reobservers               interfaces.Reobservers
 }
@@ -86,9 +77,6 @@ func NewPrivService(
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	gov *governor.ChainGovernor,
 	notary *notary.Notary,
-	evmConnector connectors.Connector,
-	guardianSigner guardiansigner.GuardianSigner,
-	guardianAddress ethcommon.Address,
 	rpcMap map[string]string,
 	reobservers interfaces.Reobservers,
 
@@ -102,9 +90,6 @@ func NewPrivService(
 		signedInC:                 signedInC,
 		governor:                  gov,
 		notary:                    notary,
-		evmConnector:              evmConnector,
-		guardianSigner:            guardianSigner,
-		guardianAddress:           guardianAddress,
 		rpcMap:                    rpcMap,
 		reobservers:               reobservers,
 	}
@@ -1521,139 +1506,6 @@ func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev
 	return &nodev1.PurgePythNetVaasResponse{
 		Response: resp,
 	}, nil
-}
-
-func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1.SignExistingVAARequest) (*nodev1.SignExistingVAAResponse, error) {
-	v, err := vaa.Unmarshal(req.Vaa)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal VAA: %w", err)
-	}
-
-	if req.NewGuardianSetIndex <= v.GuardianSetIndex {
-		return nil, errors.New("new guardian set index must be higher than provided VAA")
-	}
-
-	if s.evmConnector == nil {
-		return nil, errors.New("the node needs to have an Ethereum connection configured to sign existing VAAs")
-	}
-
-	var gs *common.GuardianSet
-	if cachedGs, exists := s.gsCache.Load(v.GuardianSetIndex); exists {
-		var ok bool
-		gs, ok = cachedGs.(*common.GuardianSet)
-		if !ok {
-			return nil, fmt.Errorf("internal error")
-		}
-	} else {
-		evmGs, gsErr := s.evmConnector.GetGuardianSet(ctx, v.GuardianSetIndex)
-		if gsErr != nil {
-			return nil, fmt.Errorf("failed to load guardian set [%d]: %w", v.GuardianSetIndex, gsErr)
-		}
-		gs = &common.GuardianSet{
-			Keys:  evmGs.Keys,
-			Index: v.GuardianSetIndex,
-		}
-		s.gsCache.Store(v.GuardianSetIndex, gs)
-	}
-
-	if slices.Index(gs.Keys, s.guardianAddress) != -1 {
-		return nil, fmt.Errorf("local guardian is already on the old set")
-	}
-
-	// Verify VAA
-	err = v.Verify(gs.Keys)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify existing VAA: %w", err)
-	}
-
-	if len(req.NewGuardianAddrs) > 255 {
-		return nil, errors.New("new guardian set has too many guardians")
-	}
-	newGS := make([]ethcommon.Address, len(req.NewGuardianAddrs))
-	for i, guardianString := range req.NewGuardianAddrs {
-		guardianAddress := ethcommon.HexToAddress(guardianString)
-		newGS[i] = guardianAddress
-	}
-
-	// Make sure there are no duplicates. Compact needs to take a sorted slice to remove all duplicates.
-	newGSSorted := slices.Clone(newGS)
-	slices.SortFunc(newGSSorted, func(a, b ethcommon.Address) int {
-		return bytes.Compare(a[:], b[:])
-	})
-	newGsLen := len(newGSSorted)
-	if len(slices.Compact(newGSSorted)) != newGsLen {
-		return nil, fmt.Errorf("duplicate guardians in the guardian set")
-	}
-
-	localGuardianIndex := slices.Index(newGS, s.guardianAddress)
-	if localGuardianIndex == -1 {
-		return nil, fmt.Errorf("local guardian is not a member of the new guardian set")
-	}
-
-	newVAA := &vaa.VAA{
-		Version: v.Version,
-		// Set the new guardian set index
-		GuardianSetIndex: req.NewGuardianSetIndex,
-		// Signatures will be repopulated
-		Signatures:       nil,
-		Timestamp:        v.Timestamp,
-		Nonce:            v.Nonce,
-		Sequence:         v.Sequence,
-		ConsistencyLevel: v.ConsistencyLevel,
-		EmitterChain:     v.EmitterChain,
-		EmitterAddress:   v.EmitterAddress,
-		Payload:          v.Payload,
-	}
-
-	// Copy original VAA signatures
-	for _, sig := range v.Signatures {
-		signerAddress := gs.Keys[sig.Index]
-		newIndex := slices.Index(newGS, signerAddress)
-		// Guardian is not part of the new set
-		if newIndex == -1 {
-			continue
-		}
-		newVAA.Signatures = append(newVAA.Signatures, &vaa.Signature{
-			Index:     uint8(newIndex), // #nosec G115 -- The length of newGS is constrained to a uint8 above
-			Signature: sig.Signature,
-		})
-	}
-
-	// Add our own signature only if the new guardian set would reach quorum
-	if vaa.CalculateQuorum(len(newGS)) > len(newVAA.Signatures)+1 {
-		return nil, errors.New("cannot reach quorum on new guardian set with the local signature")
-	}
-
-	// Add local signature
-	sig, err := s.guardianSigner.Sign(ctx, v.SigningDigest().Bytes())
-	if err != nil {
-		panic(err)
-	}
-
-	signature := [ecdsaSignatureLength]byte{}
-	copy(signature[:], sig)
-
-	newVAA.Signatures = append(newVAA.Signatures, &vaa.Signature{
-		Index:     uint8(localGuardianIndex), // #nosec G115 -- The length of newGS is constrained to a uint8 above
-		Signature: signature,
-	})
-
-	// Sort VAA signatures by guardian ID
-	slices.SortFunc(newVAA.Signatures, func(a, b *vaa.Signature) int {
-		if a.Index < b.Index {
-			return -1
-		} else if a.Index > b.Index {
-			return 1
-		}
-		return 0
-	})
-
-	newVAABytes, err := newVAA.Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal new VAA: %w", err)
-	}
-
-	return &nodev1.SignExistingVAAResponse{Vaa: newVAABytes}, nil
 }
 
 func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRPCsRequest) (*nodev1.DumpRPCsResponse, error) {
