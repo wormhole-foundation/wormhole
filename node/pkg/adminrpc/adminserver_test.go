@@ -280,6 +280,99 @@ func TestCoreBridgeTransferFeesToVaa_Errors(t *testing.T) {
 	}
 }
 
+func TestCoreBridgeSetMessageFeeToVaa(t *testing.T) {
+	const coreModuleAndAction = "00000000000000000000000000000000000000000000000000000000436f726503"
+	const expectedFee = "0000000000000000000000000000000000000000000000000000000000002710"
+
+	nonce := uint32(12345)
+	sequence := uint64(67890)
+
+	req := &nodev1.CoreBridgeSetMessageFee{
+		ChainId:    uint32(vaa.ChainIDSolana),
+		MessageFee: "10000",
+	}
+	v, err := coreBridgeSetMessageFeeToVaa(req, govTimestamp, govGuardianSetIndex, nonce, sequence)
+	require.NoError(t, err)
+	verifyGovernanceVAA(t, v, sequence, nonce)
+	// module || action || chain (uint16 = 1) || fee (uint256)
+	assert.Equal(t, coreModuleAndAction+"0001"+expectedFee, common.Bytes2Hex(v.Payload))
+}
+
+func TestCoreBridgeSetMessageFeeToVaa_Errors(t *testing.T) {
+	base := func() *nodev1.CoreBridgeSetMessageFee {
+		return &nodev1.CoreBridgeSetMessageFee{
+			ChainId:    uint32(vaa.ChainIDSolana),
+			MessageFee: "1",
+		}
+	}
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.CoreBridgeSetMessageFee)
+		errText string
+	}{
+		{"UnknownChain", func(r *nodev1.CoreBridgeSetMessageFee) { r.ChainId = 0xffff }, "failed to convert chain id"},
+		{"InvalidFee", func(r *nodev1.CoreBridgeSetMessageFee) { r.MessageFee = "not-a-number" }, "invalid new fee"},
+		{"FeeOverflow", func(r *nodev1.CoreBridgeSetMessageFee) {
+			r.MessageFee = "115792089237316195423570985008687907853269984665640564039457584007913129639936" // 2^256
+		}, "new fee overflow"},
+		{"NegativeFee", func(r *nodev1.CoreBridgeSetMessageFee) { r.MessageFee = "-1" }, "new fee cannot be negative"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := coreBridgeSetMessageFeeToVaa(req, time.Now(), 4, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}
+
+func TestDelegatedManagerSetUpdateToVaa(t *testing.T) {
+	const delegatedManagerModuleAndAction = "0000000000000000000000000000000044656c6567617465644d616e61676572" + "01"
+
+	nonce := uint32(12345)
+	sequence := uint64(67890)
+
+	req := &nodev1.DelegatedManagerSetUpdate{
+		ManagerChainId:  65,
+		ManagerSetIndex: 2,
+		ManagerSet:      "aabbcc",
+	}
+	v, err := delegatedManagerSetUpdateToVaa(req, govTimestamp, govGuardianSetIndex, nonce, sequence)
+	require.NoError(t, err)
+	verifyGovernanceVAA(t, v, sequence, nonce)
+	// module || action || chain (0 = universal) || manager chain (uint16 = 65) || manager set index (uint32 = 2) || manager set
+	assert.Equal(t, delegatedManagerModuleAndAction+"0000"+"0041"+"00000002"+"aabbcc", common.Bytes2Hex(v.Payload))
+}
+
+func TestDelegatedManagerSetUpdateToVaa_Errors(t *testing.T) {
+	base := func() *nodev1.DelegatedManagerSetUpdate {
+		return &nodev1.DelegatedManagerSetUpdate{
+			ManagerChainId:  65,
+			ManagerSetIndex: 2,
+			ManagerSet:      "aabbcc",
+		}
+	}
+	tests := []struct {
+		name    string
+		mutate  func(r *nodev1.DelegatedManagerSetUpdate)
+		errText string
+	}{
+		{"ManagerChainIdOutOfRange", func(r *nodev1.DelegatedManagerSetUpdate) { r.ManagerChainId = 0x10000 }, "invalid manager_chain_id"},
+		{"BadManagerSetHex", func(r *nodev1.DelegatedManagerSetUpdate) { r.ManagerSet = "zz" }, "invalid manager_set encoding"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base()
+			tc.mutate(req)
+			_, err := delegatedManagerSetUpdateToVaa(req, time.Now(), 4, 0, 0)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errText)
+		})
+	}
+}
+
 func TestTokenBridgeSetPauserAddresses(t *testing.T) {
 	evmPauser := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	evmFreezer := "dddddddddddddddddddddddddddddddddddddddd"
