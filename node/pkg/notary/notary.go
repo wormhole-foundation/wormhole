@@ -34,6 +34,7 @@ import (
 	"errors"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -94,6 +95,7 @@ var (
 	ErrCannotRelease      = errors.New("notary: could not release message")
 	ErrInvalidMsg         = errors.New("notary: message is invalid")
 	ErrMsgNotFound        = errors.New("notary: message not found")
+	ErrNotReady           = errors.New("notary: not ready to process messages")
 )
 
 type (
@@ -117,6 +119,9 @@ type (
 		// All of the messages that have been black-holed due to being rejected by the Transfer Verifier.
 		// [msgPubSet] is not thread-safe so this field must be guarded by a read-write mutex.
 		blackholed *msgPubSet
+
+		// ready reports whether the notary is fully initialized and ready to process messages.
+		ready atomic.Bool
 
 		// env reports whether the guardian is running in production or a test environment.
 		env common.Environment
@@ -165,12 +170,18 @@ func (n *Notary) Run() error {
 		}
 	}
 
+	// Persisted state has been loaded. The notary is now ready to process messages.
+	n.ready.Store(true)
+
 	n.logger.Info("notary ready")
 
 	// Spawn a goroutine to periodically update prometheus gauge metrics
 	go n.updateMetrics()
 
 	return nil
+}
+func (n *Notary) isReady() bool {
+	return n.ready.Load()
 }
 
 // updateMetrics runs periodically to update gauge metrics for queue sizes
@@ -194,6 +205,11 @@ func (n *Notary) updateMetrics() {
 // updateGauges updates the prometheus gauge metrics
 func (n *Notary) updateGauges() {
 
+	if !n.isReady() {
+		n.logger.Info("Notary is not ready yet, skipping gauges update")
+		return
+	}
+
 	// Only update gauges if the notary is ready.
 	if n.blackholed == nil || n.delayed == nil {
 		n.logger.Info("Notary is not ready yet, skipping gauges update")
@@ -214,6 +230,11 @@ func (n *Notary) updateGauges() {
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
+
+	// Only allow processing messages if the Notary is fully initialized and ready.
+	if !n.isReady() {
+		return Unknown, ErrNotReady
+	}
 
 	if msg == nil {
 		return Unknown, errors.New("notary: ProcessMsg called with nil message")
@@ -328,6 +349,12 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 // ReleaseReadyMessages removes messages from the database and the delayed queue if they are ready to
 // be released. Returns the messages that are ready to be published.
 func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
+
+	// Only allow releasing messages if the Notary is fully initialized and ready.
+	if !n.isReady() {
+		return nil
+	}
+
 	if n == nil || n.delayed == nil {
 		return nil
 	}
@@ -497,6 +524,11 @@ func (n *Notary) forget(msg *common.MessagePublication) error {
 
 // IsBlackholed returns true if the message is in the blackholed list.
 func (n *Notary) IsBlackholed(msgID []byte) bool {
+
+	if !n.isReady() {
+		return false
+	}
+
 	n.mutex.RLock()
 	defer n.mutex.RUnlock()
 	return n.blackholed.Contains(msgID)
@@ -540,6 +572,10 @@ func (n *Notary) removeBlackholed(msgID []byte) (*common.MessagePublication, err
 }
 
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
+
+	if !n.isReady() {
+		return false
+	}
 
 	if msg == nil {
 		return false
