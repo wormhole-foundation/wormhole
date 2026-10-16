@@ -196,7 +196,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
-			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
+			GuardianOptionAdminService(cfg.adminSocket, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
 			GuardianOptionAlternatePublisher([]byte{}, []string{}), // disable alternate publisher
 			GuardianOptionProcessor(networkID, false),
