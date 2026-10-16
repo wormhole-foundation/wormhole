@@ -48,6 +48,60 @@ func makeTestNotary(t *testing.T) *Notary {
 	}
 }
 
+func TestNotary_NilInputsAndDependencies(t *testing.T) {
+	logger := zap.NewNop()
+
+	notary, err := NewNotary(context.Background(), logger, nil, common.GoTest)
+	require.Error(t, err)
+	require.Nil(t, notary)
+
+	guardianDB := db.OpenDb(logger, nil)
+	t.Cleanup(func() { _ = guardianDB.Close() })
+
+	notary, err = NewNotary(context.Background(), nil, guardianDB, common.GoTest)
+	require.Error(t, err)
+	require.Nil(t, notary)
+
+	notary, err = NewNotary(context.Background(), logger, guardianDB, common.GoTest)
+	require.NoError(t, err)
+	require.NotNil(t, notary)
+
+	verdict, err := notary.ProcessMsg(nil)
+	require.Error(t, err)
+	require.Equal(t, Unknown, verdict)
+	require.False(t, notary.IsDelayed(nil))
+}
+
+func TestNotary_AdminReadCommandsRejectNilLoadAllResult(t *testing.T) {
+	n := makeTestNotary(t)
+	msgID := makeUniqueMessagePublication(t).MessageIDString()
+
+	tests := map[string]func() error{
+		"get delayed message": func() error {
+			_, err := n.GetDelayedMessage(msgID)
+			return err
+		},
+		"get blackholed message": func() error {
+			_, err := n.GetBlackholedMessage(msgID)
+			return err
+		},
+		"list delayed messages": func() error {
+			_, err := n.ListDelayedMessages()
+			return err
+		},
+		"list blackholed messages": func() error {
+			_, err := n.ListBlackholedMessages()
+			return err
+		},
+	}
+
+	for name, call := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.ErrorIs(t, call(), ErrNilDBResult)
+		})
+	}
+}
+
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
 // This test can be removed if the Notary is extended to support other chains.
 func TestNotary_AlwaysApproveNonTransferVerifierEmitters(t *testing.T) {

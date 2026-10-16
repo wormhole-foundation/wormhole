@@ -27,6 +27,7 @@ var (
 	ErrDelayExceedsMax = errors.New("notary: delay exceeds maximum")
 	ErrInvalidMsgID    = errors.New("notary: the message ID must be specified as \"chainId/emitterAddress/seqNum\"")
 	ErrNotDevMode      = errors.New("notary: inject commands only available in dev mode")
+	ErrNilDBResult     = errors.New("notary: LoadAll returned nil result")
 )
 
 // BlackholeDelayedMsg adds a message publication to the blackholed in-memory set and stores it in the database.
@@ -168,6 +169,10 @@ func (n *Notary) GetDelayedMessage(msgID string) (*common.PendingMessage, error)
 		return nil, fmt.Errorf("failed to load from database: %w", err)
 	}
 
+	if result == nil {
+		return nil, ErrNilDBResult
+	}
+
 	for _, pendingMsg := range result.Delayed {
 		if pendingMsg.Msg.MessageIDString() == msgID {
 			return pendingMsg, nil
@@ -191,6 +196,10 @@ func (n *Notary) GetBlackholedMessage(msgID string) (*common.MessagePublication,
 		return nil, fmt.Errorf("failed to load from database: %w", err)
 	}
 
+	if result == nil {
+		return nil, ErrNilDBResult
+	}
+
 	for _, msgPub := range result.Blackholed {
 		if msgPub.MessageIDString() == msgID {
 			return msgPub, nil
@@ -210,6 +219,10 @@ func (n *Notary) ListDelayedMessages() ([]string, error) {
 		return nil, fmt.Errorf("failed to load delayed messages from database: %w", err)
 	}
 
+	if result == nil {
+		return nil, ErrNilDBResult
+	}
+
 	msgIDs := make([]string, 0, len(result.Delayed))
 	for _, pendingMsg := range result.Delayed {
 		msgIDs = append(msgIDs, pendingMsg.Msg.MessageIDString())
@@ -226,6 +239,10 @@ func (n *Notary) ListBlackholedMessages() ([]string, error) {
 	result, err := n.database.LoadAll(n.logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load blackholed messages from database: %w", err)
+	}
+
+	if result == nil {
+		return nil, ErrNilDBResult
 	}
 
 	msgIDs := make([]string, 0, len(result.Blackholed))

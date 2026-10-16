@@ -128,7 +128,13 @@ func NewNotary(
 	logger *zap.Logger,
 	guardianDB *db.Database,
 	env common.Environment,
-) *Notary {
+) (*Notary, error) {
+
+	// Ensure that the essential components are not nil before proceeding.
+	if guardianDB == nil || guardianDB.Conn() == nil || logger == nil {
+		return nil, errors.New("notary: guardianDB and logger must not be nil")
+	}
+
 	return &Notary{
 		ctx:    ctx,
 		logger: logger,
@@ -138,10 +144,15 @@ func NewNotary(
 		delayed:    common.NewPendingMessageQueue(),
 		blackholed: nil,
 		env:        env,
-	}
+	}, nil
 }
 
 func (n *Notary) Run() error {
+
+	if n.logger == nil {
+		return errors.New("notary: logger must not be nil")
+	}
+
 	// Initialize and register Prometheus metrics when notary starts.
 	// This ensures metrics are only registered when the notary is actually enabled.
 	// Safe to call multiple times - will only initialize once.
@@ -203,6 +214,14 @@ func (n *Notary) updateGauges() {
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
+
+	if msg == nil {
+		return Unknown, errors.New("notary: ProcessMsg called with nil message")
+	}
+
+	if n.logger == nil {
+		return Unknown, errors.New("notary: logger must not be nil")
+	}
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
@@ -521,6 +540,11 @@ func (n *Notary) removeBlackholed(msgID []byte) (*common.MessagePublication, err
 }
 
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
+
+	if msg == nil {
+		return false
+	}
+
 	// The notary's mutex is not used here because the pending message queue
 	// uses its own read mutex for this method.
 	return n.delayed.FetchMessagePublication(msg.MessageID()) != nil
