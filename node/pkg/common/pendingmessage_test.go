@@ -283,11 +283,9 @@ func TestPendingMessageQueue_PopReadyConcurrent(t *testing.T) {
 
 	q := common.NewPendingMessageQueue()
 	now := time.Now().Add(time.Hour)
-	messages := make([]*common.PendingMessage, 0, messageCount)
 	for i := range messageCount {
 		msg := makeUniquePendingMessage(t)
 		msg.ReleaseTime = now.Add(-time.Duration(i+1) * time.Second)
-		messages = append(messages, msg)
 		q.Push(msg)
 	}
 
