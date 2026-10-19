@@ -63,12 +63,14 @@ func TestFileSignerNonExistentFile(t *testing.T) {
 
 func TestFileSigner(t *testing.T) {
 	ctx := context.Background()
-	key, err := crypto.GenerateKey()
+
+	privKey := [32]byte{0xcf, 0xb1, 0x23, 0x03, 0xa1, 0x9c, 0xde, 0x58, 0x0b, 0xb4, 0xdd, 0x77, 0x16, 0x39, 0xb0, 0xd2, 0x6b, 0xc6, 0x83, 0x53, 0x64, 0x55, 0x71, 0xa8, 0xcf, 0xf5, 0x16, 0xab, 0x2e, 0xe1, 0x13, 0xa0}
+	key, err := crypto.ToECDSA(privKey[:])
 	require.NoError(t, err)
 	keyPath := t.TempDir() + "/guardian.key"
 	require.NoError(t, common.WriteArmoredKey(key, "test key", keyPath, GuardianKeyArmoredBlock, false))
 	fileUri := "file://" + keyPath
-	expectedEthAddress := ethcrypto.PubkeyToAddress(key.PublicKey).Hex()
+	expectedEthAddress := "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
 
 	// For each file signer generation attempt, check:
 	//	That the signer returned is not nil
