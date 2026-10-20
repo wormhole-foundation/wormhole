@@ -23,7 +23,8 @@
 /scripts/clippy.sh @evan-gray @kcsongor @djb15 @johnsaigle
 /scripts/lint.sh @evan-gray @kcsongor @djb15 @johnsaigle
 /scripts/test-notary-admin-commands.sh @djb15 @johnsaigle @pleasew8t
-/scripts/transfer-verifier-localnet.sh @djb15 @johnsaigle @pleasew8t
+/scripts/transfer-verifier-localnet.sh @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/scripts/sui-transfer-verifier.sh @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 /sdk/ @evan-gray @kev1n-peters @panoel @SEJeff @johnsaigle @djb15
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
@@ -125,10 +126,11 @@
 
 ## Transfer Verifier
 
-/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
-/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
-/devnet/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
-/devnet/tx-verifier-sui.yaml @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/devnet/tx-verifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/devnet/tx-verifier-evm.yaml @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/devnet/tx-verifier-sui.yaml @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Watchers
 
@@ -167,7 +169,7 @@
 ## Documentation
 
 /docs @evan-gray @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/docs/transfer-verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t
+/docs/transfer-verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 /docs/notary.md @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 CONTRIBUTING.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
@@ -187,9 +189,11 @@ scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bem
 ## Whitepapers
 
 /whitepapers/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+/whitepapers/0014_transfer_verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Tests
 *_test.go @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/pkg/txverifier/*_test.go @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## CI
 .golangci.yml @evan-gray @djb15 @johnsaigle @mdulin2
