@@ -857,6 +857,38 @@ func TestSafeRead(t *testing.T) {
 	}
 }
 
+func TestSafeReadN(t *testing.T) {
+	const limit = 512
+	tests := []struct {
+		name    string
+		size    int
+		n       int
+		wantErr error
+	}{
+		{name: "empty input", size: 0, n: limit},
+		{name: "exactly at limit", size: limit, n: limit},
+		{name: "one byte over limit", size: limit + 1, n: limit, wantErr: ErrInputTooLarge},
+		{name: "limit of one", size: 1, n: 1},
+		{name: "zero limit", size: 1, n: 0, wantErr: ErrInvalidReadLimit},
+		{name: "negative limit", size: 1, n: -1, wantErr: ErrInvalidReadLimit},
+		{name: "limit above MaxSafeInputSize", size: 1, n: MaxSafeInputSize + 1, wantErr: ErrInvalidReadLimit},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := bytes.Repeat([]byte{0xab}, tt.size)
+
+			got, err := SafeReadN(bytes.NewReader(data), tt.n)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				require.Nil(t, got, "got should be nil when error occurs")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, data, got)
+		})
+	}
+}
+
 func TestMessagePublication_IsWTT(t *testing.T) {
 	// Using real mainnet and testnet token bridge emitter addresses as hex strings
 	const (

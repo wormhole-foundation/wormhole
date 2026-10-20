@@ -288,8 +288,9 @@ var (
 	// Loki cloud logging parameters
 	telemetryLokiURL *string
 
-	// Prometheus remote write URL
-	promRemoteURL *string
+	// Prometheus remote write URL and push interval
+	promRemoteURL      *string
+	promRemoteInterval *time.Duration
 
 	chainGovernorEnabled      *bool
 	governorFlowCancelEnabled *bool
@@ -562,6 +563,7 @@ func init() {
 	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 
 	promRemoteURL = NodeCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
+	promRemoteInterval = NodeCmd.Flags().Duration("promRemoteInterval", minPromRemoteInterval, "Interval between Prometheus remote write pushes (minimum and default 15s, e.g. 1m)")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 	governorFlowCancelEnabled = NodeCmd.Flags().Bool("governorFlowCancelEnabled", false, "Enable flow cancel on the governor")
@@ -597,6 +599,10 @@ var (
 )
 
 const envPrefix = "GUARDIAND"
+
+// minPromRemoteInterval is the default and the shortest allowed --promRemoteInterval. Each push
+// gathers and sends the whole metrics registry, so the interval may only be lengthened.
+const minPromRemoteInterval = 15 * time.Second
 
 // "Why would anyone do this?" are famous last words.
 //
@@ -1285,6 +1291,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	usingPromRemoteWrite := *promRemoteURL != ""
 	if usingPromRemoteWrite {
+		if *promRemoteInterval < minPromRemoteInterval {
+			logger.Fatal("--promRemoteInterval must be at least 15s", zap.Duration("promRemoteInterval", *promRemoteInterval))
+		}
+
 		var info promremotew.PromTelemetryInfo
 		info.PromRemoteURL = *promRemoteURL
 		info.Labels = map[string]string{
@@ -1296,9 +1306,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		promLogger := logger.With(zap.String("component", "prometheus_scraper"))
+		promLogger.Info("Pushing metrics with Prometheus remote write", zap.Duration("interval", *promRemoteInterval))
 		errC := make(chan error)
 		common.StartRunnable(rootCtx, errC, false, "prometheus_scraper", func(ctx context.Context) error {
-			t := time.NewTicker(15 * time.Second)
+			t := time.NewTicker(*promRemoteInterval)
 
 			for {
 				select {
