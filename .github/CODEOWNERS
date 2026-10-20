@@ -193,3 +193,6 @@ scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bem
 ## CI
 .golangci.yml @evan-gray @djb15 @johnsaigle @mdulin2
 cspell* @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+
+## OSS Scanner
+.oss-scanner/ @djb15 @bemic @pleasew8t @johnsaigle @mdulin2
