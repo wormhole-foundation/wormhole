@@ -44,8 +44,8 @@
 
 # Protobuf for node
 
-/proto/node/ @evan-gray @panoel
-/proto/publicrpc/ @evan-gray @panoel
+/proto/node/ @evan-gray @panoel @jmgilman
+/proto/publicrpc/ @evan-gray @panoel @jmgilman
 
 # Makefile
 
@@ -70,7 +70,7 @@
 
 ## DB
 
-/node/pkg/db/ @evan-gray @panoel
+/node/pkg/db/ @evan-gray @panoel @jmgilman
 /node/pkg/db/notary* @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Accountant
@@ -79,7 +79,7 @@
 
 ## Alternate Publisher
 
-/node/pkg/altpub/ @evan-gray @panoel
+/node/pkg/altpub/ @evan-gray @panoel @jmgilman
 
 ## Governor
 
@@ -91,7 +91,7 @@
 
 ## Gateway Relayer
 
-/node/pkg/gwrelayer/ @evan-gray @panoel
+/node/pkg/gwrelayer/ @evan-gray @panoel @jmgilman
 
 ## P2P
 
@@ -110,7 +110,7 @@
 
 ## Proto
 
-/node/pkg/proto/ @evan-gray @panoel
+/node/pkg/proto/ @evan-gray @panoel @jmgilman
 
 ## Query
 
@@ -118,11 +118,11 @@
 
 ## Public RPC
 
-/node/pkg/publicrpc/ @evan-gray @panoel
+/node/pkg/publicrpc/ @evan-gray @panoel @jmgilman
 
 ## Supervisor Framework
 
-/node/pkg/supervisor/ @evan-gray @panoel
+/node/pkg/supervisor/ @evan-gray @panoel @jmgilman
 
 ## Transfer Verifier
 
