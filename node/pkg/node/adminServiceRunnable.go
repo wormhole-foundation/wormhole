@@ -1,17 +1,14 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
-	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/manager"
 	"github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -19,12 +16,8 @@ import (
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"go.uber.org/zap"
-
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 func adminServiceRunnable(
@@ -38,9 +31,6 @@ func adminServiceRunnable(
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
 	notary *notary.Notary,
-	guardianSigner guardiansigner.GuardianSigner,
-	ethRpc *string,
-	ethContract *string,
 	rpcMap map[string]string,
 	reobservers interfaces.Reobservers,
 	managerSvc *manager.ManagerService,
@@ -76,18 +66,6 @@ func adminServiceRunnable(
 
 	logger.Info("admin server listening on", zap.String("path", socketPath))
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	var evmConnector connectors.Connector
-	if ethRpc != nil && ethContract != nil {
-		contract := ethcommon.HexToAddress(*ethContract)
-		evmConnector, err = connectors.NewEthereumBaseConnector(ctx, "eth", *ethRpc, contract, nil, logger)
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to ethereum")
-		}
-	}
-
 	nodeService := adminrpc.NewPrivService(
 		db,
 		injectC,
@@ -97,9 +75,6 @@ func adminServiceRunnable(
 		signedInC,
 		gov,
 		notary,
-		evmConnector,
-		guardianSigner,
-		ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		rpcMap,
 		reobservers,
 	)
