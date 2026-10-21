@@ -48,7 +48,7 @@ func TestCompressPublicKey_LeadingZeroCoordinate(t *testing.T) {
 	}
 
 	// Confirm Y is indeed shorter than 32 bytes via Bytes() (the root cause).
-	require.Less(t, len(pubKey.Y.Bytes()), 32, "Y.Bytes() should be < 32 bytes due to leading zero")
+	require.Less(t, len(pubKey.Y.Bytes()), 32, "Y.Bytes() should be < 32 bytes due to leading zero") //nolint:staticcheck // TODO: X/Y deprecated in Go 1.26; replace in follow-up PR.
 
 	// compressPublicKey must return a valid 33-byte compressed key even when
 	// a coordinate is shorter than 32 bytes.

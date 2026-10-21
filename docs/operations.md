@@ -113,7 +113,7 @@ All guardians **must run validators for wormchain**, the codename of [Wormhole G
 
 #### Pre-requisites
 
-- Ensure you have [Go](https://golang.org/dl/) >= 1.25.10 installed.
+- Ensure you have [Go](https://golang.org/dl/) >= 1.26.10 installed.
 
 #### Building wormchaind binary
 
@@ -415,7 +415,7 @@ The following Cosmos based nodes were added prior to Gateway and guardians need 
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
 guardiand binary from source. A Git repo is much harder to tamper with than release binaries.
 
-To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.25.10
+To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.26.10
 
 First, check out the version of the Wormhole repo that you want to deploy:
 
@@ -705,14 +705,23 @@ can be operated behind a load balancer.
 
 ## Enabling Telemetry
 
-Optionally, the guardian can send telemetry to [Grafana Cloud Logs](https://grafana.com/products/cloud/logs/) aka "loki".
-To enable this functionality, add the following flag:
+On mainnet and testnet, the guardian sends its logs to [Grafana Cloud Logs](https://grafana.com/products/cloud/logs/) aka "loki"
+and its Prometheus metrics to Grafana Cloud unless telemetry is disabled with `--disableTelemetry`.
+Add the following flags:
 
 ```bash
 --telemetryLokiURL=$PER_GUARDIAN_LOKI_URL_WITH_TOKEN
+--promRemoteURL=$PER_GUARDIAN_PROMETHEUS_URL_WITH_TOKEN
 ```
 
-New guardians should talk to the Wormhole Foundation to get a Loki url.
+Metrics are pushed every 15 seconds by default. Use `--promRemoteInterval` (for example `--promRemoteInterval=1m`) to
+push less often; the minimum is 15 seconds.
+
+A missing `--telemetryLokiURL` stops the node at startup. A missing `--promRemoteURL` currently only logs a warning;
+a future release will require it as well. In that release `--disableTelemetry` will disable both logs and metrics.
+Until then, `--disableTelemetry` disables only logs.
+
+New guardians should talk to the Wormhole Foundation to get these URLs.
 
 ### Binding to privileged ports
 
