@@ -1075,7 +1075,7 @@ func compressPublicKey(pubKey *ecdsa.PublicKey) []byte {
 	// buffer that btcec.ParsePubKey rejects.
 	var buf [65]byte
 	buf[0] = 0x04
-	pubKey.X.FillBytes(buf[1:33]) //nolint:staticcheck // TODO: X/Y deprecated in Go 1.26; replace in follow-up PR.
+	pubKey.X.FillBytes(buf[1:33])  //nolint:staticcheck // TODO: X/Y deprecated in Go 1.26; replace in follow-up PR.
 	pubKey.Y.FillBytes(buf[33:65]) //nolint:staticcheck // TODO: X/Y deprecated in Go 1.26; replace in follow-up PR.
 	btcPubKey, err := btcec.ParsePubKey(buf[:])
 	if err != nil {
