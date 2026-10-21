@@ -379,6 +379,8 @@ const (
 	ChainIDRobinhoodChain ChainID = 72
 	// ChainIDHydration is the ChainID of Hydration
 	ChainIDHydration ChainID = 73
+	// ChainIDElysium is the ChainID of Elysium
+	ChainIDElysium ChainID = 74
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
