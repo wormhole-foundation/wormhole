@@ -1,6 +1,6 @@
 module github.com/certusone/wormhole/node
 
-go 1.26.6
+go 1.26.10
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.0
