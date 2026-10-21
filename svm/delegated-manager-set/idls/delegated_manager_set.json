@@ -1,0 +1,269 @@
+{
+  "address": "wdmsTJP6YnsfeQjPuuEzGCrHmZvTmNy8VkxMCK8JkBX",
+  "metadata": {
+    "name": "delegated_manager_set",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "submit_new_manager_set",
+      "discriminator": [
+        19,
+        18,
+        149,
+        235,
+        253,
+        47,
+        60,
+        58
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "guardian_set",
+          "docs": [
+            "Derivation is checked by the shim."
+          ]
+        },
+        {
+          "name": "guardian_signatures",
+          "docs": [
+            "Ownership ownership and discriminator is checked by the shim."
+          ]
+        },
+        {
+          "name": "consumed",
+          "docs": [
+            "The derivation is confirmed in the instruction"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  117,
+                  109,
+                  101,
+                  100,
+                  95,
+                  118,
+                  97,
+                  97
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.digest"
+              }
+            ]
+          }
+        },
+        {
+          "name": "manager_set_index",
+          "docs": [
+            "Stores the current manager set index for this manager chain.",
+            "Initialized on first manager set update, or updated on subsequent ones."
+          ],
+          "writable": true
+        },
+        {
+          "name": "manager_set",
+          "docs": [
+            "Stores the new manager set."
+          ],
+          "writable": true
+        },
+        {
+          "name": "wormhole_verify_vaa_shim",
+          "address": "EFaNWErqAtVWufdNb7yofSHHfWFos843DFpu4JBw24at"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "SubmitNewManagerSetArgs"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ManagerSet",
+      "discriminator": [
+        188,
+        16,
+        135,
+        64,
+        103,
+        222,
+        63,
+        182
+      ]
+    },
+    {
+      "name": "ManagerSetIndex",
+      "discriminator": [
+        42,
+        93,
+        41,
+        30,
+        20,
+        230,
+        157,
+        75
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "DigestMismatch",
+      "msg": "Digest argument does not match computed digest from VAA body"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidVaaBody",
+      "msg": "Failed to parse VAA body"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidGovernanceChain",
+      "msg": "VAA is not from the governance chain"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidGovernanceEmitter",
+      "msg": "VAA is not from the governance emitter"
+    },
+    {
+      "code": 6004,
+      "name": "GovernancePayloadTooShort",
+      "msg": "Governance payload too short"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidGovernanceModule",
+      "msg": "Invalid governance module"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidGovernanceAction",
+      "msg": "Invalid governance action"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidTargetChain",
+      "msg": "Invalid target chain"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidManagerSetIndex",
+      "msg": "Manager set index must increment by 1"
+    }
+  ],
+  "types": [
+    {
+      "name": "ManagerSet",
+      "docs": [
+        "Stores a manager set for a given chain ID and index.",
+        "PDA seeds: [\"manager_set\", manager_chain_id, manager_set_index]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "manager_chain_id",
+            "docs": [
+              "The manager chain ID this set is for."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "index",
+            "docs": [
+              "The manager set index."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "manager_set",
+            "docs": [
+              "The raw manager set bytes."
+            ],
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ManagerSetIndex",
+      "docs": [
+        "Stores the current manager set index for a given chain ID.",
+        "PDA seeds: [\"manager_set_index\", manager_chain_id]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "manager_chain_id",
+            "docs": [
+              "The manager chain ID this index is for."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "current_index",
+            "docs": [
+              "The current manager set index."
+            ],
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubmitNewManagerSetArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "guardian_set_bump",
+            "type": "u8"
+          },
+          {
+            "name": "digest",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "vaa_body",
+            "type": "bytes"
+          }
+        ]
+      }
+    }
+  ]
+}
