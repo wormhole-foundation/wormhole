@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
-	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 )
 
 const goodPayload = "9945ff10042942fafabe0000000000000000000000000000000000000000000000000000042942fababe00000000000000000000000000000000000000000000000000000091128434bafe23430000000000000000000000000000000000ce00aa00000000004667921341234300000000000000000000000000000000000000000000000000004f994e545407000000000012d687beefface00000000000000000000000000000000000000000000000000000000feebcafe0000000000000000000000000000000000000000000000000000000000110000"
@@ -51,7 +52,7 @@ func TestNttParseMsgSuccess(t *testing.T) {
 
 	msg := &common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(42),
 		Sequence:         uint64(123456),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -78,7 +79,7 @@ func TestNttParseMsgWrongEmitterChain(t *testing.T) {
 
 	msg := &common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(42),
 		Sequence:         uint64(123456),
 		EmitterChain:     vaa.ChainIDSolana,
@@ -107,7 +108,7 @@ func TestNttParseMsgWrongEmitterAddress(t *testing.T) {
 
 	msg := &common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1654543099), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654543099),
 		Nonce:            uint32(42),
 		Sequence:         uint64(123456),
 		EmitterChain:     vaa.ChainIDEthereum,
@@ -222,7 +223,7 @@ func TestNttParseArMsgSuccess(t *testing.T) {
 
 	msg := &common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1708575745), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1708575745),
 		Nonce:            uint32(0),
 		Sequence:         uint64(259),
 		EmitterChain:     vaa.ChainIDArbitrumSepolia,
@@ -259,7 +260,7 @@ func TestNttParseArMsgUnknownArEmitter(t *testing.T) {
 
 	msg := &common.MessagePublication{
 		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-		Timestamp:        time.Unix(int64(1708575745), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1708575745),
 		Nonce:            uint32(0),
 		Sequence:         uint64(259),
 		EmitterChain:     vaa.ChainIDArbitrumSepolia,

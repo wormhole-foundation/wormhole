@@ -10,12 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/testutils"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
@@ -557,7 +559,7 @@ func makeUniqueMessagePublication(t *testing.T) *common.MessagePublication {
 	var sequence = rand.Uint64()
 	msgpub := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-		Timestamp:        time.Unix(int64(1654516425), 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 1654516425),
 		Nonce:            123456,
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDEthereum,
