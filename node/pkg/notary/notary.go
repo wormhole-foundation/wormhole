@@ -34,6 +34,7 @@ import (
 	"errors"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -94,6 +95,7 @@ var (
 	ErrCannotRelease      = errors.New("notary: could not release message")
 	ErrInvalidMsg         = errors.New("notary: message is invalid")
 	ErrMsgNotFound        = errors.New("notary: message not found")
+	ErrNotReady           = errors.New("notary: not ready to process messages")
 )
 
 type (
@@ -118,8 +120,15 @@ type (
 		// [msgPubSet] is not thread-safe so this field must be guarded by a read-write mutex.
 		blackholed *msgPubSet
 
+		// ready reports whether the notary is fully initialized and ready to process messages.
+		ready atomic.Bool
+
 		// env reports whether the guardian is running in production or a test environment.
 		env common.Environment
+
+		// runOnce ensures that the notary is only started once.
+		runOnce sync.Once
+		runErr  error
 	}
 )
 
@@ -128,7 +137,13 @@ func NewNotary(
 	logger *zap.Logger,
 	guardianDB *db.Database,
 	env common.Environment,
-) *Notary {
+) (*Notary, error) {
+
+	// Ensure that the essential components are not nil before proceeding.
+	if guardianDB == nil || guardianDB.Conn() == nil || logger == nil {
+		return nil, errors.New("notary: guardianDB and logger must not be nil")
+	}
+
 	return &Notary{
 		ctx:    ctx,
 		logger: logger,
@@ -136,12 +151,27 @@ func NewNotary(
 		// Get the underlying database connection from the Guardian.
 		database:   db.NewNotaryDB(guardianDB.Conn()),
 		delayed:    common.NewPendingMessageQueue(),
-		blackholed: nil,
+		blackholed: NewSet(),
 		env:        env,
-	}
+		runOnce:    sync.Once{},
+		runErr:     nil,
+	}, nil
 }
 
 func (n *Notary) Run() error {
+	// The Run function is only meant to be called once.
+	n.runOnce.Do(func() {
+		n.runErr = n.run()
+	})
+	return n.runErr
+}
+
+func (n *Notary) run() error {
+
+	if n.logger == nil {
+		return errors.New("notary: logger must not be nil")
+	}
+
 	// Initialize and register Prometheus metrics when notary starts.
 	// This ensures metrics are only registered when the notary is actually enabled.
 	// Safe to call multiple times - will only initialize once.
@@ -154,12 +184,18 @@ func (n *Notary) Run() error {
 		}
 	}
 
+	// Persisted state has been loaded. The notary is now ready to process messages.
+	n.ready.Store(true)
+
 	n.logger.Info("notary ready")
 
 	// Spawn a goroutine to periodically update prometheus gauge metrics
 	go n.updateMetrics()
 
 	return nil
+}
+func (n *Notary) isReady() bool {
+	return n.ready.Load()
 }
 
 // updateMetrics runs periodically to update gauge metrics for queue sizes
@@ -183,6 +219,11 @@ func (n *Notary) updateMetrics() {
 // updateGauges updates the prometheus gauge metrics
 func (n *Notary) updateGauges() {
 
+	if !n.isReady() {
+		n.logger.Info("Notary is not ready yet, skipping gauges update")
+		return
+	}
+
 	// Only update gauges if the notary is ready.
 	if n.blackholed == nil || n.delayed == nil {
 		n.logger.Info("Notary is not ready yet, skipping gauges update")
@@ -203,6 +244,19 @@ func (n *Notary) updateGauges() {
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
+
+	// Only allow processing messages if the Notary is fully initialized and ready.
+	if !n.isReady() {
+		return Unknown, ErrNotReady
+	}
+
+	if msg == nil {
+		return Unknown, errors.New("notary: ProcessMsg called with nil message")
+	}
+
+	if n.logger == nil {
+		return Unknown, errors.New("notary: logger must not be nil")
+	}
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
@@ -309,6 +363,12 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 // ReleaseReadyMessages removes messages from the database and the delayed queue if they are ready to
 // be released. Returns the messages that are ready to be published.
 func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
+
+	// Only allow releasing messages if the Notary is fully initialized and ready.
+	if !n.isReady() {
+		return nil
+	}
+
 	if n == nil || n.delayed == nil {
 		return nil
 	}
@@ -326,16 +386,10 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 	// If errors occur, continue instead of returning early so that other messages
 	// can still be processed.
 	for n.delayed.Len() != 0 {
-		next := n.delayed.Peek()
-		if next == nil || next.ReleaseTime.After(now) {
-			break // No more messages to process or next message not ready
-		}
+		pMsg := n.delayed.PopReady(now)
 
-		// Pop reduces the length of n.delayed
-		pMsg := n.delayed.Pop()
 		if pMsg == nil {
-			n.logger.Error("nil message after pop")
-			continue // Skip if Pop returns nil (shouldn't happen if Peek worked)
+			break // No more messages to process or next message not ready
 		}
 
 		// Update database. Do this before adding the message to the ready list so that we don't
@@ -484,6 +538,11 @@ func (n *Notary) forget(msg *common.MessagePublication) error {
 
 // IsBlackholed returns true if the message is in the blackholed list.
 func (n *Notary) IsBlackholed(msgID []byte) bool {
+
+	if !n.isReady() {
+		return false
+	}
+
 	n.mutex.RLock()
 	defer n.mutex.RUnlock()
 	return n.blackholed.Contains(msgID)
@@ -527,6 +586,15 @@ func (n *Notary) removeBlackholed(msgID []byte) (*common.MessagePublication, err
 }
 
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
+
+	if !n.isReady() {
+		return false
+	}
+
+	if msg == nil {
+		return false
+	}
+
 	// The notary's mutex is not used here because the pending message queue
 	// uses its own read mutex for this method.
 	return n.delayed.FetchMessagePublication(msg.MessageID()) != nil
@@ -639,25 +707,30 @@ func (n *Notary) loadFromDB(logger *zap.Logger) error {
 		return ErrAlreadyInitialized
 	}
 
-	var (
-		delayed    = common.NewPendingMessageQueue()
-		blackholed = NewSet()
-	)
+	// Ensure the delayed queue is initialized before proceeding.
+	if n.delayed == nil {
+		n.delayed = common.NewPendingMessageQueue()
+	}
 
+	// Ensure the blackholed set is initialized before proceeding.
+	if n.blackholed == nil {
+		n.blackholed = NewSet()
+	}
+
+	// Populate the delayed queue from the database result.
 	if len(result.Delayed) > 0 {
 		for entry := range slices.Values(result.Delayed) {
-			delayed.Push(entry)
+			n.delayed.Push(entry)
 		}
 	}
 
+	// Populate the blackholed set from the database result.
 	if len(result.Blackholed) > 0 {
 		for result := range slices.Values(result.Blackholed) {
-			blackholed.Add(result.MessageID())
+			n.blackholed.Add(result.MessageID())
 		}
 	}
 
-	n.blackholed = blackholed
-	n.delayed = delayed
 	n.logger.Info(
 		"initialized notary",
 		zap.Int("delayedMsgs", n.delayed.Len()),
