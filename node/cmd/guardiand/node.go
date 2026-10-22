@@ -246,6 +246,9 @@ var (
 	robinhoodChainRPC      *string
 	robinhoodChainContract *string
 
+	elysiumRPC      *string
+	elysiumContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -524,6 +527,9 @@ func init() {
 
 	robinhoodChainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "robinhoodChainRPC", "Robinhood Chain RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
 	robinhoodChainContract = NodeCmd.Flags().String("robinhoodChainContract", "", "Robinhood Chain contract address")
+
+	elysiumRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "elysiumRPC", "Elysium RPC URL", "http://eth-devnet:8545", []string{"http", "https", "ws", "wss"})
+	elysiumContract = NodeCmd.Flags().String("elysiumContract", "", "Elysium contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -942,6 +948,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*megaEthContract = checkEvmArgs(logger, *megaEthRPC, *megaEthContract, vaa.ChainIDMegaETH)
 	*zeroGravityContract = checkEvmArgs(logger, *zeroGravityRPC, *zeroGravityContract, vaa.ChainIDZeroGravity)
 	*tronContract = checkEvmArgs(logger, *tronRPC, *tronContract, vaa.ChainIDTron)
+	*elysiumContract = checkEvmArgs(logger, *elysiumRPC, *elysiumContract, vaa.ChainIDElysium)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1740,6 +1747,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDRobinhoodChain,
 			Rpc:              *robinhoodChainRPC,
 			Contract:         *robinhoodChainContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(elysiumRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "elysium",
+			ChainID:          vaa.ChainIDElysium,
+			Rpc:              *elysiumRPC,
+			Contract:         *elysiumContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
