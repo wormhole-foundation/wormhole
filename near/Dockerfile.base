@@ -9,7 +9,7 @@ RUN apt-get install -y build-essential git
 # n is not in any repo package.json; pinned to last stable v9 release
 RUN npm i -g n@9.2.3
 # keep in sync with .nvmrc
-RUN n 22.16.0
+RUN n 22.23.4
 
 COPY node_builder.sh /tmp
 
