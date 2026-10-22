@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
+	GuardianKeyArmoredBlock    = "WORMHOLE GUARDIAN PRIVATE KEY"
+	onlyOwnerReadWritePermMask = 0600
+	forbiddenPermMask          = 0077
 )
 
 // LoadGuardianKey loads a serialized guardian key from disk.
@@ -24,10 +26,15 @@ func LoadGuardianKey(filename string, unsafeDevMode bool) (*ecdsa.PrivateKey, er
 
 // LoadArmoredKey loads a serialized key from disk.
 func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecdsa.PrivateKey, error) {
+	if err := ValidatePrivateKeyFilePermissions(filename); err != nil {
+		return nil, err
+	}
+
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
+	defer f.Close()
 
 	p, err := armor.Decode(f)
 	if err != nil {
@@ -61,7 +68,22 @@ func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecd
 	return gk, nil
 }
 
-// WriteArmoredKey serializes a key and writes it to disk.
+// ValidatePrivateKeyFilePermissions rejects regular private-key files that are readable by group or other users.
+func ValidatePrivateKeyFilePermissions(filename string) error {
+	info, err := os.Stat(filename)
+	if err != nil {
+		return fmt.Errorf("failed to stat private key file: %w", err)
+	}
+
+	if info.Mode().IsRegular() && info.Mode().Perm()&forbiddenPermMask != 0 {
+		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", filename, info.Mode().Perm())
+	}
+
+	return nil
+}
+
+// WriteArmoredKey serializes a key and writes it to disk. The function creates a new file with read/write permissions
+// for owner only.
 func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string, blockType string, unsafe bool) error {
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		return errors.New("refusing to override existing key")
@@ -79,7 +101,7 @@ func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string,
 		panic(err)
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, onlyOwnerReadWritePermMask)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}

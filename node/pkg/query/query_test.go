@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -417,7 +418,16 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	md := mockData{}
 	var err error
 
-	md.sk, err = common.LoadGuardianKey("dev.guardian.key", true)
+	devKey, err := os.ReadFile("dev.guardian.key")
+	require.NoError(t, err)
+	devKeyFile, err := os.CreateTemp(t.TempDir(), "dev.guardian.key")
+	require.NoError(t, err)
+	_, err = devKeyFile.Write(devKey)
+	require.NoError(t, err)
+	require.NoError(t, devKeyFile.Close())
+	devKeyPath := devKeyFile.Name()
+
+	md.sk, err = common.LoadGuardianKey(devKeyPath, true)
 	require.NoError(t, err)
 	require.NotNil(t, md.sk)
 
