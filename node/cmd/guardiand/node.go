@@ -2139,7 +2139,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionManagerService(*managerServiceEnabled, managerSigners, *ethRPC),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
-		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
+		node.GuardianOptionAdminService(*adminSocketPath, rpcMap),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
 		node.GuardianOptionProcessor(*p2pNetworkID, *ethDelegatedGuardiansContract != ""),

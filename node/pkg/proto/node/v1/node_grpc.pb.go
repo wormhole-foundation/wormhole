@@ -68,8 +68,6 @@ type NodePrivilegedServiceClient interface {
 	NotaryListBlackholedMessages(ctx context.Context, in *NotaryListBlackholedMessagesRequest, opts ...grpc.CallOption) (*NotaryListBlackholedMessagesResponse, error)
 	// PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
 	PurgePythNetVaas(ctx context.Context, in *PurgePythNetVaasRequest, opts ...grpc.CallOption) (*PurgePythNetVaasResponse, error)
-	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
-	SignExistingVAA(ctx context.Context, in *SignExistingVAARequest, opts ...grpc.CallOption) (*SignExistingVAAResponse, error)
 	// DumpRPCs returns the RPCs being used by the guardian
 	DumpRPCs(ctx context.Context, in *DumpRPCsRequest, opts ...grpc.CallOption) (*DumpRPCsResponse, error)
 	// GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
@@ -266,15 +264,6 @@ func (c *nodePrivilegedServiceClient) PurgePythNetVaas(ctx context.Context, in *
 	return out, nil
 }
 
-func (c *nodePrivilegedServiceClient) SignExistingVAA(ctx context.Context, in *SignExistingVAARequest, opts ...grpc.CallOption) (*SignExistingVAAResponse, error) {
-	out := new(SignExistingVAAResponse)
-	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/SignExistingVAA", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *nodePrivilegedServiceClient) DumpRPCs(ctx context.Context, in *DumpRPCsRequest, opts ...grpc.CallOption) (*DumpRPCsResponse, error) {
 	out := new(DumpRPCsResponse)
 	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/DumpRPCs", in, out, opts...)
@@ -356,8 +345,6 @@ type NodePrivilegedServiceServer interface {
 	NotaryListBlackholedMessages(context.Context, *NotaryListBlackholedMessagesRequest) (*NotaryListBlackholedMessagesResponse, error)
 	// PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
 	PurgePythNetVaas(context.Context, *PurgePythNetVaasRequest) (*PurgePythNetVaasResponse, error)
-	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
-	SignExistingVAA(context.Context, *SignExistingVAARequest) (*SignExistingVAAResponse, error)
 	// DumpRPCs returns the RPCs being used by the guardian
 	DumpRPCs(context.Context, *DumpRPCsRequest) (*DumpRPCsResponse, error)
 	// GetMissingVAAs returns the VAAs from a cloud function that need to be reobserved.
@@ -430,9 +417,6 @@ func (UnimplementedNodePrivilegedServiceServer) NotaryListBlackholedMessages(con
 }
 func (UnimplementedNodePrivilegedServiceServer) PurgePythNetVaas(context.Context, *PurgePythNetVaasRequest) (*PurgePythNetVaasResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PurgePythNetVaas not implemented")
-}
-func (UnimplementedNodePrivilegedServiceServer) SignExistingVAA(context.Context, *SignExistingVAARequest) (*SignExistingVAAResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SignExistingVAA not implemented")
 }
 func (UnimplementedNodePrivilegedServiceServer) DumpRPCs(context.Context, *DumpRPCsRequest) (*DumpRPCsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DumpRPCs not implemented")
@@ -816,24 +800,6 @@ func _NodePrivilegedService_PurgePythNetVaas_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NodePrivilegedService_SignExistingVAA_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SignExistingVAARequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NodePrivilegedServiceServer).SignExistingVAA(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/node.v1.NodePrivilegedService/SignExistingVAA",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodePrivilegedServiceServer).SignExistingVAA(ctx, req.(*SignExistingVAARequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _NodePrivilegedService_DumpRPCs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DumpRPCsRequest)
 	if err := dec(in); err != nil {
@@ -974,10 +940,6 @@ var NodePrivilegedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PurgePythNetVaas",
 			Handler:    _NodePrivilegedService_PurgePythNetVaas_Handler,
-		},
-		{
-			MethodName: "SignExistingVAA",
-			Handler:    _NodePrivilegedService_SignExistingVAA_Handler,
 		},
 		{
 			MethodName: "DumpRPCs",
