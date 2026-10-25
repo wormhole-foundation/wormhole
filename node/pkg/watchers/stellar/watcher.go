@@ -193,9 +193,11 @@ func (w *watcher) Run(ctx context.Context) error {
 	w.logger = logger
 
 	if w.nextLedger == 0 {
-		seq, err := w.getInitialLedger(ctx, logger)
+		seq, err := w.getLatestLedger(ctx)
 		if err != nil {
-			return err
+			stellarConnectionErrors.WithLabelValues(w.networkName, "initial_ledger").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("getLatestLedger failed: %w", err)
 		}
 		w.nextLedger = seq
 		logger.Info("initialized start ledger", zap.Uint64("ledger", w.nextLedger))
@@ -205,13 +207,15 @@ func (w *watcher) Run(ctx context.Context) error {
 		ContractAddress: w.contract,
 	})
 
-	errC := make(chan error)
+	// Scissors sends without blocking, so the buffer keeps the error until Run reads it.
+	errC := make(chan error, 1)
 	common.RunWithScissors(ctx, errC, "stellar_reobservation", func(ctx context.Context) error {
 		return w.runReobservationHandler(ctx)
 	})
 
 	t := time.NewTicker(w.pollInterval)
 	defer t.Stop()
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
 	logger.Info("stellar watcher started")
 
 	for {
@@ -231,43 +235,8 @@ func (w *watcher) Run(ctx context.Context) error {
 	}
 }
 
-// getInitialLedger fetches the starting ledger, retrying with capped exponential
-// backoff. A transient RPC outage at startup (e.g. the Soroban RPC not yet
-// reachable when the guardian boots) must not kill the watcher, mirroring the
-// resilience of the poll loop. Returns an error only when the context is cancelled.
-func (w *watcher) getInitialLedger(ctx context.Context, logger *zap.Logger) (uint64, error) {
-	backoff := w.pollInterval
-	if backoff <= 0 {
-		backoff = defaultPollInterval
-	}
-	const maxBackoff = 60 * time.Second
-
-	for {
-		seq, err := w.getLatestLedger(ctx)
-		if err == nil {
-			return seq, nil
-		}
-
-		stellarConnectionErrors.WithLabelValues(w.networkName, "initial_ledger").Inc()
-		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-		logger.Warn("failed to get latest ledger, retrying", zap.Error(err), zap.Duration("backoff", backoff))
-
-		select {
-		case <-ctx.Done():
-			return 0, ctx.Err()
-		case <-time.After(backoff):
-		}
-
-		if backoff < maxBackoff {
-			backoff *= 2
-			if backoff > maxBackoff {
-				backoff = maxBackoff
-			}
-		}
-	}
-}
-
-// runReobservationHandler handles incoming reobservation requests. Returns an error only on fatal failure.
+// runReobservationHandler serves reobservation requests until ctx is canceled. It panics on a
+// request for another chain.
 func (w *watcher) runReobservationHandler(ctx context.Context) error {
 	logger := w.logger
 	for {
@@ -275,19 +244,10 @@ func (w *watcher) runReobservationHandler(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case req := <-w.obsvReqC:
-			if req.ChainId > math.MaxUint16 {
-				logger.Debug("ignoring reobservation request for invalid chain",
-					zap.Uint32("requestChainId", req.ChainId),
-					zap.String("watcherChainId", w.chainID.String()),
-				)
-				continue
-			}
-			if vaa.ChainID(req.ChainId) != w.chainID {
-				logger.Debug("ignoring reobservation request for different chain",
-					zap.Uint32("requestChainId", req.ChainId),
-					zap.String("watcherChainId", w.chainID.String()),
-				)
-				continue
+			// node/pkg/node/reobserve.go sends only this chain's requests here, so a mismatch
+			// is a bug in the node's channel setup.
+			if req.ChainId > math.MaxUint16 || vaa.ChainID(req.ChainId) != w.chainID {
+				panic("invalid chain ID")
 			}
 
 			txHash := hex.EncodeToString(req.TxHash)
@@ -295,6 +255,7 @@ func (w *watcher) runReobservationHandler(ctx context.Context) error {
 
 			count, err := w.handleReobservationRequest(ctx, txHash, w.rpc, w.httpClient)
 			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				logger.Error("failed to handle reobservation request",
 					zap.String("txHash", txHash),
 					zap.Error(err),
@@ -441,6 +402,9 @@ func rpcCall(ctx context.Context, method string, params any, rpcURL string, http
 	}
 	if rr.Error != nil {
 		return nil, fmt.Errorf("jsonrpc error %d: %s", rr.Error.Code, rr.Error.Message)
+	}
+	if rr.Result == nil {
+		return nil, fmt.Errorf("jsonrpc: missing result")
 	}
 	return rr.Result, nil
 }

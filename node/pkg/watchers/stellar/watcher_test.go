@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/p2p"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	dto "github.com/prometheus/client_model/go"
 	stellarxdr "github.com/stellar/go/xdr"
 	"github.com/stretchr/testify/assert"
@@ -756,4 +758,45 @@ func TestReobserve_UsesCustomEndpoint(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for reobserved message from custom endpoint")
 	}
+}
+
+func TestReobservationHandler_FailureAddsErrorCount(t *testing.T) {
+	// The mock holds no transactions, so getTransaction returns NOT_FOUND.
+	srv := httptest.NewServer(newMockRPC(300))
+	defer srv.Close()
+
+	obsvReqC := make(chan *gossipv1.ObservationRequest, 1)
+	w := newTestWatcher(srv.URL, 128, nil)
+	w.obsvReqC = obsvReqC
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = w.runReobservationHandler(ctx) }()
+
+	before := p2p.DefaultRegistry.GetErrorCount(vaa.ChainIDStellar)
+	obsvReqC <- &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDStellar), TxHash: make([]byte, 32)}
+	require.Eventually(t, func() bool {
+		return p2p.DefaultRegistry.GetErrorCount(vaa.ChainIDStellar) == before+1
+	}, time.Second, 10*time.Millisecond)
+}
+
+func TestReobservationHandler_PanicsOnWrongChain(t *testing.T) {
+	obsvReqC := make(chan *gossipv1.ObservationRequest, 1)
+	obsvReqC <- &gossipv1.ObservationRequest{ChainId: uint32(vaa.ChainIDEthereum)}
+	w := newTestWatcher("", 128, nil)
+	w.obsvReqC = obsvReqC
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	require.PanicsWithValue(t, "invalid chain ID", func() { _ = w.runReobservationHandler(ctx) })
+}
+
+func TestRPCCall_NullResult(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":null}`)
+	}))
+	defer srv.Close()
+
+	_, err := rpcCall(context.Background(), "getTransaction", nil, srv.URL, srv.Client())
+	require.EqualError(t, err, "jsonrpc: missing result")
 }
