@@ -2,19 +2,23 @@ package stellar
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	dto "github.com/prometheus/client_model/go"
 	stellarxdr "github.com/stellar/go/xdr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -43,22 +47,31 @@ func scBytesVal(b []byte) stellarxdr.ScVal {
 	return stellarxdr.ScVal{Type: stellarxdr.ScValTypeScvBytes, Bytes: &sb}
 }
 
-// makeEventValueB64 encodes a Soroban message_published event value as base64 XDR.
+// eventFields returns the fields of a Soroban message_published event value.
 // This mirrors the on-chain format that parseMessageFromXDR consumes.
-func makeEventValueB64(t *testing.T, nonce uint32, seq uint64, emitter []byte, payload []byte, cl uint32) string {
-	t.Helper()
-	scm := stellarxdr.ScMap{
+func eventFields(nonce uint32, seq uint64, emitter []byte, payload []byte, cl uint32) stellarxdr.ScMap {
+	return stellarxdr.ScMap{
 		{Key: scSym("nonce"), Val: scU32(nonce)},
 		{Key: scSym("sequence"), Val: scU64(seq)},
 		{Key: scSym("emitter_address"), Val: scBytesVal(emitter)},
 		{Key: scSym("payload"), Val: scBytesVal(payload)},
 		{Key: scSym("consistency_level"), Val: scU32(cl)},
 	}
+}
+
+// makeMapB64 encodes an ScMap as base64 XDR.
+func makeMapB64(t *testing.T, scm stellarxdr.ScMap) string {
+	t.Helper()
 	m := &scm
-	scVal := stellarxdr.ScVal{Type: stellarxdr.ScValTypeScvMap, Map: &m}
-	b64, err := stellarxdr.MarshalBase64(scVal)
+	b64, err := stellarxdr.MarshalBase64(stellarxdr.ScVal{Type: stellarxdr.ScValTypeScvMap, Map: &m})
 	require.NoError(t, err)
 	return b64
+}
+
+// makeEventValueB64 encodes a Soroban message_published event value as base64 XDR.
+func makeEventValueB64(t *testing.T, nonce uint32, seq uint64, emitter []byte, payload []byte, cl uint32) string {
+	t.Helper()
+	return makeMapB64(t, eventFields(nonce, seq, emitter, payload, cl))
 }
 
 // makeTopicB64 encodes a Soroban symbol ScVal as base64 XDR.
@@ -196,6 +209,7 @@ func (m *mockSorobanRPC) handleGetEvents(params json.RawMessage) map[string]any 
 			"id":             e.id,
 			"ledger":         e.ledger,
 			"ledgerClosedAt": e.ledgerClosedAt,
+			"type":           "contract",
 			"contractId":     e.contractID,
 			"txHash":         e.txHash,
 			"topic":          []string{e.topic0B64, e.topic1B64},
@@ -394,7 +408,6 @@ func TestPollOnce_Pagination(t *testing.T) {
 }
 
 func TestPollOnce_SkipsEmptyEmitter(t *testing.T) {
-	// An event with an empty emitter_address must be silently dropped.
 	emptyEmitter := []byte{}
 
 	mock := newMockRPC(200)
@@ -484,6 +497,108 @@ func TestPollOnce_NoEventsAdvancesNextLedger(t *testing.T) {
 		"getLatestLedger must not be called separately; latestLedger comes from the getEvents response")
 }
 
+func TestParseMessageFromXDR_Rejects(t *testing.T) {
+	valid := func() stellarxdr.ScMap { return eventFields(1, 1, make([]byte, 32), nil, 0) }
+	validRaw, err := base64.StdEncoding.DecodeString(makeMapB64(t, valid()))
+	require.NoError(t, err)
+
+	type testCase struct{ value, wantErr string }
+	tests := map[string]testCase{
+		"nil map":          {"AAAAEQAAAAA=", "not a map"},
+		"trailing byte":    {base64.StdEncoding.EncodeToString(append(validRaw, 0)), "failed to unmarshal"},
+		"emitter 31 bytes": {makeEventValueB64(t, 1, 1, make([]byte, 31), nil, 0), "emitter address is 31 bytes"},
+		"emitter 33 bytes": {makeEventValueB64(t, 1, 1, make([]byte, 33), nil, 0), "emitter address is 33 bytes"},
+		"non-symbol key": {makeMapB64(t, append(valid()[1:], stellarxdr.ScMapEntry{Key: scU32(0), Val: scU32(1)})),
+			"non-symbol or duplicate key"},
+		"duplicate key": {makeMapB64(t, append(valid()[1:], stellarxdr.ScMapEntry{Key: scSym("sequence"), Val: scU32(1)})),
+			"non-symbol or duplicate key"},
+		"extra key": {makeMapB64(t, append(valid(), stellarxdr.ScMapEntry{Key: scSym("extra"), Val: scU32(0)})),
+			"must hold exactly"},
+	}
+	for i, f := range valid() {
+		key := string(*f.Key.Sym)
+		tests["missing "+key] = testCase{makeMapB64(t, slices.Delete(valid(), i, i+1)), "must hold exactly"}
+		wrongType := valid()
+		wrongType[i].Val = scSym(key)
+		tests["wrong type "+key] = testCase{makeMapB64(t, wrongType), "must hold exactly"}
+	}
+
+	w := &watcher{}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			value, err := base64.StdEncoding.DecodeString(tc.value)
+			require.NoError(t, err)
+			_, err = w.parseMessageFromXDR(value)
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+// makeEvent returns a getEvents entry for a valid message_published event, after applying edit.
+func makeEvent(t *testing.T, edit func(e map[string]any)) gjson.Result {
+	t.Helper()
+	e := map[string]any{
+		"type":           "contract",
+		"contractId":     testContract,
+		"txHash":         fmt.Sprintf("%064x", 1),
+		"ledgerClosedAt": "2024-01-01T00:00:00Z",
+		"topic":          []string{makeTopicB64(t, "wormhole"), makeTopicB64(t, "message_published")},
+		"value":          makeEventValueB64(t, 1, 1, make([]byte, 32), nil, 0),
+	}
+	edit(e)
+	b, err := json.Marshal(e)
+	require.NoError(t, err)
+	return gjson.ParseBytes(b)
+}
+
+func TestMessageFromEvent_Rejects(t *testing.T) {
+	w := newTestWatcher("", 128, nil)
+	require.NotNil(t, w.messageFromEvent(makeEvent(t, func(map[string]any) {}), false))
+
+	str := stellarxdr.ScString("message_published")
+	strTopic, err := stellarxdr.MarshalBase64(stellarxdr.ScVal{Type: stellarxdr.ScValTypeScvString, Str: &str})
+	require.NoError(t, err)
+	topics := func(names ...string) []string {
+		var b64s []string
+		for _, n := range names {
+			b64s = append(b64s, makeTopicB64(t, n))
+		}
+		return b64s
+	}
+
+	tests := map[string]func(e map[string]any){
+		"system event":         func(e map[string]any) { e["type"] = "system" },
+		"other contract":       func(e map[string]any) { e["contractId"] = "other" },
+		"three topics":         func(e map[string]any) { e["topic"] = topics("wormhole", "message_published", "x") },
+		"wrong first topic":    func(e map[string]any) { e["topic"] = topics("wormhole_core", "message_published") },
+		"message_published_v2": func(e map[string]any) { e["topic"] = topics("wormhole", "message_published_v2") },
+		"string topic":         func(e map[string]any) { e["topic"] = []string{makeTopicB64(t, "wormhole"), strTopic} },
+		"31-byte txHash":       func(e map[string]any) { e["txHash"] = fmt.Sprintf("%062x", 1) },
+	}
+	for name, edit := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Nil(t, w.messageFromEvent(makeEvent(t, edit), false))
+		})
+	}
+}
+
+func TestMessageFromEvent_CountsParseFailures(t *testing.T) {
+	failures := func() float64 {
+		m := &dto.Metric{}
+		require.NoError(t, stellarMessageParseFailures.WithLabelValues(testNetworkID).Write(m))
+		return m.GetCounter().GetValue()
+	}
+	before := failures()
+
+	w := newTestWatcher("", 128, nil)
+	w.messageFromEvent(makeEvent(t, func(e map[string]any) { e["contractId"] = "other" }), false)
+	w.messageFromEvent(makeEvent(t, func(e map[string]any) { e["txHash"] = fmt.Sprintf("%062x", 1) }), false)
+	w.messageFromEvent(makeEvent(t, func(e map[string]any) {
+		e["topic"] = []string{makeTopicB64(t, "wormhole_core"), makeTopicB64(t, "message_published")}
+	}), false)
+	assert.Equal(t, before+2, failures(), "every message_published event from the core contract is counted")
+}
+
 // ---------------------------------------------------------------------------
 // handleReobservationRequest tests
 // ---------------------------------------------------------------------------
@@ -493,8 +608,9 @@ func TestHandleReobservation_Success(t *testing.T) {
 	emitter[0] = 0xFF
 	payload := []byte("reobs payload")
 	txHash := "ccddccddccddccddccddccddccddccddccddccddccddccddccddccddccddccdd"
-	createdAt := int64(1718445600) // 2024-06-15T14:00:00Z
-	expectedTS := time.Unix(createdAt, 0).UTC()
+	createdAt := int64(1718445600) // 2024-06-15T10:00:00Z, which the watcher must ignore
+	closedAt := "2024-06-15T14:00:00Z"
+	expectedTS, _ := time.Parse(time.RFC3339, closedAt)
 
 	mock := newMockRPC(300)
 	mock.transactions[txHash] = mockTx{status: "SUCCESS", ledger: 200, createdAt: createdAt}
@@ -502,7 +618,7 @@ func TestHandleReobservation_Success(t *testing.T) {
 		{
 			id:             "0000000200-0000000001",
 			ledger:         200,
-			ledgerClosedAt: "2024-06-15T14:00:00Z",
+			ledgerClosedAt: closedAt,
 			contractID:     testContract,
 			txHash:         txHash,
 			topic0B64:      makeTopicB64(t, "wormhole"),
@@ -531,7 +647,7 @@ func TestHandleReobservation_Success(t *testing.T) {
 		assert.Equal(t, vaa.ChainIDStellar, mp.EmitterChain)
 		assert.Equal(t, mustDecodeHex(txHash), mp.TxID)
 		assert.Equal(t, expectedTS, mp.Timestamp,
-			"timestamp must come from createdAt returned by getTransaction, not time.Now()")
+			"timestamp must come from ledgerClosedAt, like the poll path")
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for reobserved message")
 	}
@@ -559,13 +675,11 @@ func TestHandleReobservation_NoMatchingEvents(t *testing.T) {
 	// getTransaction succeeds but the events at that ledger belong to a different txHash.
 	ourTxHash := "aaaa000000000000000000000000000000000000000000000000000000000000"
 	otherTxHash := "bbbb000000000000000000000000000000000000000000000000000000000000"
-	createdAt := int64(1718445600)
-
 	emitter := make([]byte, 32)
 	emitter[0] = 0x01
 
 	mock := newMockRPC(300)
-	mock.transactions[ourTxHash] = mockTx{status: "SUCCESS", ledger: 200, createdAt: createdAt}
+	mock.transactions[ourTxHash] = mockTx{status: "SUCCESS", ledger: 200}
 	mock.events = []mockEvent{
 		{
 			id:             "0000000200-0000000001",
@@ -600,11 +714,10 @@ func TestReobserve_UsesCustomEndpoint(t *testing.T) {
 	emitter := make([]byte, 32)
 	emitter[0] = 0xDE
 	txHash := "dead000000000000000000000000000000000000000000000000000000000000"
-	createdAt := int64(1700000000)
 
 	primaryMock := newMockRPC(100) // primary server: no transactions
 	customMock := newMockRPC(300)  // custom server: has the transaction
-	customMock.transactions[txHash] = mockTx{status: "SUCCESS", ledger: 200, createdAt: createdAt}
+	customMock.transactions[txHash] = mockTx{status: "SUCCESS", ledger: 200}
 	customMock.events = []mockEvent{
 		{
 			id:             "0000000200-0000000001",
