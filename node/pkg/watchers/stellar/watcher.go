@@ -30,8 +30,14 @@ import (
 const (
 	defaultPollInterval = 700 * time.Millisecond
 	defaultReadTimeout  = 10 * time.Second
-	minEventTopicCount  = 2
+	eventTopicCount     = 2
+	messageFieldCount   = 5
 	stellarAddressLen   = 32
+	txHashLen           = 32
+
+	// Base64 XDR of the event topics Symbol("wormhole") and Symbol("message_published").
+	topicWormhole         = "AAAADwAAAAh3b3JtaG9sZQ=="
+	topicMessagePublished = "AAAADwAAABFtZXNzYWdlX3B1Ymxpc2hlZAAAAA=="
 )
 
 var (
@@ -51,6 +57,12 @@ var (
 		prometheus.CounterOpts{
 			Name: "wormhole_stellar_messages_confirmed_total",
 			Help: "Total number of Stellar messages confirmed (post-publish)",
+		}, []string{"network"})
+
+	stellarMessageParseFailures = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_stellar_message_parse_failures_total",
+			Help: "Total number of Stellar message_published events from the core contract that failed to parse",
 		}, []string{"network"})
 
 	currentStellarLedger = promauto.NewGaugeVec(
@@ -313,12 +325,11 @@ func (w *watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 	return w.handleReobservationRequest(ctx, txHash, customEndpoint, httpClient)
 }
 
-// handleReobservationRequest fetches events for a specific transaction using getTransaction
-// to get the accurate ledger timestamp, then queries events for that ledger.
+// handleReobservationRequest finds the ledger of a specific transaction using getTransaction,
+// then queries events for that ledger.
 func (w *watcher) handleReobservationRequest(ctx context.Context, txHash, rpcURL string, httpClient *http.Client) (uint32, error) {
 	logger := w.logger
 
-	// Use getTransaction to get the ledger sequence and timestamp for this transaction.
 	txRes, err := rpcCall(ctx, "getTransaction", map[string]any{"hash": txHash}, rpcURL, httpClient)
 	if err != nil {
 		return 0, fmt.Errorf("getTransaction failed: %w", err)
@@ -337,13 +348,6 @@ func (w *watcher) handleReobservationRequest(ctx context.Context, txHash, rpcURL
 	}
 
 	ledger := gjson.GetBytes(*txRes, "ledger").Uint()
-	createdAt := gjson.GetBytes(*txRes, "createdAt").Int()
-	timestamp := time.Unix(createdAt, 0).UTC()
-
-	txIDBytes, err := hex.DecodeString(txHash)
-	if err != nil {
-		return 0, fmt.Errorf("failed to decode txHash: %w", err)
-	}
 
 	// Query events starting from the transaction's ledger.
 	params := map[string]any{
@@ -369,22 +373,9 @@ func (w *watcher) handleReobservationRequest(ctx context.Context, txHash, rpcURL
 			continue
 		}
 
-		parsed := w.parseEventJSON(e, logger)
-		if parsed == nil {
+		mp := w.messageFromEvent(e, true)
+		if mp == nil {
 			continue
-		}
-
-		mp := &common.MessagePublication{
-			TxID:             txIDBytes,
-			Timestamp:        timestamp,
-			Nonce:            parsed.nonce,
-			Sequence:         parsed.sequence,
-			ConsistencyLevel: parsed.consistencyLevel,
-			EmitterChain:     w.chainID,
-			EmitterAddress:   parsed.emitterAddress,
-			Payload:          parsed.payload,
-			IsReobservation:  true,
-			Unreliable:       false,
 		}
 
 		logger.Info("reobserved stellar message", mp.ZapFields(zap.Uint64("ledger", ledger))...)
@@ -512,43 +503,10 @@ func (w *watcher) pollOnce(ctx context.Context, logger *zap.Logger) (bool, error
 			cursor = e.Get("id").Str
 
 			ledger := e.Get("ledger").Uint()
-			txHash := e.Get("txHash").Str
 
-			parsed := w.parseEventJSON(e, logger)
-			if parsed == nil {
+			mp := w.messageFromEvent(e, false)
+			if mp == nil {
 				continue
-			}
-
-			txIDBytes, err := hex.DecodeString(txHash)
-			if err != nil {
-				logger.Warn("failed to decode txHash", zap.String("txHash", txHash), zap.Error(err))
-				continue
-			}
-
-			// Use ledgerClosedAt from the event for a deterministic timestamp.
-			// All guardians observing the same event will use the same timestamp,
-			// ensuring identical VAAs are produced.
-			closedAt := e.Get("ledgerClosedAt").Str
-			ts, err := time.Parse(time.RFC3339, closedAt)
-			if err != nil {
-				logger.Warn("failed to parse ledgerClosedAt, skipping event",
-					zap.String("ledgerClosedAt", closedAt),
-					zap.Error(err),
-				)
-				continue
-			}
-
-			mp := &common.MessagePublication{
-				TxID:             txIDBytes,
-				Timestamp:        ts,
-				Nonce:            parsed.nonce,
-				Sequence:         parsed.sequence,
-				ConsistencyLevel: parsed.consistencyLevel,
-				EmitterChain:     w.chainID,
-				EmitterAddress:   parsed.emitterAddress,
-				Payload:          parsed.payload,
-				IsReobservation:  false,
-				Unreliable:       false,
 			}
 
 			stellarMessagesObserved.WithLabelValues(w.networkName).Inc()
@@ -593,94 +551,110 @@ type parsedMessage struct {
 	payload          []byte
 }
 
-// parseEventJSON checks the event topics for a message_published event and parses the event data.
-// Returns nil if the event is not a message_published event or cannot be parsed.
-func (w *watcher) parseEventJSON(e gjson.Result, logger *zap.Logger) *parsedMessage {
+// messageFromEvent returns the MessagePublication for a message_published event from the core
+// contract, or nil for any other event. It logs, counts, and skips events that fail to parse.
+func (w *watcher) messageFromEvent(e gjson.Result, isReobservation bool) *common.MessagePublication {
+	// Match loosely, so an event reshaped by a contract upgrade is a parse failure, not a skip.
 	topics := e.Get("topic").Array()
-	if len(topics) < minEventTopicCount {
+	if e.Get("contractId").Str != w.contract || len(topics) < eventTopicCount || topics[1].Str != topicMessagePublished {
 		return nil
 	}
 
-	eventNameBytes, err := base64.StdEncoding.DecodeString(topics[1].Str)
+	mp, err := w.parseMessagePublished(e, isReobservation)
 	if err != nil {
+		stellarMessageParseFailures.WithLabelValues(w.networkName).Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+		w.logger.Warn("skipping invalid message_published event", zap.String("id", e.Get("id").Str), zap.Error(err))
 		return nil
 	}
-	if !bytes.Contains(eventNameBytes, []byte("message_published")) {
-		return nil
+	return mp
+}
+
+// parseMessagePublished builds the MessagePublication for a message_published event.
+func (w *watcher) parseMessagePublished(e gjson.Result, isReobservation bool) (*common.MessagePublication, error) {
+	if topics := e.Get("topic").Array(); e.Get("type").Str != "contract" || len(topics) != eventTopicCount || topics[0].Str != topicWormhole {
+		return nil, fmt.Errorf("unexpected event type %q or topics %s", e.Get("type").Str, e.Get("topic").Raw)
 	}
 
-	valueBytes, err := base64.StdEncoding.DecodeString(e.Get("value").Str)
-	if err != nil {
-		logger.Debug("failed to decode event value", zap.Error(err))
-		return nil
+	txID, err := hex.DecodeString(e.Get("txHash").Str)
+	if err != nil || len(txID) != txHashLen {
+		return nil, fmt.Errorf("invalid txHash %q", e.Get("txHash").Str)
 	}
 
-	parsed, err := w.parseMessageFromXDR(valueBytes)
+	// ledgerClosedAt is the same for every guardian, so they all produce the same VAA.
+	ts, err := time.Parse(time.RFC3339, e.Get("ledgerClosedAt").Str)
 	if err != nil {
-		logger.Warn("failed to parse message_published event, skipping", zap.Error(err))
-		return nil
+		return nil, fmt.Errorf("invalid ledgerClosedAt: %w", err)
 	}
-	return parsed
+
+	value, err := base64.StdEncoding.DecodeString(e.Get("value").Str)
+	if err != nil {
+		return nil, fmt.Errorf("invalid event value: %w", err)
+	}
+
+	msg, err := w.parseMessageFromXDR(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return &common.MessagePublication{
+		TxID:             txID,
+		Timestamp:        ts,
+		Nonce:            msg.nonce,
+		Sequence:         msg.sequence,
+		ConsistencyLevel: msg.consistencyLevel,
+		EmitterChain:     w.chainID,
+		EmitterAddress:   msg.emitterAddress,
+		Payload:          msg.payload,
+		IsReobservation:  isReobservation,
+		Unreliable:       false,
+	}, nil
 }
 
 // parseMessageFromXDR parses the XDR-encoded Soroban event value into the published message fields.
 func (w *watcher) parseMessageFromXDR(data []byte) (*parsedMessage, error) {
 	var scVal stellarxdr.ScVal
 
-	if _, err := stellarxdr.Unmarshal(bytes.NewReader(data), &scVal); err != nil {
+	if err := stellarxdr.SafeUnmarshal(data, &scVal); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal XDR: %w", err)
 	}
 
+	// An SCV_MAP without a map body decodes to a nil *ScMap.
 	eventMap, ok := scVal.GetMap()
-	if !ok {
+	if !ok || eventMap == nil {
 		return nil, fmt.Errorf("event value is not a map")
 	}
 
-	msg := &parsedMessage{}
-	var emitterAddress []byte
-
+	fields := make(map[stellarxdr.ScSymbol]stellarxdr.ScVal, len(*eventMap))
 	for _, entry := range *eventMap {
-		keySymbol, ok := entry.Key.GetSym()
-		if !ok {
-			continue
+		key, isSym := entry.Key.GetSym()
+		if _, dup := fields[key]; !isSym || dup {
+			return nil, fmt.Errorf("event map has a non-symbol or duplicate key %q", key)
 		}
-
-		switch string(keySymbol) {
-		case "nonce":
-			if val, ok := entry.Val.GetU32(); ok {
-				msg.nonce = uint32(val)
-			}
-		case "sequence":
-			if val, ok := entry.Val.GetU64(); ok {
-				msg.sequence = uint64(val)
-			}
-		case "emitter_address":
-			if val, ok := entry.Val.GetBytes(); ok {
-				emitterAddress = val
-			}
-		case "payload":
-			if val, ok := entry.Val.GetBytes(); ok {
-				msg.payload = val
-			}
-		case "consistency_level":
-			if val, ok := entry.Val.GetU32(); ok {
-				if val > math.MaxUint8 {
-					return nil, fmt.Errorf("consistency level %d overflows uint8", val)
-				}
-				msg.consistencyLevel = uint8(val)
-			}
-		}
+		fields[key] = entry.Val
 	}
 
-	if len(emitterAddress) == 0 {
-		return nil, fmt.Errorf("message_published event has empty emitter address")
+	// A missing field is the zero ScVal, so its getter fails like a wrong type does.
+	nonce, okNonce := fields["nonce"].GetU32()
+	seq, okSeq := fields["sequence"].GetU64()
+	emitter, okEmitter := fields["emitter_address"].GetBytes()
+	payload, okPayload := fields["payload"].GetBytes()
+	cl, okCL := fields["consistency_level"].GetU32()
+	if len(fields) != messageFieldCount || !okNonce || !okSeq || !okEmitter || !okPayload || !okCL {
+		return nil, fmt.Errorf("event map must hold exactly nonce (u32), sequence (u64), emitter_address (bytes), payload (bytes) and consistency_level (u32)")
+	}
+	if len(emitter) != stellarAddressLen {
+		return nil, fmt.Errorf("emitter address is %d bytes, want %d", len(emitter), stellarAddressLen)
+	}
+	if cl > math.MaxUint8 {
+		return nil, fmt.Errorf("consistency level %d overflows uint8", cl)
 	}
 
-	if len(emitterAddress) >= stellarAddressLen {
-		copy(msg.emitterAddress[:], emitterAddress[:stellarAddressLen])
-	} else {
-		copy(msg.emitterAddress[:], emitterAddress)
-	}
-
-	return msg, nil
+	return &parsedMessage{
+		nonce:            uint32(nonce),
+		sequence:         uint64(seq),
+		consistencyLevel: uint8(cl),
+		emitterAddress:   vaa.Address(emitter),
+		payload:          payload,
+	}, nil
 }
