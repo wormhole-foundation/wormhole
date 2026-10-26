@@ -309,6 +309,8 @@ func (w *watcher) handleReobservationRequest(ctx context.Context, txHash, rpcURL
 	}
 
 	// A tx's events are all in its own ledger, so page from that ledger until a page ends past it.
+	// Each page is published as it arrives, so memory is bounded by one response regardless of
+	// how many pages the RPC returns.
 	pagination := map[string]any{"limit": w.maxPerPoll}
 	params := map[string]any{
 		"startLedger": ledger,
@@ -317,43 +319,40 @@ func (w *watcher) handleReobservationRequest(ctx context.Context, txHash, rpcURL
 		},
 		"pagination": pagination,
 	}
-	var events []gjson.Result
+	var messagesFound uint32
 	for {
 		res, err := rpcCall(ctx, "getEvents", params, rpcURL, httpClient)
 		if err != nil {
-			return 0, fmt.Errorf("getEvents failed: %w", err)
+			return messagesFound, fmt.Errorf("getEvents failed: %w", err)
 		}
 		page := gjson.GetBytes(*res, "events").Array()
-		events = append(events, page...)
+
+		for _, e := range page {
+			if e.Get("txHash").Str != txHash {
+				continue
+			}
+
+			mp := w.messageFromEvent(e, true)
+			if mp == nil {
+				continue
+			}
+
+			logger.Info("reobserved stellar message", mp.ZapFields(zap.Uint64("ledger", ledger))...)
+
+			select {
+			case w.msgC <- mp:
+				messagesFound++
+			case <-ctx.Done():
+				return messagesFound, ctx.Err()
+			}
+		}
+
 		if len(page) < w.maxPerPoll || page[len(page)-1].Get("ledger").Uint() > ledger {
-			break
+			return messagesFound, nil
 		}
 		delete(params, "startLedger") // getEvents rejects startLedger together with a cursor
 		pagination["cursor"] = page[len(page)-1].Get("id").Str
 	}
-
-	var messagesFound uint32
-	for _, e := range events {
-		if e.Get("txHash").Str != txHash {
-			continue
-		}
-
-		mp := w.messageFromEvent(e, true)
-		if mp == nil {
-			continue
-		}
-
-		logger.Info("reobserved stellar message", mp.ZapFields(zap.Uint64("ledger", ledger))...)
-
-		select {
-		case w.msgC <- mp:
-			messagesFound++
-		case <-ctx.Done():
-			return messagesFound, ctx.Err()
-		}
-	}
-
-	return messagesFound, nil
 }
 
 type rpcRequest struct {

@@ -877,6 +877,31 @@ func TestHandleReobservation_TargetBeyondFirstPage(t *testing.T) {
 	assert.Equal(t, 2, mock.methodCount("getEvents"), "paging must stop at the first page past the tx ledger")
 }
 
+func TestHandleReobservation_PublishesEachPage(t *testing.T) {
+	// A match on the first page is published before the next page is fetched, so a later page
+	// failure reports the error alongside the messages already delivered.
+	mock := newMockRPC(300)
+	mock.events = []mockEvent{
+		makeMsgEvent(t, 1, 200),
+		makeMsgEvent(t, 2, 200),
+		makeMsgEvent(t, 3, 200),
+	}
+	target := mock.events[0].txHash
+	mock.failGetEventsCall = 2
+
+	srv := httptest.NewServer(mock)
+	defer srv.Close()
+
+	msgC := make(chan *common.MessagePublication, 10)
+	w := newTestWatcher(srv.URL, 2, msgC)
+
+	count, err := w.handleReobservationRequest(context.Background(), target, srv.URL, w.httpClient)
+	require.Error(t, err)
+	assert.Equal(t, uint32(1), count)
+	require.Len(t, msgC, 1, "the first page's match must be published before the second page is fetched")
+	assert.Equal(t, uint64(1), (<-msgC).Sequence)
+}
+
 func TestHandleReobservation_NotFound(t *testing.T) {
 	txHash := "1234123412341234123412341234123412341234123412341234123412341234"
 
