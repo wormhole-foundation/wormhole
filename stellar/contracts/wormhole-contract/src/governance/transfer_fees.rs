@@ -34,7 +34,7 @@ pub struct TransferFeesPayload {
     /// Must equal `ACTION_TRANSFER_FEES` (4); any other value is rejected by
     /// `validate_governance_header`.
     pub action: u8,
-    /// Target chain (0 for all, 61 for Stellar).
+    /// Target chain. Must equal `CHAIN_ID_STELLAR` (61).
     pub chain: u16,
     /// Amount to transfer in stroops.
     pub amount: u64,

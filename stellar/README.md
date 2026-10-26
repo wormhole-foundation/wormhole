@@ -94,7 +94,7 @@ tilt up -- --stellar          # enabled by default with --ci
 
 - The `stellar` resource runs quickstart plus a deploy sidecar (`scripts/devnet_deploy.sh`)
   that funds a fixed deployer through friendbot and deploys the core contract with a fixed salt.
-  The contract id is therefore deterministic, `CAICJIQ7WBO4OMT5C7KJDYSUDU42WB2CCRPKBSNMFX4WEW3DXHKGG4DQ`,
+  The contract id is therefore deterministic, `CAICJIQ7WBO4OMT5C7KJDYSUDU42WB2CCRPKBSNMFX4WEW3DXHKGG4DQ`, <!-- cspell:disable-line -->
   and the guardian is started with `--stellarRPC http://stellar:8000/soroban/rpc --stellarContract <id>`.
   All constants live under chain `61` in `scripts/devnet-consts.json`; the committed deployer
   secret is a devnet-only key with no value outside this local network.
@@ -134,7 +134,7 @@ If you want to verify a Wormhole VAA and read the payload:
 ```rust
 #![no_std]
 use soroban_sdk::{contract, contractimpl, Address, Bytes, BytesN, Env};
-use wormhole_soroban_client::{WormholeClient, VAA};
+use wormhole_soroban_client::WormholeClient;
 
 #[contract]
 pub struct ReceiverContract;
@@ -149,9 +149,7 @@ impl ReceiverContract {
         let client = WormholeClient::new(&env, &wormhole);
 
         // Verifies signatures against the stored guardian set
-        client.verify_vaa(&vaa_bytes);
-
-        let vaa = client.parse_vaa(&vaa_bytes);
+        let vaa = client.parse_and_verify_vaa(&vaa_bytes);
 
         (vaa.emitter_chain, vaa.emitter_address, vaa.payload)
     }
