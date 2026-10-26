@@ -128,13 +128,10 @@ mod tests {
     use super::*;
     use crate::Wormhole;
     use soroban_sdk::{
-        Address, Bytes, BytesN, Env, IntoVal, String, Symbol, Val, contract, contractimpl,
-        contracttype,
+        Address, Bytes, BytesN, Env, IntoVal, Symbol, Val, contract, contractimpl, contracttype,
         testutils::{Address as TestAddress, Events, Ledger},
     };
-    use wormhole_soroban_client::{
-        CHAIN_ID_STELLAR, GOVERNANCE_EMITTER, MODULE_CORE, NATIVE_TOKEN_ADDRESS,
-    };
+    use wormhole_soroban_client::{CHAIN_ID_STELLAR, GOVERNANCE_EMITTER, MODULE_CORE};
 
     #[contracttype]
     #[derive(Clone)]
@@ -172,7 +169,7 @@ mod tests {
     }
 
     fn install_native_token_mock(env: &Env) -> (Address, MockNativeTokenClient<'_>) {
-        let native = Address::from_string(&String::from_str(env, NATIVE_TOKEN_ADDRESS));
+        let native = get_native_token_address(env);
         env.register_at(&native, MockNativeToken, ());
         let client = MockNativeTokenClient::new(env, &native);
         (native, client)

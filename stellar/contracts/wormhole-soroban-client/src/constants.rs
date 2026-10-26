@@ -63,10 +63,6 @@ pub const ACTION_TRANSFER_FEES: u8 = 4;
 /// Native XLM token symbol for Stellar Asset Contract.
 pub const NATIVE_TOKEN_SYMBOL: &str = "native";
 
-/// Native XLM Stellar Asset Contract address (deterministic, same on all
-/// networks).
-pub const NATIVE_TOKEN_ADDRESS: &str = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
-
 // ========== Storage Configuration ==========
 
 /// TTL threshold for persistent storage renewal (approx. 5.8 days at
