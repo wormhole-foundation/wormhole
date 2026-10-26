@@ -114,6 +114,8 @@ type mockSorobanRPC struct {
 	methodCounts map[string]int
 	// failGetEventsCall is the 1-based number of the getEvents call that fails, or 0 for none.
 	failGetEventsCall int
+	// failGetTransactionCall is the same for getTransaction.
+	failGetTransactionCall int
 }
 
 func newMockRPC(latestLedger uint64) *mockSorobanRPC {
@@ -142,7 +144,8 @@ func (m *mockSorobanRPC) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	m.mu.Lock()
 	m.methodCounts[req.Method]++
-	fail := req.Method == "getEvents" && m.methodCounts[req.Method] == m.failGetEventsCall
+	fail := (req.Method == "getEvents" && m.methodCounts[req.Method] == m.failGetEventsCall) ||
+		(req.Method == "getTransaction" && m.methodCounts[req.Method] == m.failGetTransactionCall)
 	m.mu.Unlock()
 	if fail {
 		http.Error(w, "injected failure", http.StatusServiceUnavailable)
@@ -250,6 +253,16 @@ func (m *mockSorobanRPC) handleGetTransaction(params json.RawMessage) map[string
 	m.mu.Lock()
 	tx, ok := m.transactions[p.Hash]
 	latestLedger := m.latestLedger
+	if !ok {
+		// As on a real RPC, a transaction with events exists and succeeded, since Soroban only
+		// emits contract events for successful transactions.
+		for _, e := range m.events {
+			if e.txHash == p.Hash {
+				tx, ok = mockTx{status: "SUCCESS", ledger: e.ledger}, true
+				break
+			}
+		}
+	}
 	m.mu.Unlock()
 
 	if !ok || tx.status == "NOT_FOUND" {
@@ -383,6 +396,7 @@ func TestPollOnce_MessagePublished(t *testing.T) {
 	}
 
 	assert.Equal(t, uint64(101), w.nextLedger, "nextLedger must advance past the processed ledger")
+	assert.Equal(t, 1, mock.methodCount("getTransaction"), "the message's transaction must be verified")
 }
 
 func TestPollOnce_Pagination(t *testing.T) {
@@ -555,6 +569,126 @@ func TestPollOnce_NoEventsAdvancesNextLedger(t *testing.T) {
 
 	assert.Equal(t, 0, mock.methodCount("getLatestLedger"),
 		"getLatestLedger must not be called separately; latestLedger comes from the getEvents response")
+}
+
+func TestPollOnce_DropsMessageFromFailedTx(t *testing.T) {
+	// A message_published event whose transaction getTransaction reports as FAILED is dropped,
+	// counted, and does not stop the poll: later messages are delivered and nextLedger advances.
+	dropped := func() float64 {
+		m := &dto.Metric{}
+		require.NoError(t, stellarMessagesFromFailedTx.WithLabelValues(testNetworkID).Write(m))
+		return m.GetCounter().GetValue()
+	}
+	droppedBefore := dropped()
+	errorsBefore := p2p.DefaultRegistry.GetErrorCount(vaa.ChainIDStellar)
+
+	mock := newMockRPC(300)
+	mock.events = []mockEvent{
+		makeMsgEvent(t, 1, 100),
+		makeMsgEvent(t, 2, 101),
+	}
+	mock.transactions[mock.events[0].txHash] = mockTx{status: "FAILED", ledger: 100}
+
+	srv := httptest.NewServer(mock)
+	defer srv.Close()
+
+	msgC := make(chan *common.MessagePublication, 10)
+	w := newTestWatcher(srv.URL, 128, msgC)
+
+	_, err := w.pollOnce(context.Background(), zap.NewNop())
+	require.NoError(t, err)
+	close(msgC)
+	var seqs []uint64
+	for mp := range msgC {
+		seqs = append(seqs, mp.Sequence)
+	}
+	assert.Equal(t, []uint64{2}, seqs, "only the message from the successful transaction is published")
+	assert.Equal(t, uint64(102), w.nextLedger)
+	assert.Equal(t, droppedBefore+1, dropped())
+	assert.Equal(t, errorsBefore+1, p2p.DefaultRegistry.GetErrorCount(vaa.ChainIDStellar))
+}
+
+func TestPollOnce_RetriesUnverifiedTx(t *testing.T) {
+	// When the transaction cannot be confirmed as SUCCESS for a reason that may be transient, the
+	// poll fails without publishing and the next poll retries from the same ledger.
+	tests := []struct {
+		name  string
+		setup func(m *mockSorobanRPC, txHash string)
+		// fix makes the next poll succeed.
+		fix func(m *mockSorobanRPC, txHash string)
+	}{
+		{
+			name:  "NOT_FOUND",
+			setup: func(m *mockSorobanRPC, txHash string) { m.transactions[txHash] = mockTx{status: "NOT_FOUND"} },
+			fix:   func(m *mockSorobanRPC, txHash string) { delete(m.transactions, txHash) },
+		},
+		{
+			name: "unexpected status",
+			setup: func(m *mockSorobanRPC, txHash string) {
+				m.transactions[txHash] = mockTx{status: "PENDING", ledger: 100}
+			},
+			fix: func(m *mockSorobanRPC, txHash string) { delete(m.transactions, txHash) },
+		},
+		{
+			name:  "getTransaction RPC error",
+			setup: func(m *mockSorobanRPC, _ string) { m.failGetTransactionCall = 1 },
+			fix:   func(_ *mockSorobanRPC, _ string) {},
+		},
+		{
+			name:  "ledger mismatch",
+			setup: func(m *mockSorobanRPC, txHash string) { m.transactions[txHash] = mockTx{status: "SUCCESS", ledger: 99} },
+			fix:   func(m *mockSorobanRPC, txHash string) { delete(m.transactions, txHash) },
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := newMockRPC(300)
+			mock.events = []mockEvent{makeMsgEvent(t, 1, 100)}
+			tc.setup(mock, mock.events[0].txHash)
+
+			srv := httptest.NewServer(mock)
+			defer srv.Close()
+
+			msgC := make(chan *common.MessagePublication, 10)
+			w := newTestWatcher(srv.URL, 128, msgC)
+
+			_, err := w.pollOnce(context.Background(), zap.NewNop())
+			require.Error(t, err)
+			assert.Empty(t, msgC, "an unverified message must not be published")
+			assert.Equal(t, testStartLedger, w.nextLedger, "the next poll must retry the same ledger")
+
+			mock.mu.Lock()
+			tc.fix(mock, mock.events[0].txHash)
+			mock.mu.Unlock()
+			_, err = w.pollOnce(context.Background(), zap.NewNop())
+			require.NoError(t, err)
+			assert.Len(t, msgC, 1, "the message is published once its transaction is confirmed")
+			assert.Equal(t, uint64(101), w.nextLedger)
+		})
+	}
+}
+
+func TestPollOnce_VerifiesEachTxOnce(t *testing.T) {
+	// Two messages from one transaction need one getTransaction call; a third message from
+	// another transaction needs another.
+	mock := newMockRPC(300)
+	mock.events = []mockEvent{
+		makeMsgEvent(t, 1, 100),
+		makeMsgEvent(t, 2, 100),
+		makeMsgEvent(t, 3, 100),
+	}
+	mock.events[1].txHash = mock.events[0].txHash
+
+	srv := httptest.NewServer(mock)
+	defer srv.Close()
+
+	msgC := make(chan *common.MessagePublication, 10)
+	w := newTestWatcher(srv.URL, 128, msgC)
+
+	_, err := w.pollOnce(context.Background(), zap.NewNop())
+	require.NoError(t, err)
+	assert.Len(t, msgC, 3)
+	assert.Equal(t, 2, mock.methodCount("getTransaction"))
 }
 
 func TestParseMessageFromXDR_Rejects(t *testing.T) {
@@ -759,6 +893,23 @@ func TestHandleReobservation_NotFound(t *testing.T) {
 	assert.Error(t, err, "NOT_FOUND must return an error")
 	assert.Contains(t, err.Error(), "not found")
 	assert.Equal(t, uint32(0), count)
+}
+
+func TestHandleReobservation_FailedTx(t *testing.T) {
+	txHash := "1234123412341234123412341234123412341234123412341234123412341234"
+
+	mock := newMockRPC(300)
+	mock.transactions[txHash] = mockTx{status: "FAILED", ledger: 200}
+
+	srv := httptest.NewServer(mock)
+	defer srv.Close()
+
+	w := newTestWatcher(srv.URL, 128, nil)
+
+	count, err := w.handleReobservationRequest(context.Background(), txHash, srv.URL, w.httpClient)
+	require.ErrorIs(t, err, errTxFailed)
+	assert.Equal(t, uint32(0), count)
+	assert.Equal(t, 0, mock.methodCount("getEvents"), "a failed transaction's events must not be fetched")
 }
 
 func TestHandleReobservation_NoMatchingEvents(t *testing.T) {

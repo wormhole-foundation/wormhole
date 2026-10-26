@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -65,11 +66,22 @@ var (
 			Help: "Total number of Stellar message_published events from the core contract that failed to parse",
 		}, []string{"network"})
 
+	stellarMessagesFromFailedTx = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_stellar_messages_from_failed_tx_total",
+			Help: "Total number of Stellar message_published events dropped because getTransaction reported their transaction as FAILED",
+		}, []string{"network"})
+
 	currentStellarLedger = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "wormhole_stellar_current_ledger",
 			Help: "Current Stellar ledger sequence number",
 		}, []string{"network"})
+)
+
+var (
+	errTxNotFound = errors.New("transaction not found (may be outside retention window)")
+	errTxFailed   = errors.New("transaction failed on-chain")
 )
 
 type WatcherConfig struct {
@@ -291,24 +303,10 @@ func (w *watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 func (w *watcher) handleReobservationRequest(ctx context.Context, txHash, rpcURL string, httpClient *http.Client) (uint32, error) {
 	logger := w.logger
 
-	txRes, err := rpcCall(ctx, "getTransaction", map[string]any{"hash": txHash}, rpcURL, httpClient)
+	ledger, err := successfulTxLedger(ctx, txHash, rpcURL, httpClient)
 	if err != nil {
-		return 0, fmt.Errorf("getTransaction failed: %w", err)
+		return 0, err
 	}
-
-	status := gjson.GetBytes(*txRes, "status").Str
-	switch status {
-	case "NOT_FOUND":
-		return 0, fmt.Errorf("transaction %s not found (may be outside retention window)", txHash)
-	case "FAILED":
-		return 0, fmt.Errorf("transaction %s failed on-chain", txHash)
-	case "SUCCESS":
-		// continue below
-	default:
-		return 0, fmt.Errorf("unexpected transaction status %q for %s", status, txHash)
-	}
-
-	ledger := gjson.GetBytes(*txRes, "ledger").Uint()
 
 	// A tx's events are all in its own ledger, so page from that ledger until a page ends past it.
 	pagination := map[string]any{"limit": w.maxPerPoll}
@@ -419,6 +417,26 @@ func (w *watcher) call(ctx context.Context, method string, params any) (*json.Ra
 	return rpcCall(ctx, method, params, w.rpc, w.httpClient)
 }
 
+// successfulTxLedger returns the ledger that getTransaction reports for txHash, or an error
+// wrapping errTxFailed or errTxNotFound when the transaction did not succeed or is unknown.
+func successfulTxLedger(ctx context.Context, txHash, rpcURL string, httpClient *http.Client) (uint64, error) {
+	txRes, err := rpcCall(ctx, "getTransaction", map[string]any{"hash": txHash}, rpcURL, httpClient)
+	if err != nil {
+		return 0, fmt.Errorf("getTransaction failed: %w", err)
+	}
+
+	switch status := gjson.GetBytes(*txRes, "status").Str; status {
+	case "SUCCESS":
+		return gjson.GetBytes(*txRes, "ledger").Uint(), nil
+	case "FAILED":
+		return 0, fmt.Errorf("transaction %s: %w", txHash, errTxFailed)
+	case "NOT_FOUND":
+		return 0, fmt.Errorf("transaction %s: %w", txHash, errTxNotFound)
+	default:
+		return 0, fmt.Errorf("unexpected transaction status %q for %s", status, txHash)
+	}
+}
+
 func (w *watcher) getLatestLedger(ctx context.Context) (uint64, error) {
 	res, err := w.call(ctx, "getLatestLedger", nil)
 	if err != nil {
@@ -432,6 +450,9 @@ func (w *watcher) pollOnce(ctx context.Context, logger *zap.Logger) (bool, error
 	advanced := false
 	cursor := ""
 	var lastLedger uint64
+	// Ledger of each transaction getTransaction has confirmed as SUCCESS, so a transaction that
+	// publishes several messages is only queried once.
+	successfulTxs := map[string]uint64{}
 
 	for {
 		pagination := map[string]any{
@@ -479,6 +500,34 @@ func (w *watcher) pollOnce(ctx context.Context, logger *zap.Logger) (bool, error
 			mp := w.messageFromEvent(e, false)
 			if mp == nil {
 				continue
+			}
+
+			// Soroban should only emits contract events for successful transactions, so a well-behaved
+			// RPC never returns a message_published event from a failed one. We check that
+			// explicitly anyway as defense in depth.
+			txHash := e.Get("txHash").Str
+			txLedger, verified := successfulTxs[txHash]
+			if !verified {
+				var err error
+				txLedger, err = successfulTxLedger(ctx, txHash, w.rpc, w.httpClient)
+				if errors.Is(err, errTxFailed) {
+					// This should never happen, but if it does, log and skip the event
+					stellarMessagesFromFailedTx.WithLabelValues(w.networkName).Inc()
+					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+					logger.Error("dropping message_published event from a failed transaction",
+						zap.String("id", e.Get("id").Str), zap.String("txHash", txHash), zap.Uint64("ledger", ledger))
+					continue
+				}
+				if err != nil {
+					// NOT_FOUND and RPC errors may be transient (for example, a load-balanced
+					// endpoint whose backends are at different heights), so the next poll retries
+					// this page.
+					return false, err
+				}
+				successfulTxs[txHash] = txLedger
+			}
+			if txLedger != ledger {
+				return false, fmt.Errorf("transaction %s is in ledger %d but its event is in ledger %d", txHash, txLedger, ledger)
 			}
 
 			stellarMessagesObserved.WithLabelValues(w.networkName).Inc()
