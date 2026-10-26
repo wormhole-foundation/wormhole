@@ -634,6 +634,9 @@ func TestMessageFromEvent_Rejects(t *testing.T) {
 		"message_published_v2": func(e map[string]any) { e["topic"] = topics("wormhole", "message_published_v2") },
 		"string topic":         func(e map[string]any) { e["topic"] = []string{makeTopicB64(t, "wormhole"), strTopic} },
 		"31-byte txHash":       func(e map[string]any) { e["txHash"] = fmt.Sprintf("%062x", 1) },
+		"pre-epoch closedAt":   func(e map[string]any) { e["ledgerClosedAt"] = "1969-12-31T23:59:59Z" },
+		"epoch closedAt":       func(e map[string]any) { e["ledgerClosedAt"] = "1970-01-01T00:00:00Z" },
+		"post-2106 closedAt":   func(e map[string]any) { e["ledgerClosedAt"] = "2106-02-07T06:28:16Z" },
 	}
 	for name, edit := range tests {
 		t.Run(name, func(t *testing.T) {
