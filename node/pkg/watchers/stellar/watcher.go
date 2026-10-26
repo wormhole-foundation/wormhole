@@ -310,26 +310,32 @@ func (w *watcher) handleReobservationRequest(ctx context.Context, txHash, rpcURL
 
 	ledger := gjson.GetBytes(*txRes, "ledger").Uint()
 
-	// Query events starting from the transaction's ledger.
+	// A tx's events are all in its own ledger, so page from that ledger until a page ends past it.
+	pagination := map[string]any{"limit": w.maxPerPoll}
 	params := map[string]any{
 		"startLedger": ledger,
 		"filters": []map[string]any{
 			{"type": "contract", "contractIds": []string{w.contract}},
 		},
-		"pagination": map[string]any{"limit": w.maxPerPoll},
+		"pagination": pagination,
 	}
-	res, err := rpcCall(ctx, "getEvents", params, rpcURL, httpClient)
-	if err != nil {
-		return 0, fmt.Errorf("getEvents failed: %w", err)
-	}
-
-	events := gjson.GetBytes(*res, "events")
-	if !events.Exists() {
-		return 0, nil
+	var events []gjson.Result
+	for {
+		res, err := rpcCall(ctx, "getEvents", params, rpcURL, httpClient)
+		if err != nil {
+			return 0, fmt.Errorf("getEvents failed: %w", err)
+		}
+		page := gjson.GetBytes(*res, "events").Array()
+		events = append(events, page...)
+		if len(page) < w.maxPerPoll || page[len(page)-1].Get("ledger").Uint() > ledger {
+			break
+		}
+		delete(params, "startLedger") // getEvents rejects startLedger together with a cursor
+		pagination["cursor"] = page[len(page)-1].Get("id").Str
 	}
 
 	var messagesFound uint32
-	for _, e := range events.Array() {
+	for _, e := range events {
 		if e.Get("txHash").Str != txHash {
 			continue
 		}
@@ -425,6 +431,7 @@ func (w *watcher) getLatestLedger(ctx context.Context) (uint64, error) {
 func (w *watcher) pollOnce(ctx context.Context, logger *zap.Logger) (bool, error) {
 	advanced := false
 	cursor := ""
+	var lastLedger uint64
 
 	for {
 		pagination := map[string]any{
@@ -467,6 +474,7 @@ func (w *watcher) pollOnce(ctx context.Context, logger *zap.Logger) (bool, error
 			cursor = e.Get("id").Str
 
 			ledger := e.Get("ledger").Uint()
+			lastLedger = ledger
 
 			mp := w.messageFromEvent(e, false)
 			if mp == nil {
@@ -483,22 +491,22 @@ func (w *watcher) pollOnce(ctx context.Context, logger *zap.Logger) (bool, error
 			case <-ctx.Done():
 				return advanced, ctx.Err()
 			}
-
-			if ledger >= w.nextLedger {
-				w.nextLedger = ledger + 1
-				advanced = true
-			}
 		}
 
 		if len(events) < w.maxPerPoll {
 			// Received fewer events than the limit — no more pages.
-			if !advanced && latestLedger > w.nextLedger {
+			if lastLedger > 0 {
+				w.nextLedger = lastLedger + 1
+				advanced = true
+			} else if latestLedger > w.nextLedger {
 				w.nextLedger = latestLedger
 				advanced = true
 			}
 			break
 		}
 		// Received exactly maxPerPoll events — there may be more pages; continue with cursor.
+		// The next page may continue lastLedger, so if it fails the next poll restarts at lastLedger.
+		w.nextLedger = lastLedger
 	}
 
 	return advanced, nil

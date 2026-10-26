@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -111,6 +112,8 @@ type mockSorobanRPC struct {
 	events       []mockEvent
 	transactions map[string]mockTx
 	methodCounts map[string]int
+	// failGetEventsCall is the 1-based number of the getEvents call that fails, or 0 for none.
+	failGetEventsCall int
 }
 
 func newMockRPC(latestLedger uint64) *mockSorobanRPC {
@@ -139,7 +142,12 @@ func (m *mockSorobanRPC) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	m.mu.Lock()
 	m.methodCounts[req.Method]++
+	fail := req.Method == "getEvents" && m.methodCounts[req.Method] == m.failGetEventsCall
 	m.mu.Unlock()
+	if fail {
+		http.Error(w, "injected failure", http.StatusServiceUnavailable)
+		return
+	}
 
 	var result any
 	switch req.Method {
@@ -148,7 +156,12 @@ func (m *mockSorobanRPC) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result = map[string]any{"sequence": m.latestLedger, "protocolVersion": 21}
 		m.mu.Unlock()
 	case "getEvents":
-		result = m.handleGetEvents(req.Params)
+		events, err := m.handleGetEvents(req.Params)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		result = events
 	case "getTransaction":
 		result = m.handleGetTransaction(req.Params)
 	default:
@@ -162,7 +175,7 @@ func (m *mockSorobanRPC) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (m *mockSorobanRPC) handleGetEvents(params json.RawMessage) map[string]any {
+func (m *mockSorobanRPC) handleGetEvents(params json.RawMessage) (map[string]any, error) {
 	var p struct {
 		StartLedger uint64 `json:"startLedger"`
 		Pagination  struct {
@@ -171,6 +184,9 @@ func (m *mockSorobanRPC) handleGetEvents(params json.RawMessage) map[string]any 
 		} `json:"pagination"`
 	}
 	json.Unmarshal(params, &p) //nolint:errcheck
+	if p.StartLedger != 0 && p.Pagination.Cursor != "" {
+		return nil, errors.New("ledger ranges and cursor cannot both be set")
+	}
 
 	limit := p.Pagination.Limit
 	if limit <= 0 {
@@ -222,7 +238,7 @@ func (m *mockSorobanRPC) handleGetEvents(params json.RawMessage) map[string]any 
 	return map[string]any{
 		"events":       eventJSONs,
 		"latestLedger": latestLedger,
-	}
+	}, nil
 }
 
 func (m *mockSorobanRPC) handleGetTransaction(params json.RawMessage) map[string]any {
@@ -280,6 +296,24 @@ func newTestWatcher(rpcURL string, maxPerPoll int, msgC chan<- *common.MessagePu
 	)
 	w.logger = zap.NewNop()
 	return w
+}
+
+// makeMsgEvent builds a message_published event in the given ledger. Its tx hash, nonce, and
+// sequence all derive from idx.
+func makeMsgEvent(t *testing.T, idx uint32, ledger uint64) mockEvent {
+	t.Helper()
+	emitter := make([]byte, 32)
+	emitter[0] = 0x01
+	return mockEvent{
+		id:             fmt.Sprintf("%010d-%010d", ledger, idx),
+		ledger:         ledger,
+		ledgerClosedAt: "2024-01-01T00:00:00Z",
+		contractID:     testContract,
+		txHash:         fmt.Sprintf("%064x", idx),
+		topic0B64:      makeTopicB64(t, "wormhole"),
+		topic1B64:      makeTopicB64(t, "message_published"),
+		valueB64:       makeEventValueB64(t, idx, uint64(idx), emitter, []byte("pay"), 0),
+	}
 }
 
 func mustDecodeHex(s string) []byte {
@@ -354,28 +388,11 @@ func TestPollOnce_MessagePublished(t *testing.T) {
 func TestPollOnce_Pagination(t *testing.T) {
 	// With maxPerPoll=2 and 3 events, the watcher must make two getEvents calls
 	// (using cursor-based pagination) and deliver all 3 messages.
-	emitter := make([]byte, 32)
-	emitter[0] = 0x01
-
-	closedAt := "2024-01-01T00:00:00Z"
-	makeEv := func(idx uint32, ledger uint64) mockEvent {
-		return mockEvent{
-			id:             fmt.Sprintf("0000000%03d-0000000001", ledger),
-			ledger:         ledger,
-			ledgerClosedAt: closedAt,
-			contractID:     testContract,
-			txHash:         fmt.Sprintf("%064x", idx),
-			topic0B64:      makeTopicB64(t, "wormhole"),
-			topic1B64:      makeTopicB64(t, "message_published"),
-			valueB64:       makeEventValueB64(t, uint32(idx), uint64(idx), emitter, []byte("pay"), 0),
-		}
-	}
-
 	mock := newMockRPC(300)
 	mock.events = []mockEvent{
-		makeEv(1, 100),
-		makeEv(2, 101),
-		makeEv(3, 102),
+		makeMsgEvent(t, 1, 100),
+		makeMsgEvent(t, 2, 101),
+		makeMsgEvent(t, 3, 102),
 	}
 
 	srv := httptest.NewServer(mock)
@@ -407,6 +424,47 @@ func TestPollOnce_Pagination(t *testing.T) {
 
 	// Two getEvents calls: first page (2 events), second page (1 event via cursor).
 	assert.Equal(t, 2, mock.methodCount("getEvents"), "expected 2 getEvents calls for pagination")
+}
+
+func TestPollOnce_PageFailureMidLedger(t *testing.T) {
+	// A page that ends inside a ledger, followed by a failed cursor request, must not
+	// skip the rest of that ledger on the next poll.
+	tests := []struct {
+		name    string
+		ledgers []uint64
+	}{
+		{"ledger spans pages", []uint64{100, 100, 100}},
+		{"page ends mid-ledger", []uint64{100, 101, 101}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := newMockRPC(300)
+			for i, ledger := range tc.ledgers {
+				mock.events = append(mock.events, makeMsgEvent(t, uint32(i+1), ledger))
+			}
+			mock.failGetEventsCall = 2 // first cursor request
+
+			srv := httptest.NewServer(mock)
+			defer srv.Close()
+
+			msgC := make(chan *common.MessagePublication, 10)
+			w := newTestWatcher(srv.URL, 2, msgC)
+
+			_, err := w.pollOnce(context.Background(), zap.NewNop())
+			require.Error(t, err)
+			assert.Equal(t, tc.ledgers[1], w.nextLedger, "a failed page must resume at the last full page's ledger")
+			_, err = w.pollOnce(context.Background(), zap.NewNop())
+			require.NoError(t, err)
+
+			close(msgC)
+			var seqs []uint64
+			for mp := range msgC {
+				seqs = append(seqs, mp.Sequence)
+			}
+			assert.Contains(t, seqs, uint64(3), "event after the failed page must be delivered on retry")
+			assert.Equal(t, tc.ledgers[2]+1, w.nextLedger)
+		})
+	}
 }
 
 func TestPollOnce_SkipsEmptyEmitter(t *testing.T) {
@@ -653,6 +711,33 @@ func TestHandleReobservation_Success(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for reobserved message")
 	}
+}
+
+func TestHandleReobservation_TargetBeyondFirstPage(t *testing.T) {
+	// The target tx is on the second page of its ledger. Paging must stop at the first page
+	// past that ledger.
+	mock := newMockRPC(300)
+	mock.events = []mockEvent{
+		makeMsgEvent(t, 1, 200),
+		makeMsgEvent(t, 2, 200),
+		makeMsgEvent(t, 3, 200),
+		makeMsgEvent(t, 4, 201),
+		makeMsgEvent(t, 5, 201),
+	}
+	target := mock.events[2].txHash
+	mock.transactions[target] = mockTx{status: "SUCCESS", ledger: 200}
+
+	srv := httptest.NewServer(mock)
+	defer srv.Close()
+
+	msgC := make(chan *common.MessagePublication, 10)
+	w := newTestWatcher(srv.URL, 2, msgC)
+
+	count, err := w.handleReobservationRequest(context.Background(), target, srv.URL, w.httpClient)
+	require.NoError(t, err)
+	require.Equal(t, uint32(1), count)
+	assert.Equal(t, uint64(3), (<-msgC).Sequence)
+	assert.Equal(t, 2, mock.methodCount("getEvents"), "paging must stop at the first page past the tx ledger")
 }
 
 func TestHandleReobservation_NotFound(t *testing.T) {
