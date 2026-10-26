@@ -172,7 +172,7 @@ core user1 post_message \
   --emitter "$USER1_ADDR" \
   --nonce 42 \
   --payload "48656c6c6f20576f726d686f6c6521" \
-  --consistency-level 1 >/dev/null  # 1 = Confirmed, payload = "Hello Wormhole!"
+  --consistency-level 1 >/dev/null  # payload = "Hello Wormhole!"
 
 # Test 6: Post a message without fee (after setting fee to zero)
 step "post message (no fee)"
@@ -182,7 +182,7 @@ core user2 post_message \
   --emitter "$USER2_ADDR" \
   --nonce 100 \
   --payload "5465737420776974686f757420666565" \
-  --consistency-level 1 >/dev/null  # 1 = Confirmed, payload = "Test without fee"
+  --consistency-level 1 >/dev/null  # payload = "Test without fee"
 
 # -----------------------------------------------------------------------------
 # Save Contract Info for Subsequent Scripts

@@ -6,9 +6,7 @@
 use soroban_sdk::{
     Address, Bytes, BytesN, Env, address_payload::AddressPayload, contractevent, token,
 };
-use wormhole_soroban_client::{
-    ConsistencyLevel, STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, WormholeError,
-};
+use wormhole_soroban_client::{STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, WormholeError};
 
 use crate::{governance, storage::StorageKey, utils::get_native_token_address};
 
@@ -27,8 +25,8 @@ struct MessagePublishedEvent {
     emitter_address: BytesN<32>,
     /// Application-specific message data.
     payload: Bytes,
-    /// Requested finality level for attestation.
-    consistency_level: ConsistencyLevel,
+    /// Consistency level copied into the VAA body.
+    consistency_level: u32,
 }
 
 /// Returns the next sequence number for an emitter (0 if never used).
@@ -64,14 +62,20 @@ fn next_emitter_sequence(env: &Env, emitter: &Address) -> u64 {
 ///
 /// # Errors
 ///
+/// - `InvalidConsistencyLevel` if `consistency_level` is greater than 255
 /// - `InsufficientFeePaid` if fee collection fails (requires prior approval)
 pub fn post_message_with_fee(
     env: &Env,
     emitter: &Address,
     nonce: u32,
     payload: Bytes,
-    consistency_level: ConsistencyLevel,
+    consistency_level: u32,
 ) -> Result<u64, WormholeError> {
+    // The VAA body holds one byte, and the watcher drops events whose level does not fit in it.
+    if consistency_level > u32::from(u8::MAX) {
+        return Err(WormholeError::InvalidConsistencyLevel);
+    }
+
     let required_fee = governance::get_message_fee(env);
 
     if required_fee > 0 {
@@ -159,12 +163,7 @@ mod tests {
 
         let emitter = <Address as TestAddress>::generate(&env);
         let nonce = runtime_test_nonce(&env);
-        let res = client.try_post_message(
-            &emitter,
-            &nonce,
-            &Bytes::from_array(&env, &[0xAA]),
-            &ConsistencyLevel::Confirmed,
-        );
+        let res = client.try_post_message(&emitter, &nonce, &Bytes::from_array(&env, &[0xAA]), &1);
         assert_eq!(res, Ok(Ok(0)));
     }
 
@@ -178,13 +177,30 @@ mod tests {
         let emitter = crate::utils::address_from_ed25519_pk_bytes(&env, &pk_bytes);
         let nonce = runtime_test_nonce(&env);
 
-        let res = client.try_post_message(
-            &emitter,
-            &nonce,
-            &Bytes::from_array(&env, &[0xAA]),
-            &ConsistencyLevel::Confirmed,
-        );
+        let res = client.try_post_message(&emitter, &nonce, &Bytes::from_array(&env, &[0xAA]), &1);
         assert_eq!(res, Err(Ok(WormholeError::InvalidEmitterAddress)));
+    }
+
+    #[test]
+    fn test_post_message_rejects_consistency_level_above_u8() {
+        let env = Env::default();
+        let (contract_id, client) = deploy_initialized(&env);
+        env.mock_all_auths();
+
+        let emitter = contract_id.clone();
+        let nonce = runtime_test_nonce(&env);
+        let payload = Bytes::from_array(&env, &[0x01]);
+
+        for cl in [256, u32::MAX] {
+            let res = client.try_post_message(&emitter, &nonce, &payload, &cl);
+            assert_eq!(res, Err(Ok(WormholeError::InvalidConsistencyLevel)));
+        }
+        assert_eq!(client.get_emitter_sequence(&emitter), 0);
+
+        for cl in [0, 200, 255] {
+            client.post_message(&emitter, &nonce, &payload, &cl);
+        }
+        assert_eq!(client.get_emitter_sequence(&emitter), 3);
     }
 
     #[test]
@@ -198,7 +214,7 @@ mod tests {
         let emitter = contract_id.clone();
         let nonce = runtime_test_nonce(&env);
         let payload = Bytes::from_array(&env, &[0xAA, 0xBB, 0xCC]);
-        let cl = ConsistencyLevel::Confirmed;
+        let cl = 1;
 
         let seq0 = client.post_message(&emitter, &nonce, &payload, &cl);
         assert_eq!(seq0, 0);
@@ -222,7 +238,7 @@ mod tests {
         let emitter_bytes32 = address_to_bytes32(&emitter);
         let nonce = runtime_test_nonce(&env);
         let payload = Bytes::from_array(&env, &[0xAB, 0xCD]);
-        let cl = ConsistencyLevel::Confirmed;
+        let cl = 1;
 
         let seq = client.post_message(&emitter, &nonce, &payload, &cl);
         assert_eq!(seq, 0);
@@ -281,12 +297,7 @@ mod tests {
 
         let emitter = contract_id.clone();
         let nonce = runtime_test_nonce(&env);
-        let res = client.try_post_message(
-            &emitter,
-            &nonce,
-            &Bytes::from_array(&env, &[0x01]),
-            &ConsistencyLevel::Confirmed,
-        );
+        let res = client.try_post_message(&emitter, &nonce, &Bytes::from_array(&env, &[0x01]), &1);
         assert_eq!(res, Err(Ok(WormholeError::InsufficientFeePaid)));
         assert_eq!(client.get_emitter_sequence(&emitter), 0);
     }
@@ -309,7 +320,7 @@ mod tests {
         let emitter = <Address as TestAddress>::generate(&env);
         let nonce = runtime_test_nonce(&env);
         let payload = Bytes::from_array(&env, &[0x01, 0x02, 0x03]);
-        let cl = ConsistencyLevel::Confirmed;
+        let cl = 1;
 
         let res = client.try_post_message(&emitter, &nonce, &payload, &cl);
         assert_eq!(res, Err(Ok(WormholeError::InsufficientFeePaid)));
@@ -327,7 +338,7 @@ mod tests {
         let emitter = contract_id.clone();
         let nonce = runtime_test_nonce(&env);
         let payload = Bytes::from_array(&env, &[0xDE, 0xAD, 0xBE, 0xEF]);
-        let cl = ConsistencyLevel::Confirmed;
+        let cl = 1;
 
         let s0 = client.post_message(&emitter, &nonce, &payload, &cl);
         assert_eq!(s0, 0);

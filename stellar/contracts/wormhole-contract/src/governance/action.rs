@@ -170,7 +170,7 @@ mod tests {
         vec,
     };
     use wormhole_soroban_client::{
-        ACTION_GUARDIAN_SET_UPGRADE, ACTION_SET_MESSAGE_FEE, ConsistencyLevel, GOVERNANCE_CHAIN_ID,
+        ACTION_GUARDIAN_SET_UPGRADE, ACTION_SET_MESSAGE_FEE, GOVERNANCE_CHAIN_ID,
         GOVERNANCE_EMITTER, MODULE_CORE, SET_MESSAGE_FEE_PAYLOAD_MIN_LENGTH, Signature, VAA,
     };
 
@@ -283,7 +283,7 @@ mod tests {
             emitter_chain,
             emitter_address: BytesN::<32>::from_array(env, &emitter_address),
             sequence: 42,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload,
         };
         let (signed, guardian_eth) = sign_vaa_with_key(env, base, [0x33u8; 32]);
@@ -313,7 +313,7 @@ mod tests {
             emitter_chain,
             emitter_address: BytesN::<32>::from_array(env, &emitter_address),
             sequence: 43,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload,
         };
         let (signed, guardian_eth) = sign_vaa_with_key(env, base, [0x33u8; 32]);

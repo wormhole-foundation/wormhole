@@ -79,6 +79,6 @@ pub enum WormholeError {
     InvalidFeeAmount = 54,
 
     // ========== Message Errors (60+) ==========
-    /// Consistency level value is not recognized.
+    /// Consistency level is greater than 255.
     InvalidConsistencyLevel = 60,
 }

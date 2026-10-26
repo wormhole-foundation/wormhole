@@ -23,7 +23,7 @@ use crate::governance::{
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
 use storage::StorageKey;
 use wormhole_soroban_client::{
-    CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, GuardianSetInfo,
+    CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, GuardianSetInfo,
     STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, WormholeCoreInterface, WormholeError,
     hash_address,
 };
@@ -110,7 +110,7 @@ impl WormholeCoreInterface for Wormhole {
         emitter: Address,
         nonce: u32,
         payload: Bytes,
-        consistency_level: ConsistencyLevel,
+        consistency_level: u32,
     ) -> Result<u64, WormholeError> {
         emitter.require_auth();
 
@@ -217,7 +217,7 @@ mod tests {
         vaa.append(&Bytes::from_slice(env, &emitter_chain.to_be_bytes()));
         vaa.append(&Bytes::from_array(env, &emitter_address));
         vaa.append(&Bytes::from_slice(env, &1u64.to_be_bytes())); // sequence
-        vaa.push_back(ConsistencyLevel::Confirmed as u8);
+        vaa.push_back(1); // consistency_level
         vaa.append(&payload);
         vaa
     }

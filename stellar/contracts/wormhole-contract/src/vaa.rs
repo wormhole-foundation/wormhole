@@ -147,7 +147,7 @@ pub fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<VAA, WormholeError> {
 mod tests {
     use super::*;
     use soroban_sdk::{testutils::Ledger, vec};
-    use wormhole_soroban_client::{ConsistencyLevel, GOVERNANCE_EMITTER};
+    use wormhole_soroban_client::GOVERNANCE_EMITTER;
 
     fn deploy_initialized(env: &Env) -> (soroban_sdk::Address, crate::WormholeClient<'_>) {
         let guardian = BytesN::<20>::from_array(env, &[0u8; 20]);
@@ -168,7 +168,7 @@ mod tests {
             emitter_chain: 61,
             emitter_address: BytesN::<32>::from_array(env, &[0x33u8; 32]),
             sequence: 7,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload: Bytes::from_slice(env, &[0xAA, 0xBB]),
         }
     }
@@ -229,7 +229,7 @@ mod tests {
             0x1C, 0x1D, 0x1E, 0x1F,
         ];
         let sequence: u64 = 0x0102030405060708;
-        let consistency_level_u8: u8 = ConsistencyLevel::Confirmed as u8;
+        let consistency_level_u8: u8 = 1;
         let payload: [u8; 2] = [0xAA, 0xBB];
 
         let mut raw = Bytes::new(&env);
@@ -261,10 +261,26 @@ mod tests {
         assert_eq!(vaa.emitter_address, expected_emitter_address);
 
         assert_eq!(vaa.sequence, sequence);
-        assert_eq!(vaa.consistency_level, ConsistencyLevel::Confirmed);
+        assert_eq!(vaa.consistency_level, u32::from(consistency_level_u8));
 
         let expected_payload = Bytes::from_slice(&env, &payload);
         assert_eq!(vaa.payload, expected_payload);
+    }
+
+    #[test]
+    fn test_parse_vaa_accepts_any_consistency_level() {
+        let env = Env::default();
+        let (_contract_id, client) = deploy_initialized(&env);
+
+        for consistency_level in [0, 200, 201, 202, 203, 255] {
+            let mut vaa = base_vaa_with_guardian_set(&env, 0);
+            vaa.consistency_level = consistency_level;
+            // version 1, guardian set 0, no signatures
+            let mut raw = Bytes::from_array(&env, &[1, 0, 0, 0, 0, 0]);
+            raw.append(&vaa.serialize_body(&env));
+
+            assert_eq!(client.parse_vaa(&raw), vaa);
+        }
     }
 
     #[test]
@@ -319,10 +335,7 @@ mod tests {
             &env,
             &0x0102030405060708u64.to_be_bytes(),
         )); // sequence
-        raw.append(&Bytes::from_slice(
-            &env,
-            &[ConsistencyLevel::Confirmed as u8],
-        ));
+        raw.append(&Bytes::from_slice(&env, &[1])); // consistency_level
         raw.append(&Bytes::from_slice(&env, &[0xAAu8, 0xBBu8, 0xCCu8])); // payload
 
         let body = VAA::get_body_bytes(&raw).expect("expected valid body bytes");
@@ -336,10 +349,7 @@ mod tests {
             &env,
             &0x0102030405060708u64.to_be_bytes(),
         )); // sequence
-        expected_body.append(&Bytes::from_slice(
-            &env,
-            &[ConsistencyLevel::Confirmed as u8],
-        ));
+        expected_body.append(&Bytes::from_slice(&env, &[1])); // consistency_level
         expected_body.append(&Bytes::from_slice(&env, &[0xAAu8, 0xBBu8, 0xCCu8])); // payload
 
         assert_eq!(body, expected_body);
@@ -394,7 +404,7 @@ mod tests {
             emitter_chain: 61,
             emitter_address: BytesN::<32>::from_array(&env, &[0x11u8; 32]),
             sequence: 0,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload: Bytes::from_slice(&env, &[0xAA, 0xBB]),
         };
 
@@ -419,7 +429,7 @@ mod tests {
             emitter_chain: 61,
             emitter_address: BytesN::<32>::from_array(&env, &[0x33u8; 32]),
             sequence: 7,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload: Bytes::from_slice(&env, &[0xAA, 0xBB]),
         };
 
