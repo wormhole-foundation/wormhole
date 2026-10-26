@@ -6,7 +6,6 @@ publish = false
 
 [lib]
 crate-type = ["lib"]
-doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }

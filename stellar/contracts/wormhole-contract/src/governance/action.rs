@@ -8,8 +8,8 @@ use crate::{storage::StorageKey, utils::keccak256_hash, vaa::verify_vaa_signatur
 use core::convert::TryFrom;
 use soroban_sdk::{Bytes, BytesN, Env};
 use wormhole_soroban_client::{
-    BytesReader, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE, VAA,
-    WormholeError,
+    ACTION_GUARDIAN_SET_UPGRADE, BytesReader, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID,
+    GOVERNANCE_EMITTER, MODULE_CORE, VAA, WormholeError,
 };
 
 /// Trait for implementing Wormhole governance actions.
@@ -132,7 +132,7 @@ pub fn parse_governance_header(
 ///
 /// - Module must be "Core" (right-padded)
 /// - Action must match the expected action ID
-/// - Chain must be 0 (all chains) or 61 (Stellar)
+/// - Chain must be 61 (Stellar), or 0 (all chains) for a guardian set upgrade
 pub fn validate_governance_header(
     module: &BytesN<32>,
     action: u8,
@@ -147,7 +147,11 @@ pub fn validate_governance_header(
         return Err(WormholeError::InvalidGovernanceAction);
     }
 
-    if chain != 0 && chain != CHAIN_ID_STELLAR {
+    // Only guardian set upgrades target all chains. The other actions carry Stellar-only data.
+    if !matches!(
+        (chain, action),
+        (CHAIN_ID_STELLAR, _) | (0, ACTION_GUARDIAN_SET_UPGRADE)
+    ) {
         return Err(WormholeError::InvalidGovernanceChain);
     }
 
@@ -170,8 +174,9 @@ mod tests {
         vec,
     };
     use wormhole_soroban_client::{
-        ACTION_GUARDIAN_SET_UPGRADE, ACTION_SET_MESSAGE_FEE, GOVERNANCE_CHAIN_ID,
-        GOVERNANCE_EMITTER, MODULE_CORE, SET_MESSAGE_FEE_PAYLOAD_MIN_LENGTH, Signature, VAA,
+        ACTION_CONTRACT_UPGRADE, ACTION_GUARDIAN_SET_UPGRADE, ACTION_SET_MESSAGE_FEE,
+        ACTION_TRANSFER_FEES, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE,
+        SET_MESSAGE_FEE_PAYLOAD_MIN_LENGTH, Signature, VAA,
     };
 
     fn deploy_with_guardian(env: &Env, guardian_eth: BytesN<20>) -> soroban_sdk::Address {
@@ -300,7 +305,7 @@ mod tests {
         let payload = build_guardian_upgrade_payload(
             env,
             ACTION_GUARDIAN_SET_UPGRADE,
-            61,
+            0, // guardiand emits guardian set upgrades for all chains
             new_index,
             new_key,
         );
@@ -347,24 +352,20 @@ mod tests {
             ),
             Err(WormholeError::InvalidGovernanceChain)
         );
-        assert!(
-            validate_governance_header(
-                &good_module,
-                ACTION_SET_MESSAGE_FEE,
-                0,
-                ACTION_SET_MESSAGE_FEE
-            )
-            .is_ok()
-        );
-        assert!(
-            validate_governance_header(
-                &good_module,
-                ACTION_SET_MESSAGE_FEE,
-                61,
-                ACTION_SET_MESSAGE_FEE
-            )
-            .is_ok()
-        );
+        for action in [
+            ACTION_CONTRACT_UPGRADE,
+            ACTION_SET_MESSAGE_FEE,
+            ACTION_TRANSFER_FEES,
+        ] {
+            assert_eq!(
+                validate_governance_header(&good_module, action, 0, action),
+                Err(WormholeError::InvalidGovernanceChain)
+            );
+            assert_eq!(
+                validate_governance_header(&good_module, action, 61, action),
+                Ok(())
+            );
+        }
     }
 
     #[test]

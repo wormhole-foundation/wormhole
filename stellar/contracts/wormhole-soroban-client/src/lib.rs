@@ -11,17 +11,20 @@
 //! - [`GuardianSetInfo`] - Guardian set metadata stored on-chain
 //! - [`WormholeError`] - All possible error conditions
 //!
-//! # Example
+//! # Examples
 //!
-//! ```ignore
-//! use wormhole_soroban_client::{WormholeCoreInterface, VAA, WormholeError};
+//! ```no_run
+//! # use soroban_sdk::{Address, Bytes, Env};
+//! use wormhole_soroban_client::WormholeClient;
 //!
-//! // Parse and verify a VAA
-//! let vaa = VAA::try_from((&env, &vaa_bytes))?;
-//! client.verify_vaa(&vaa_bytes)?;
+//! # fn example(env: Env, wormhole: Address, emitter: Address, payload: Bytes, vaa_bytes: Bytes) {
+//! # let nonce = 0;
+//! let client = WormholeClient::new(&env, &wormhole);
+//! let vaa = client.parse_and_verify_vaa(&vaa_bytes);
 //!
 //! // Post a cross-chain message (emitter is always treated as a contract)
 //! let sequence = client.post_message(&emitter, &nonce, &payload, &1);
+//! # }
 //! ```
 
 #![no_std]

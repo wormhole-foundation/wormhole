@@ -32,7 +32,7 @@ pub struct ContractUpgradePayload {
     /// Must equal `ACTION_CONTRACT_UPGRADE` (1); any other value is rejected by
     /// `validate_governance_header`.
     pub action: u8,
-    /// Target chain (0 for all, 61 for Stellar).
+    /// Target chain. Must equal `CHAIN_ID_STELLAR` (61).
     pub chain: u16,
     /// WASM hash of the new contract to deploy.
     pub new_contract_hash: BytesN<32>,
