@@ -3,8 +3,7 @@
 //! Provides helper functions for hashing, address format conversion between
 //! Stellar and Ethereum/Wormhole formats, and token address resolution.
 
-use soroban_sdk::{Address, Bytes, BytesN, Env, String, address_payload::AddressPayload};
-use wormhole_soroban_client::NATIVE_TOKEN_ADDRESS;
+use soroban_sdk::{Address, Bytes, BytesN, Env, address_payload::AddressPayload};
 
 /// Computes keccak256 hash of data, returning a 32-byte array.
 pub fn keccak256_hash(env: &Env, data: &Bytes) -> BytesN<32> {
@@ -39,7 +38,40 @@ pub fn pubkey_to_eth_address(env: &Env, pubkey: &BytesN<65>) -> BytesN<20> {
     BytesN::from_array(env, &addr_bytes)
 }
 
-/// Returns the native XLM Stellar Asset Contract address.
+/// Returns the native XLM Stellar Asset Contract address for this network.
 pub fn get_native_token_address(env: &Env) -> Address {
-    Address::from_string(&String::from_str(env, NATIVE_TOKEN_ADDRESS))
+    // `Asset::Native` XDR; the contract ID depends on the network ID.
+    env.deployer()
+        .with_stellar_asset([0u8; 4])
+        .deployed_address()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::testutils::Ledger;
+
+    #[test]
+    fn test_native_token_address_is_network_specific() {
+        let env = Env::default();
+        for (passphrase, expected) in [
+            (
+                "Test SDF Network ; September 2015",
+                "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+            ),
+            (
+                "Public Global Stellar Network ; September 2015",
+                "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+            ),
+        ] {
+            let network_id = env
+                .crypto()
+                .sha256(&Bytes::from_slice(&env, passphrase.as_bytes()));
+            env.ledger().set_network_id(network_id.to_array());
+            assert_eq!(
+                get_native_token_address(&env),
+                Address::from_str(&env, expected)
+            );
+        }
+    }
 }

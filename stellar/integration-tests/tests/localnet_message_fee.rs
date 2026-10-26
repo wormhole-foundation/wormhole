@@ -1,10 +1,4 @@
 //! Message fee integration test.
-//!
-//! Note: On localnet this test will fail at "Posting message with fee paid"
-//! because the wormhole contract uses a hardcoded native token address
-//! (testnet/mainnet). The native asset contract ID differs per network
-//! (localnet has a different ID). To pass on localnet the contract would need a
-//! configurable native token address at deployment.
 
 use integration_tests::{
     TestContext, assemble_vaa, craft_governance_payload, craft_vaa_body, eth_address_from_privkey,
