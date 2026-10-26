@@ -558,6 +558,10 @@ func (w *watcher) parseMessagePublished(e gjson.Result, isReobservation bool) (*
 	if err != nil {
 		return nil, fmt.Errorf("invalid ledgerClosedAt: %w", err)
 	}
+	// The VAA holds uint32 seconds, and the epoch itself means an unset close time.
+	if ts.Unix() <= 0 || ts.Unix() > math.MaxUint32 {
+		return nil, fmt.Errorf("ledgerClosedAt %q out of range", e.Get("ledgerClosedAt").Str)
+	}
 
 	value, err := base64.StdEncoding.DecodeString(e.Get("value").Str)
 	if err != nil {
