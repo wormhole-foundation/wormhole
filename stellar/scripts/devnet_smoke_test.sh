@@ -16,7 +16,7 @@ VAA_TIMEOUT_SECONDS="${VAA_TIMEOUT_SECONDS:-300}"
 CHAIN_ID=61
 NONCE=1
 PAYLOAD_HEX=deadbeef
-CONSISTENCY_LEVEL=1   # ConsistencyLevel::Confirmed
+CONSISTENCY_LEVEL=1
 
 step() { echo "==> $*" >&2; }
 die() { echo "devnet_smoke_test.sh: $*" >&2; exit 1; }

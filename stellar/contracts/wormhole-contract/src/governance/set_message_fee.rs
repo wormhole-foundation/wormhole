@@ -231,7 +231,7 @@ mod tests {
             emitter_chain: GOVERNANCE_CHAIN_ID,
             emitter_address: BytesN::from_array(&env, &[0u8; 32]),
             sequence: 0,
-            consistency_level: wormhole_soroban_client::ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload: Bytes::new(&env),
         };
 

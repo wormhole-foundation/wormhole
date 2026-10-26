@@ -4,7 +4,7 @@
 #![no_std]
 
 use soroban_sdk::{Address, Bytes, Env, contract, contractimpl, contracttype};
-use wormhole_soroban_client::{ConsistencyLevel, WormholeClient};
+use wormhole_soroban_client::WormholeClient;
 
 #[contracttype]
 #[derive(Clone)]
@@ -24,7 +24,7 @@ impl DevnetEmitter {
 
     /// Publishes `payload` through the core contract with this contract as the emitter and
     /// returns the message sequence assigned by the core.
-    pub fn send(env: Env, nonce: u32, payload: Bytes, consistency_level: ConsistencyLevel) -> u64 {
+    pub fn send(env: Env, nonce: u32, payload: Bytes, consistency_level: u32) -> u64 {
         let core: Address = env
             .storage()
             .instance()
@@ -64,12 +64,12 @@ mod tests {
         let client = DevnetEmitterClient::new(&env, &emitter);
         let payload = Bytes::from_array(&env, &[0xAB, 0xCD]);
 
-        assert_eq!(client.send(&1, &payload, &ConsistencyLevel::Confirmed), 0);
+        assert_eq!(client.send(&1, &payload, &1), 0);
 
         let core_events = env.events().all().filter_by_contract(&core);
         assert_eq!(core_events.events().len(), 1);
 
-        assert_eq!(client.send(&2, &payload, &ConsistencyLevel::Finalized), 1);
+        assert_eq!(client.send(&2, &payload, &32), 1);
 
         let core_client = WormholeClient::new(&env, &core);
         assert_eq!(core_client.get_emitter_sequence(&emitter), 2);

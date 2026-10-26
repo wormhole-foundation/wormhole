@@ -240,8 +240,7 @@ mod tests {
         vec,
     };
     use wormhole_soroban_client::{
-        CHAIN_ID_STELLAR, ConsistencyLevel, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE,
-        Signature, VAA,
+        CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE, Signature, VAA,
     };
 
     fn deploy_initialized(env: &Env) -> soroban_sdk::Address {
@@ -392,7 +391,7 @@ mod tests {
             emitter_chain: GOVERNANCE_CHAIN_ID,
             emitter_address: BytesN::from_array(&env, &[0u8; 32]),
             sequence: 1,
-            consistency_level: wormhole_soroban_client::ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload: Bytes::new(&env),
         };
         let ledger_time = 1_700_000_000u64;
@@ -473,7 +472,7 @@ mod tests {
             emitter_chain: GOVERNANCE_CHAIN_ID,
             emitter_address: BytesN::from_array(&env, &GOVERNANCE_EMITTER),
             sequence: 1,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload,
         };
         let (signed, guardian_eth) = sign_vaa_with_key(&env, base, [0x44u8; 32]);
@@ -513,7 +512,7 @@ mod tests {
             emitter_chain: GOVERNANCE_CHAIN_ID,
             emitter_address: BytesN::from_array(&env, &[0u8; 32]),
             sequence: 0,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload: Bytes::new(&env),
         };
         env.ledger().set_timestamp(u64::MAX);
@@ -554,7 +553,7 @@ mod tests {
             emitter_chain: GOVERNANCE_CHAIN_ID,
             emitter_address: BytesN::from_array(&env, &GOVERNANCE_EMITTER),
             sequence: 1,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload,
         };
         let (gov_vaa, old_guardian) = sign_vaa_with_key(&env, gov_vaa, old_key_sk);
@@ -576,7 +575,7 @@ mod tests {
             emitter_chain: u32::from(CHAIN_ID_STELLAR),
             emitter_address: BytesN::from_array(&env, &[0xEEu8; 32]),
             sequence: 3,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: 1,
             payload: Bytes::from_array(&env, &[0xDE, 0xAD, 0xBE, 0xEF]),
         };
         let (msg_vaa, _) = sign_vaa_with_key(&env, msg_vaa, old_key_sk);
