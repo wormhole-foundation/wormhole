@@ -40,6 +40,14 @@ jobs:
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
 
+      - name: Pre-pull foundry image so the image store pins its layers
+        env:
+          FOUNDRY_IMAGE: ghcr.io/foundry-rs/foundry@sha256:d12a373ec950de170d5461014ef9320ba0fb6e0db6f87835999d0fcf3820370e
+        run: |
+          docker pull "$FOUNDRY_IMAGE"
+          docker tag "$FOUNDRY_IMAGE" ghcr.io/foundry-rs/foundry:v1.0.0
+          docker images --digests --filter=reference='ghcr.io/foundry-rs/foundry*'
+
       - run: tilt ci --timeout 45m0s -- --ci --namespace=$DEPLOY_NS --num=3
         timeout-minutes: 60
 
