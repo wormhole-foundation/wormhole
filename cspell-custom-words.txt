@@ -245,6 +245,7 @@ Tendermint
 terrad
 testdata
 testutils
+tokenbridge
 tokenfactory
 traceback
 trustlessly
