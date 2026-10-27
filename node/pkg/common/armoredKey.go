@@ -34,7 +34,7 @@ func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecd
 
 	// Validate the permissions on the open handle so we check the same file we
 	// read, closing the gap between a separate stat and open.
-	if err := ValidatePrivateKeyFilePermissions(f); err != nil {
+	if err = ValidatePrivateKeyFilePermissions(f); err != nil {
 		return nil, err
 	}
 
