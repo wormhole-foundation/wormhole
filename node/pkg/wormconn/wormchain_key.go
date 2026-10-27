@@ -1,7 +1,6 @@
 package wormconn
 
 import (
-	"io"
 	"os"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -18,11 +17,11 @@ func LoadWormchainPrivKey(path string, passPhrase string) (cryptotypes.PrivKey, 
 
 	// Validate the permissions on the open handle so we check the same file we
 	// read, closing the gap between a separate stat and open.
-	if err := common.ValidatePrivateKeyFilePermissions(f); err != nil {
+	if err = common.ValidatePrivateKeyFilePermissions(f); err != nil {
 		return nil, err
 	}
 
-	armor, err := io.ReadAll(f)
+	armor, err := common.SafeRead(f)
 	if err != nil {
 		return nil, err
 	}
