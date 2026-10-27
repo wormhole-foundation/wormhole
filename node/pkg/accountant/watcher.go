@@ -176,15 +176,9 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 		zap.Uint8("consistency_level", xfer.ConsistencyLevel),
 		zap.String("payload", hex.EncodeToString(xfer.Payload)),
 	)
-	timestamp, err := vaa.TimeFromUnix(xfer.Timestamp)
-	if err != nil {
-		acct.logger.Error("acctwatch: invalid transfer timestamp", zap.Error(err), zap.Uint32("timestamp", xfer.Timestamp))
-		return
-	}
-
 	msg := &common.MessagePublication{
 		TxID:             xfer.TxHash,
-		Timestamp:        timestamp,
+		Timestamp:        vaa.TimeFromUnixUint32(xfer.Timestamp),
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,
 		EmitterChain:     vaa.ChainID(xfer.EmitterChain),

@@ -45,7 +45,6 @@ import (
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/testutils"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/mock"
 
@@ -376,11 +375,11 @@ type testCase struct {
 	mustNotReachQuorum bool
 }
 
-func randomTime(t testing.TB) time.Time {
-	t.Helper()
-
+func randomTime() time.Time {
+	// The value is already a uint32, so the conversion is infallible and needs no *testing.T.
+	// This matters because someMessage is called from a benchmark goroutine, where t.Fatal is not allowed.
 	// #nosec G404 we don't need cryptographic randomness here.
-	return testutils.MustTimeFromUnix(t, math_rand.Uint32()%1700000000) // convert time to unix and back to match what is done during serialization/de-serialization
+	return vaa.TimeFromUnixUint32(math_rand.Uint32() % 1700000000) // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
 var someMsgSequenceCounter uint64 = 0
@@ -395,7 +394,7 @@ func someMessage(t testing.TB) *common.MessagePublication {
 	txID := [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3}
 	return &common.MessagePublication{
 		TxID:             txID[:],
-		Timestamp:        randomTime(t),
+		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         someMsgSequenceCounter,
 		ConsistencyLevel: 1,
@@ -463,7 +462,7 @@ func governedMsg(t testing.TB, shouldBeDelayed bool) *common.MessagePublication 
 	txID := [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76}
 	return &common.MessagePublication{
 		TxID:             txID[:],
-		Timestamp:        randomTime(t),
+		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         tokenBridgeSequenceCounter,
 		ConsistencyLevel: 1,
