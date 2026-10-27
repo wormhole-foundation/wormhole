@@ -26,15 +26,17 @@ func LoadGuardianKey(filename string, unsafeDevMode bool) (*ecdsa.PrivateKey, er
 
 // LoadArmoredKey loads a serialized key from disk.
 func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecdsa.PrivateKey, error) {
-	if err := ValidatePrivateKeyFilePermissions(filename); err != nil {
-		return nil, err
-	}
-
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer f.Close()
+
+	// Validate the permissions on the open handle so we check the same file we
+	// read, closing the gap between a separate stat and open.
+	if err := ValidatePrivateKeyFilePermissions(f); err != nil {
+		return nil, err
+	}
 
 	p, err := armor.Decode(f)
 	if err != nil {
@@ -68,15 +70,20 @@ func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecd
 	return gk, nil
 }
 
-// ValidatePrivateKeyFilePermissions rejects regular private-key files that are readable by group or other users.
-func ValidatePrivateKeyFilePermissions(filename string) error {
-	info, err := os.Stat(filename)
+// ValidatePrivateKeyFilePermissions returns an error when f is a regular file that grants any permission to group
+// or other users. It takes an open file handle, not a path, so that the permissions it checks belong to the same
+// file the caller reads. Non-regular files (for example FIFOs or /dev/fd entries) are not checked.
+func ValidatePrivateKeyFilePermissions(f *os.File) error {
+	info, err := f.Stat()
 	if err != nil {
 		return fmt.Errorf("failed to stat private key file: %w", err)
 	}
 
+	// Only regular files are checked. Non-regular sources (FIFOs, /dev/fd/N from
+	// process substitution, etc.) carry no meaningful at-rest permissions and let
+	// an operator supply a key without it ever touching disk, so they are allowed.
 	if info.Mode().IsRegular() && info.Mode().Perm()&forbiddenPermMask != 0 {
-		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", filename, info.Mode().Perm())
+		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", f.Name(), info.Mode().Perm())
 	}
 
 	return nil

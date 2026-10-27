@@ -6,6 +6,8 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
@@ -19,14 +21,52 @@ import (
 	"go.uber.org/zap"
 )
 
+// stageDevKey copies a committed devnet key into a 0600 temp file and returns
+// its path. The key loaders reject group- or world-readable files, and git only
+// stores the committed keys as 0644, so this avoids a manual chmod after every
+// checkout. The caller is responsible for removing the returned file.
+func stageDevKey(path string) (string, error) {
+	key, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	// os.CreateTemp creates the file as 0600, which is what the loader requires.
+	tmp, err := os.CreateTemp("", filepath.Base(path))
+	if err != nil {
+		return "", err
+	}
+	if _, err := tmp.Write(key); err != nil {
+		_ = tmp.Close()
+		return "", err
+	}
+	if err := tmp.Close(); err != nil {
+		return "", err
+	}
+	return tmp.Name(), nil
+}
+
 func main() {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
 	wormchainURL := string("localhost:9090")
-	wormchainKeyPath := string("./dev.wormchain.key")
 	contract := "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
-	guardianSignerUri := string("file://dev.guardian.key")
+
+	// Git stores the committed devnet keys as world-readable (0644), but the key
+	// loaders reject group- or world-readable key files. Stage 0600 copies so
+	// this test tool keeps working out of the box after a fresh checkout.
+	wormchainKeyPath, err := stageDevKey("./dev.wormchain.key")
+	if err != nil {
+		logger.Fatal("failed to stage wormchain key", zap.Error(err))
+	}
+	defer os.Remove(wormchainKeyPath)
+
+	guardianKeyPath, err := stageDevKey("./dev.guardian.key")
+	if err != nil {
+		logger.Fatal("failed to stage guardian key", zap.Error(err))
+	}
+	defer os.Remove(guardianKeyPath)
+	guardianSignerUri := string("file://" + guardianKeyPath)
 
 	wormchainKey, err := wormconn.LoadWormchainPrivKey(wormchainKeyPath, "test0000")
 	if err != nil {

@@ -457,6 +457,8 @@ Generate a new key using the `keygen` subcommand:
 
 The key file includes a human-readable part which includes the public key hashes and the description.
 
+guardiand refuses to load a key file that grants any permission to group or other users. The `keygen` command writes the file as `0600`, which meets this requirement. If you copy or restore a key, set its permissions with `chmod 0600 /path/to/your.key`.
+
 ## Deploying
 
 We strongly recommend a separate user and systemd services for the Wormhole services.

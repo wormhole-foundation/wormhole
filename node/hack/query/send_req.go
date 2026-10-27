@@ -10,6 +10,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -44,6 +46,30 @@ import (
 // [paste, ^x, y, enter]
 // go run send_req.go
 
+// stageDevKey copies a committed devnet key into a 0600 temp file and returns
+// its path. The key loaders reject group- or world-readable files, and git only
+// stores the committed keys as 0644, so this avoids a manual chmod after every
+// checkout. The caller is responsible for removing the returned file.
+func stageDevKey(path string) (string, error) {
+	key, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	// os.CreateTemp creates the file as 0600, which is what the loader requires.
+	tmp, err := os.CreateTemp("", filepath.Base(path))
+	if err != nil {
+		return "", err
+	}
+	if _, err := tmp.Write(key); err != nil {
+		_ = tmp.Close()
+		return "", err
+	}
+	if err := tmp.Close(); err != nil {
+		return "", err
+	}
+	return tmp.Name(), nil
+}
+
 func main() {
 
 	//
@@ -60,8 +86,17 @@ func main() {
 
 	signingKeyPath := string("./dev.guardian.key")
 
+	// Git stores the committed devnet key as world-readable (0644), but the key
+	// loader rejects group- or world-readable key files. Stage a 0600 copy so
+	// this test tool keeps working out of the box after a fresh checkout.
+	stagedKeyPath, err := stageDevKey(signingKeyPath)
+	if err != nil {
+		logger.Fatal("failed to stage guardian key", zap.Error(err))
+	}
+	defer os.Remove(stagedKeyPath)
+
 	logger.Info("Loading signing key", zap.String("signingKeyPath", signingKeyPath))
-	sk, err := common.LoadGuardianKey(signingKeyPath, true)
+	sk, err := common.LoadGuardianKey(stagedKeyPath, true)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
