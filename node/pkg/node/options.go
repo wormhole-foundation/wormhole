@@ -26,6 +26,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/mux"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -590,6 +591,7 @@ func GuardianOptionAdminService(socketPath string, rpcMap map[string]string) *Gu
 				rpcMap,
 				g.reobservers,
 				g.managerService,
+				ethcrypto.PubkeyToAddress(g.guardianSigner.PublicKey(ctx)),
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create admin service: %w", err)
