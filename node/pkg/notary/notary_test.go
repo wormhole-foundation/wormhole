@@ -31,7 +31,9 @@ func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublicatio
 	return nil, nil
 }
 func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
-func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
+func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
+	return &db.NotaryLoadResult{}, nil
+}
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
@@ -90,36 +92,6 @@ func TestNewNotary_LoadsPersistedState(t *testing.T) {
 
 	require.True(t, n.IsDelayed(delayedMsg))
 	require.True(t, n.IsBlackholed(blackholedMsg.MessageID()))
-}
-
-func TestNotary_AdminReadCommandsRejectNilLoadAllResult(t *testing.T) {
-	n := makeTestNotary(t)
-	msgID := makeUniqueMessagePublication(t).MessageIDString()
-
-	tests := map[string]func() error{
-		"get delayed message": func() error {
-			_, err := n.GetDelayedMessage(msgID)
-			return err
-		},
-		"get blackholed message": func() error {
-			_, err := n.GetBlackholedMessage(msgID)
-			return err
-		},
-		"list delayed messages": func() error {
-			_, err := n.ListDelayedMessages()
-			return err
-		},
-		"list blackholed messages": func() error {
-			_, err := n.ListBlackholedMessages()
-			return err
-		},
-	}
-
-	for name, call := range tests {
-		t.Run(name, func(t *testing.T) {
-			require.ErrorIs(t, call(), ErrNilDBResult)
-		})
-	}
 }
 
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.

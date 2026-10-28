@@ -62,12 +62,6 @@ func (s *notaryState) load() error {
 		)
 		return err
 	}
-	if result == nil {
-		s.logger.Error(
-			"notary: LoadAll call produced nil result",
-		)
-		return errors.New("nil result from database")
-	}
 
 	s.logger.Info(
 		"loaded notary data from database",
@@ -94,6 +88,9 @@ func (s *notaryState) load() error {
 
 // loadAll returns the database contents. It holds the read lock so that the result does not include
 // a partially applied state transition.
+//
+// The admin read commands use the database rather than memory, because the blackholed set stores
+// only message IDs, not the messages.
 func (s *notaryState) loadAll() (*db.NotaryLoadResult, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -180,6 +177,8 @@ func (s *notaryState) delay(msg *common.MessagePublication, dur time.Duration) e
 // If the database delete fails for a message, the message stays in the delayed queue and is not
 // returned, so that the next call retries it.
 func (s *notaryState) releaseReady(now time.Time) []*common.MessagePublication {
+	// The lock is held across the database deletes so that memory and the database change together.
+	// Admin commands wait for this call to finish.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

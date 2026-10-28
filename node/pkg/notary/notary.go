@@ -89,7 +89,6 @@ const (
 
 var (
 	ErrAlreadyBlackholed = errors.New("notary: message is already blackholed")
-	ErrCannotRelease     = errors.New("notary: could not release message")
 	ErrInvalidMsg        = errors.New("notary: message is invalid")
 	ErrMsgNotFound       = errors.New("notary: message not found")
 	ErrAlreadyDelayed    = errors.New("notary: message is already delayed")
@@ -196,10 +195,6 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		return Unknown, errors.New("notary: ProcessMsg called with nil message")
 	}
 
-	if n.logger == nil {
-		return Unknown, errors.New("notary: logger must not be nil")
-	}
-
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
 	// For the initial implementation, the Notary only rules on messages based
@@ -304,7 +299,6 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 
 // IsBlackholed returns true if the message is in the blackholed list.
 func (n *Notary) IsBlackholed(msgID []byte) bool {
-
 	return n.state.isBlackholed(msgID)
 }
 
