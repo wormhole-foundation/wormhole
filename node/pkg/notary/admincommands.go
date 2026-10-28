@@ -33,13 +33,14 @@ var (
 )
 
 // BlackholeDelayedMsg adds a message publication to the blackholed in-memory set and stores it in the database.
-// It also removes the message from the delayed list and database.
+// It also removes the message from the delayed queue and database. Returns [ErrMsgNotFound] if the
+// message is not delayed.
 func (n *Notary) BlackholeDelayedMsg(msgID string) error {
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}
 
-	// This method also takes care of removing the message from the delayed list and database.
+	// This method also removes the message from the delayed queue and database.
 	return n.state.blackholeDelayed([]byte(msgID))
 }
 
@@ -49,12 +50,13 @@ func (n *Notary) ReleaseDelayedMsg(msgID string) error {
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}
-	// Set the delay to zero so that the message is released on the next cycle.
+	// Set the delay to zero so that the next poll of ReleaseReadyMessages releases the message.
 	return n.state.reschedule([]byte(msgID), time.Duration(0))
 }
 
-// RemoveBlackholedMsg removes a message from the blackholed list and adds it to the delayed list with a delay of zero,
-// so that it will be published on the next cycle.
+// RemoveBlackholedMsg removes a message from the blackholed set and adds it to the delayed queue with a
+// delay of zero, so that the next poll of [Notary.ReleaseReadyMessages] releases it. Returns
+// [ErrMsgNotFound] if the message is not blackholed.
 func (n *Notary) RemoveBlackholedMsg(msgID string) error {
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID

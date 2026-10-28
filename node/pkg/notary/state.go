@@ -12,14 +12,22 @@ import (
 
 // notaryState holds the delayed queue, the blackholed set, and the database that persists them.
 //
-// Every method takes [notaryState.mu] for its whole body, so each state transition is atomic. The
-// lock keeps these invariants true between calls:
+// [notaryState.mu] keeps these invariants true between calls:
 //   - A message is never both delayed and blackholed.
 //   - The in-memory structures and the database hold the same messages, unless a database
 //     operation returned an error.
 //
 // If a database operation fails, the in-memory state errs toward holding the message back: a
 // message stays delayed or blackholed in memory even if the database write or delete failed.
+//
+// Locking convention:
+//   - A method without the Locked suffix takes [notaryState.mu] for its whole body, so it is one
+//     atomic state transition. Code outside this type calls only these methods.
+//   - A method with the Locked suffix requires the caller to hold [notaryState.mu] and does not take
+//     it. A transition that has several steps, such as reschedule, calls Locked methods so that all
+//     the steps happen under one lock.
+//   - A Locked method must not call a method without the suffix. [sync.RWMutex] is not reentrant, so
+//     that call would deadlock.
 //
 // [common.PendingMessageQueue] has its own lock, but that lock protects only the queue's internal
 // structure. It does not protect the invariants above. Code outside this type must not access
@@ -28,16 +36,19 @@ type notaryState struct {
 	mu     sync.RWMutex
 	logger *zap.Logger
 
-	// database persists information about delayed and black-holed messages.
+	// database persists the delayed and blackholed messages, so that they survive a restart.
 	database db.NotaryDBInterface
 
-	// Min-heap queue of delayed messages (MessagePublication + Timestamp for release)
+	// delayed holds the delayed messages with their release times, earliest release first.
 	delayed *common.PendingMessageQueue
 
-	// All of the messages that have been black-holed due to being rejected by the Transfer Verifier.
+	// blackholed holds the IDs of blackholed messages. It stores IDs only; the database stores the
+	// messages.
 	blackholed *msgPubSet
 }
 
+// newNotaryState returns an empty notaryState that persists to database. Call load to read the
+// stored messages.
 func newNotaryState(logger *zap.Logger, database db.NotaryDBInterface) *notaryState {
 	return &notaryState{
 		logger:     logger,
@@ -47,8 +58,8 @@ func newNotaryState(logger *zap.Logger, database db.NotaryDBInterface) *notarySt
 	}
 }
 
-// load reads all the database entries into the in-memory structures. Only [NewNotary] calls
-// it, on a new, empty notaryState.
+// load reads all the database entries into the in-memory structures. Only [NewNotary] calls it, on
+// a new, empty notaryState.
 func (s *notaryState) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -105,6 +116,11 @@ func (s *notaryState) lens() (delayed int, blackholed int) {
 	return s.delayed.Len(), s.blackholed.Len()
 }
 
+// isDelayed reports whether the delayed queue holds the message.
+//
+// The result is a snapshot. Another goroutine can change the state after isDelayed returns, so do
+// not use the result to decide a state change. Put the check and the change in one method instead,
+// as evaluate does.
 func (s *notaryState) isDelayed(msgID []byte) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -112,6 +128,9 @@ func (s *notaryState) isDelayed(msgID []byte) bool {
 	return s.delayed.FetchMessagePublication(msgID) != nil
 }
 
+// isBlackholed reports whether the blackholed set holds the message.
+//
+// The result is a snapshot, with the same limits as isDelayed.
 func (s *notaryState) isBlackholed(msgID []byte) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -121,7 +140,8 @@ func (s *notaryState) isBlackholed(msgID []byte) bool {
 
 // evaluate returns the verdict for a token transfer that the Notary rules on. If the message is
 // already blackholed or delayed, it returns Blackhole or Delay. Otherwise it returns verdict, and if
-// verdict is Delay, it first delays the message for [DefaultDelay].
+// verdict is Delay, it first delays the message for [DefaultDelay]. The error is the error from that
+// delay, if any.
 func (s *notaryState) evaluate(msg *common.MessagePublication, verdict Verdict) (Verdict, error) {
 	if msg == nil {
 		return Unknown, ErrInvalidMsg
@@ -132,7 +152,7 @@ func (s *notaryState) evaluate(msg *common.MessagePublication, verdict Verdict) 
 
 	// Return early if the message has already been blackholed. This is important in case a message
 	// is reobserved or otherwise processed here more than once. An Anomalous message that becomes
-	// delayed and later blackholed should not be able to be re-added to the Delayed queue.
+	// delayed and later blackholed should not be able to be re-added to the delayed queue.
 	if s.blackholed.Contains(msg.MessageID()) {
 		s.logger.Warn("notary: got message publication that is already blackholed",
 			msg.ZapFields(zap.String("verdict", Blackhole.String()))...,
@@ -158,7 +178,8 @@ func (s *notaryState) evaluate(msg *common.MessagePublication, verdict Verdict) 
 	return verdict, nil
 }
 
-// delay stores a MessagePublication in the database and adds it to the delayed queue.
+// delay adds a message to the delayed queue and the database, with a release time of now plus dur.
+// See delayLocked for the errors.
 func (s *notaryState) delay(msg *common.MessagePublication, dur time.Duration) error {
 	if msg == nil {
 		return ErrInvalidMsg
@@ -198,8 +219,8 @@ func (s *notaryState) releaseReady(now time.Time) []*common.MessagePublication {
 			break // No more messages to process or next message not ready
 		}
 
-		// Update database. Do this before adding the message to the ready list so that we don't
-		// accidentally add the same message twice if deleting the message from the database fails.
+		// Delete from the database before returning the message. If the delete fails, the message
+		// goes back in the queue after the loop and is not returned, so that it stays held.
 		deletedPendingMsg, err := s.database.DeleteDelayed(pMsg.Msg.MessageID())
 		if err != nil {
 			s.logger.Error("delete pending message from notary database", pMsg.Msg.ZapFields(zap.Error(err))...)
@@ -211,9 +232,8 @@ func (s *notaryState) releaseReady(now time.Time) []*common.MessagePublication {
 			s.logger.Warn("notary: delete pending message from notary database: deleted value was nil")
 		}
 
-		// If the message is in the delayed queue, it should not be in the blackholed queue.
-		// This is a sanity check to ensure that the blackholed queue is not published,
-		// but it should never happen.
+		// A delayed message is never blackholed, by the invariant on notaryState. This sanity
+		// check makes sure that a blackholed message is never returned for publication.
 		if s.blackholed.Contains(pMsg.Msg.MessageID()) {
 			s.logger.Error("notary: got blackholed message in delayed queue", pMsg.Msg.ZapFields()...)
 			continue
@@ -229,7 +249,8 @@ func (s *notaryState) releaseReady(now time.Time) []*common.MessagePublication {
 	return readyMsgs
 }
 
-// reschedule sets the release time of an existing delayed message to now plus duration.
+// reschedule sets the release time of a delayed message to now plus duration. Returns
+// [ErrMsgNotFound] if the message is not delayed.
 func (s *notaryState) reschedule(msgID []byte, duration time.Duration) error {
 	if len(msgID) == 0 {
 		return ErrInvalidMsg
@@ -243,12 +264,12 @@ func (s *notaryState) reschedule(msgID []byte, duration time.Duration) error {
 		return ErrMsgNotFound
 	}
 
-	// Remove existing message from the delayed list and database.
+	// Remove the current entry from the database and the delayed queue.
 	if err := s.removeDelayedLocked(msgID); err != nil {
 		return err
 	}
 
-	// Add the message back to the delayed list and database with the new duration.
+	// Add the message back with the new release time.
 	if err := s.delayLocked(msgPub, duration); err != nil {
 		return err
 	}
@@ -257,8 +278,8 @@ func (s *notaryState) reschedule(msgID []byte, duration time.Duration) error {
 	return nil
 }
 
-// blackhole adds a message publication to the blackholed in-memory set and stores it in the database.
-// It also removes the message from the delayed list and database, if present.
+// blackhole adds a message to the blackholed set and the database. If the message is delayed, it
+// first removes the message from the delayed queue and the database.
 func (s *notaryState) blackhole(msg *common.MessagePublication) error {
 	if msg == nil {
 		return ErrInvalidMsg
@@ -288,9 +309,9 @@ func (s *notaryState) blackholeDelayed(msgID []byte) error {
 	return s.blackholeLocked(msgPub)
 }
 
-// unblackhole removes a message from the blackholed set and database and delays it with a delay of
-// zero, so that it is released on the next cycle. Returns [ErrMsgNotFound] if the database has no
-// blackholed message with this ID.
+// unblackhole removes a message from the blackholed set and the database, then delays it with a
+// delay of zero, so that the next call to releaseReady returns it. Returns [ErrMsgNotFound] if the
+// blackholed set does not hold the message.
 func (s *notaryState) unblackhole(msgID []byte) error {
 	if len(msgID) == 0 {
 		return ErrInvalidMsg
@@ -312,7 +333,8 @@ func (s *notaryState) unblackhole(msgID []byte) error {
 	return s.delayLocked(removedMsgPub, time.Duration(0))
 }
 
-// forget removes a message from the database and from the delayed and blackholed lists.
+// forget removes a message from the delayed queue, the blackholed set, and the database. It is not
+// an error if the message is in neither. Only tests call forget.
 func (s *notaryState) forget(msg *common.MessagePublication) error {
 	if msg == nil {
 		return ErrInvalidMsg
@@ -321,8 +343,8 @@ func (s *notaryState) forget(msg *common.MessagePublication) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Remove the message only from the sets that hold it. The database returns an error for a
-	// missing key, so a removal from a set that does not hold the message would fail.
+	// Remove the message only from the queue or set that holds it. The database returns an error for
+	// a missing key, so a removal from one that does not hold the message would fail.
 	removedAny := false
 
 	if s.delayed.FetchMessagePublication(msg.MessageID()) != nil {
@@ -346,10 +368,13 @@ func (s *notaryState) forget(msg *common.MessagePublication) error {
 	return nil
 }
 
-// delayLocked adds a message to the delayed queue and the database. The caller must hold
-// [notaryState.mu].
+// delayLocked adds a message to the delayed queue and the database, with a release time of now plus
+// dur. The caller must hold [notaryState.mu].
+//
+// Returns [ErrAlreadyBlackholed] or [ErrAlreadyDelayed] if memory already holds the message. If the
+// database write fails, the message stays in the delayed queue and delayLocked returns the error.
 func (s *notaryState) delayLocked(msg *common.MessagePublication, dur time.Duration) error {
-	// Ensure that the message can't be added to the delayed list or database if it's already blackholed.
+	// A blackholed message must not also be delayed.
 	if s.blackholed.Contains(msg.MessageID()) {
 		return ErrAlreadyBlackholed
 	}
@@ -370,7 +395,8 @@ func (s *notaryState) delayLocked(msg *common.MessagePublication, dur time.Durat
 		ReleaseTime: release.Add(dur),
 	}
 
-	// Store in in-memory slice. This should happen even if a database error occurs.
+	// Add to the queue before the database write, so that memory holds the message back even if
+	// the write fails.
 	s.delayed.Push(pMsg)
 
 	// Store in database.
@@ -383,8 +409,11 @@ func (s *notaryState) delayLocked(msg *common.MessagePublication, dur time.Durat
 	return nil
 }
 
-// blackholeLocked removes a message from the delayed queue and database, if present, then adds it
-// to the blackholed set and the database. The caller must hold [notaryState.mu].
+// blackholeLocked removes a message from the delayed queue and the database, if it is delayed, then
+// adds it to the blackholed set and the database. The caller must hold [notaryState.mu].
+//
+// If the database write fails, the message stays in the blackholed set and blackholeLocked returns
+// the error.
 func (s *notaryState) blackholeLocked(msg *common.MessagePublication) error {
 	// Remove the message from the delayed queue only if it is there. The database returns an error
 	// for a missing key.
@@ -394,7 +423,8 @@ func (s *notaryState) blackholeLocked(msg *common.MessagePublication) error {
 		}
 	}
 
-	// Store in in-memory set. This should happen even if a database error occurs.
+	// Add to the set before the database write, so that memory holds the message back even if the
+	// write fails.
 	s.blackholed.Add(msg.MessageID())
 
 	// Store in database.
@@ -407,11 +437,11 @@ func (s *notaryState) blackholeLocked(msg *common.MessagePublication) error {
 	return nil
 }
 
-// removeDelayedLocked removes a message from the database and then from the delayed list. The
+// removeDelayedLocked removes a message from the database and then from the delayed queue. The
 // caller must hold [notaryState.mu], and the message must be in the database. The database returns
 // an error for a missing key.
 //
-// The database delete happens first. If it fails, the message stays in the delayed list, so that
+// The database delete happens first. If it fails, the message stays in the delayed queue, so that
 // memory still holds back a message that the database holds.
 func (s *notaryState) removeDelayedLocked(msgID []byte) error {
 	if _, err := s.database.DeleteDelayed(msgID); err != nil {
@@ -422,11 +452,11 @@ func (s *notaryState) removeDelayedLocked(msgID []byte) error {
 	return err
 }
 
-// removeBlackholedLocked removes a message from the database and then from the blackholed list. The
+// removeBlackholedLocked removes a message from the database and then from the blackholed set. The
 // caller must hold [notaryState.mu], and the message must be in the database. The database returns
 // an error for a missing key.
 //
-// The database delete happens first. If it fails, the message stays in the blackholed list, so that
+// The database delete happens first. If it fails, the message stays in the blackholed set, so that
 // memory still holds back a message that the database holds.
 //
 // Returns the message that was removed from the database.

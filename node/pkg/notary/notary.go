@@ -106,7 +106,7 @@ type (
 		logger *zap.Logger
 
 		// state holds the delayed and blackholed messages and persists them in the database.
-		// All access goes through its methods, which are atomic.
+		// The Notary calls only its methods without the Locked suffix. Each of those is atomic.
 		state *notaryState
 
 		// env reports whether the guardian is running in production or a test environment.
@@ -294,11 +294,14 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 	return readyMsgs
 }
 
-// IsBlackholed returns true if the message is in the blackholed list.
+// IsBlackholed reports whether the message is blackholed. The result is a snapshot; see
+// notaryState.isDelayed.
 func (n *Notary) IsBlackholed(msgID []byte) bool {
 	return n.state.isBlackholed(msgID)
 }
 
+// IsDelayed reports whether the message is delayed. The result is a snapshot; see
+// notaryState.isDelayed.
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
 	if msg == nil {
 		return false

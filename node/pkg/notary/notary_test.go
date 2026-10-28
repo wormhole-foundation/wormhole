@@ -479,7 +479,7 @@ func TestNotary_Forget(t *testing.T) {
 		expectedBlackholed int
 	}{
 		{
-			"remove from delayed list",
+			"remove from delayed queue",
 			makeUniqueMessagePublication(t),
 			0,
 			0,
@@ -502,7 +502,7 @@ func TestNotary_Forget(t *testing.T) {
 			require.Equal(t, 0, n.state.blackholed.Len())
 
 			// Modify the set and the database manually because calling the blackhole function will
-			// remove the message from the delayed list.
+			// remove the message from the delayed queue.
 			n.state.blackholed.Add(tt.msg.MessageID())
 			require.NoError(t, n.state.database.StoreBlackholed(tt.msg))
 
@@ -526,7 +526,7 @@ func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
 		expectedBlackholed int
 	}{
 		{
-			"remove from delayed list",
+			"remove from delayed queue",
 			makeUniqueMessagePublication(t),
 			0,
 			1,
