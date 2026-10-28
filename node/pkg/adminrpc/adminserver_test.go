@@ -4,12 +4,16 @@ package adminrpc
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	wh_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -505,4 +509,34 @@ func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
 	require.NotNil(t, v)
 	assert.Equal(t, uint64(11), v.Sequence)
 	assert.Equal(t, uint32(22), v.Nonce)
+}
+
+// TestGetAndObserveMissingVAAs_RequestsCarryCurrentTimestamp checks that the observation requests built from the
+// missing-VAA list are timestamped now. Receiving guardians drop requests whose timestamp is more than 15 minutes
+// from their clock, so a request without one only reaches the local node's watchers.
+func TestGetAndObserveMissingVAAs_RequestsCarryCurrentTimestamp(t *testing.T) {
+	txHash := "0x2d449abf3d03edeb6c0c8f980a1608207958c5165cde1053e76a1a361150cc62"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"chain":2,"vaaKey":"2/0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585/7","txhash":"` + txHash + `"}]`))
+	}))
+	defer srv.Close()
+
+	guardianDB := db.OpenDb(zap.NewNop(), nil)
+	defer guardianDB.Close()
+	obsvReqSendC := make(chan *gossipv1.ObservationRequest, 1)
+	service := &nodePrivilegedService{db: guardianDB, obsvReqSendC: obsvReqSendC, logger: zap.NewNop()}
+
+	before := time.Now()
+	_, err := service.GetAndObserveMissingVAAs(context.Background(), &nodev1.GetAndObserveMissingVAAsRequest{Url: srv.URL, ApiKey: "key"})
+	require.NoError(t, err)
+	after := time.Now()
+
+	require.Len(t, obsvReqSendC, 1)
+	req := <-obsvReqSendC
+	assert.Equal(t, uint32(vaa.ChainIDEthereum), req.ChainId)
+	assert.Equal(t, txHash[2:], hex.EncodeToString(req.TxHash))
+	sent := time.Unix(0, req.Timestamp)
+	assert.False(t, sent.Before(before), "request timestamp %v predates the call (%v)", sent, before)
+	assert.False(t, sent.After(after), "request timestamp %v postdates the call (%v)", sent, after)
 }
