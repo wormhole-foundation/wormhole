@@ -1,8 +1,8 @@
-FROM docker.io/golang:1.19.9@sha256:86901bd215ca2b33bdef68f70b999140252169bb55883bb29347334fa00b5b62
+FROM docker.io/golang:1.19.13-bookworm@sha256:da9da58d86d106a5dda2ce249b00cf3b31cdd626ea41597e476de7b4eebad8c4
 
 #used for a readiness probe
 RUN apt-get update
-RUN apt install -y netcat
+RUN apt install -y netcat-openbsd
 RUN apt install -y jq
 
 WORKDIR /app
