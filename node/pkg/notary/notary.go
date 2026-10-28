@@ -319,36 +319,23 @@ func NewSet() *msgPubSet {
 	}
 }
 
-// Len returns the number of elements in the set. Returns 0 if the set is nil.
+// Len returns the number of elements in the set.
 func (s *msgPubSet) Len() int {
-	if s == nil {
-		return 0
-	}
-
 	return len(s.elements)
 }
 
 // Add adds an element to the set
 func (s *msgPubSet) Add(element []byte) {
-	if s == nil {
-		return // Protect against nil receiver
-	}
 	s.elements[string(element)] = struct{}{}
 }
 
 // Contains checks if an element is in the set
 func (s *msgPubSet) Contains(element []byte) bool {
-	if s == nil {
-		return false // Protect against nil receiver
-	}
 	_, exists := s.elements[string(element)]
 	return exists
 }
 
 // Remove removes an element from the set
 func (s *msgPubSet) Remove(element []byte) {
-	if s == nil {
-		return // Protect against nil receiver
-	}
 	delete(s.elements, string(element))
 }

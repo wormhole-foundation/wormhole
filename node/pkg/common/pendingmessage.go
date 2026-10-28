@@ -170,10 +170,6 @@ func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
 // readiness separately and then remove, because another goroutine can change the queue between
 // the two calls. To remove a specific message regardless of its ReleaseTime, use [PendingMessageQueue.RemoveItem].
 func (q *PendingMessageQueue) Pop(when time.Time) *PendingMessage {
-	if q == nil {
-		return nil
-	}
-
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -192,11 +188,8 @@ func (q *PendingMessageQueue) Pop(when time.Time) *PendingMessage {
 	return ready
 }
 
-// Len returns the number of elements in the queue. Returns 0 if the queue is nil.
+// Len returns the number of elements in the queue.
 func (q *PendingMessageQueue) Len() int {
-	if q == nil {
-		return 0
-	}
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
@@ -210,10 +203,6 @@ func (q *PendingMessageQueue) Len() int {
 // use the result to decide what to remove. Use [PendingMessageQueue.Pop] to remove a ready message, or
 // [PendingMessageQueue.RemoveItem] to remove a specific message.
 func (q *PendingMessageQueue) Peek() *PendingMessage {
-	if q == nil {
-		return nil
-	}
-
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
