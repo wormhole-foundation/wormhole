@@ -203,6 +203,29 @@ func (q *PendingMessageQueue) Len() int {
 	return q.heap.Len()
 }
 
+// Peek returns a copy of the message with the earliest ReleaseTime without removing it.
+// Returns nil if the queue is empty.
+//
+// The result is a snapshot. Another goroutine can change the queue after Peek returns, so do not
+// use the result to decide what to remove. Use [PendingMessageQueue.Pop] to remove a ready message, or
+// [PendingMessageQueue.RemoveItem] to remove a specific message.
+func (q *PendingMessageQueue) Peek() *PendingMessage {
+	if q == nil {
+		return nil
+	}
+
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
+	if q.heap.Len() == 0 {
+		return nil
+	}
+
+	// container/heap stores the root (earliest ReleaseTime) at index 0.
+	root := *q.heap[0]
+	return &root
+}
+
 // RemoveItem removes target MessagePublication with the message ID from the heap. Returns the element that was removed or nil
 // if the item was not found. No error is returned if the item was not found.
 func (q *PendingMessageQueue) RemoveItem(msgID []byte) (*PendingMessage, error) {
