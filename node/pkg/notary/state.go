@@ -300,6 +300,11 @@ func (s *notaryState) unblackhole(msgID []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Check memory first. The database returns an error, not ErrMsgNotFound, for a missing key.
+	if !s.blackholed.Contains(msgID) {
+		return ErrMsgNotFound
+	}
+
 	removedMsgPub, err := s.removeBlackholedLocked(msgID)
 	if err != nil {
 		return err
@@ -321,17 +326,25 @@ func (s *notaryState) forget(msg *common.MessagePublication) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	removedPendingMsg, err := s.removeDelayedLocked(msg.MessageID())
-	if err != nil {
-		return err
+	// Remove the message only from the sets that hold it. The database returns an error for a
+	// missing key, so a removal from a set that does not hold the message would fail.
+	removedAny := false
+
+	if s.delayed.FetchMessagePublication(msg.MessageID()) != nil {
+		if _, err := s.removeDelayedLocked(msg.MessageID()); err != nil {
+			return err
+		}
+		removedAny = true
 	}
 
-	removedMsgPub, err := s.removeBlackholedLocked(msg.MessageID())
-	if err != nil {
-		return err
+	if s.blackholed.Contains(msg.MessageID()) {
+		if _, err := s.removeBlackholedLocked(msg.MessageID()); err != nil {
+			return err
+		}
+		removedAny = true
 	}
 
-	if removedPendingMsg == nil && removedMsgPub == nil {
+	if !removedAny {
 		s.logger.Info("notary: call to forget did not result in any changes", msg.ZapFields()...)
 	}
 

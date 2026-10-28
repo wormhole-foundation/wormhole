@@ -2,10 +2,12 @@ package notary
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,20 +21,72 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
-// MockNotaryDB is a mock implementation of the NotaryDB interface.
-// It returns nil for all operations, so it can be used to test the Notary's
-// core logic but certain DB-related operations are not covered.
-// Where possible, these should be tested in the Notary database's own unit tests, not here.
-type MockNotaryDB struct{}
+// errMockKeyNotFound is the error that MockNotaryDB returns when a delete names a missing key.
+var errMockKeyNotFound = errors.New("mock notary db: key not found")
 
-func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error { return nil }
-func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error        { return nil }
-func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error) {
-	return nil, nil
+// MockNotaryDB is an in-memory implementation of the NotaryDB interface. It follows the real
+// database: a store overwrites the entry, and a delete of a missing key returns an error.
+// Where possible, database behavior should be tested in the Notary database's own unit tests, not here.
+type MockNotaryDB struct {
+	mu         sync.Mutex
+	delayed    map[string]common.PendingMessage
+	blackholed map[string]common.MessagePublication
 }
-func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
-func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
-	return &db.NotaryLoadResult{}, nil
+
+func newMockNotaryDB() *MockNotaryDB {
+	return &MockNotaryDB{
+		delayed:    make(map[string]common.PendingMessage),
+		blackholed: make(map[string]common.MessagePublication),
+	}
+}
+
+func (md *MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	md.blackholed[m.MessageIDString()] = *m
+	return nil
+}
+
+func (md *MockNotaryDB) StoreDelayed(p *common.PendingMessage) error {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	md.delayed[p.Msg.MessageIDString()] = *p
+	return nil
+}
+
+func (md *MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error) {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	m, ok := md.blackholed[string(msgID)]
+	if !ok {
+		return nil, errMockKeyNotFound
+	}
+	delete(md.blackholed, string(msgID))
+	return &m, nil
+}
+
+func (md *MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	p, ok := md.delayed[string(msgID)]
+	if !ok {
+		return nil, errMockKeyNotFound
+	}
+	delete(md.delayed, string(msgID))
+	return &p, nil
+}
+
+func (md *MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	result := &db.NotaryLoadResult{}
+	for _, p := range md.delayed {
+		result.Delayed = append(result.Delayed, &p)
+	}
+	for _, m := range md.blackholed {
+		result.Blackholed = append(result.Blackholed, &m)
+	}
+	return result, nil
 }
 
 func makeTestNotary(t *testing.T) *Notary {
@@ -41,7 +95,7 @@ func makeTestNotary(t *testing.T) *Notary {
 	return &Notary{
 		ctx:    context.Background(),
 		logger: zap.NewNop(),
-		state:  newNotaryState(zap.NewNop(), MockNotaryDB{}),
+		state:  newNotaryState(zap.NewNop(), newMockNotaryDB()),
 		env:    common.GoTest,
 	}
 }
@@ -402,6 +456,8 @@ func TestNotary_ProcessReadyMessages(t *testing.T) {
 			for pMsg := range slices.Values(tt.delayed) {
 				require.NotNil(t, pMsg)
 				n.state.delayed.Push(pMsg)
+				// Store the message too, as delay does, so that the release can delete it.
+				require.NoError(t, n.state.database.StoreDelayed(pMsg))
 				// Ensure that the queue grows after each push.
 				require.Greater(t, n.state.delayed.Len(), currentLength)
 				currentLength = n.state.delayed.Len()
@@ -445,8 +501,10 @@ func TestNotary_Forget(t *testing.T) {
 			require.Equal(t, 1, n.state.delayed.Len())
 			require.Equal(t, 0, n.state.blackholed.Len())
 
-			// Modify the set manually because calling the blackhole function will remove the message from the delayed list.
+			// Modify the set and the database manually because calling the blackhole function will
+			// remove the message from the delayed list.
 			n.state.blackholed.Add(tt.msg.MessageID())
+			require.NoError(t, n.state.database.StoreBlackholed(tt.msg))
 
 			require.Equal(t, 1, n.state.delayed.Len())
 			require.Equal(t, 1, n.state.blackholed.Len())
