@@ -236,11 +236,11 @@ func TestPendingMessageQueue_Peek(t *testing.T) {
 
 }
 
-func TestPendingMessageQueue_PopReady(t *testing.T) {
+func TestPendingMessageQueue_Pop(t *testing.T) {
 	t.Run("empty queue", func(t *testing.T) {
 		q := common.NewPendingMessageQueue()
 
-		require.Nil(t, q.PopReady(time.Now()))
+		require.Nil(t, q.Pop(time.Now()))
 		require.Equal(t, 0, q.Len())
 	})
 
@@ -262,23 +262,23 @@ func TestPendingMessageQueue_PopReady(t *testing.T) {
 		q.Push(earliest)
 		require.Equal(t, 3, q.Len())
 
-		got := q.PopReady(now)
-		require.True(t, got == earliest, "PopReady must remove the current heap root")
+		got := q.Pop(now)
+		require.True(t, got == earliest, "Pop must remove the current heap root")
 		require.Equal(t, 2, q.Len())
 
 		// A release time exactly equal to the cutoff is ready.
-		got = q.PopReady(now)
-		require.True(t, got == boundary, "PopReady must treat the cutoff as inclusive")
+		got = q.Pop(now)
+		require.True(t, got == boundary, "Pop must treat the cutoff as inclusive")
 		require.Equal(t, 1, q.Len())
 
 		// The remaining head is in the future, so it must remain queued.
-		require.Nil(t, q.PopReady(now))
+		require.Nil(t, q.Pop(now))
 		require.Equal(t, 1, q.Len())
 		require.Equal(t, future.Msg.MessageID(), q.Peek().Msg.MessageID())
 	})
 }
 
-func TestPendingMessageQueue_PopReadyConcurrent(t *testing.T) {
+func TestPendingMessageQueue_PopConcurrent(t *testing.T) {
 	const messageCount = 100
 
 	q := common.NewPendingMessageQueue()
@@ -295,7 +295,7 @@ func TestPendingMessageQueue_PopReadyConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if msg := q.PopReady(now); msg != nil {
+			if msg := q.Pop(now); msg != nil {
 				results <- msg
 			}
 		}()
@@ -319,7 +319,7 @@ func TestPendingMessageQueue_PopReadyConcurrent(t *testing.T) {
 	require.Equal(t, 0, q.Len())
 }
 
-func TestPendingMessageQueue_PopReadyCompetesWithRemoveItem(t *testing.T) {
+func TestPendingMessageQueue_PopCompetesWithRemoveItem(t *testing.T) {
 	const iterations = 100
 	now := time.Now().Add(time.Hour)
 
@@ -345,7 +345,7 @@ func TestPendingMessageQueue_PopReadyCompetesWithRemoveItem(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			results <- q.PopReady(now)
+			results <- q.Pop(now)
 		}()
 		go func() {
 			defer wg.Done()
@@ -357,7 +357,7 @@ func TestPendingMessageQueue_PopReadyCompetesWithRemoveItem(t *testing.T) {
 		require.NoError(t, removeErr)
 
 		// Either operation may win the queue lock, but the future message must never
-		// be selected by PopReady.
+		// be selected by Pop.
 		if got != nil {
 			require.True(t, got == ready)
 			require.Nil(t, removed)
@@ -426,7 +426,7 @@ func TestPendingMessageQueue_DangerousOperations(t *testing.T) {
 	q := common.NewPendingMessageQueue()
 
 	// Popping an empty queue should not panic or alter the queue.
-	element := q.Pop()
+	element := q.Pop(time.Now())
 	require.Nil(t, element)
 	require.Equal(t, 0, q.Len())
 
@@ -465,11 +465,14 @@ func consumeHeapAndAssertOrdering(t *testing.T, q *common.PendingMessageQueue) [
 
 	res := make([]*common.PendingMessage, 0, q.Len())
 
+	// Every message is ready at this time, so Pop removes them all in order.
+	farFuture := time.Now().AddDate(100, 0, 0)
+
 	// Pop all entries from the heap. Ensure that the element on top of the heap
 	// is always the earliest (smallest timestamp).
 	for q.Len() > 0 {
 		// length changes automatically after popping.
-		earliest := q.Pop()
+		earliest := q.Pop(farFuture)
 		res = append(res, earliest)
 
 		next := q.Peek()

@@ -385,8 +385,8 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 	// Pop elements from the queue until the release time is after the current time.
 	// If errors occur, continue instead of returning early so that other messages
 	// can still be processed.
-	for n.delayed.Len() != 0 {
-		pMsg := n.delayed.PopReady(now)
+	for {
+		pMsg := n.delayed.Pop(now)
 
 		if pMsg == nil {
 			break // No more messages to process or next message not ready

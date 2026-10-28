@@ -64,6 +64,18 @@ func makeTestNotary(t *testing.T) *Notary {
 	return n
 }
 
+// earliestDelayed returns the delayed message with the earliest release time and leaves it in the queue.
+// The queue does not export Peek, so this pops with a cutoff that every message meets and pushes the
+// message back.
+func earliestDelayed(t *testing.T, n *Notary) *common.PendingMessage {
+	t.Helper()
+
+	pMsg := n.delayed.Pop(time.Now().AddDate(100, 0, 0))
+	require.NotNil(t, pMsg)
+	n.delayed.Push(pMsg)
+	return pMsg
+}
+
 func TestNotary_NilInputsAndDependencies(t *testing.T) {
 	logger := zap.NewNop()
 
@@ -696,7 +708,7 @@ func TestNotary_ReobservationDoesNotBypassDelay(t *testing.T) {
 			require.True(t, n.IsDelayed(msg))
 			require.Equal(t, 1, n.delayed.Len())
 
-			releaseTime := n.delayed.Peek().ReleaseTime
+			releaseTime := earliestDelayed(t, n).ReleaseTime
 
 			// Reobservation republishes the message with the same message ID and has the transfer
 			// verifier evaluate it again from the default state.
@@ -715,7 +727,7 @@ func TestNotary_ReobservationDoesNotBypassDelay(t *testing.T) {
 
 			// The original delayed entry is untouched, so delay() was not called a second time.
 			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, releaseTime, n.delayed.Peek().ReleaseTime)
+			require.Equal(t, releaseTime, earliestDelayed(t, n).ReleaseTime)
 		})
 	}
 }
