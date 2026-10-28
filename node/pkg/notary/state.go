@@ -123,6 +123,45 @@ func (s *notaryState) isBlackholed(msgID []byte) bool {
 	return s.blackholed.Contains(msgID)
 }
 
+// evaluate returns the verdict for a token transfer that the Notary rules on. If the message is
+// already blackholed or delayed, it returns Blackhole or Delay. Otherwise it returns verdict, and if
+// verdict is Delay, it first delays the message for [DefaultDelay].
+func (s *notaryState) evaluate(msg *common.MessagePublication, verdict Verdict) (Verdict, error) {
+	if msg == nil {
+		return Unknown, ErrInvalidMsg
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Return early if the message has already been blackholed. This is important in case a message
+	// is reobserved or otherwise processed here more than once. An Anomalous message that becomes
+	// delayed and later blackholed should not be able to be re-added to the Delayed queue.
+	if s.blackholed.Contains(msg.MessageID()) {
+		s.logger.Warn("notary: got message publication that is already blackholed",
+			msg.ZapFields(zap.String("verdict", Blackhole.String()))...,
+		)
+		return Blackhole, nil
+	}
+
+	// Return early if the message has already been delayed. A message may be processed here more
+	// than once: reobservation re-runs the transfer verifier from scratch, so the same message can
+	// re-enter with a different verification state. Without this check, a reobservation that
+	// verifies as Valid would return Approve and bypass the remainder of the delay period.
+	if s.delayed.FetchMessagePublication(msg.MessageID()) != nil {
+		s.logger.Warn("notary: got message publication that is already delayed",
+			msg.ZapFields(zap.String("verdict", Delay.String()))...,
+		)
+		return Delay, nil
+	}
+
+	if verdict == Delay {
+		return Delay, s.delayLocked(msg, DefaultDelay)
+	}
+
+	return verdict, nil
+}
+
 // delay stores a MessagePublication in the database and adds it to the delayed queue.
 func (s *notaryState) delay(msg *common.MessagePublication, dur time.Duration) error {
 	if msg == nil {

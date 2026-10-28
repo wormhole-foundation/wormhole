@@ -247,29 +247,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		}
 	}
 
-	// Return early if the message has already been blackholed. This is important in case a message
-	// is reobserved or otherwise processed here more than once. An Anomalous message that becomes
-	// delayed and later blackholed should not be able to be re-added to the Delayed queue.
-	if n.IsBlackholed(msg.MessageID()) {
-		n.logger.Warn("notary: got message publication that is already blackholed",
-			msg.ZapFields(zap.String("verdict", Blackhole.String()))...,
-		)
-		return Blackhole, nil
-	}
-
-	// Return early if the message has already been delayed. A message may be processed here more
-	// than once: reobservation re-runs the transfer verifier from scratch, so the same message can
-	// re-enter with a different verification state. Without this check, a reobservation that
-	// verifies as Valid would return Approve and bypass the remainder of the delay period, and a
-	// reobservation that is delayed again would call delay() a second time, storing a fresh
-	// release time in the database while the in-memory queue keeps the original one.
-	if n.IsDelayed(msg) {
-		n.logger.Warn("notary: got message publication that is already delayed",
-			msg.ZapFields(zap.String("verdict", Delay.String()))...,
-		)
-		return Delay, nil
-	}
-
+	// Choose the verdict for a message that is neither blackholed nor delayed.
 	switch msg.VerificationState() {
 	// Both Anomalous and Rejected messages are delayed. In the future, we could consider blackholing
 	// rejected messages, but for now, we are choosing the cautious approach of delaying VAA production
@@ -277,7 +255,6 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	// CouldNotVerify messages are also delayed. For the Transfer Verifier, this should only happen if the
 	// message publication coming from the Core Bridge is malformed.
 	case common.Anomalous, common.Rejected, common.CouldNotVerify:
-		err = n.state.delay(msg, DefaultDelay)
 		v = Delay
 	case common.Valid:
 		v = Approve
@@ -289,6 +266,10 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		n.logger.Debug("notary: got unexpected verification status for token transfer", msg.ZapFields()...)
 		v = Approve
 	}
+
+	// The state check and the delay happen under one lock. Separate IsBlackholed, IsDelayed, and
+	// delay calls would let an admin command change the message's state between them.
+	v, err = n.state.evaluate(msg, v)
 
 	n.logger.Debug("notary result",
 		msg.ZapFields(zap.String("verdict", v.String()))...,

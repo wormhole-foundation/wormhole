@@ -116,3 +116,40 @@ func TestNotaryState_ReleaseReadyKeepsMessageWhenDeleteFails(t *testing.T) {
 	require.Equal(t, msg.MessageIDString(), released[0].MessageIDString())
 	require.False(t, s.isDelayed(msg.MessageID()))
 }
+
+// TestNotaryState_EvaluateCompetesWithBlackholeDelayed checks that a reobserved Valid message is never
+// approved while an admin command moves it from the delayed queue to the blackholed set. If evaluate
+// checked the set and the queue in separate lock sections, it could check the set before the move and
+// the queue after it, see neither, and approve a message that the admin blackholed.
+func TestNotaryState_EvaluateCompetesWithBlackholeDelayed(t *testing.T) {
+	const iterations = 100
+
+	for range iterations {
+		s := newNotaryState(zap.NewNop(), MockNotaryDB{})
+		msg := makeUniqueMessagePublication(t)
+		require.NoError(t, s.delay(msg, time.Hour))
+
+		var (
+			verdict      Verdict
+			evaluateErr  error
+			blackholeErr error
+			wg           sync.WaitGroup
+		)
+
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			verdict, evaluateErr = s.evaluate(msg, Approve)
+		}()
+		go func() {
+			defer wg.Done()
+			blackholeErr = s.blackholeDelayed(msg.MessageID())
+		}()
+		wg.Wait()
+
+		require.NoError(t, evaluateErr)
+		require.NoError(t, blackholeErr)
+		require.Contains(t, []Verdict{Delay, Blackhole}, verdict)
+		require.True(t, s.isBlackholed(msg.MessageID()))
+	}
+}
