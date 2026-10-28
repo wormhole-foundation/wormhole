@@ -35,7 +35,6 @@ var (
 // BlackholeDelayedMsg adds a message publication to the blackholed in-memory set and stores it in the database.
 // It also removes the message from the delayed list and database.
 func (n *Notary) BlackholeDelayedMsg(msgID string) error {
-
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}
@@ -47,7 +46,6 @@ func (n *Notary) BlackholeDelayedMsg(msgID string) error {
 // ReleaseDelayedMsg sets the release time of a delayed message to now, so that the next poll of
 // [Notary.ReleaseReadyMessages] releases it.
 func (n *Notary) ReleaseDelayedMsg(msgID string) error {
-
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}
@@ -80,7 +78,6 @@ func (n *Notary) ResetReleaseTimer(msgID string, delayDays uint8) error {
 
 // InjectDelayedMessage creates a synthetic delayed message for testing (dev mode only).
 func (n *Notary) InjectDelayedMessage(delayDays uint32) (string, error) {
-
 	if n.env != common.UnsafeDevNet && n.env != common.GoTest {
 		return "", ErrNotDevMode
 	}
@@ -104,7 +101,6 @@ func (n *Notary) InjectDelayedMessage(delayDays uint32) (string, error) {
 
 // InjectBlackholedMessage creates a synthetic blackholed message for testing (dev mode only).
 func (n *Notary) InjectBlackholedMessage() (string, error) {
-
 	if n.env != common.UnsafeDevNet && n.env != common.GoTest {
 		return "", ErrNotDevMode
 	}
@@ -122,7 +118,6 @@ func (n *Notary) InjectBlackholedMessage() (string, error) {
 
 // GetDelayedMessage retrieves details about a delayed message from the database.
 func (n *Notary) GetDelayedMessage(msgID string) (*common.PendingMessage, error) {
-
 	if len(msgID) < common.MinMsgIdLen {
 		return nil, ErrInvalidMsgID
 	}
@@ -143,7 +138,6 @@ func (n *Notary) GetDelayedMessage(msgID string) (*common.PendingMessage, error)
 
 // GetBlackholedMessage retrieves details about a blackholed message from the database.
 func (n *Notary) GetBlackholedMessage(msgID string) (*common.MessagePublication, error) {
-
 	if len(msgID) < common.MinMsgIdLen {
 		return nil, ErrInvalidMsgID
 	}
@@ -164,7 +158,6 @@ func (n *Notary) GetBlackholedMessage(msgID string) (*common.MessagePublication,
 
 // ListDelayedMessages returns all delayed message IDs from the database.
 func (n *Notary) ListDelayedMessages() ([]string, error) {
-
 	result, err := n.state.loadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load delayed messages from database: %w", err)
@@ -180,7 +173,6 @@ func (n *Notary) ListDelayedMessages() ([]string, error) {
 
 // ListBlackholedMessages returns all blackholed message IDs from the database.
 func (n *Notary) ListBlackholedMessages() ([]string, error) {
-
 	result, err := n.state.loadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load blackholed messages from database: %w", err)

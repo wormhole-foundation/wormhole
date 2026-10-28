@@ -387,7 +387,7 @@ func (s *notaryState) blackholeLocked(msg *common.MessagePublication) error {
 
 		// Shouldn't happen, but checked for completeness.
 		if removedPendingMsg == nil {
-			return errors.New("notary: removeDelayed returned nil for removedPendingMsg")
+			return errors.New("notary: removeDelayedLocked returned nil for removedPendingMsg")
 		}
 	}
 
@@ -441,7 +441,7 @@ func (s *notaryState) removeBlackholedLocked(msgID []byte) (*common.MessagePubli
 	// Log if the message was not removed, then continue to try to delete it from the database
 	// for consistency.
 	if !removeOccurred {
-		s.logger.Info("notary: call to removeBlackholed did not remove a message", zap.String("msgID", string(msgID)))
+		s.logger.Info("notary: call to removeBlackholedLocked did not remove a message", zap.String("msgID", string(msgID)))
 	} else {
 		s.logger.Info("notary: removed blackholed message from in-memory set", zap.String("msgID", string(msgID)))
 	}

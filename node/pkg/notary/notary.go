@@ -177,7 +177,6 @@ func (n *Notary) updateMetrics() {
 
 // updateGauges updates the prometheus gauge metrics
 func (n *Notary) updateGauges() {
-
 	// Safety check: ensure metrics are initialized (should always be true after Run() is called)
 	if notaryDelayedMessagesGauge == nil || notaryBlackholedMessagesGauge == nil {
 		n.logger.Warn("Notary metrics not initialized, skipping gauges update")
@@ -190,7 +189,6 @@ func (n *Notary) updateGauges() {
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
-
 	if msg == nil {
 		return Unknown, errors.New("notary: ProcessMsg called with nil message")
 	}
@@ -281,7 +279,6 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 // ReleaseReadyMessages removes messages from the database and the delayed queue if they are ready to
 // be released. Returns the messages that are ready to be published.
 func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
-
 	n.logger.Debug("notary: begin process ready message")
 
 	readyMsgs := n.state.releaseReady(time.Now())
@@ -303,7 +300,6 @@ func (n *Notary) IsBlackholed(msgID []byte) bool {
 }
 
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
-
 	if msg == nil {
 		return false
 	}
