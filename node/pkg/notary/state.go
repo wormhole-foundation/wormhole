@@ -13,8 +13,8 @@ import (
 
 // notaryState holds the delayed queue, the blackholed set, and the database that persists them.
 //
-// Every method takes mu for its whole body, so each state transition is atomic. mu keeps these
-// invariants true between calls:
+// Every method takes [notaryState.mu] for its whole body, so each state transition is atomic. The
+// lock keeps these invariants true between calls:
 //   - A message is never both delayed and blackholed.
 //   - The in-memory structures and the database hold the same messages, unless a database
 //     operation returned an error.
@@ -338,7 +338,8 @@ func (s *notaryState) forget(msg *common.MessagePublication) error {
 	return nil
 }
 
-// delayLocked adds a message to the delayed queue and the database. The caller must hold mu.
+// delayLocked adds a message to the delayed queue and the database. The caller must hold
+// [notaryState.mu].
 func (s *notaryState) delayLocked(msg *common.MessagePublication, dur time.Duration) error {
 	// Ensure that the message can't be added to the delayed list or database if it's already blackholed.
 	if s.blackholed.Contains(msg.MessageID()) {
@@ -375,7 +376,7 @@ func (s *notaryState) delayLocked(msg *common.MessagePublication, dur time.Durat
 }
 
 // blackholeLocked removes a message from the delayed queue and database, if present, then adds it
-// to the blackholed set and the database. The caller must hold mu.
+// to the blackholed set and the database. The caller must hold [notaryState.mu].
 func (s *notaryState) blackholeLocked(msg *common.MessagePublication) error {
 	// The fetch call isn't strictly necessary, but it makes the code easier to reason
 	// about given that removeDelayedLocked can return nil even if an error does not occur.
@@ -404,17 +405,21 @@ func (s *notaryState) blackholeLocked(msg *common.MessagePublication) error {
 	return nil
 }
 
-// removeDelayedLocked removes a message from the delayed list and database. The caller must hold mu.
+// removeDelayedLocked removes a message from the database and then from the delayed list. The
+// caller must hold [notaryState.mu].
+//
+// The database delete happens first. If it fails, the message stays in the delayed list, so that
+// memory still holds back a message that the database holds.
 //
 // Returns the removed message.
 // Returns nil on error or if the message was not found.
 func (s *notaryState) removeDelayedLocked(msgID []byte) (*common.PendingMessage, error) {
-	removed, err := s.delayed.RemoveItem(msgID)
+	deletedPendingMsg, err := s.database.DeleteDelayed(msgID)
 	if err != nil {
 		return nil, err
 	}
 
-	deletedPendingMsg, err := s.database.DeleteDelayed(msgID)
+	removed, err := s.delayed.RemoveItem(msgID)
 	if err != nil {
 		return nil, err
 	}
@@ -428,27 +433,26 @@ func (s *notaryState) removeDelayedLocked(msgID []byte) (*common.PendingMessage,
 	return removed, nil
 }
 
-// removeBlackholedLocked removes a message from the blackholed list and database. The caller must
-// hold mu.
+// removeBlackholedLocked removes a message from the database and then from the blackholed list. The
+// caller must hold [notaryState.mu].
+//
+// The database delete happens first. If it fails, the message stays in the blackholed list, so that
+// memory still holds back a message that the database holds.
 //
 // Returns the message that was removed from the database, or nil if an error occurred or the
 // database did not contain the message.
 func (s *notaryState) removeBlackholedLocked(msgID []byte) (*common.MessagePublication, error) {
-	currLen := s.blackholed.Len()
-	s.blackholed.Remove(msgID)
-	removeOccurred := s.blackholed.Len() < currLen
-
-	// Log if the message was not removed, then continue to try to delete it from the database
-	// for consistency.
-	if !removeOccurred {
-		s.logger.Info("notary: call to removeBlackholedLocked did not remove a message", zap.String("msgID", string(msgID)))
-	} else {
-		s.logger.Info("notary: removed blackholed message from in-memory set", zap.String("msgID", string(msgID)))
-	}
-
 	deletedMsgPub, err := s.database.DeleteBlackholed(msgID)
 	if err != nil {
 		return nil, err
+	}
+
+	currLen := s.blackholed.Len()
+	s.blackholed.Remove(msgID)
+	if s.blackholed.Len() < currLen {
+		s.logger.Info("notary: removed blackholed message from in-memory set", zap.String("msgID", string(msgID)))
+	} else {
+		s.logger.Info("notary: call to removeBlackholedLocked did not remove a message", zap.String("msgID", string(msgID)))
 	}
 
 	// No-op if the message is not in the database.
