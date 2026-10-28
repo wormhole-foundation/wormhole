@@ -32,8 +32,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"sync"
-	"sync/atomic"
+	"fmt"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -89,13 +88,11 @@ const (
 )
 
 var (
-	ErrAlreadyInitialized = errors.New("notary: message queues already initialized during database load")
-	ErrAlreadyBlackholed  = errors.New("notary: message is already blackholed")
-	ErrCannotRelease      = errors.New("notary: could not release message")
-	ErrInvalidMsg         = errors.New("notary: message is invalid")
-	ErrMsgNotFound        = errors.New("notary: message not found")
-	ErrAlreadyDelayed     = errors.New("notary: message is already delayed")
-	ErrNotReady           = errors.New("notary: not ready to process messages")
+	ErrAlreadyBlackholed = errors.New("notary: message is already blackholed")
+	ErrCannotRelease     = errors.New("notary: could not release message")
+	ErrInvalidMsg        = errors.New("notary: message is invalid")
+	ErrMsgNotFound       = errors.New("notary: message not found")
+	ErrAlreadyDelayed    = errors.New("notary: message is already delayed")
 )
 
 type (
@@ -113,15 +110,8 @@ type (
 		// All access goes through its methods, which are atomic.
 		state *notaryState
 
-		// ready reports whether the notary is fully initialized and ready to process messages.
-		ready atomic.Bool
-
 		// env reports whether the guardian is running in production or a test environment.
 		env common.Environment
-
-		// runOnce ensures that the notary is only started once.
-		runOnce sync.Once
-		runErr  error
 	}
 )
 
@@ -137,55 +127,35 @@ func NewNotary(
 		return nil, errors.New("notary: guardianDB and logger must not be nil")
 	}
 
+	// Get the underlying database connection from the Guardian.
+	state := newNotaryState(logger, db.NewNotaryDB(guardianDB.Conn()))
+
+	// Load persisted state before returning, so that a Notary is never usable without it.
+	logger.Info("loading notary data from database")
+	if err := state.load(); err != nil {
+		return nil, fmt.Errorf("notary: load from database: %w", err)
+	}
+
 	return &Notary{
 		ctx:    ctx,
 		logger: logger,
-		// Get the underlying database connection from the Guardian.
-		state:   newNotaryState(logger, db.NewNotaryDB(guardianDB.Conn())),
-		env:     env,
-		runOnce: sync.Once{},
-		runErr:  nil,
+		state:  state,
+		env:    env,
 	}, nil
 }
 
-func (n *Notary) Run() error {
-	// The Run function is only meant to be called once.
-	n.runOnce.Do(func() {
-		n.runErr = n.run()
-	})
-	return n.runErr
-}
-
-func (n *Notary) run() error {
-
-	if n.logger == nil {
-		return errors.New("notary: logger must not be nil")
-	}
-
+// Run starts the Notary's background work. The Notary loads its persisted state in [NewNotary], so it
+// can process messages before Run is called.
+func (n *Notary) Run() {
 	// Initialize and register Prometheus metrics when notary starts.
 	// This ensures metrics are only registered when the notary is actually enabled.
 	// Safe to call multiple times - will only initialize once.
 	initMetrics(n.logger)
 
-	if n.env != common.GoTest {
-		n.logger.Info("loading notary data from database")
-		if err := n.state.load(); err != nil {
-			return err
-		}
-	}
-
-	// Persisted state has been loaded. The notary is now ready to process messages.
-	n.ready.Store(true)
-
 	n.logger.Info("notary ready")
 
 	// Spawn a goroutine to periodically update prometheus gauge metrics
 	go n.updateMetrics()
-
-	return nil
-}
-func (n *Notary) isReady() bool {
-	return n.ready.Load()
 }
 
 // updateMetrics runs periodically to update gauge metrics for queue sizes
@@ -209,11 +179,6 @@ func (n *Notary) updateMetrics() {
 // updateGauges updates the prometheus gauge metrics
 func (n *Notary) updateGauges() {
 
-	if !n.isReady() {
-		n.logger.Info("Notary is not ready yet, skipping gauges update")
-		return
-	}
-
 	// Safety check: ensure metrics are initialized (should always be true after Run() is called)
 	if notaryDelayedMessagesGauge == nil || notaryBlackholedMessagesGauge == nil {
 		n.logger.Warn("Notary metrics not initialized, skipping gauges update")
@@ -226,11 +191,6 @@ func (n *Notary) updateGauges() {
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
-
-	// Only allow processing messages if the Notary is fully initialized and ready.
-	if !n.isReady() {
-		return Unknown, ErrNotReady
-	}
 
 	if msg == nil {
 		return Unknown, errors.New("notary: ProcessMsg called with nil message")
@@ -346,11 +306,6 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 // be released. Returns the messages that are ready to be published.
 func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 
-	// Only allow releasing messages if the Notary is fully initialized and ready.
-	if !n.isReady() {
-		return nil
-	}
-
 	n.logger.Debug("notary: begin process ready message")
 
 	readyMsgs := n.state.releaseReady(time.Now())
@@ -369,18 +324,10 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 // IsBlackholed returns true if the message is in the blackholed list.
 func (n *Notary) IsBlackholed(msgID []byte) bool {
 
-	if !n.isReady() {
-		return false
-	}
-
 	return n.state.isBlackholed(msgID)
 }
 
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
-
-	if !n.isReady() {
-		return false
-	}
 
 	if msg == nil {
 		return false

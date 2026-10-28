@@ -48,7 +48,8 @@ func newNotaryState(logger *zap.Logger, database db.NotaryDBInterface) *notarySt
 	}
 }
 
-// load reads all the database entries into the in-memory structures.
+// load reads all the database entries into the in-memory structures. Only [NewNotary] calls
+// it, on a new, empty notaryState.
 func (s *notaryState) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -73,11 +74,6 @@ func (s *notaryState) load() error {
 		zap.Int("delayedMsgs", len(result.Delayed)),
 		zap.Int("blackholedMsgs", len(result.Blackholed)),
 	)
-
-	// Avoid overwriting data by mistake.
-	if s.delayed.Len() > 0 || s.blackholed.Len() > 0 {
-		return ErrAlreadyInitialized
-	}
 
 	for entry := range slices.Values(result.Delayed) {
 		s.delayed.Push(entry)
