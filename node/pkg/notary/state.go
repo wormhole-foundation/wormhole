@@ -19,6 +19,9 @@ import (
 //   - The in-memory structures and the database hold the same messages, unless a database
 //     operation returned an error.
 //
+// If a database operation fails, the in-memory state errs toward holding the message back: a
+// message stays delayed or blackholed in memory even if the database write or delete failed.
+//
 // [common.PendingMessageQueue] has its own lock, but that lock protects only the queue's internal
 // structure. It does not protect the invariants above. Code outside this type must not access
 // delayed, blackholed, or database directly.
@@ -138,11 +141,19 @@ func (s *notaryState) delay(msg *common.MessagePublication, dur time.Duration) e
 
 // releaseReady removes the messages whose release time is before or equal to now from the delayed
 // queue and the database. Returns the messages that are ready to be published.
+//
+// If the database delete fails for a message, the message stays in the delayed queue and is not
+// returned, so that the next call retries it.
 func (s *notaryState) releaseReady(now time.Time) []*common.MessagePublication {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	readyMsgs := make([]*common.MessagePublication, 0, s.delayed.Len())
+	var (
+		readyMsgs = make([]*common.MessagePublication, 0, s.delayed.Len())
+		// Messages that could not be deleted from the database. They are pushed back after the
+		// loop, because pushing them back inside the loop would make Pop return them again.
+		failedMsgs []*common.PendingMessage
+	)
 
 	// Pop elements from the queue until the release time is after now.
 	// If errors occur, continue instead of returning early so that other messages
@@ -159,6 +170,7 @@ func (s *notaryState) releaseReady(now time.Time) []*common.MessagePublication {
 		deletedPendingMsg, err := s.database.DeleteDelayed(pMsg.Msg.MessageID())
 		if err != nil {
 			s.logger.Error("delete pending message from notary database", pMsg.Msg.ZapFields(zap.Error(err))...)
+			failedMsgs = append(failedMsgs, pMsg)
 			continue
 		}
 
@@ -175,6 +187,10 @@ func (s *notaryState) releaseReady(now time.Time) []*common.MessagePublication {
 		}
 
 		readyMsgs = append(readyMsgs, &pMsg.Msg)
+	}
+
+	for _, pMsg := range failedMsgs {
+		s.delayed.Push(pMsg)
 	}
 
 	return readyMsgs

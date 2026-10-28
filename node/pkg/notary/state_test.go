@@ -1,7 +1,9 @@
 package notary
 
 import (
+	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -76,4 +78,41 @@ func TestNotaryState_RescheduleCompetesWithReleaseReady(t *testing.T) {
 			require.Equal(t, 1, delayedCount)
 		}
 	}
+}
+
+// failingDeleteNotaryDB fails every DeleteDelayed call until fail is set to false.
+type failingDeleteNotaryDB struct {
+	MockNotaryDB
+	fail atomic.Bool
+}
+
+func (f *failingDeleteNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) {
+	if f.fail.Load() {
+		return nil, errors.New("delete failed")
+	}
+	return nil, nil
+}
+
+// TestNotaryState_ReleaseReadyKeepsMessageWhenDeleteFails checks that a message whose database
+// delete fails stays in the delayed queue and is released by a later call.
+func TestNotaryState_ReleaseReadyKeepsMessageWhenDeleteFails(t *testing.T) {
+	database := &failingDeleteNotaryDB{}
+	database.fail.Store(true)
+
+	s := newNotaryState(zap.NewNop(), database)
+	msg := makeUniqueMessagePublication(t)
+	require.NoError(t, s.delay(msg, 0))
+
+	// Every message delayed with a duration of zero is ready at this time.
+	now := time.Now().Add(time.Second)
+
+	require.Empty(t, s.releaseReady(now))
+	require.True(t, s.isDelayed(msg.MessageID()), "message must stay delayed while the database still holds it")
+
+	database.fail.Store(false)
+
+	released := s.releaseReady(now)
+	require.Len(t, released, 1)
+	require.Equal(t, msg.MessageIDString(), released[0].MessageIDString())
+	require.False(t, s.isDelayed(msg.MessageID()))
 }
