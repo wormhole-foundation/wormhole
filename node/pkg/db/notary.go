@@ -35,10 +35,12 @@ func NewNotaryDB(dbConn *badger.DB) *NotaryDB {
 }
 
 // Define prefixes used to isolate different message publications stored in the database.
+// Every Notary key starts with notaryPrefix, so that LoadAll can scan only the Notary's keys.
+// These values are stored on disk. Do not change them.
 const (
 	notaryPrefix    = "NOTARY:"
-	delayedPrefix   = "NOTARY:DELAY:V1:"
-	blackholePrefix = "NOTARY:BLACKHOLE:V1:"
+	delayedPrefix   = notaryPrefix + "DELAY:V1:"
+	blackholePrefix = notaryPrefix + "BLACKHOLE:V1:"
 )
 
 // The type of data stored in the Notary's database.
