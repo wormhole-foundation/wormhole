@@ -1624,6 +1624,8 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 			continue
 		}
 		obsvReq.ChainId = uint32(missingVAA.Chain) // #nosec G115 -- This conversion is checked above
+		// Receiving guardians drop requests whose timestamp is more than 15 minutes from now (p2p.processSignedObservationRequest).
+		obsvReq.Timestamp = time.Now().UnixNano()
 		obsvReq.TxHash, err = hex.DecodeString(strings.TrimPrefix(missingVAA.Txhash, "0x"))
 		if err != nil {
 			obsvReq.TxHash, err = base58.Decode(missingVAA.Txhash)
