@@ -1,11 +1,11 @@
 # syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
 FROM const-gen AS const-export
-FROM docker.io/python:3.10@sha256:eeed7cac682f9274d183f8a7533ee1360a26acb3616aa712b2be7896f80d8c5f
+FROM docker.io/python:3.10-bookworm@sha256:f72a86806f92fe13a49f49aeca1db0b19ea5cf4a0470b842a01b0e14314945b8
 
 RUN python3 -m pip install virtualenv
 
 RUN apt-get update
-RUN apt-get -y install netcat
+RUN apt-get -y install netcat-openbsd
 
 COPY Pipfile.lock Pipfile.lock
 COPY Pipfile Pipfile
