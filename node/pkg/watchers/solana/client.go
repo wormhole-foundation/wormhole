@@ -1260,19 +1260,10 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 		// Account-based path: use the message account pubkey as TxID.
 		txID = acc[:]
 	}
-	timestamp, err := vaa.TimeFromUnix(proposal.SubmissionTime)
-	if err != nil {
-		logger.Error("invalid message account timestamp",
-			zap.Stringer("account", acc),
-			zap.Uint32("timestamp", proposal.SubmissionTime),
-			zap.Error(err),
-		)
-		return 0
-	}
 
 	observation := &common.MessagePublication{
 		TxID:             txID,
-		Timestamp:        timestamp,
+		Timestamp:        vaa.TimeFromUnixUint32(proposal.SubmissionTime),
 		Nonce:            proposal.Nonce,
 		Sequence:         proposal.Sequence,
 		EmitterChain:     s.chainID, // SECURITY: The message must be emitted from the chain this watcher is observing. This prevents mix-ups between different SVM chains.
