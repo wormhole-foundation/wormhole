@@ -1,11 +1,44 @@
 #syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
-FROM docker.io/library/rust:1.60.0@sha256:9fe1f39bec70576e2bd568fafb194b2a532a6f2928bc0b951ac2c0a69a2be9fe as solana
+FROM docker.io/library/rust:1.75.0-bookworm@sha256:87f3b2f93b82995443a1a558c234212dafe79cfdc3af956539610560369ddcd0 as solana
 
-RUN sh -c "$(curl -sSfL https://release.solana.com/v1.10.31/install)"
+# release.solana.com is no longer available, so install the release tarball from GitHub
+# into the same layout the solana-install script used.
+ARG SOLANA_VERSION=1.10.31
+ARG SOLANA_SHA256=43cf0a799704a701fd8b4fe0fec3dbf8fd9ab2c25d102572de9a8c4b0b83cca2
+RUN mkdir -p /root/.local/share/solana/install/releases/${SOLANA_VERSION} && \
+    cd /root/.local/share/solana/install/releases/${SOLANA_VERSION} && \
+    curl -sSfL -o solana-release.tar.bz2 https://github.com/solana-labs/solana/releases/download/v${SOLANA_VERSION}/solana-release-x86_64-unknown-linux-gnu.tar.bz2 && \
+    echo "${SOLANA_SHA256}  solana-release.tar.bz2" | sha256sum --check && \
+    tar xjf solana-release.tar.bz2 && \
+    rm solana-release.tar.bz2 && \
+    ln -s /root/.local/share/solana/install/releases/${SOLANA_VERSION}/solana-release /root/.local/share/solana/install/active_release
 
 ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
 
-COPY rust-toolchain .
+# The bpf-tools bundled with this Solana release link against OpenSSL 1.1, which bookworm does not ship.
+# Locked dependencies (e.g. openssl-sys 0.9.63 in spl-token-cli) also predate OpenSSL 3 support, so the
+# 1.1 headers are unpacked to /opt/openssl-1.1 and openssl-sys is pointed at them.
+ARG LIBSSL_DEB=libssl1.1_1.1.1w-0+deb11u1_amd64.deb
+ARG LIBSSL_SHA256=aadf8b4b197335645b230c2839b4517aa444fd2e8f434e5438c48a18857988f7
+ARG LIBSSL_DEV_DEB=libssl-dev_1.1.1w-0+deb11u1_amd64.deb
+ARG LIBSSL_DEV_SHA256=56aab36e214954ff19e55cb7ebc96921ebd6387c266c906649ad909933d455b7
+RUN curl -sSfL -o /tmp/${LIBSSL_DEB} http://archive.debian.org/debian/pool/main/o/openssl/${LIBSSL_DEB} && \
+    curl -sSfL -o /tmp/${LIBSSL_DEV_DEB} http://archive.debian.org/debian/pool/main/o/openssl/${LIBSSL_DEV_DEB} && \
+    echo "${LIBSSL_SHA256}  /tmp/${LIBSSL_DEB}" | sha256sum --check && \
+    echo "${LIBSSL_DEV_SHA256}  /tmp/${LIBSSL_DEV_DEB}" | sha256sum --check && \
+    dpkg -i /tmp/${LIBSSL_DEB} && \
+    dpkg -x /tmp/${LIBSSL_DEV_DEB} /tmp/libssl-dev && \
+    mkdir -p /opt/openssl-1.1/include /opt/openssl-1.1/lib && \
+    cp -r /tmp/libssl-dev/usr/include/openssl /opt/openssl-1.1/include/ && \
+    cp /tmp/libssl-dev/usr/include/x86_64-linux-gnu/openssl/* /opt/openssl-1.1/include/openssl/ && \
+    ln -s /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /opt/openssl-1.1/lib/libssl.so && \
+    ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /opt/openssl-1.1/lib/libcrypto.so && \
+    rm -rf /tmp/${LIBSSL_DEB} /tmp/${LIBSSL_DEV_DEB} /tmp/libssl-dev
+
+ENV OPENSSL_INCLUDE_DIR=/opt/openssl-1.1/include
+ENV OPENSSL_LIB_DIR=/opt/openssl-1.1/lib
+
+COPY rust-toolchain.toml .
 # Solana does a questionable download at the beginning of a *first* build-bpf call. Trigger and layer-cache it explicitly.
 RUN cargo init --lib /tmp/decoy-crate && \
     cd /tmp/decoy-crate && cargo build-bpf && \

@@ -100,7 +100,7 @@ jobs:
 
   solana:
     runs-on: ubuntu-24.04
-    container: ghcr.io/wormhole-foundation/solana:1.10.31@sha256:d31e8db926a1d3fbaa9d9211d9979023692614b7b64912651aba0383e8c01bad
+    container: ghcr.io/wormhole-foundation/solana:1.10.31-bookworm@sha256:0d7b5242417f0d9b4a99abe5b46c2151add535e913e8513875e2908f98602025
 
     env:
       RUSTFLAGS: -Dwarnings
