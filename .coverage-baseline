@@ -47,7 +47,7 @@ github.com/certusone/wormhole/node/pkg/publicrpc 12.4
 github.com/certusone/wormhole/node/pkg/query 70.1
 github.com/certusone/wormhole/node/pkg/random 0.0
 github.com/certusone/wormhole/node/pkg/readiness 0.0
-github.com/certusone/wormhole/node/pkg/suiclient 72.5
+github.com/certusone/wormhole/node/pkg/suiclient 76.6
 github.com/certusone/wormhole/node/pkg/supervisor 0.0
 github.com/certusone/wormhole/node/pkg/telemetry 16.0
 github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write 59.5

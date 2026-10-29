@@ -341,13 +341,20 @@ func FuzzExecutedTransactionToSuiTransaction(f *testing.F) {
 }
 
 // MockSubscribeCheckpointsStream is a mock server-streaming client for the Sui
-// SubscribeCheckpoints RPC. Recv() returns each queued response in order, and once
-// the queue is exhausted it returns recvErr. recvErr must be non-nil so that the
-// subscription's background goroutine terminates deterministically during fuzzing.
+// SubscribeCheckpoints RPC. Recv() returns each queued response in order. Once the
+// queue is exhausted, it returns recvErr, or, if blockWhenDrained is set, it blocks
+// until the stream context is cancelled and then returns the context error, like a
+// real gRPC stream that is waiting for the next checkpoint.
+//
+// Without blockWhenDrained, recvErr must be non-nil so that the subscription's
+// background goroutine terminates.
 type MockSubscribeCheckpointsStream struct {
-	responses []*pb.SubscribeCheckpointsResponse
-	idx       int
-	recvErr   error
+	responses        []*pb.SubscribeCheckpointsResponse
+	idx              int
+	recvErr          error
+	blockWhenDrained bool
+	// ctx is the context passed to SubscribeCheckpoints. It is set by MockSubscriptionServiceClient.
+	ctx context.Context
 }
 
 func (m *MockSubscribeCheckpointsStream) Recv() (*pb.SubscribeCheckpointsResponse, error) {
@@ -355,6 +362,10 @@ func (m *MockSubscribeCheckpointsStream) Recv() (*pb.SubscribeCheckpointsRespons
 		resp := m.responses[m.idx]
 		m.idx++
 		return resp, nil
+	}
+	if m.blockWhenDrained {
+		<-m.ctx.Done()
+		return nil, m.ctx.Err()
 	}
 	return nil, m.recvErr
 }
@@ -373,11 +384,15 @@ func (m *MockSubscribeCheckpointsStream) RecvMsg(_ any) error          { return 
 // returns the configured stream and error, which allows both the stream-creation failure
 // path and the streaming path of SubscribeToEvents to be exercised.
 type MockSubscriptionServiceClient struct {
-	nextStream pb.SubscriptionService_SubscribeCheckpointsClient
+	nextStream *MockSubscribeCheckpointsStream
 	nextError  error
 }
 
 func (m *MockSubscriptionServiceClient) SubscribeCheckpoints(ctx context.Context, req *pb.SubscribeCheckpointsRequest) (pb.SubscriptionService_SubscribeCheckpointsClient, error) {
+	if m.nextStream == nil {
+		return nil, m.nextError
+	}
+	m.nextStream.ctx = ctx
 	return m.nextStream, m.nextError
 }
 
@@ -393,13 +408,15 @@ func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
 
 	// Seed inputs covering: stream-creation failure, a nil checkpoint response, a nil
 	// checkpoint, a fully-populated matching event, the single-event Subscribe variant,
-	// and early unsubscription with multiple transactions.
+	// early unsubscription while blocked on an event write, and early unsubscription while
+	// waiting for the next checkpoint (no event matches).
 	f.Add(true, false, false, false, false, false, uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0))
 	f.Add(false, false, false, true, false, false, uint8(1), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0))
 	f.Add(false, false, false, false, true, false, uint8(1), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0), uint8(0))
 	f.Add(false, false, false, false, false, true, uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1))
 	f.Add(false, true, false, false, false, true, uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1))
 	f.Add(false, false, true, false, false, true, uint8(3), uint8(2), uint8(2), uint8(2), uint8(2), uint8(2), uint8(2), uint8(2))
+	f.Add(false, false, true, false, false, false, uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1), uint8(1))
 
 	// The structure of the events mirrors FuzzExecutedTransactionToSuiTransaction: the
 	// maximum of the `num*` inputs determines how many events each transaction holds, and
@@ -483,6 +500,9 @@ func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
 				responses: []*pb.SubscribeCheckpointsResponse{resp},
 				// io.EOF terminates the subscription goroutine after the single response.
 				recvErr: io.EOF,
+				// When unsubscribing early, the stream stays open until the cancellation so
+				// that the goroutine always exits because of the cancellation.
+				blockWhenDrained: unsubscribeEarly,
 			}
 		}
 
@@ -491,6 +511,12 @@ func FuzzSuiGrpcClientSubscribeToEvents(f *testing.F) {
 		// Buffer the channel generously so the subscription goroutine never blocks while
 		// writing events. At most maxTransactions*maxEventsPerTx events can be produced.
 		eventChan := make(chan SuiTransactionEvent, maxTransactions*maxEventsPerTx+1)
+		if unsubscribeEarly {
+			// Nothing reads this channel, so the goroutine blocks on the first delivered
+			// event until the cancellation. The exit path then depends only on the input
+			// and not on the goroutine schedule.
+			eventChan = make(chan SuiTransactionEvent)
+		}
 
 		eventTypes := []string{"non-matching-event-type"}
 		if matchEventType {
@@ -634,6 +660,181 @@ func TestSubscribeDropsEventsFromFailedTransactions(t *testing.T) {
 
 	require.Len(t, received, 1)
 	require.Equal(t, successDigest, received[0].TxDigest)
+}
+
+// testSubscriptionEvent returns a fully-populated gRPC event of the given type.
+func testSubscriptionEvent(eventType string) *pb.Event {
+	packageId := "PackageId"
+	module := "Module"
+	sender := "Sender"
+	contentsName := "Contents.Name"
+	return &pb.Event{
+		PackageId: &packageId,
+		Module:    &module,
+		Sender:    &sender,
+		EventType: &eventType,
+		Contents: &pb.Bcs{
+			Name:  &contentsName,
+			Value: []byte{0x13, 0x37},
+		},
+	}
+}
+
+// TestSubscribeFiltersCheckpointEvents verifies which events the subscription forwards. Nil
+// responses, nil checkpoints, transactions without events, events without a type, events of
+// other types and malformed events are skipped without ending the subscription. A stream
+// error then ends the subscription and is reported on the error channel.
+func TestSubscribeFiltersCheckpointEvents(t *testing.T) {
+	const eventType = "EventType"
+	digest := "0xDigest"
+	skippedDigest := "0xSkipped"
+
+	nilTypeEvent := testSubscriptionEvent(eventType)
+	nilTypeEvent.EventType = nil
+	malformedEvent := testSubscriptionEvent(eventType)
+	malformedEvent.Sender = nil
+
+	resp := &pb.SubscribeCheckpointsResponse{
+		Checkpoint: &pb.Checkpoint{
+			Transactions: []*pb.ExecutedTransaction{
+				{Digest: &skippedDigest, Effects: successfulEffects()},
+				{Digest: &skippedDigest, Events: &pb.TransactionEvents{}, Effects: successfulEffects()},
+				{
+					Digest: &digest,
+					Events: &pb.TransactionEvents{Events: []*pb.Event{
+						nilTypeEvent,
+						testSubscriptionEvent("OtherEventType"),
+						malformedEvent,
+						testSubscriptionEvent(eventType),
+					}},
+					Effects: successfulEffects(),
+				},
+				// A transaction without a digest still delivers its events, with an empty digest.
+				{
+					Events:  &pb.TransactionEvents{Events: []*pb.Event{testSubscriptionEvent(eventType)}},
+					Effects: successfulEffects(),
+				},
+			},
+		},
+	}
+
+	streamErr := errors.New("stream failed")
+	subscriptionService := &MockSubscriptionServiceClient{
+		nextStream: &MockSubscribeCheckpointsStream{
+			responses: []*pb.SubscribeCheckpointsResponse{nil, {}, resp},
+			recvErr:   streamErr,
+		},
+	}
+	grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, nil, subscriptionService)
+
+	eventChan := make(chan SuiTransactionEvent, 4)
+	subscription, err := grpcClient.SubscribeToTransactionEvent(context.Background(), eventType, eventChan)
+	require.NoError(t, err)
+	defer subscription.Unsubscribe()
+
+	// Wait for the subscription goroutine to process the responses and exit.
+	<-subscription.Done()
+
+	var received []SuiTransactionEvent
+	for len(eventChan) > 0 {
+		received = append(received, <-eventChan)
+	}
+
+	expectedEvent := SuiEvent{
+		PackageID:         "PackageId",
+		TransactionModule: "Module",
+		Sender:            "Sender",
+		EventType:         eventType,
+		BcsType:           "Contents.Name",
+		BcsBytes:          []byte{0x13, 0x37},
+	}
+	require.Equal(t, []SuiTransactionEvent{
+		{TxDigest: digest, Event: expectedEvent},
+		{TxDigest: "", Event: expectedEvent},
+	}, received)
+
+	// The stream error is reported once, and then the error channel is closed.
+	require.ErrorIs(t, <-subscription.Err(), streamErr)
+	_, open := <-subscription.Err()
+	require.False(t, open)
+}
+
+// TestSubscribeStopsOnCancellation verifies that the subscription goroutine exits without an
+// error when the subscription is cancelled, both while it waits for the next checkpoint and
+// while it is blocked on an event write that nothing reads. The mock stream stays open until
+// the cancellation, so each case always takes the same exit path.
+func TestSubscribeStopsOnCancellation(t *testing.T) {
+	const eventType = "EventType"
+	digest := "0xDigest"
+
+	matchingResp := &pb.SubscribeCheckpointsResponse{
+		Checkpoint: &pb.Checkpoint{
+			Transactions: []*pb.ExecutedTransaction{
+				{
+					Digest:  &digest,
+					Events:  &pb.TransactionEvents{Events: []*pb.Event{testSubscriptionEvent(eventType)}},
+					Effects: successfulEffects(),
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		responses    []*pb.SubscribeCheckpointsResponse
+		cancelParent bool
+	}{
+		{
+			name: "unsubscribe while waiting for a checkpoint",
+		},
+		{
+			name:         "parent context cancelled while waiting for a checkpoint",
+			cancelParent: true,
+		},
+		{
+			name:      "unsubscribe while blocked on an event write",
+			responses: []*pb.SubscribeCheckpointsResponse{matchingResp},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			subscriptionService := &MockSubscriptionServiceClient{
+				nextStream: &MockSubscribeCheckpointsStream{
+					responses:        tc.responses,
+					blockWhenDrained: true,
+				},
+			}
+			grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, nil, subscriptionService)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			// Nothing reads this unbuffered channel, so a matching event blocks the goroutine
+			// on the write until the cancellation.
+			eventChan := make(chan SuiTransactionEvent)
+			subscription, err := grpcClient.SubscribeToTransactionEvent(ctx, eventType, eventChan)
+			require.NoError(t, err)
+
+			if tc.cancelParent {
+				cancel()
+			} else {
+				subscription.Unsubscribe()
+			}
+
+			<-subscription.Done()
+
+			// A cancellation is not a stream error, so the error channel is closed without a value.
+			_, open := <-subscription.Err()
+			require.False(t, open)
+
+			select {
+			case event := <-eventChan:
+				t.Fatalf("unexpected event after cancellation: %+v", event)
+			default:
+			}
+		})
+	}
 }
 
 func FuzzNewSuiGrpcClient(f *testing.F) {
