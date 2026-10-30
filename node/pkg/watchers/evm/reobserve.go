@@ -31,7 +31,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 	// by relying on the same websocket connection).
 
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-	receipt, blockNumber, msgs, err := MessageEventsForTransaction(timeout, ethConn, w.contract, w.chainID, tx, true /* isReobservation */)
+	receipt, blockNumber, msgs, err := MessageEventsForTransactionReobservation(timeout, ethConn, w.contract, w.chainID, tx)
 	cancel()
 
 	if err != nil {

@@ -26,7 +26,7 @@ var (
 // has the expected LogMessagePublished event topic, and has not been removed
 // due to a chain reorganization. This is called from both the real-time
 // subscription path, postMessage, and the reobservation path,
-// MessageEventsForTransaction, to ensure consistent validation.
+// MessageEventsForTransactionReobservation, to ensure consistent validation.
 func isValidCoreBridgeMessagePublicationLog(l types.Log, contract eth_common.Address) bool {
 	// SECURITY: Reject logs that have been flagged as removed due to a chain reorg.
 	if l.Removed {
@@ -46,7 +46,7 @@ func isValidCoreBridgeMessagePublicationLog(l types.Log, contract eth_common.Add
 // validateTransactionReceipt checks that a transaction receipt was successfully retrieved and that
 // the transaction executed successfully. It returns a non-nil error describing the problem when the
 // receipt is unusable. This is the shared validation used by both the real-time subscription path
-// (postMessage) and the reobservation path (MessageEventsForTransaction).
+// (postMessage) and the reobservation path (MessageEventsForTransactionReobservation).
 //
 // SECURITY: Bail early when the receipt status is anything other than 1 (success). In theory this
 // check isn't strictly necessary - a failed transaction cannot emit logs and will trigger neither
@@ -67,7 +67,7 @@ func validateTransactionReceipt(receipt *types.Receipt, err error) error {
 // the timestamp of the block that included it. This is the single place where the EVM watcher
 // translates on-chain event data (the ethabi.AbiLogMessagePublished struct returned by the EVM
 // libraries) into a MessagePublication, so the real-time subscription path (postMessage) and the
-// reobservation path (MessageEventsForTransaction) stay consistent.
+// reobservation path (MessageEventsForTransactionReobservation) stay consistent.
 //
 // isReobservation must be true when the message is being reconstructed from a reobservation
 // request and false for live observations; the caller states this explicitly so the field is set
@@ -89,13 +89,29 @@ func newMessagePublication(ev *ethabi.AbiLogMessagePublished, blockTime uint64, 
 	}
 }
 
-// MessageEventsForTransaction returns the lockup events for a given transaction.
-// Returns the block number and a list of MessagePublication events.
-//
-// isReobservation labels the returned messages: pass true when servicing a reobservation
-// request and false for a plain parse (e.g. debug tooling). It is threaded through to
-// newMessagePublication so IsReobservation is set at construction rather than mutated later.
+// MessageEventsForTransaction returns the receipt, block number, and messages for a transaction.
+// The returned messages are not marked as reobservations.
 func MessageEventsForTransaction(
+	ctx context.Context,
+	ethConn connectors.Connector,
+	contract eth_common.Address,
+	chainId vaa.ChainID,
+	tx eth_common.Hash) (*types.Receipt, uint64, []*common.MessagePublication, error) {
+	return messageEventsForTransaction(ctx, ethConn, contract, chainId, tx, false)
+}
+
+// MessageEventsForTransactionReobservation returns the receipt, block number, and messages for a transaction.
+// The returned messages are marked as reobservations. The caller is responsible for finality checks.
+func MessageEventsForTransactionReobservation(
+	ctx context.Context,
+	ethConn connectors.Connector,
+	contract eth_common.Address,
+	chainId vaa.ChainID,
+	tx eth_common.Hash) (*types.Receipt, uint64, []*common.MessagePublication, error) {
+	return messageEventsForTransaction(ctx, ethConn, contract, chainId, tx, true)
+}
+
+func messageEventsForTransaction(
 	ctx context.Context,
 	ethConn connectors.Connector,
 	contract eth_common.Address,
