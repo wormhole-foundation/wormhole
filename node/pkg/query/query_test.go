@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -420,12 +421,8 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 
 	devKey, err := os.ReadFile("dev.guardian.key")
 	require.NoError(t, err)
-	devKeyFile, err := os.CreateTemp(t.TempDir(), "dev.guardian.key")
-	require.NoError(t, err)
-	_, err = devKeyFile.Write(devKey)
-	require.NoError(t, err)
-	require.NoError(t, devKeyFile.Close())
-	devKeyPath := devKeyFile.Name()
+	devKeyPath := filepath.Join(t.TempDir(), "dev.guardian.key")
+	require.NoError(t, os.WriteFile(devKeyPath, devKey, 0600)) // #nosec G703 -- devKeyPath is inside t.TempDir().
 
 	md.sk, err = common.LoadGuardianKey(devKeyPath, true)
 	require.NoError(t, err)
