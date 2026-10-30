@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -509,6 +510,61 @@ func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
 	require.NotNil(t, v)
 	assert.Equal(t, uint64(11), v.Sequence)
 	assert.Equal(t, uint32(22), v.Nonce)
+}
+
+// TestGetAndObserveMissingVAAs_RequestCarriesBearerTokenAndGuardianAddress checks the request to the missing-VAA
+// endpoint: the API key goes in the Authorization header as a bearer token, and the body is only this node's address.
+func TestGetAndObserveMissingVAAs_RequestCarriesBearerTokenAndGuardianAddress(t *testing.T) {
+	type captured struct {
+		method, contentType, authorization string
+		body                               []byte
+	}
+	requests := make(chan captured, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := wh_common.SafeRead(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		requests <- captured{r.Method, r.Header.Get("Content-Type"), r.Header.Get("Authorization"), body}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer srv.Close()
+
+	guardianAddr := common.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
+	service := &nodePrivilegedService{logger: zap.NewNop(), guardianAddr: guardianAddr}
+
+	_, err := service.GetAndObserveMissingVAAs(context.Background(), &nodev1.GetAndObserveMissingVAAsRequest{Url: srv.URL, ApiKey: "erb_secret"})
+	require.NoError(t, err)
+
+	require.Len(t, requests, 1)
+	req := <-requests
+	assert.Equal(t, http.MethodPost, req.method)
+	assert.Equal(t, "application/json", req.contentType)
+	assert.Equal(t, "Bearer erb_secret", req.authorization)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(req.body, &body))
+	assert.Equal(t, map[string]any{"guardian": "0xbefa429d57cd18b7f8a4d91a2da9ab4af05d0fbe"}, body)
+}
+
+// TestGetAndObserveMissingVAAs_ErrorStatusIsReturned checks that a non-2xx response is reported with its status and
+// body instead of being parsed as the missing-VAA list.
+func TestGetAndObserveMissingVAAs_ErrorStatusIsReturned(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"title":"Unauthorized","status":401}`))
+	}))
+	defer srv.Close()
+
+	service := &nodePrivilegedService{logger: zap.NewNop()}
+
+	resp, err := service.GetAndObserveMissingVAAs(context.Background(), &nodev1.GetAndObserveMissingVAAsRequest{Url: srv.URL, ApiKey: "bad"})
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.ErrorContains(t, err, "401 Unauthorized")
+	assert.ErrorContains(t, err, `"title":"Unauthorized"`)
 }
 
 // TestGetAndObserveMissingVAAs_RequestsCarryCurrentTimestamp checks that the observation requests built from the

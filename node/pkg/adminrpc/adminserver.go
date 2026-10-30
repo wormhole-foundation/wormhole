@@ -66,6 +66,8 @@ type nodePrivilegedService struct {
 	notary                    *notary.Notary
 	rpcMap                    map[string]string
 	reobservers               interfaces.Reobservers
+	// guardianAddr is this node's Guardian address, sent to the missing-VAA endpoint by GetAndObserveMissingVAAs.
+	guardianAddr ethcommon.Address
 }
 
 func NewPrivService(
@@ -79,7 +81,7 @@ func NewPrivService(
 	notary *notary.Notary,
 	rpcMap map[string]string,
 	reobservers interfaces.Reobservers,
-
+	guardianAddr ethcommon.Address,
 ) *nodePrivilegedService {
 	return &nodePrivilegedService{
 		db:                        db,
@@ -92,6 +94,7 @@ func NewPrivService(
 		notary:                    notary,
 		rpcMap:                    rpcMap,
 		reobservers:               reobservers,
+		guardianAddr:              guardianAddr,
 	}
 }
 
@@ -1519,8 +1522,13 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	url := req.GetUrl()
 	apiKey := req.GetApiKey()
 
-	// Create the body of the request
-	jsonBody := []byte(`{"apiKey": "` + apiKey + `"}`)
+	// The endpoint returns the missing VAAs this Guardian is expected to observe.
+	jsonBody, err := json.Marshal(struct {
+		Guardian string `json:"guardian"`
+	}{Guardian: "0x" + hex.EncodeToString(s.guardianAddr.Bytes())})
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal request body: %w", err)
+	}
 	jsonBodyReader := bytes.NewReader(jsonBody)
 
 	// Create the actual request
@@ -1531,6 +1539,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	}
 
 	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("Authorization", "Bearer "+apiKey)
 
 	client := http.Client{
 		Timeout: 30 * time.Second,
@@ -1552,6 +1561,9 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		return nil, err
 	}
 	fmt.Printf("client: response body: %s\n", resBody)
+	if results.StatusCode < 200 || results.StatusCode > 299 {
+		return nil, fmt.Errorf("missing VAA endpoint returned %s: %s", results.Status, bytes.TrimSpace(resBody))
+	}
 	type MissingVAA struct {
 		Chain  int    `json:"chain"`
 		VaaKey string `json:"vaaKey"`
