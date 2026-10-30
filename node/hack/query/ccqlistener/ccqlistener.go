@@ -16,6 +16,9 @@
 //    ./ccqlistener.nodeKey - This file contains the P2P peer ID to be used. If the file does not exist, it will be created.
 //    ./ccqlistener.signerKey - This file contains the key used to sign the request. It must exist.
 //
+// Both files must not grant any permission to group or other users. Set their permissions with `chmod 0600 <file>`.
+// The tool creates the nodeKey file as 0600.
+//
 // If the nodeKey file does not exist, it will be generated. The log output will print the peerID in the "Test started" line.
 // That peerID must be included in the `ccqAllowedPeers` parameter on the guardian.
 //
