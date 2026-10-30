@@ -838,9 +838,6 @@ func (w *Watcher) publishMessageImmediately(
 		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 	)
 
-	// SECURITY: Defense-in-depth check of transaction status.
-	// The EVM invariant is that failed transactions cannot emit logs, but we verify
-	// explicitly in case an EVM-compatible chain breaks this invariant.
 	msm := time.Now()
 	receiptCtx, receiptCancel := context.WithTimeout(parentCtx, 5*time.Second)
 	receipt, err := w.ethConn.TransactionReceipt(receiptCtx, ev.Raw.TxHash)
