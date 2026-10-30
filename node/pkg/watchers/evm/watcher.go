@@ -827,6 +827,14 @@ func (w *Watcher) publishMessageImmediately(
 	msg *common.MessagePublication,
 	blockTime uint64,
 ) {
+	if msg.ConsistencyLevel != vaa.ConsistencyLevelPublishImmediately {
+		w.logger.Error("publishMessageImmediately called with an invalid consistency level",
+			zap.String("msgId", msg.MessageIDString()),
+			zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
+		)
+		return
+	}
+
 	w.logger.Info("found new message publication transaction, publishing it immediately",
 		zap.String("msgId", msg.MessageIDString()),
 		zap.String("txHash", msg.TxIDString()),
