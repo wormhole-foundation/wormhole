@@ -6,6 +6,8 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -21,28 +23,34 @@ import (
 	"go.uber.org/zap"
 )
 
-// stageDevKey copies a committed devnet key into a 0600 temp file and returns
-// its path. The key loaders reject group- or world-readable files, and git only
-// stores the committed keys as 0644, so this avoids a manual chmod after every
-// checkout. The caller is responsible for removing the returned file.
+// stageDevKey copies a committed devnet key to a fixed 0600 path in the temp
+// directory and returns that path. The key loaders reject group- or
+// world-readable files, and git only stores the committed keys as 0644, so this
+// avoids a manual chmod after every checkout. Each run replaces the same file,
+// so runs that exit through logger.Fatal or Ctrl-C leave at most one copy.
 func stageDevKey(path string) (string, error) {
 	key, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	// os.CreateTemp creates the file as 0600, which is what the loader requires.
-	tmp, err := os.CreateTemp("", filepath.Base(path))
+	staged := filepath.Join(os.TempDir(), "wormhole-"+filepath.Base(path))
+	// Remove the copy from a previous run, then create the file with O_EXCL so
+	// that we never write through a symlink planted in a shared temp directory.
+	if err = os.Remove(staged); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
+	f, err := os.OpenFile(staged, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600) // #nosec G304 -- callers pass hard-coded devnet key paths.
 	if err != nil {
 		return "", err
 	}
-	if _, err := tmp.Write(key); err != nil {
-		_ = tmp.Close()
+	if _, err = f.Write(key); err != nil {
+		_ = f.Close()
 		return "", err
 	}
-	if err := tmp.Close(); err != nil {
+	if err = f.Close(); err != nil {
 		return "", err
 	}
-	return tmp.Name(), nil
+	return staged, nil
 }
 
 func main() {
@@ -59,13 +67,11 @@ func main() {
 	if err != nil {
 		logger.Fatal("failed to stage wormchain key", zap.Error(err))
 	}
-	defer os.Remove(wormchainKeyPath)
 
 	guardianKeyPath, err := stageDevKey("./dev.guardian.key")
 	if err != nil {
 		logger.Fatal("failed to stage guardian key", zap.Error(err))
 	}
-	defer os.Remove(guardianKeyPath)
 	guardianSignerUri := string("file://" + guardianKeyPath)
 
 	wormchainKey, err := wormconn.LoadWormchainPrivKey(wormchainKeyPath, "test0000")
