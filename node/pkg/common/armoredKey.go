@@ -70,20 +70,22 @@ func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecd
 	return gk, nil
 }
 
-// ValidatePrivateKeyFilePermissions returns an error when f is a regular file that grants any permission to group
-// or other users. It takes an open file handle, not a path, so that the permissions it checks belong to the same
-// file the caller reads. Non-regular files (for example FIFOs or /dev/fd entries) are not checked.
+// ValidatePrivateKeyFilePermissions returns an error when f is a regular file or a pipe that grants any permission to
+// group or other users. It takes an open file handle, not a path, so that the permissions it checks belong to the
+// same file the caller reads. Other file types, for example a terminal, are not checked.
 func ValidatePrivateKeyFilePermissions(f *os.File) error {
 	info, err := f.Stat()
 	if err != nil {
 		return fmt.Errorf("failed to stat private key file: %w", err)
 	}
 
-	// Only regular files are checked. Non-regular sources (FIFOs, /dev/fd/N from
-	// process substitution, etc.) carry no meaningful at-rest permissions and let
-	// an operator supply a key without it ever touching disk, so they are allowed.
-	if info.Mode().IsRegular() && info.Mode().Perm()&groupOtherPermMask != 0 {
-		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", f.Name(), info.Mode().Perm())
+	// A named FIFO has no data at rest, but its mode controls who can open it and
+	// read the key from the stream, so pipes get the same check as regular files.
+	// On Linux, anonymous pipes (process substitution, a piped stdin) report 0600
+	// and pass. On macOS they report 0660 and are rejected.
+	mode := info.Mode()
+	if (mode.IsRegular() || mode&os.ModeNamedPipe != 0) && mode.Perm()&groupOtherPermMask != 0 {
+		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", f.Name(), mode.Perm())
 	}
 
 	return nil

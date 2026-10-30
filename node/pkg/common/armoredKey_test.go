@@ -3,6 +3,8 @@ package common
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"syscall"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -34,4 +36,46 @@ func TestLoadArmoredKeyAllowsOwnerOnlyPermissions(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, key, loadedKey)
+}
+
+func openTestFIFO(t *testing.T, perm os.FileMode) *os.File {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "key.fifo")
+	require.NoError(t, syscall.Mkfifo(path, 0600))
+	// Set the mode explicitly because Mkfifo applies the umask.
+	require.NoError(t, os.Chmod(path, perm))
+	// O_RDWR opens a FIFO without a blocking wait for a writer on Linux and macOS.
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = f.Close() })
+	return f
+}
+
+func TestValidatePrivateKeyFilePermissionsRejectsUnsafeFIFO(t *testing.T) {
+	f := openTestFIFO(t, 0644)
+
+	err := ValidatePrivateKeyFilePermissions(f)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "insecure permissions")
+}
+
+func TestValidatePrivateKeyFilePermissionsAllowsOwnerOnlyFIFO(t *testing.T) {
+	f := openTestFIFO(t, 0600)
+
+	require.NoError(t, ValidatePrivateKeyFilePermissions(f))
+}
+
+func TestValidatePrivateKeyFilePermissionsAllowsAnonymousPipeOnLinux(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("only Linux reports anonymous pipes as 0600")
+	}
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = r.Close()
+		_ = w.Close()
+	})
+
+	require.NoError(t, ValidatePrivateKeyFilePermissions(r))
 }

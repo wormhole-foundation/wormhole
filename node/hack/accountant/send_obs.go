@@ -39,7 +39,7 @@ func stageDevKey(path string) (string, error) {
 	if err = os.Remove(staged); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", err
 	}
-	f, err := os.OpenFile(staged, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600) // #nosec G304 -- callers pass hard-coded devnet key paths.
+	f, err := os.OpenFile(staged, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return "", err
 	}

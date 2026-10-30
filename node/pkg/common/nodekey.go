@@ -10,7 +10,7 @@ import (
 )
 
 func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error) {
-	// #nosec G304 G703 -- Path comes from operator configuration, not user input
+	// #nosec G703 -- Path comes from operator configuration, not user input
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
