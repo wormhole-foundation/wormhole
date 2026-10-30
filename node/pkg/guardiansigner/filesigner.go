@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 )
@@ -18,10 +17,6 @@ type FileSigner struct {
 	privateKey *ecdsa.PrivateKey
 }
 
-const (
-	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
-)
-
 // The FileSigner is a signer that reads a guardian key from a file (signerKeyPath). The key is
 // expected to be armored with an OpenPGP armor block, and the key itself is expected to be a
 // protobuf-encoded GuardianKey message.
@@ -30,7 +25,7 @@ func NewFileSigner(_ context.Context, unsafeDevMode bool, signerKeyPath string) 
 		keyPath: signerKeyPath,
 	}
 
-	gk, err := common.LoadArmoredKey(signerKeyPath, GuardianKeyArmoredBlock, unsafeDevMode)
+	gk, err := common.LoadGuardianKey(signerKeyPath, unsafeDevMode)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +70,7 @@ func (fs *FileSigner) PublicKey(ctx context.Context) ecdsa.PublicKey {
 // package's `SigToPub` function.
 func (fs *FileSigner) Verify(ctx context.Context, sig []byte, hash []byte) (bool, error) {
 	// Recover the public key from the signature.
-	recoveredPubKey, err := ethcrypto.SigToPub(hash, sig)
+	recoveredPubKey, err := crypto.SigToPub(hash, sig)
 
 	if err != nil {
 		return false, err

@@ -2,6 +2,7 @@ package wormconn
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestLoadWormchainPrivKeyRejectsUnsafePermissions(t *testing.T) {
-	keyPath := t.TempDir() + "/wormchain.key"
+	keyPath := filepath.Join(t.TempDir(), "wormchain.key")
 	require.NoError(t, os.WriteFile(keyPath, []byte("not a valid encrypted key"), 0644)) // #nosec G306 -- This test verifies unsafe key-file permissions are rejected.
 
 	key, err := LoadWormchainPrivKey(keyPath, "passphrase")

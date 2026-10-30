@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,8 +67,8 @@ func TestFileSigner(t *testing.T) {
 	privKey := [32]byte{0xcf, 0xb1, 0x23, 0x03, 0xa1, 0x9c, 0xde, 0x58, 0x0b, 0xb4, 0xdd, 0x77, 0x16, 0x39, 0xb0, 0xd2, 0x6b, 0xc6, 0x83, 0x53, 0x64, 0x55, 0x71, 0xa8, 0xcf, 0xf5, 0x16, 0xab, 0x2e, 0xe1, 0x13, 0xa0}
 	key, err := crypto.ToECDSA(privKey[:])
 	require.NoError(t, err)
-	keyPath := t.TempDir() + "/guardian.key"
-	require.NoError(t, common.WriteArmoredKey(key, "test key", keyPath, GuardianKeyArmoredBlock, false))
+	keyPath := filepath.Join(t.TempDir(), "guardian.key")
+	require.NoError(t, common.WriteArmoredKey(key, "test key", keyPath, common.GuardianKeyArmoredBlock, false))
 	fileUri := "file://" + keyPath
 	expectedEthAddress := "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
 
@@ -82,7 +82,7 @@ func TestFileSigner(t *testing.T) {
 	fileSigner1, err := NewGuardianSignerFromUri(ctx, fileUri, true)
 	require.NoError(t, err)
 	assert.NotNil(t, fileSigner1)
-	assert.Equal(t, ethcrypto.PubkeyToAddress(fileSigner1.PublicKey(ctx)).Hex(), expectedEthAddress)
+	assert.Equal(t, crypto.PubkeyToAddress(fileSigner1.PublicKey(ctx)).Hex(), expectedEthAddress)
 
 	// Attempt to generate signer using NewFileSigner
 	signerType, keyPath, err := ParseSignerUri(fileUri)
@@ -92,7 +92,7 @@ func TestFileSigner(t *testing.T) {
 	fileSigner2, err := NewFileSigner(ctx, true, keyPath)
 	require.NoError(t, err)
 	assert.NotNil(t, fileSigner2)
-	assert.Equal(t, ethcrypto.PubkeyToAddress(fileSigner2.PublicKey(ctx)).Hex(), expectedEthAddress)
+	assert.Equal(t, crypto.PubkeyToAddress(fileSigner2.PublicKey(ctx)).Hex(), expectedEthAddress)
 
 	// Sign some arbitrary data
 	data := crypto.Keccak256Hash([]byte("data"))
@@ -113,8 +113,8 @@ func TestFileSigner(t *testing.T) {
 func TestFileSignerRejectsUnsafePermissions(t *testing.T) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	keyPath := t.TempDir() + "/guardian.key"
-	require.NoError(t, common.WriteArmoredKey(key, "test key", keyPath, GuardianKeyArmoredBlock, false))
+	keyPath := filepath.Join(t.TempDir(), "guardian.key")
+	require.NoError(t, common.WriteArmoredKey(key, "test key", keyPath, common.GuardianKeyArmoredBlock, false))
 	require.NoError(t, os.Chmod(keyPath, 0644))
 
 	fileSigner, err := NewFileSigner(context.Background(), true, keyPath)

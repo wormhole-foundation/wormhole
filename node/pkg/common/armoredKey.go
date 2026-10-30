@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	GuardianKeyArmoredBlock    = "WORMHOLE GUARDIAN PRIVATE KEY"
-	onlyOwnerReadWritePermMask = 0600
-	forbiddenPermMask          = 0077
+	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
+	ownerOnlyKeyFileMode    = 0600
+	groupOtherPermMask      = 0077
 )
 
 // LoadGuardianKey loads a serialized guardian key from disk.
@@ -82,7 +82,7 @@ func ValidatePrivateKeyFilePermissions(f *os.File) error {
 	// Only regular files are checked. Non-regular sources (FIFOs, /dev/fd/N from
 	// process substitution, etc.) carry no meaningful at-rest permissions and let
 	// an operator supply a key without it ever touching disk, so they are allowed.
-	if info.Mode().IsRegular() && info.Mode().Perm()&forbiddenPermMask != 0 {
+	if info.Mode().IsRegular() && info.Mode().Perm()&groupOtherPermMask != 0 {
 		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", f.Name(), info.Mode().Perm())
 	}
 
@@ -108,7 +108,7 @@ func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string,
 		panic(err)
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, onlyOwnerReadWritePermMask)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, ownerOnlyKeyFileMode)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
