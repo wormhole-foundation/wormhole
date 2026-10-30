@@ -1263,7 +1263,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 
 	observation := &common.MessagePublication{
 		TxID:             txID,
-		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
+		Timestamp:        vaa.TimeFromUnixUint32(proposal.SubmissionTime),
 		Nonce:            proposal.Nonce,
 		Sequence:         proposal.Sequence,
 		EmitterChain:     s.chainID, // SECURITY: The message must be emitted from the chain this watcher is observing. This prevents mix-ups between different SVM chains.

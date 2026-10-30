@@ -21,18 +21,6 @@ import (
 
 	"sync/atomic"
 
-	"github.com/certusone/wormhole/node/pkg/adminrpc"
-	"github.com/certusone/wormhole/node/pkg/common"
-	guardianDB "github.com/certusone/wormhole/node/pkg/db"
-	"github.com/certusone/wormhole/node/pkg/devnet"
-	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	"github.com/certusone/wormhole/node/pkg/processor"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
-	"github.com/certusone/wormhole/node/pkg/readiness"
-	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/watchers"
-	"github.com/certusone/wormhole/node/pkg/watchers/mock"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	libp2p_peer "github.com/libp2p/go-libp2p/core/peer"
@@ -47,8 +35,22 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+	"github.com/certusone/wormhole/node/pkg/adminrpc"
+	"github.com/certusone/wormhole/node/pkg/common"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	"github.com/certusone/wormhole/node/pkg/processor"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
+	"github.com/certusone/wormhole/node/pkg/readiness"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
+	"github.com/certusone/wormhole/node/pkg/watchers/mock"
+
 	eth_common "github.com/ethereum/go-ethereum/common"
+
+	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 )
 
 const LOCAL_RPC_PORTRANGE_START = 10000
@@ -374,15 +376,19 @@ type testCase struct {
 }
 
 func randomTime() time.Time {
+	// The value is already a uint32, so the conversion is infallible and needs no *testing.T.
+	// This matters because someMessage is called from a benchmark goroutine, where t.Fatal is not allowed.
 	// #nosec G404 we don't need cryptographic randomness here.
-	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // convert time to unix and back to match what is done during serialization/de-serialization
+	return vaa.TimeFromUnixUint32(math_rand.Uint32() % 1700000000) // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
 var someMsgSequenceCounter uint64 = 0
 var someMsgEmitter vaa.Address = [32]byte{1, 2, 3}
 var someMsgEmitterChain vaa.ChainID = vaa.ChainIDSolana
 
-func someMessage() *common.MessagePublication {
+func someMessage(t testing.TB) *common.MessagePublication {
+	t.Helper()
+
 	someMsgSequenceCounter++
 	// #nosec G115 -- Test helper creating synthetic data with intentional truncation
 	txID := [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3}
@@ -404,7 +410,8 @@ var tokenBridgeSequenceCounter uint64 = 0
 // governedMsg creates a token bridge message that will be in-scope for the governor module.
 // The transfer is of wrapped-SOL from Solana to Ethereum.
 // If shouldBeDelayed == true, then the amount will be set to 1_000_000_000_000 wSOL which should exceed the governor limit.
-func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
+func governedMsg(t testing.TB, shouldBeDelayed bool) *common.MessagePublication {
+	t.Helper()
 
 	// buildMockTransferPayloadBytes is copied from governor_test.go.
 	buildMockTransferPayloadBytes := func(
@@ -536,7 +543,7 @@ func TestMain(m *testing.M) {
 
 func createGovernanceMsgAndVaa(t testing.TB) (*common.MessagePublication, *nodev1.GovernanceMessage) {
 	t.Helper()
-	msgGov := someMessage()
+	msgGov := someMessage(t)
 	msgGov.EmitterAddress = vaa.GovernanceEmitter
 	msgGov.EmitterChain = vaa.GovernanceChain
 
@@ -574,15 +581,15 @@ func TestConsensus(t *testing.T) {
 
 	const numGuardians = 4 // Quorum will be 3 out of 4 guardians.
 
-	msgZeroEmitter := someMessage()
+	msgZeroEmitter := someMessage(t)
 	msgZeroEmitter.EmitterAddress = vaa.Address{}
 
-	msgGovEmitter := someMessage()
+	msgGovEmitter := someMessage(t)
 	msgGovEmitter.EmitterAddress = vaa.GovernanceEmitter
 
 	msgGov, msgGovProto := createGovernanceMsgAndVaa(t)
 
-	msgWrongEmitterChain := someMessage()
+	msgWrongEmitterChain := someMessage(t)
 	msgWrongEmitterChain.EmitterChain = vaa.ChainIDEthereum
 
 	// define the test cases to be executed
@@ -592,13 +599,13 @@ func TestConsensus(t *testing.T) {
 			// Only two Guardian gets the message, but one already has it in the local database.
 			// Hence the first Guardian (index 0) should not make an automatic re-observation request
 			// We currently don't explicitly verify the non-existence of the re-observation request, but can see it through the code coverage
-			msg:                 someMessage(),
+			msg:                 someMessage(t),
 			numGuardiansObserve: 2,
 			mustReachQuorum:     true,
 			prePopulateVAA:      true,
 		},
 		{ // one malicious Guardian makes an observation + sends a re-observation request; this should not reach quorum
-			msg:                        someMessage(),
+			msg:                        someMessage(t),
 			numGuardiansObserve:        1,
 			mustNotReachQuorum:         true,
 			unavailableInReobservation: true,
@@ -619,28 +626,28 @@ func TestConsensus(t *testing.T) {
 			mustNotReachQuorum:  true,
 		},
 		{ // Message covered by Governor that should be delayed 24h and hence not reach quorum within this test
-			msg:                 governedMsg(true),
+			msg:                 governedMsg(t, true),
 			numGuardiansObserve: numGuardians,
 			mustNotReachQuorum:  true,
 		},
 		{ // vanilla case, where only a quorum of guardians gets the message
-			msg:                 someMessage(),
+			msg:                 someMessage(t),
 			numGuardiansObserve: numGuardians*2/3 + 1,
 			mustReachQuorum:     true,
 		},
 		{ // No Guardian makes the observation while watching, but we do a manual reobservation request.
-			msg:                               someMessage(),
+			msg:                               someMessage(t),
 			numGuardiansObserve:               0,
 			mustReachQuorum:                   true,
 			performManualReobservationRequest: true,
 		},
 		{ // Only one Guardian makes the observation while watching and needs to do an automatic re-observation request.
-			msg:                 someMessage(),
+			msg:                 someMessage(t),
 			numGuardiansObserve: 1,
 			mustReachQuorum:     true,
 		},
 		{ // Message covered by Governor that should pass immediately
-			msg:                 governedMsg(false),
+			msg:                 governedMsg(t, false),
 			numGuardiansObserve: numGuardians,
 			mustReachQuorum:     true,
 		},
@@ -1274,7 +1281,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 					case <-ctx.Done():
 						return
 					case <-nextObsReadyC:
-						msg := someMessage()
+						msg := someMessage(t)
 						for _, g := range gs {
 							msgCopy := *msg
 							g.MockObservationC <- &msgCopy

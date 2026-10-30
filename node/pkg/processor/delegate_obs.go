@@ -83,7 +83,7 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 
 	mp := &node_common.MessagePublication{
 		TxID:             d.TxHash,
-		Timestamp:        time.Unix(int64(d.Timestamp), 0), // Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert.
+		Timestamp:        vaa.TimeFromUnixUint32(d.Timestamp),
 		Nonce:            d.Nonce,
 		Sequence:         d.Sequence,
 		ConsistencyLevel: uint8(d.ConsistencyLevel),
