@@ -36,6 +36,7 @@ func NewNotaryDB(dbConn *badger.DB) *NotaryDB {
 
 // Define prefixes used to isolate different message publications stored in the database.
 const (
+	notaryPrefix    = "NOTARY:"
 	delayedPrefix   = "NOTARY:DELAY:V1:"
 	blackholePrefix = "NOTARY:BLACKHOLE:V1:"
 )
@@ -167,6 +168,7 @@ func (d *NotaryDB) LoadAll(logger *zap.Logger) (*NotaryLoadResult, error) {
 	}
 	viewErr := d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
+		opts.Prefix = []byte(notaryPrefix)
 		opts.PrefetchSize = 10
 		it := txn.NewIterator(opts)
 		defer it.Close()

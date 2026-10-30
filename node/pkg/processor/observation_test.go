@@ -416,7 +416,8 @@ func TestCheckForDelegateQuorum_ConsensusPathContract(t *testing.T) {
 	// under test is that it's not consulted on the delegate-consensus path.
 	guardianDB := db.OpenDb(zap.NewNop(), nil)
 	t.Cleanup(func() { _ = guardianDB.Close() })
-	notary := guardianNotary.NewNotary(context.Background(), zap.NewNop(), guardianDB, common.GoTest)
+	notary, err := guardianNotary.NewNotary(context.Background(), zap.NewNop(), guardianDB, common.GoTest)
+	require.NoError(t, err)
 
 	ourSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	require.NoError(t, err)
