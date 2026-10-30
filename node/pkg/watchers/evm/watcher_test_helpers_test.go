@@ -3,6 +3,7 @@ package evm
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -181,14 +182,19 @@ func (m *mockConnector) WatchLogMessagePublished(ctx context.Context, errC chan 
 	panic("not implemented")
 }
 
-// TimeOfBlockByHash returns the configured block time for the given hash, or 0 if unset. If a
-// blockTimeErrors entry is set for the hash it is returned instead, so tests can simulate RPC
-// failures. Tests that care about the exact timestamp should seed blockTimes explicitly.
+// TimeOfBlockByHash returns the configured block time for the given hash. If a blockTimeErrors
+// entry is set for the hash it is returned instead, so tests can simulate RPC failures. A hash
+// with no seeded block time returns an error, matching a real node that does not know the block,
+// so a lookup by the wrong hash fails loudly instead of silently producing timestamp 0.
 func (m *mockConnector) TimeOfBlockByHash(_ context.Context, hash eth_common.Hash) (uint64, error) {
 	if err := m.blockTimeErrors[hash]; err != nil {
 		return 0, err
 	}
-	return m.blockTimes[hash], nil
+	blockTime, ok := m.blockTimes[hash]
+	if !ok {
+		return 0, fmt.Errorf("mockConnector: no block time seeded for hash %s", hash.Hex())
+	}
+	return blockTime, nil
 }
 
 // ParseLogMessagePublished delegates to the real generated ABI parser so tests exercise the
