@@ -421,8 +421,11 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 
 	devKey, err := os.ReadFile("dev.guardian.key")
 	require.NoError(t, err)
-	devKeyPath := filepath.Join(t.TempDir(), "dev.guardian.key")
-	require.NoError(t, os.WriteFile(devKeyPath, devKey, 0600)) // #nosec G703 -- devKeyPath is inside t.TempDir().
+	root, err := os.OpenRoot(t.TempDir())
+	require.NoError(t, err)
+	defer root.Close()
+	require.NoError(t, root.WriteFile("dev.guardian.key", devKey, 0600))
+	devKeyPath := filepath.Join(root.Name(), "dev.guardian.key")
 
 	md.sk, err = common.LoadGuardianKey(devKeyPath, true)
 	require.NoError(t, err)
