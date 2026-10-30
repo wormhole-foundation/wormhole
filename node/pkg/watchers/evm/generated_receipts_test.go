@@ -219,13 +219,12 @@ func processGeneratedReceiptGoldenVector(t *testing.T, vec receiptGoldenVector, 
 	logs := validCoreBridgeLogs(t, receipt, generatedReceiptContract)
 	require.Equal(t, expectedMessageLogIndices(vec.Expected), logIndices(logs))
 
-	_, _, msgs, err := MessageEventsForTransaction(
+	_, _, msgs, err := MessageEventsForTransactionReobservation(
 		context.Background(),
 		mock,
 		generatedReceiptContract,
 		vec.WormholeChainID,
 		receipt.TxHash,
-		true,
 	)
 	require.NoError(t, err)
 	require.Len(t, msgs, len(logs))
