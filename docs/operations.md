@@ -457,7 +457,7 @@ Generate a new key using the `keygen` subcommand:
 
 The key file includes a human-readable part which includes the public key hashes and the description.
 
-guardiand refuses to load a key file that grants any permission to group or other users. The `keygen` command writes the file as `0600`, which meets this requirement. If you copy or restore a key, set its permissions with `chmod 0600 /path/to/your.key`.
+guardiand refuses to load a guardian key or node key file that grants any permission to group or other users. The `keygen` command and the automatic node key generation write the file as `0600`, which meets this requirement. If you copy or restore a key, set its permissions with `chmod 0600 /path/to/your.key`.
 
 ## Deploying
 
@@ -752,6 +752,7 @@ You'll have to manage the following keys:
   critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
   While the node key can be replaced, we recommend using a persistent node key. This will make it easier to identify your
   node in monitoring data and improves p2p connectivity.
+  The node and the spy refuse to load a node key file that grants any permission to group or other users.
 
 For production, we strongly recommend to either encrypt your disks, and/or take care to never have hot guardian keys touch the disk.
 One way to accomplish is to store keys on an in-memory ramfs, which can't be swapped out, and restore it from cold

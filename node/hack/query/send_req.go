@@ -111,7 +111,11 @@ func main() {
 
 	// Load p2p private key
 	var priv crypto.PrivKey
-	priv, err = common.GetOrCreateNodeKey(logger, nodeKeyPath)
+	stagedNodeKeyPath, err := stageDevKey(nodeKeyPath)
+	if err != nil {
+		logger.Fatal("failed to stage node key", zap.Error(err))
+	}
+	priv, err = common.GetOrCreateNodeKey(logger, stagedNodeKeyPath)
 	if err != nil {
 		logger.Fatal("Failed to load node key", zap.Error(err))
 	}
