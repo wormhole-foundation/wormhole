@@ -888,6 +888,15 @@ func (w *Watcher) queuePendingMessage(
 	msg *common.MessagePublication,
 	blockTime uint64,
 ) {
+	if ev == nil {
+		w.logger.Error("queuePendingMessage called with a nil event")
+		return
+	}
+	if msg == nil {
+		w.logger.Error("queuePendingMessage called with a nil message publication")
+		return
+	}
+
 	pendingEntry := &pendingMessage{
 		message:     msg,
 		height:      ev.Raw.BlockNumber,
