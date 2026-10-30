@@ -584,6 +584,31 @@ func TestProcessBlockTxVerifier(t *testing.T) {
 	}
 }
 
+func TestQueuePendingMessageNilArguments(t *testing.T) {
+	tests := []struct {
+		name string
+		ev   *ethabi.AbiLogMessagePublished
+		msg  *common.MessagePublication
+	}{
+		{"nil event", nil, &common.MessagePublication{}},
+		{"nil message", newTestLogEvent(vaa.ConsistencyLevelFinalized), nil},
+		{"both nil", nil, nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			w, _, msgC := newTestWatcher(t)
+
+			require.NotPanics(t, func() {
+				w.queuePendingMessage(context.TODO(), tc.ev, tc.msg, 1234)
+			})
+
+			assert.Empty(t, w.pending)
+			assert.Empty(t, msgC)
+		})
+	}
+}
+
 // Safe and finalized add to pending in postMessage
 func TestPostMessageAddsToPending(t *testing.T) {
 	tests := []struct {
@@ -710,6 +735,20 @@ func TestPostMessageCustomAdditionalBlocks(t *testing.T) {
 			assertPendingMetadata(t, pe, tc.effectiveCL, uint64(tc.additionalBlocks))
 		})
 	}
+}
+
+func TestPublishMessageImmediatelyRejectsNonImmediate(t *testing.T) {
+	w, _, msgC := newTestWatcher(t)
+	ev := newTestLogEvent(vaa.ConsistencyLevelFinalized)
+	msg := newMessagePublication(ev, 1234, w.chainID, false)
+	w.ethConn = nil // Any receipt lookup would panic; the guard must return first.
+
+	require.NotPanics(t, func() {
+		w.publishMessageImmediately(context.TODO(), ev, msg, 1234)
+	})
+
+	assert.Empty(t, msgC)
+	assert.Empty(t, w.pending)
 }
 
 // Instant message is published instead of being added to the pending queue
