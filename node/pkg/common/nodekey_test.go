@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -48,4 +50,19 @@ func TestGetOrCreateNodeKeyWithPreExistingPath(t *testing.T) {
 
 	// Make sure we got the same key
 	assert.Equal(t, privKey1, privKey2)
+}
+
+func TestGetOrCreateNodeKeyRejectsUnsafePermissions(t *testing.T) {
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
+	require.NoError(t, err)
+	marshalledPrivKey, err := crypto.MarshalPrivateKey(privKey)
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "node.key")
+	require.NoError(t, os.WriteFile(path, marshalledPrivKey, 0644)) // #nosec G306 -- This test verifies unsafe key-file permissions are rejected.
+
+	loadedKey, err := GetOrCreateNodeKey(zap.NewNop(), path)
+
+	require.Error(t, err)
+	assert.Nil(t, loadedKey)
+	assert.Contains(t, err.Error(), "insecure permissions")
 }

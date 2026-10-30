@@ -3,17 +3,11 @@ package guardiansigner
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
-	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	"golang.org/x/crypto/openpgp/armor" //nolint:staticcheck // Package is deprecated but we need it in the codebase still.
 )
 
 // FileSigner is a signer that loads a guardian key from a file. The URI is expected to be
@@ -23,10 +17,6 @@ type FileSigner struct {
 	privateKey *ecdsa.PrivateKey
 }
 
-const (
-	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
-)
-
 // The FileSigner is a signer that reads a guardian key from a file (signerKeyPath). The key is
 // expected to be armored with an OpenPGP armor block, and the key itself is expected to be a
 // protobuf-encoded GuardianKey message.
@@ -35,38 +25,9 @@ func NewFileSigner(_ context.Context, unsafeDevMode bool, signerKeyPath string) 
 		keyPath: signerKeyPath,
 	}
 
-	f, err := os.Open(signerKeyPath)
+	gk, err := common.LoadGuardianKey(signerKeyPath, unsafeDevMode)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-
-	p, err := armor.Decode(f)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read armored file: %w", err)
-	}
-
-	if p.Type != GuardianKeyArmoredBlock {
-		return nil, fmt.Errorf("invalid block type: %s", p.Type)
-	}
-
-	b, err := common.SafeRead(p.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	var m nodev1.GuardianKey
-	err = proto.Unmarshal(b, &m)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize protobuf: %w", err)
-	}
-
-	if !unsafeDevMode && m.UnsafeDeterministicKey {
-		return nil, errors.New("refusing to use deterministic key in production")
-	}
-
-	gk, err := ethcrypto.ToECDSA(m.Data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize raw key data: %w", err)
+		return nil, err
 	}
 
 	fileSigner.privateKey = gk
@@ -109,7 +70,7 @@ func (fs *FileSigner) PublicKey(ctx context.Context) ecdsa.PublicKey {
 // package's `SigToPub` function.
 func (fs *FileSigner) Verify(ctx context.Context, sig []byte, hash []byte) (bool, error) {
 	// Recover the public key from the signature.
-	recoveredPubKey, err := ethcrypto.SigToPub(hash, sig)
+	recoveredPubKey, err := crypto.SigToPub(hash, sig)
 
 	if err != nil {
 		return false, err

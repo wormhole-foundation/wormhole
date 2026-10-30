@@ -15,6 +15,8 @@ import (
 
 const (
 	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
+	ownerOnlyKeyFileMode    = 0600
+	groupOtherPermMask      = 0077
 )
 
 // LoadGuardianKey loads a serialized guardian key from disk.
@@ -27,6 +29,13 @@ func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecd
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer f.Close()
+
+	// Validate the permissions on the open handle so we check the same file we
+	// read, closing the gap between a separate stat and open.
+	if err = ValidatePrivateKeyFilePermissions(f); err != nil {
+		return nil, err
 	}
 
 	p, err := armor.Decode(f)
@@ -61,7 +70,29 @@ func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecd
 	return gk, nil
 }
 
-// WriteArmoredKey serializes a key and writes it to disk.
+// ValidatePrivateKeyFilePermissions returns an error when f is a regular file or a pipe that grants any permission to
+// group or other users. It takes an open file handle, not a path, so that the permissions it checks belong to the
+// same file the caller reads. Other file types, for example a terminal, are not checked.
+func ValidatePrivateKeyFilePermissions(f *os.File) error {
+	info, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat private key file: %w", err)
+	}
+
+	// A named FIFO has no data at rest, but its mode controls who can open it and
+	// read the key from the stream, so pipes get the same check as regular files.
+	// On Linux, anonymous pipes (process substitution, a piped stdin) report 0600
+	// and pass. On macOS they report 0660 and are rejected.
+	mode := info.Mode()
+	if (mode.IsRegular() || mode&os.ModeNamedPipe != 0) && mode.Perm()&groupOtherPermMask != 0 {
+		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", f.Name(), mode.Perm())
+	}
+
+	return nil
+}
+
+// WriteArmoredKey serializes a key and writes it to disk. The function creates a new file with read/write permissions
+// for owner only.
 func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string, blockType string, unsafe bool) error {
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		return errors.New("refusing to override existing key")
@@ -79,7 +110,7 @@ func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string,
 		panic(err)
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, ownerOnlyKeyFileMode)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
