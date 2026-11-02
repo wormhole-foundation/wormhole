@@ -3,7 +3,7 @@
 The Solana watcher turns on-chain transactions into Wormhole message publications. The regression
 test replays captured transaction bundles through the watcher and compares the emitted VAA signing
 digests with a recorded baseline. This pins behavior for the covered corpus; it does not prove
-injectivity for every possible Solana transaction.
+that every possible Solana transaction maps to a distinct digest.
 
 The fixtures live in `testdata/` in two files:
 
