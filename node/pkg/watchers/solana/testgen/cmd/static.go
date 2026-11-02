@@ -104,10 +104,6 @@ func scenarios() []scenario {
 			return testgen.NewBuilder(baseCfg("pm_reliable_wrong_owner")).
 				AddPostMessage(testgen.PostMessageSpec{Location: testgen.Outer, Kind: testgen.PostMessage, Msg: fields(9, 9, "hi"), Account: testgen.AccountContent{Owner: &badOwner}}).Build()
 		}},
-		{"pm_reliable_not_finalized", func() (*testgen.Bundle, error) {
-			return testgen.NewBuilder(baseCfg("pm_reliable_not_finalized")).
-				AddPostMessage(testgen.PostMessageSpec{Location: testgen.Outer, Kind: testgen.PostMessage, Msg: fields(10, 10, "hi"), Account: testgen.AccountContent{MessageStatus: 1}}).Build()
-		}},
 		{"pm_reliable_bad_prefix", func() (*testgen.Bundle, error) {
 			return testgen.NewBuilder(baseCfg("pm_reliable_bad_prefix")).
 				AddPostMessage(testgen.PostMessageSpec{Location: testgen.Outer, Kind: testgen.PostMessage, Msg: fields(11, 11, "hi"), Account: testgen.AccountContent{Prefix: "bad"}}).Build()

@@ -242,8 +242,8 @@ func classifyInstruction(program solana.PublicKey, data []byte, accounts []uint1
 // classify walks top-level and inner instructions, returning every recognized message.
 func classify(tx *solana.Transaction, meta *rpc.TransactionMeta) []detection {
 	keys := accountKeys(tx, meta)
-	programOf := func(inst solana.CompiledInstruction) solana.PublicKey {
-		if idx := int(inst.ProgramIDIndex); idx < len(keys) {
+	programOf := func(programIDIndex uint16) solana.PublicKey {
+		if idx := int(programIDIndex); idx < len(keys) {
 			return keys[idx]
 		}
 		return solana.PublicKey{}
@@ -251,13 +251,13 @@ func classify(tx *solana.Transaction, meta *rpc.TransactionMeta) []detection {
 
 	var detections []detection
 	for _, inst := range tx.Message.Instructions {
-		if det := classifyInstruction(programOf(inst), inst.Data, inst.Accounts, keys, "outer"); det != nil {
+		if det := classifyInstruction(programOf(inst.ProgramIDIndex), inst.Data, inst.Accounts, keys, "outer"); det != nil {
 			detections = append(detections, *det)
 		}
 	}
 	for _, group := range meta.InnerInstructions {
 		for _, inst := range group.Instructions {
-			if det := classifyInstruction(programOf(inst), inst.Data, inst.Accounts, keys, "inner"); det != nil {
+			if det := classifyInstruction(programOf(inst.ProgramIDIndex), inst.Data, inst.Accounts, keys, "inner"); det != nil {
 				detections = append(detections, *det)
 			}
 		}
@@ -289,13 +289,17 @@ func classify(tx *solana.Transaction, meta *rpc.TransactionMeta) []detection {
 // ---------------------------------------------------------------- record build
 
 func accountResponse(pubkey solana.PublicKey, acc *rpc.Account) testgen.AccountInfoResponse {
+	var rentEpoch uint64
+	if acc.RentEpoch != nil && acc.RentEpoch.IsUint64() {
+		rentEpoch = acc.RentEpoch.Uint64()
+	}
 	return testgen.AccountInfoResponse{
 		Pubkey:     pubkey,
 		Owner:      acc.Owner,
 		Lamports:   acc.Lamports,
 		Data:       acc.Data.GetBinary(),
 		Executable: acc.Executable,
-		RentEpoch:  acc.RentEpoch,
+		RentEpoch:  rentEpoch,
 	}
 }
 

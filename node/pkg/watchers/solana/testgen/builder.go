@@ -13,9 +13,9 @@ import (
 	"fmt"
 
 	solwatch "github.com/certusone/wormhole/node/pkg/watchers/solana"
+	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/near/borsh-go"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -109,14 +109,13 @@ type WormholeFields struct {
 
 // AccountContent describes the generated message account data.
 type AccountContent struct {
-	Prefix           string            // overrides "msg"/"msu"; empty => derived from Kind
-	Owner            *solana.PublicKey // overrides owner; nil => core contract
-	VaaVersion       uint8
-	RawConsistency   *uint8 // overrides the account consistency byte; nil => derived from Commitment
-	EmitterAuthority [32]byte
-	MessageStatus    uint8
-	Gap              [3]byte
-	SubmissionTime   *uint32 // overrides; nil => WormholeFields.Timestamp
+	Prefix              string            // overrides "msg"/"msu"; empty => derived from Kind
+	Owner               *solana.PublicKey // overrides owner; nil => core contract
+	VaaVersion          uint8
+	RawConsistency      *uint8   // overrides the account consistency byte; nil => derived from Commitment
+	VaaTime             uint32   // MessagePublicationAccount.VaaTime; zero for msg/msu accounts on chain
+	VaaSignatureAccount [32]byte // MessagePublicationAccount.VaaSignatureAccount
+	SubmissionTime      *uint32  // overrides; nil => WormholeFields.Timestamp
 }
 
 // PostMessageSpec describes an account-based post_message. The message account is
@@ -294,7 +293,12 @@ func (b *Builder) addWrapperTopLevel() uint16 {
 }
 
 func (b *Builder) addInnerSet(index uint16, insts []solana.CompiledInstruction) {
-	b.inner = append(b.inner, rpc.InnerInstruction{Index: index, Instructions: insts})
+	// Inner instructions use the RPC type; StackHeight is left at zero as the watcher does not read it.
+	inner := make([]rpc.CompiledInstruction, len(insts))
+	for i, inst := range insts {
+		inner[i] = rpc.CompiledInstruction{ProgramIDIndex: inst.ProgramIDIndex, Accounts: inst.Accounts, Data: inst.Data}
+	}
+	b.inner = append(b.inner, rpc.InnerInstruction{Index: index, Instructions: inner})
 }
 
 func (b *Builder) accountRefs(minLen int, msgIdx uint16) []uint16 {
@@ -353,7 +357,7 @@ func (b *Builder) postMessageInstrData(kind MessageKind, m WormholeFields) []byt
 	if kind == PostMessageUnreliable {
 		id = postMessageUnreliableInstructionID
 	}
-	body, err := borsh.Serialize(solwatch.PostMessageData{
+	body, err := bin.MarshalBorsh(solwatch.PostMessageData{
 		Nonce:            m.Nonce,
 		Payload:          m.Payload,
 		ConsistencyLevel: instrConsistency(b.resolveCommitment(m.Commitment)),
@@ -379,25 +383,24 @@ func (b *Builder) accountBlob(kind MessageKind, m WormholeFields, ac AccountCont
 	if ac.SubmissionTime != nil {
 		st = *ac.SubmissionTime
 	}
-	body, err := borsh.Serialize(solwatch.MessagePublicationAccount{
-		VaaVersion:       ac.VaaVersion,
-		ConsistencyLevel: cons,
-		EmitterAuthority: toAddr(ac.EmitterAuthority),
-		MessageStatus:    ac.MessageStatus,
-		Gap:              ac.Gap,
-		SubmissionTime:   st,
-		Nonce:            m.Nonce,
-		Sequence:         m.Sequence,
-		EmitterChain:     m.EmitterChain,
-		EmitterAddress:   toAddr(m.EmitterAddress),
-		Payload:          m.Payload,
+	body, err := bin.MarshalBorsh(solwatch.MessagePublicationAccount{
+		VaaVersion:          ac.VaaVersion,
+		ConsistencyLevel:    cons,
+		VaaTime:             ac.VaaTime,
+		VaaSignatureAccount: solana.PublicKey(ac.VaaSignatureAccount),
+		SubmissionTime:      st,
+		Nonce:               m.Nonce,
+		Sequence:            m.Sequence,
+		EmitterChain:        m.EmitterChain,
+		EmitterAddress:      toAddr(m.EmitterAddress),
+		Payload:             m.Payload,
 	})
 	b.fail(err)
 	return append([]byte(prefix), body...)
 }
 
 func (b *Builder) shimPostData(m WormholeFields) []byte {
-	body, err := borsh.Serialize(solwatch.ShimPostMessageData{
+	body, err := bin.MarshalBorsh(solwatch.ShimPostMessageData{
 		Nonce:            m.Nonce,
 		ConsistencyLevel: instrConsistency(b.resolveCommitment(m.Commitment)),
 		Payload:          m.Payload,
@@ -408,7 +411,7 @@ func (b *Builder) shimPostData(m WormholeFields) []byte {
 
 func (b *Builder) shimCoreData(m WormholeFields) []byte {
 	// The core event accompanying a shim message is always unreliable with an empty payload.
-	body, err := borsh.Serialize(solwatch.PostMessageData{
+	body, err := bin.MarshalBorsh(solwatch.PostMessageData{
 		Nonce:            m.Nonce,
 		Payload:          []byte{},
 		ConsistencyLevel: instrConsistency(b.resolveCommitment(m.Commitment)),
@@ -418,7 +421,7 @@ func (b *Builder) shimCoreData(m WormholeFields) []byte {
 }
 
 func (b *Builder) shimEventData(m WormholeFields) []byte {
-	body, err := borsh.Serialize(solwatch.ShimMessageEventData{
+	body, err := bin.MarshalBorsh(solwatch.ShimMessageEventData{
 		EmitterAddress: m.EmitterAddress,
 		Sequence:       m.Sequence,
 		Timestamp:      m.Timestamp,

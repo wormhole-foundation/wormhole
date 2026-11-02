@@ -17,6 +17,7 @@ package solana
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -146,7 +147,7 @@ func makeMockAccountInfoResult(owner solana.PublicKey, data []byte) *rpc.GetAcco
 			Data:       rpc.DataBytesOrJSONFromBytes(data),
 			Lamports:   1,
 			Executable: false,
-			RentEpoch:  0,
+			RentEpoch:  big.NewInt(0),
 		},
 	}
 }

@@ -182,21 +182,21 @@ func TestIndexingIntegrity(t *testing.T) {
 
 	nKeys := len(bundle.Transaction.Message.AccountKeys)
 
-	checkInst := func(inst solana.CompiledInstruction, ctx string) {
-		assert.Less(t, int(inst.ProgramIDIndex), nKeys, "%s: program index in bounds", ctx)
-		for _, a := range inst.Accounts {
+	checkInst := func(programIDIndex uint16, accounts []uint16, ctx string) {
+		assert.Less(t, int(programIDIndex), nKeys, "%s: program index in bounds", ctx)
+		for _, a := range accounts {
 			assert.Less(t, int(a), nKeys, "%s: account index in bounds", ctx)
 		}
 	}
 	nTop := len(bundle.Transaction.Message.Instructions)
 	for i, inst := range bundle.Transaction.Message.Instructions {
-		checkInst(inst, "top-level")
+		checkInst(inst.ProgramIDIndex, inst.Accounts, "top-level")
 		_ = i
 	}
 	for _, set := range bundle.Meta.InnerInstructions {
 		assert.Less(t, int(set.Index), nTop, "inner set index references a real top-level instruction")
 		for _, inst := range set.Instructions {
-			checkInst(inst, "inner")
+			checkInst(inst.ProgramIDIndex, inst.Accounts, "inner")
 		}
 	}
 

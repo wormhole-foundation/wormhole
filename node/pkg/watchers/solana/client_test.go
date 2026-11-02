@@ -1476,11 +1476,10 @@ func TestPopulateLookupTableAccountsV1NoOp(t *testing.T) {
 	require.True(t, tx.Message.IsVersioned())
 	require.Empty(t, tx.Message.GetAddressTableLookups())
 
-	m := newMockRPCServer(t)
-	defer m.Close()
+	m := newMockSolanaRPCClient()
 
 	s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, nil)
-	err = s.populateLookupTableAccounts(context.Background(), rpc.New(m.URL), tx)
+	err = s.populateLookupTableAccounts(context.Background(), m, tx)
 	require.NoError(t, err)
 	require.Equal(t, []solana.PublicKey{staticAddr}, []solana.PublicKey(tx.Message.AccountKeys))
 }
