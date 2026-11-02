@@ -1764,10 +1764,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	if shouldStart(terra2WS) {
-		if env != common.UnsafeDevNet {
-			logger.Fatal("Terra2 classic is only allowed in unsafe dev mode")
-		}
-
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra2",
 			ChainID:   vaa.ChainIDTerra2,
