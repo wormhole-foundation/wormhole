@@ -588,8 +588,6 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 
 	w.logger.Info("updated guardian set found", zap.Any("value", gs), zap.Uint32("index", idx))
 
-	w.currentGuardianSet = &idx
-
 	if w.setC != nil {
 		select {
 		case w.setC <- common.NewGuardianSet(gs.Keys, idx): //nolint:channelcheck // Shutdown is safe. Should block until consumable or context is closed.
@@ -597,6 +595,8 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 			return ctx.Err()
 		}
 	}
+
+	w.currentGuardianSet = &idx
 
 	return nil
 }
@@ -658,8 +658,6 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 
 		w.logger.Info("updated delegated guardian config found", zap.Uint32("timestamp", maxTimestamp), zap.Int("chains", len(configs)))
 
-		w.currentDelegatedGuardianConfigTimestamp = maxTimestamp
-
 		// Build the DelegatedGuardianConfig
 		dgConfig := processor.NewDelegatedGuardianConfig()
 		for _, cfg := range configs {
@@ -674,6 +672,8 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 			chainID := vaa.ChainID(cfg.ChainId)
 			chainConfig, err := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
 			if err != nil {
+				// Don't retry an invalid config on every poll; wait for a newer timestamp.
+				w.currentDelegatedGuardianConfigTimestamp = maxTimestamp
 				w.logger.Error("failed to instantiate delegated guardian chain config", zap.Error(err))
 				return err
 			}
@@ -690,6 +690,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+		w.currentDelegatedGuardianConfigTimestamp = maxTimestamp
 		w.logger.Info("sent delegated guardian config update to processor")
 	}
 
