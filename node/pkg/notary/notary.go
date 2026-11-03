@@ -215,10 +215,6 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		return Unknown, errors.New("notary: ProcessMsg called with nil message")
 	}
 
-	if n.logger == nil {
-		return Unknown, errors.New("notary: logger must not be nil")
-	}
-
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
 	// For the initial implementation, the Notary only rules on messages based

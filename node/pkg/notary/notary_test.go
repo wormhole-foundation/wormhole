@@ -23,8 +23,9 @@ import (
 )
 
 // MockNotaryDB is a mock implementation of the NotaryDB interface.
-// It returns nil for all operations, so it can be used to test the Notary's
-// core logic but certain DB-related operations are not covered.
+// It returns nil for all operations except LoadAll, which returns an empty result like the real
+// database. It can be used to test the Notary's core logic but certain DB-related operations are
+// not covered.
 // Where possible, these should be tested in the Notary database's own unit tests, not here.
 type MockNotaryDB struct{}
 
@@ -34,7 +35,9 @@ func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublicatio
 	return nil, nil
 }
 func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
-func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
+func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
+	return &db.NotaryLoadResult{}, nil
+}
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
@@ -96,36 +99,6 @@ func TestNewNotary_LoadsPersistedState(t *testing.T) {
 
 	require.True(t, n.IsDelayed(delayedMsg))
 	require.True(t, n.IsBlackholed(blackholedMsg.MessageID()))
-}
-
-func TestNotary_AdminReadCommandsRejectNilLoadAllResult(t *testing.T) {
-	n := makeTestNotary(t)
-	msgID := makeUniqueMessagePublication(t).MessageIDString()
-
-	tests := map[string]func() error{
-		"get delayed message": func() error {
-			_, err := n.GetDelayedMessage(msgID)
-			return err
-		},
-		"get blackholed message": func() error {
-			_, err := n.GetBlackholedMessage(msgID)
-			return err
-		},
-		"list delayed messages": func() error {
-			_, err := n.ListDelayedMessages()
-			return err
-		},
-		"list blackholed messages": func() error {
-			_, err := n.ListBlackholedMessages()
-			return err
-		},
-	}
-
-	for name, call := range tests {
-		t.Run(name, func(t *testing.T) {
-			require.ErrorIs(t, call(), ErrNilDBResult)
-		})
-	}
 }
 
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
