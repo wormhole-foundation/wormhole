@@ -66,8 +66,6 @@ type nodePrivilegedService struct {
 	notary                    *notary.Notary
 	rpcMap                    map[string]string
 	reobservers               interfaces.Reobservers
-	// guardianAddr is this node's Guardian address, sent to the missing-VAA endpoint by GetAndObserveMissingVAAs.
-	guardianAddr ethcommon.Address
 }
 
 func NewPrivService(
@@ -81,7 +79,7 @@ func NewPrivService(
 	notary *notary.Notary,
 	rpcMap map[string]string,
 	reobservers interfaces.Reobservers,
-	guardianAddr ethcommon.Address,
+
 ) *nodePrivilegedService {
 	return &nodePrivilegedService{
 		db:                        db,
@@ -94,7 +92,6 @@ func NewPrivService(
 		notary:                    notary,
 		rpcMap:                    rpcMap,
 		reobservers:               reobservers,
-		guardianAddr:              guardianAddr,
 	}
 }
 
@@ -1522,23 +1519,14 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	url := req.GetUrl()
 	apiKey := req.GetApiKey()
 
-	// The endpoint returns the missing VAAs this Guardian is expected to observe.
-	jsonBody, err := json.Marshal(struct {
-		Guardian string `json:"guardian"`
-	}{Guardian: "0x" + hex.EncodeToString(s.guardianAddr.Bytes())})
-	if err != nil {
-		return nil, fmt.Errorf("could not marshal request body: %w", err)
-	}
-	jsonBodyReader := bytes.NewReader(jsonBody)
-
-	// Create the actual request
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, url, jsonBodyReader)
+	// The API key identifies this Guardian to the endpoint, which returns the missing VAAs it is expected to observe.
+	// The request has no body.
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, url, http.NoBody)
 	if err != nil {
 		fmt.Printf("GetAndObserveMissingVAAs: could not create request: %s\n", err)
 		return nil, err
 	}
 
-	httpRequest.Header.Set("Content-Type", "application/json")
 	httpRequest.Header.Set("Authorization", "Bearer "+apiKey)
 
 	client := http.Client{

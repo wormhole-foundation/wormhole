@@ -17,7 +17,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
-	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 )
 
@@ -35,7 +34,6 @@ func adminServiceRunnable(
 	rpcMap map[string]string,
 	reobservers interfaces.Reobservers,
 	managerSvc *manager.ManagerService,
-	guardianAddr ethcommon.Address,
 ) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
@@ -79,7 +77,6 @@ func adminServiceRunnable(
 		notary,
 		rpcMap,
 		reobservers,
-		guardianAddr,
 	)
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov, managerSvc)

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -512,12 +511,13 @@ func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
 	assert.Equal(t, uint32(22), v.Nonce)
 }
 
-// TestGetAndObserveMissingVAAs_RequestCarriesBearerTokenAndGuardianAddress checks the request to the missing-VAA
-// endpoint: the API key goes in the Authorization header as a bearer token, and the body is only this node's address.
-func TestGetAndObserveMissingVAAs_RequestCarriesBearerTokenAndGuardianAddress(t *testing.T) {
+// TestGetAndObserveMissingVAAs_RequestCarriesBearerToken checks the request to the missing-VAA endpoint: the API key
+// goes in the Authorization header as a bearer token, and the request has no body, since the key identifies the
+// Guardian.
+func TestGetAndObserveMissingVAAs_RequestCarriesBearerToken(t *testing.T) {
 	type captured struct {
-		method, contentType, authorization string
-		body                               []byte
+		method, authorization string
+		body                  []byte
 	}
 	requests := make(chan captured, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -526,14 +526,13 @@ func TestGetAndObserveMissingVAAs_RequestCarriesBearerTokenAndGuardianAddress(t 
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		requests <- captured{r.Method, r.Header.Get("Content-Type"), r.Header.Get("Authorization"), body}
+		requests <- captured{r.Method, r.Header.Get("Authorization"), body}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer srv.Close()
 
-	guardianAddr := common.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-	service := &nodePrivilegedService{logger: zap.NewNop(), guardianAddr: guardianAddr}
+	service := &nodePrivilegedService{logger: zap.NewNop()}
 
 	_, err := service.GetAndObserveMissingVAAs(context.Background(), &nodev1.GetAndObserveMissingVAAsRequest{Url: srv.URL, ApiKey: "erb_secret"})
 	require.NoError(t, err)
@@ -541,11 +540,8 @@ func TestGetAndObserveMissingVAAs_RequestCarriesBearerTokenAndGuardianAddress(t 
 	require.Len(t, requests, 1)
 	req := <-requests
 	assert.Equal(t, http.MethodPost, req.method)
-	assert.Equal(t, "application/json", req.contentType)
 	assert.Equal(t, "Bearer erb_secret", req.authorization)
-	var body map[string]any
-	require.NoError(t, json.Unmarshal(req.body, &body))
-	assert.Equal(t, map[string]any{"guardian": "0xbefa429d57cd18b7f8a4d91a2da9ab4af05d0fbe"}, body)
+	assert.Empty(t, req.body)
 }
 
 // TestGetAndObserveMissingVAAs_ErrorStatusIsReturned checks that a non-2xx response is reported with its status and
