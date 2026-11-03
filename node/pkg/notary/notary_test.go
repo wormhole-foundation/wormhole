@@ -7,7 +7,6 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,20 +36,10 @@ func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublicatio
 func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
 func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
 
-type countingNotaryDB struct {
-	MockNotaryDB
-	loadAllCalls atomic.Int32
-}
-
-func (c *countingNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
-	c.loadAllCalls.Add(1)
-	return &db.NotaryLoadResult{}, nil
-}
-
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
 
-	n := &Notary{
+	return &Notary{
 		ctx:        context.Background(),
 		logger:     zap.NewNop(),
 		mutex:      sync.RWMutex{},
@@ -59,11 +48,6 @@ func makeTestNotary(t *testing.T) *Notary {
 		blackholed: NewSet(),
 		env:        common.GoTest,
 	}
-
-	// Tests that construct the Notary directly are simulating a Notary that
-	// has already completed Run().
-	n.ready.Store(true)
-	return n
 }
 
 func TestNotary_NilInputsAndDependencies(t *testing.T) {
@@ -84,13 +68,34 @@ func TestNotary_NilInputsAndDependencies(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, notary)
 
-	// Keep this test focused on nil-message handling rather than readiness.
-	notary.ready.Store(true)
-
 	verdict, err := notary.ProcessMsg(nil)
 	require.Error(t, err)
 	require.Equal(t, Unknown, verdict)
 	require.False(t, notary.IsDelayed(nil))
+}
+
+// TestNewNotary_LoadsPersistedState checks that NewNotary returns a Notary that already holds the
+// messages stored in the database, without a call to Run.
+func TestNewNotary_LoadsPersistedState(t *testing.T) {
+	logger := zap.NewNop()
+	guardianDB := db.OpenDb(logger, nil)
+	t.Cleanup(func() { _ = guardianDB.Close() })
+
+	delayedMsg := makeUniqueMessagePublication(t)
+	blackholedMsg := makeUniqueMessagePublication(t)
+
+	notaryDB := db.NewNotaryDB(guardianDB.Conn())
+	require.NoError(t, notaryDB.StoreDelayed(&common.PendingMessage{
+		ReleaseTime: time.Unix(time.Now().Add(time.Hour).Unix(), 0),
+		Msg:         *delayedMsg,
+	}))
+	require.NoError(t, notaryDB.StoreBlackholed(blackholedMsg))
+
+	n, err := NewNotary(context.Background(), logger, guardianDB, common.GoTest)
+	require.NoError(t, err)
+
+	require.True(t, n.IsDelayed(delayedMsg))
+	require.True(t, n.IsBlackholed(blackholedMsg.MessageID()))
 }
 
 func TestNotary_AdminReadCommandsRejectNilLoadAllResult(t *testing.T) {
@@ -121,31 +126,6 @@ func TestNotary_AdminReadCommandsRejectNilLoadAllResult(t *testing.T) {
 			require.ErrorIs(t, call(), ErrNilDBResult)
 		})
 	}
-}
-
-func TestNotary_RunCanBeCalledTwice(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	database := &countingNotaryDB{}
-	n := &Notary{
-		ctx:        ctx,
-		logger:     zap.NewNop(),
-		mutex:      sync.RWMutex{},
-		database:   database,
-		delayed:    common.NewPendingMessageQueue(),
-		blackholed: NewSet(),
-		env:        common.MainNet,
-	}
-
-	require.False(t, n.isReady())
-
-	require.NoError(t, n.Run())
-	require.NoError(t, n.Run())
-
-	// Database load should only have happened once
-	require.Equal(t, int32(1), database.loadAllCalls.Load())
-	require.True(t, n.isReady())
 }
 
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
