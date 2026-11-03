@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -177,10 +176,9 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 		zap.Uint8("consistency_level", xfer.ConsistencyLevel),
 		zap.String("payload", hex.EncodeToString(xfer.Payload)),
 	)
-
 	msg := &common.MessagePublication{
 		TxID:             xfer.TxHash,
-		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
+		Timestamp:        vaa.TimeFromUnixUint32(xfer.Timestamp),
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,
 		EmitterChain:     vaa.ChainID(xfer.EmitterChain),

@@ -1,6 +1,6 @@
 module github.com/wormhole-foundation/wormhole/linters/rules/channelcheck
 
-go 1.25.10
+go 1.26.10
 
 require golang.org/x/tools v0.30.0
 

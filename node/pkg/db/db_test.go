@@ -16,18 +16,23 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/testutils"
+
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func getVAA() vaa.VAA {
-	return getVAAWithSeqNum(1)
+func getVAA(t testing.TB) vaa.VAA {
+	t.Helper()
+
+	return getVAAWithSeqNum(t, 1)
 }
 
-func getVAAWithSeqNum(seqNum uint64) vaa.VAA {
+func getVAAWithSeqNum(t testing.TB, seqNum uint64) vaa.VAA {
+	t.Helper()
+
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -35,7 +40,7 @@ func getVAAWithSeqNum(seqNum uint64) vaa.VAA {
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
+		Timestamp:        testutils.MustTimeFromUnix(t, 0),
 		Nonce:            uint32(1),
 		Sequence:         seqNum,
 		ConsistencyLevel: uint8(32),
@@ -61,7 +66,7 @@ func TestVaaIDFromString(t *testing.T) {
 func TestVaaIDFromVAA(t *testing.T) {
 	t.Parallel()
 
-	testVaa := getVAA()
+	testVaa := getVAA(t)
 	vaaID := VaaIDFromVAA(&testVaa)
 	expectAddr := vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -105,7 +110,7 @@ func TestStoreSignedVAAUnsigned(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	testVaa := getVAA()
+	testVaa := getVAA(t)
 
 	// Should panic because the VAA is not signed
 	assert.Panics(t, func() { db.StoreSignedVAA(&testVaa) }, "The code did not panic") //nolint:errcheck
@@ -119,7 +124,7 @@ func TestStoreSignedVAASigned(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	testVaa := getVAA()
+	testVaa := getVAA(t)
 
 	privKey, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	testVaa.AddSignature(privKey, 0)
@@ -152,7 +157,7 @@ func TestStoreSignedVAABatch(t *testing.T) {
 	// Build the VAA batch.
 	vaaBatch := make([]*vaa.VAA, 0, numVAAs)
 	for seqNum := uint64(0); seqNum < numVAAs; seqNum++ {
-		v := getVAAWithSeqNum(seqNum)
+		v := getVAAWithSeqNum(t, seqNum)
 		v.AddSignature(privKey, 0)
 		vaaBatch = append(vaaBatch, &v)
 	}
@@ -201,7 +206,7 @@ func TestGetSignedVAABytes(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	testVaa := getVAA()
+	testVaa := getVAA(t)
 
 	vaaID := VaaIDFromVAA(&testVaa)
 
@@ -230,7 +235,7 @@ func TestFindEmitterSequenceGap(t *testing.T) {
 	defer db.Close()
 	defer os.Remove(dbPath)
 
-	testVaa := getVAA()
+	testVaa := getVAA(t)
 
 	vaaID := VaaIDFromVAA(&testVaa)
 

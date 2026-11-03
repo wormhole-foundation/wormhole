@@ -10,14 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/common"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/supervisor"
-	mockserver "github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/testutils"
+	mockserver "github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock"
 )
 
 const (
@@ -246,7 +248,7 @@ func TestWatcherSimple(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142886047190991)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142886047190991/1_000_000_000),
 				Unreliable:       false,
 			},
 		},
@@ -290,7 +292,7 @@ func TestWatcherSimple2(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142886047190991)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142886047190991/1_000_000_000),
 				Unreliable:       false,
 			},
 		},
@@ -328,7 +330,7 @@ func TestWatcherReobservation(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142886047190991)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142886047190991/1_000_000_000),
 				Unreliable:       false,
 			},
 		},
@@ -381,7 +383,7 @@ func TestWatcherDelayedFinal(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142886047190991)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142886047190991/1_000_000_000),
 				Unreliable:       false,
 			},
 		},
@@ -422,7 +424,7 @@ func TestWatcherDelayedFinalAndGaps(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142886047190991)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142886047190991/1_000_000_000),
 				Unreliable:       false,
 			},
 		},
@@ -470,7 +472,7 @@ func TestWatcherSynthetic(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142881679761455)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142881679761455/1_000_000_000),
 				Unreliable:       false,
 			},
 			{
@@ -481,7 +483,7 @@ func TestWatcherSynthetic(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         262,
-				Timestamp:        time.Unix(int64(1666142883857047319)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142883857047319/1_000_000_000),
 				Unreliable:       false,
 			},
 			{
@@ -492,7 +494,7 @@ func TestWatcherSynthetic(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         263,
-				Timestamp:        time.Unix(int64(1666142889057341406)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142889057341406/1_000_000_000),
 				Unreliable:       false,
 			},
 		},
@@ -570,7 +572,7 @@ func TestWatcherUnfinalized(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142881679761455)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142881679761455/1_000_000_000),
 				Unreliable:       false,
 			},
 			{
@@ -581,7 +583,7 @@ func TestWatcherUnfinalized(t *testing.T) {
 				Nonce:            76538233,
 				Payload:          pl,
 				Sequence:         263,
-				Timestamp:        time.Unix(int64(1666142889057341406)/1_000_000_000, 0),
+				Timestamp:        testutils.MustTimeFromUnix(t, 1666142889057341406/1_000_000_000),
 				Unreliable:       false,
 			},
 		},

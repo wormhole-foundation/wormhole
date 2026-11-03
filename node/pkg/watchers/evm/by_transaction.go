@@ -3,7 +3,6 @@ package evm
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 
@@ -93,10 +92,15 @@ func MessageEventsForTransaction(
 		if err != nil {
 			return nil, 0, nil, fmt.Errorf("failed to parse log: %w", err)
 		}
+		timestamp, err := vaa.TimeFromUnix(blockTime)
+		if err != nil {
+			return nil, 0, nil, fmt.Errorf("invalid block timestamp for tx %s at block %d (time %d): %w",
+				tx.Hex(), ev.Raw.BlockNumber, blockTime, err)
+		}
 
 		message := &common.MessagePublication{
 			TxID:             ev.Raw.TxHash.Bytes(),
-			Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
+			Timestamp:        timestamp,
 			Nonce:            ev.Nonce,
 			Sequence:         ev.Sequence,
 			EmitterChain:     chainId, // SECURITY: Hardcoded to watcher chain id

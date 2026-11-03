@@ -1049,6 +1049,59 @@ func TestTimeFromUnix(t *testing.T) {
 	}
 }
 
+func TestTimeFromUnixUint32(t *testing.T) {
+	tests := []struct {
+		name  string
+		input uint32
+		want  time.Time
+	}{
+		{
+			name:  "normal on-chain timestamp",
+			input: uint32(1715790225),
+			want:  time.Date(2024, time.May, 15, 16, 23, 45, 0, time.UTC),
+		},
+		{
+			name:  "zero timestamp",
+			input: 0,
+			want:  time.Unix(0, 0).UTC(),
+		},
+		{
+			name:  "uint32 max timestamp",
+			input: stdmath.MaxUint32,
+			want:  time.Unix(int64(stdmath.MaxUint32), 0).UTC(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := TimeFromUnixUint32(tt.input)
+			require.Equal(t, int64(tt.input), got.Unix())
+			require.Equal(t, tt.want, got.UTC())
+		})
+	}
+}
+
+// TestTimeFromUnixEquivalence checks that TimeFromUnixUint32 matches the generic
+// TimeFromUnix for uint32 inputs. Because every uint32 is in range, TimeFromUnix
+// never errors here, and both must return the same time.Time.
+func TestTimeFromUnixEquivalence(t *testing.T) {
+	inputs := []uint32{
+		0,
+		1,
+		1715790225,
+		stdmath.MaxUint32 - 1,
+		stdmath.MaxUint32,
+	}
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprint(input), func(t *testing.T) {
+			generic, err := TimeFromUnix(input)
+			require.NoError(t, err)
+			require.Equal(t, generic, TimeFromUnixUint32(input))
+		})
+	}
+}
+
 func TestStringToKnownChainID(t *testing.T) {
 	happy := []struct {
 		name     string

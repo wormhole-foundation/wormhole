@@ -224,6 +224,21 @@ func TimeFromUnix[N number](n N) (time.Time, error) {
 	return time.Unix(int64(n), 0), nil
 }
 
+// TimeFromUnixUint32 converts a uint32 of Unix seconds into a [time.Time].
+// Unlike [TimeFromUnix], it returns no error: every uint32 is already a valid
+// on-wire Wormhole timestamp (0..math.MaxUint32), so the range checks cannot fail.
+//
+// ANTI-PATTERN: only call this with a value whose type is already uint32. Never
+// convert another type to uint32 to reach this function, e.g.
+// TimeFromUnixUint32(uint32(x)). For a signed value the conversion turns a
+// negative number into a large positive one, and for a wider unsigned value it
+// drops the high bits; either way it silently produces a wrong timestamp and
+// bypasses the validation [TimeFromUnix] performs. For any non-uint32 value,
+// call [TimeFromUnix] and check the error.
+func TimeFromUnixUint32(n uint32) time.Time {
+	return time.Unix(int64(n), 0)
+}
+
 // StringToKnownChainID converts from a string representation of a chain into a ChainID that is registered in the SDK.
 // The argument can be either a numeric string representation of a number or a known chain name such as "solana".
 // Inputs of unknown ChainIDs, including 0, will result in an error.
