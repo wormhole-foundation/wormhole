@@ -16,9 +16,9 @@ import (
 func GRPCServer(srv *grpc.Server, lis net.Listener, graceful bool) Runnable {
 	return func(ctx context.Context) error {
 		Signal(ctx, SignalHealthy)
-		errC := make(chan error)
+		errC := make(chan error, 1)
 		go func() {
-			errC <- srv.Serve(lis) // Note on channel capacity: Will only block this go routine
+			errC <- srv.Serve(lis) //nolint:channelcheck // A single write occurs on a buffered channel. Safe pattern that can't deadlock.
 		}()
 		select {
 		case <-ctx.Done():
