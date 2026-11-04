@@ -818,6 +818,7 @@ func (w *Watcher) postMessage(
 		)
 		return
 	}
+
 	timestamp, err := vaa.TimeFromUnix(blockTime)
 	if err != nil {
 		w.logger.Error("subscription delivered message with invalid block timestamp",
