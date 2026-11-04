@@ -64,7 +64,7 @@ func validateTransactionReceipt(receipt *types.Receipt, err error) error {
 }
 
 // newMessagePublication builds a MessagePublication from a parsed LogMessagePublished event and
-// the timestamp of the block that included it. This is the single place where the EVM watcher
+// the validated timestamp of the block that included it. This is the single place where the EVM watcher
 // translates on-chain event data (the ethabi.AbiLogMessagePublished struct returned by the EVM
 // libraries) into a MessagePublication, so the real-time subscription path (postMessage) and the
 // reobservation path (MessageEventsForTransactionReobservation) stay consistent.
