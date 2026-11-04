@@ -205,11 +205,24 @@ func (c *collector) wormholescanHasTx(signature string) bool {
 
 // ---------------------------------------------------------------- classification
 
+// validateTransactionMeta mirrors the watcher's validation of RPC transaction metadata: the metadata
+// must be present and the transaction must have succeeded on-chain. Call it, and reject its error,
+// before parsing a transaction or reading its metadata.
+func validateTransactionMeta(meta *rpc.TransactionMeta) error {
+	if meta == nil {
+		return errors.New("transaction metadata is nil")
+	}
+	if meta.Err != nil {
+		return fmt.Errorf("transaction failed on-chain: %v", meta.Err)
+	}
+	return nil
+}
+
 // accountKeys returns the static account keys plus any loaded (ALT) addresses, in index order.
-func accountKeys(tx *solana.Transaction, meta *rpc.TransactionMeta) []solana.PublicKey {
+func accountKeys(tx *solana.Transaction, loaded rpc.LoadedAddresses) []solana.PublicKey {
 	keys := append([]solana.PublicKey{}, tx.Message.AccountKeys...)
-	keys = append(keys, meta.LoadedAddresses.Writable...)
-	keys = append(keys, meta.LoadedAddresses.ReadOnly...)
+	keys = append(keys, loaded.Writable...)
+	keys = append(keys, loaded.ReadOnly...)
 	return keys
 }
 
@@ -240,8 +253,9 @@ func classifyInstruction(program solana.PublicKey, data []byte, accounts []uint1
 }
 
 // classify walks top-level and inner instructions, returning every recognized message.
-func classify(tx *solana.Transaction, meta *rpc.TransactionMeta) []detection {
-	keys := accountKeys(tx, meta)
+// The loaded addresses and inner instructions must come from validated transaction metadata.
+func classify(tx *solana.Transaction, loaded rpc.LoadedAddresses, inner []rpc.InnerInstruction) []detection {
+	keys := accountKeys(tx, loaded)
 	programOf := func(programIDIndex uint16) solana.PublicKey {
 		if idx := int(programIDIndex); idx < len(keys) {
 			return keys[idx]
@@ -255,7 +269,7 @@ func classify(tx *solana.Transaction, meta *rpc.TransactionMeta) []detection {
 			detections = append(detections, *det)
 		}
 	}
-	for _, group := range meta.InnerInstructions {
+	for _, group := range inner {
 		for _, inst := range group.Instructions {
 			if det := classifyInstruction(programOf(inst.ProgramIDIndex), inst.Data, inst.Accounts, keys, "inner"); det != nil {
 				detections = append(detections, *det)
@@ -360,13 +374,6 @@ func buildBundle(det detection, res *rpc.GetTransactionResult, tx *solana.Transa
 	}
 }
 
-// normalizeMeta drops the large arrays the harness does not need (pre/postBalances, logMessages).
-func normalizeMeta(meta *rpc.TransactionMeta) {
-	meta.PreBalances = nil
-	meta.PostBalances = nil
-	meta.LogMessages = nil
-}
-
 // ------------------------------------------------------------------ collection
 
 // tryCollect fetches, classifies, and (if it matches the wanted category with quota left)
@@ -389,17 +396,17 @@ func (c *collector) tryCollect(signature solana.Signature, entryErr interface{},
 	if res == nil || res.Transaction == nil {
 		return false
 	}
+	// SECURITY: Reject failed or metadata-less transactions before parsing the transaction or reading its metadata.
+	meta := res.Meta
+	if metaErr := validateTransactionMeta(meta); metaErr != nil {
+		if meta != nil {
+			c.stats["failed_tx_skipped"]++
+		}
+		return false
+	}
 	tx, err := res.Transaction.GetTransaction()
 	if err != nil || tx == nil {
 		fmt.Fprintf(os.Stderr, "  decode(%s) failed: %v\n", signature.String()[:8], err)
-		return false
-	}
-	meta := res.Meta
-	if meta == nil {
-		return false
-	}
-	if meta.Err != nil {
-		c.stats["failed_tx_skipped"]++
 		return false
 	}
 	if tx.Message.IsVersioned() {
@@ -407,7 +414,7 @@ func (c *collector) tryCollect(signature solana.Signature, entryErr interface{},
 	}
 
 	chosen := (*detection)(nil)
-	for _, d := range classify(tx, meta) {
+	for _, d := range classify(tx, meta.LoadedAddresses, meta.InnerInstructions) {
 		if d.category == category && c.counts[category] < target {
 			dd := d
 			chosen = &dd
@@ -443,7 +450,10 @@ func (c *collector) tryCollect(signature solana.Signature, entryErr interface{},
 	}
 	accounts = append(accounts, altAccounts...)
 
-	normalizeMeta(meta)
+	// Drop the large arrays the harness does not need.
+	meta.PreBalances = nil
+	meta.PostBalances = nil
+	meta.LogMessages = nil
 	c.records = append(c.records, buildBundle(*chosen, res, tx, meta, signature, accounts))
 	c.seen[signature] = true
 

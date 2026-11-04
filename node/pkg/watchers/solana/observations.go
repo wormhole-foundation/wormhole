@@ -9,8 +9,14 @@ import (
 )
 
 // buildMessagePublicationFromAccountData is the deterministic account-message parser/builder boundary.
-// It must not perform network requests; callers are responsible for fetching account bytes, proving account ownership, and converting bytes to MessageAccountData before calling it.
-func (s *SolanaWatcher) buildMessagePublicationFromAccountData(messageAccount solana.PublicKey, messageAccountData MessageAccountData, txSignature solana.Signature, isReobservation bool, useSignatureAsTxID bool) (*common.MessagePublication, error) {
+// It must not perform network requests; callers are responsible for fetching account bytes and proving account ownership before calling it.
+// SECURITY: The builder validates the raw account bytes with NewMessageAccountData itself, so unvalidated data never reaches the parser.
+func (s *SolanaWatcher) buildMessagePublicationFromAccountData(messageAccount solana.PublicKey, accountData []byte, txSignature solana.Signature, isReobservation bool, useSignatureAsTxID bool) (*common.MessagePublication, error) {
+	messageAccountData, err := NewMessageAccountData(accountData)
+	if err != nil {
+		return nil, err
+	}
+
 	proposal, err := ParseMessagePublicationAccount(messageAccountData)
 	if err != nil {
 		return nil, err
