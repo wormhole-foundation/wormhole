@@ -221,7 +221,7 @@ var DumpRPCs = &cobra.Command{
 
 var GetAndObserveMissingVAAs = &cobra.Command{
 	Use:   "get-and-observe-missing-vaas [URL] [API_KEY]",
-	Short: "Get the list of missing VAAs from a cloud function and try to reobserve them.",
+	Short: "Get the missing VAAs this guardian should observe from URL, sending API_KEY as a bearer token, and try to reobserve them.",
 	Run:   runGetAndObserveMissingVAAs,
 	Args:  cobra.ExactArgs(2),
 }

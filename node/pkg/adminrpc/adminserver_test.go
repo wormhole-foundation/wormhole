@@ -511,6 +511,58 @@ func TestGovMsgToVaa_DispatchesCoreBridgeTransferFees(t *testing.T) {
 	assert.Equal(t, uint32(22), v.Nonce)
 }
 
+// TestGetAndObserveMissingVAAs_RequestCarriesBearerToken checks the request to the missing-VAA endpoint: the API key
+// goes in the Authorization header as a bearer token, and the request has no body, since the key identifies the
+// Guardian.
+func TestGetAndObserveMissingVAAs_RequestCarriesBearerToken(t *testing.T) {
+	type captured struct {
+		method, authorization string
+		body                  []byte
+	}
+	requests := make(chan captured, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := wh_common.SafeRead(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		requests <- captured{r.Method, r.Header.Get("Authorization"), body}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer srv.Close()
+
+	service := &nodePrivilegedService{logger: zap.NewNop()}
+
+	_, err := service.GetAndObserveMissingVAAs(context.Background(), &nodev1.GetAndObserveMissingVAAsRequest{Url: srv.URL, ApiKey: "erb_secret"})
+	require.NoError(t, err)
+
+	require.Len(t, requests, 1)
+	req := <-requests
+	assert.Equal(t, http.MethodPost, req.method)
+	assert.Equal(t, "Bearer erb_secret", req.authorization)
+	assert.Empty(t, req.body)
+}
+
+// TestGetAndObserveMissingVAAs_ErrorStatusIsReturned checks that a non-2xx response is reported with its status and
+// body instead of being parsed as the missing-VAA list.
+func TestGetAndObserveMissingVAAs_ErrorStatusIsReturned(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"title":"Unauthorized","status":401}`))
+	}))
+	defer srv.Close()
+
+	service := &nodePrivilegedService{logger: zap.NewNop()}
+
+	resp, err := service.GetAndObserveMissingVAAs(context.Background(), &nodev1.GetAndObserveMissingVAAsRequest{Url: srv.URL, ApiKey: "bad"})
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.ErrorContains(t, err, "401 Unauthorized")
+	assert.ErrorContains(t, err, `"title":"Unauthorized"`)
+}
+
 // TestGetAndObserveMissingVAAs_RequestsCarryCurrentTimestamp checks that the observation requests built from the
 // missing-VAA list are timestamped now. Receiving guardians drop requests whose timestamp is more than 15 minutes
 // from their clock, so a request without one only reaches the local node's watchers.

@@ -1519,18 +1519,15 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	url := req.GetUrl()
 	apiKey := req.GetApiKey()
 
-	// Create the body of the request
-	jsonBody := []byte(`{"apiKey": "` + apiKey + `"}`)
-	jsonBodyReader := bytes.NewReader(jsonBody)
-
-	// Create the actual request
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, url, jsonBodyReader)
+	// The API key identifies this Guardian to the endpoint, which returns the missing VAAs it is expected to observe.
+	// The request has no body.
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, url, http.NoBody)
 	if err != nil {
 		fmt.Printf("GetAndObserveMissingVAAs: could not create request: %s\n", err)
 		return nil, err
 	}
 
-	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("Authorization", "Bearer "+apiKey)
 
 	client := http.Client{
 		Timeout: 30 * time.Second,
@@ -1552,6 +1549,9 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		return nil, err
 	}
 	fmt.Printf("client: response body: %s\n", resBody)
+	if results.StatusCode < 200 || results.StatusCode > 299 {
+		return nil, fmt.Errorf("missing VAA endpoint returned %s: %s", results.Status, bytes.TrimSpace(resBody))
+	}
 	type MissingVAA struct {
 		Chain  int    `json:"chain"`
 		VaaKey string `json:"vaaKey"`
