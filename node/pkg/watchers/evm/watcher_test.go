@@ -740,7 +740,9 @@ func TestPostMessageCustomAdditionalBlocks(t *testing.T) {
 func TestPublishMessageImmediatelyRejectsNonImmediate(t *testing.T) {
 	w, _, msgC := newTestWatcher(t)
 	ev := newTestLogEvent(vaa.ConsistencyLevelFinalized)
-	msg := newMessagePublication(ev, 1234, w.chainID, false)
+	timestamp, err := vaa.TimeFromUnix(1234)
+	require.NoError(t, err)
+	msg := newMessagePublication(ev, timestamp, w.chainID, false)
 	w.ethConn = nil // Any receipt lookup would panic; the guard must return first.
 
 	require.NotPanics(t, func() {
