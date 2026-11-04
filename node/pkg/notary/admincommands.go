@@ -23,6 +23,9 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+// hoursInDay is the length of one day, for delays given in days.
+const hoursInDay = time.Hour * 24
+
 var (
 	ErrDelayExceedsMax = errors.New("notary: delay exceeds maximum")
 	ErrInvalidMsgID    = errors.New("notary: the message ID must be specified as \"chainId/emitterAddress/seqNum\"")
@@ -30,62 +33,36 @@ var (
 )
 
 // BlackholeDelayedMsg adds a message publication to the blackholed in-memory set and stores it in the database.
-// It also removes the message from the delayed list and database.
+// It also removes the message from the delayed queue and database. Returns [ErrMsgNotFound] if the
+// message is not delayed.
 func (n *Notary) BlackholeDelayedMsg(msgID string) error {
-
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}
 
-	var (
-		msgPub *common.MessagePublication
-		bz     = []byte(msgID)
-	)
-	msgPub = n.delayed.FetchMessagePublication(bz)
-
-	if msgPub == nil {
-		return ErrMsgNotFound
-	}
-
-	// This method also takes care of removing the message from the delayed list and database.
-	blackholeErr := n.blackhole(msgPub)
-	if blackholeErr != nil {
-		return blackholeErr
-	}
-	return nil
+	// This method also removes the message from the delayed queue and database.
+	return n.state.blackholeDelayed([]byte(msgID))
 }
 
-// ReleaseDelayedMsg removes a message from the delayed list and publishes it immediately.
+// ReleaseDelayedMsg sets the release time of a delayed message to now, so that the next poll of
+// [Notary.ReleaseReadyMessages] releases it.
 func (n *Notary) ReleaseDelayedMsg(msgID string) error {
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}
-	err := n.release([]byte(msgID))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	// Set the delay to zero so that the next poll of ReleaseReadyMessages releases the message.
+	return n.state.reschedule([]byte(msgID), time.Duration(0))
 }
 
-// RemoveBlackholedMsg removes a message from the blackholed list and adds it to the delayed list with a delay of zero,
-// so that it will be published on the next cycle.
+// RemoveBlackholedMsg removes a message from the blackholed set and adds it to the delayed queue with a
+// delay of zero, so that the next poll of [Notary.ReleaseReadyMessages] releases it. Returns
+// [ErrMsgNotFound] if the message is not blackholed.
 func (n *Notary) RemoveBlackholedMsg(msgID string) error {
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}
 
-	removedMsgPub, removeErr := n.removeBlackholed([]byte(msgID))
-	if removeErr != nil {
-		return removeErr
-	}
-
-	delayErr := n.delay(removedMsgPub, time.Duration(0))
-	if delayErr != nil {
-		return delayErr
-	}
-
-	return nil
+	return n.state.unblackhole([]byte(msgID))
 }
 
 // ResetReleaseTimer resets the release timer for a delayed message.
@@ -98,19 +75,7 @@ func (n *Notary) ResetReleaseTimer(msgID string, delayDays uint8) error {
 		return ErrDelayExceedsMax
 	}
 
-	const hoursInDay = time.Hour * 24
-	delay := time.Duration(delayDays) * hoursInDay
-
-	if delay > MaxDelay {
-		return ErrDelayExceedsMax
-	}
-
-	err := n.setDuration([]byte(msgID), delay)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return n.state.reschedule([]byte(msgID), time.Duration(delayDays)*hoursInDay)
 }
 
 // InjectDelayedMessage creates a synthetic delayed message for testing (dev mode only).
@@ -126,10 +91,9 @@ func (n *Notary) InjectDelayedMessage(delayDays uint32) (string, error) {
 	msgPub := createTestMessagePublication()
 	msgID := msgPub.MessageIDString()
 
-	const hoursInDay = time.Hour * 24
 	delay := time.Duration(delayDays) * hoursInDay
 
-	err := n.delay(msgPub, delay)
+	err := n.state.delay(msgPub, delay)
 	if err != nil {
 		return "", fmt.Errorf("failed to inject delayed message: %w", err)
 	}
@@ -146,7 +110,7 @@ func (n *Notary) InjectBlackholedMessage() (string, error) {
 	msgPub := createTestMessagePublication()
 	msgID := msgPub.MessageIDString()
 
-	err := n.blackhole(msgPub)
+	err := n.state.blackhole(msgPub)
 	if err != nil {
 		return "", fmt.Errorf("failed to inject blackholed message: %w", err)
 	}
@@ -160,10 +124,7 @@ func (n *Notary) GetDelayedMessage(msgID string) (*common.PendingMessage, error)
 		return nil, ErrInvalidMsgID
 	}
 
-	n.mutex.RLock()
-	defer n.mutex.RUnlock()
-
-	result, err := n.database.LoadAll(n.logger)
+	result, err := n.state.loadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load from database: %w", err)
 	}
@@ -183,10 +144,7 @@ func (n *Notary) GetBlackholedMessage(msgID string) (*common.MessagePublication,
 		return nil, ErrInvalidMsgID
 	}
 
-	n.mutex.RLock()
-	defer n.mutex.RUnlock()
-
-	result, err := n.database.LoadAll(n.logger)
+	result, err := n.state.loadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load from database: %w", err)
 	}
@@ -202,10 +160,7 @@ func (n *Notary) GetBlackholedMessage(msgID string) (*common.MessagePublication,
 
 // ListDelayedMessages returns all delayed message IDs from the database.
 func (n *Notary) ListDelayedMessages() ([]string, error) {
-	n.mutex.RLock()
-	defer n.mutex.RUnlock()
-
-	result, err := n.database.LoadAll(n.logger)
+	result, err := n.state.loadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load delayed messages from database: %w", err)
 	}
@@ -220,10 +175,7 @@ func (n *Notary) ListDelayedMessages() ([]string, error) {
 
 // ListBlackholedMessages returns all blackholed message IDs from the database.
 func (n *Notary) ListBlackholedMessages() ([]string, error) {
-	n.mutex.RLock()
-	defer n.mutex.RUnlock()
-
-	result, err := n.database.LoadAll(n.logger)
+	result, err := n.state.loadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load blackholed messages from database: %w", err)
 	}

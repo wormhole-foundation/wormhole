@@ -2,6 +2,7 @@ package notary
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
@@ -22,32 +23,131 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
-// MockNotaryDB is a mock implementation of the NotaryDB interface.
-// It returns nil for all operations, so it can be used to test the Notary's
-// core logic but certain DB-related operations are not covered.
-// Where possible, these should be tested in the Notary database's own unit tests, not here.
-type MockNotaryDB struct{}
+// errMockKeyNotFound is the error that MockNotaryDB returns when a delete names a missing key.
+var errMockKeyNotFound = errors.New("mock notary db: key not found")
 
-func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error { return nil }
-func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error        { return nil }
-func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error) {
-	return nil, nil
+// MockNotaryDB is an in-memory implementation of the NotaryDB interface. It follows the real
+// database: a store overwrites the entry, and a delete of a missing key returns an error.
+// Where possible, database behavior should be tested in the Notary database's own unit tests, not here.
+type MockNotaryDB struct {
+	mu         sync.Mutex
+	delayed    map[string]common.PendingMessage
+	blackholed map[string]common.MessagePublication
 }
-func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
-func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
+
+func newMockNotaryDB() *MockNotaryDB {
+	return &MockNotaryDB{
+		delayed:    make(map[string]common.PendingMessage),
+		blackholed: make(map[string]common.MessagePublication),
+	}
+}
+
+func (md *MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	md.blackholed[m.MessageIDString()] = *m
+	return nil
+}
+
+func (md *MockNotaryDB) StoreDelayed(p *common.PendingMessage) error {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	md.delayed[p.Msg.MessageIDString()] = *p
+	return nil
+}
+
+func (md *MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error) {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	m, ok := md.blackholed[string(msgID)]
+	if !ok {
+		return nil, errMockKeyNotFound
+	}
+	delete(md.blackholed, string(msgID))
+	return &m, nil
+}
+
+func (md *MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	p, ok := md.delayed[string(msgID)]
+	if !ok {
+		return nil, errMockKeyNotFound
+	}
+	delete(md.delayed, string(msgID))
+	return &p, nil
+}
+
+func (md *MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
+	md.mu.Lock()
+	defer md.mu.Unlock()
+	result := &db.NotaryLoadResult{}
+	for _, p := range md.delayed {
+		result.Delayed = append(result.Delayed, &p)
+	}
+	for _, m := range md.blackholed {
+		result.Blackholed = append(result.Blackholed, &m)
+	}
+	return result, nil
+}
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
 
 	return &Notary{
-		ctx:        context.Background(),
-		logger:     zap.NewNop(),
-		mutex:      sync.RWMutex{},
-		database:   MockNotaryDB{},
-		delayed:    &common.PendingMessageQueue{},
-		blackholed: NewSet(),
-		env:        common.GoTest,
+		ctx:    context.Background(),
+		logger: zap.NewNop(),
+		state:  newNotaryState(zap.NewNop(), newMockNotaryDB()),
+		env:    common.GoTest,
 	}
+}
+
+func TestNotary_NilInputsAndDependencies(t *testing.T) {
+	logger := zap.NewNop()
+
+	notary, err := NewNotary(context.Background(), logger, nil, common.GoTest)
+	require.Error(t, err)
+	require.Nil(t, notary)
+
+	guardianDB := db.OpenDb(logger, nil)
+	t.Cleanup(func() { _ = guardianDB.Close() })
+
+	notary, err = NewNotary(context.Background(), nil, guardianDB, common.GoTest)
+	require.Error(t, err)
+	require.Nil(t, notary)
+
+	notary, err = NewNotary(context.Background(), logger, guardianDB, common.GoTest)
+	require.NoError(t, err)
+	require.NotNil(t, notary)
+
+	verdict, err := notary.ProcessMsg(nil)
+	require.Error(t, err)
+	require.Equal(t, Unknown, verdict)
+	require.False(t, notary.IsDelayed(nil))
+}
+
+// TestNewNotary_LoadsPersistedState checks that NewNotary returns a Notary that already holds the
+// messages stored in the database, without a call to Run.
+func TestNewNotary_LoadsPersistedState(t *testing.T) {
+	logger := zap.NewNop()
+	guardianDB := db.OpenDb(logger, nil)
+	t.Cleanup(func() { _ = guardianDB.Close() })
+
+	delayedMsg := makeUniqueMessagePublication(t)
+	blackholedMsg := makeUniqueMessagePublication(t)
+
+	notaryDB := db.NewNotaryDB(guardianDB.Conn())
+	require.NoError(t, notaryDB.StoreDelayed(&common.PendingMessage{
+		ReleaseTime: time.Unix(time.Now().Add(time.Hour).Unix(), 0),
+		Msg:         *delayedMsg,
+	}))
+	require.NoError(t, notaryDB.StoreBlackholed(blackholedMsg))
+
+	n, err := NewNotary(context.Background(), logger, guardianDB, common.GoTest)
+	require.NoError(t, err)
+
+	require.True(t, n.IsDelayed(delayedMsg))
+	require.True(t, n.IsBlackholed(blackholedMsg.MessageID()))
 }
 
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
@@ -228,13 +328,13 @@ func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
 			require.Equal(
 				t,
 				test.expectedSizes.delayed,
-				n.delayed.Len(),
+				n.state.delayed.Len(),
 				fmt.Sprintf("delayed count did not match. verificationState %s", msg.VerificationState().String()),
 			)
 			require.Equal(
 				t,
 				test.expectedSizes.blackholed,
-				n.blackholed.Len(),
+				n.state.blackholed.Len(),
 				fmt.Sprintf("blackholed count did not match. verificationState %s", msg.VerificationState().String()),
 			)
 
@@ -352,21 +452,23 @@ func TestNotary_ProcessReadyMessages(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set-up
 			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
+			n.state.delayed = common.NewPendingMessageQueue()
 
-			currentLength := n.delayed.Len()
+			currentLength := n.state.delayed.Len()
 			for pMsg := range slices.Values(tt.delayed) {
 				require.NotNil(t, pMsg)
-				n.delayed.Push(pMsg)
+				n.state.delayed.Push(pMsg)
+				// Store the message too, as delay does, so that the release can delete it.
+				require.NoError(t, n.state.database.StoreDelayed(pMsg))
 				// Ensure that the queue grows after each push.
-				require.Greater(t, n.delayed.Len(), currentLength)
-				currentLength = n.delayed.Len()
+				require.Greater(t, n.state.delayed.Len(), currentLength)
+				currentLength = n.state.delayed.Len()
 			}
-			require.Equal(t, len(tt.delayed), n.delayed.Len())
+			require.Equal(t, len(tt.delayed), n.state.delayed.Len())
 
 			readyMsgs := n.ReleaseReadyMessages()
 			require.Equal(t, tt.expectedReadyCount, len(readyMsgs), "ready length does not match")
-			require.Equal(t, tt.expectedDelayCount, n.delayed.Len(), "delayed length does not match")
+			require.Equal(t, tt.expectedDelayCount, n.state.delayed.Len(), "delayed length does not match")
 		})
 	}
 }
@@ -379,7 +481,7 @@ func TestNotary_Forget(t *testing.T) {
 		expectedBlackholed int
 	}{
 		{
-			"remove from delayed list",
+			"remove from delayed queue",
 			makeUniqueMessagePublication(t),
 			0,
 			0,
@@ -389,29 +491,31 @@ func TestNotary_Forget(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set-up
 			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
+			n.state.delayed = common.NewPendingMessageQueue()
+			n.state.blackholed = NewSet()
 
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
+			require.Equal(t, 0, n.state.blackholed.Len())
 
-			err := n.delay(tt.msg, time.Hour)
+			err := n.state.delay(tt.msg, time.Hour)
 			require.NoError(t, err)
 
-			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
+			require.Equal(t, 1, n.state.delayed.Len())
+			require.Equal(t, 0, n.state.blackholed.Len())
 
-			// Modify the set manually because calling the blackhole function will remove the message from the delayed list.
-			n.blackholed.Add(tt.msg.MessageID())
+			// Modify the set and the database manually because calling the blackhole function will
+			// remove the message from the delayed queue.
+			n.state.blackholed.Add(tt.msg.MessageID())
+			require.NoError(t, n.state.database.StoreBlackholed(tt.msg))
 
-			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
+			require.Equal(t, 1, n.state.delayed.Len())
+			require.Equal(t, 1, n.state.blackholed.Len())
 
-			forgetErr := n.forget(tt.msg)
+			forgetErr := n.state.forget(tt.msg)
 			require.NoError(t, forgetErr)
 
-			require.Equal(t, tt.expectedDelayCount, n.delayed.Len())
-			require.Equal(t, tt.expectedBlackholed, n.blackholed.Len())
+			require.Equal(t, tt.expectedDelayCount, n.state.delayed.Len())
+			require.Equal(t, tt.expectedBlackholed, n.state.blackholed.Len())
 		})
 	}
 }
@@ -424,7 +528,7 @@ func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
 		expectedBlackholed int
 	}{
 		{
-			"remove from delayed list",
+			"remove from delayed queue",
 			makeUniqueMessagePublication(t),
 			0,
 			1,
@@ -434,23 +538,23 @@ func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set-up
 			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
+			n.state.delayed = common.NewPendingMessageQueue()
+			n.state.blackholed = NewSet()
 
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
+			require.Equal(t, 0, n.state.blackholed.Len())
 
-			err := n.delay(tt.msg, time.Hour)
+			err := n.state.delay(tt.msg, time.Hour)
 			require.NoError(t, err)
 
-			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
+			require.Equal(t, 1, n.state.delayed.Len())
+			require.Equal(t, 0, n.state.blackholed.Len())
 
-			blackholeErr := n.blackhole(tt.msg)
+			blackholeErr := n.state.blackhole(tt.msg)
 			require.NoError(t, blackholeErr)
 
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
+			require.Equal(t, 1, n.state.blackholed.Len())
 		})
 	}
 }
@@ -469,23 +573,23 @@ func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set-up
 			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
+			n.state.delayed = common.NewPendingMessageQueue()
+			n.state.blackholed = NewSet()
 
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 0, n.blackholed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
+			require.Equal(t, 0, n.state.blackholed.Len())
 
-			err := n.blackhole(tt.msg)
+			err := n.state.blackhole(tt.msg)
 			require.NoError(t, err)
 
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
+			require.Equal(t, 1, n.state.blackholed.Len())
 
-			err = n.delay(tt.msg, time.Hour)
+			err = n.state.delay(tt.msg, time.Hour)
 			require.ErrorIs(t, err, ErrAlreadyBlackholed)
 
-			require.Equal(t, 0, n.delayed.Len())
-			require.Equal(t, 1, n.blackholed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
+			require.Equal(t, 1, n.state.blackholed.Len())
 		})
 	}
 }
@@ -506,25 +610,25 @@ func TestNotary_releaseChangesReleaseTime(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set-up
 			n := makeTestNotary(t)
-			n.delayed = common.NewPendingMessageQueue()
-			n.blackholed = NewSet()
+			n.state.delayed = common.NewPendingMessageQueue()
+			n.state.blackholed = NewSet()
 
-			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
 
 			// Delay a message; ensure no messages are ready
-			delayErr := n.delay(tt.msg, time.Hour)
+			delayErr := n.state.delay(tt.msg, time.Hour)
 			require.NoError(t, delayErr)
-			require.Equal(t, 1, n.delayed.Len())
+			require.Equal(t, 1, n.state.delayed.Len())
 			require.Empty(t, n.ReleaseReadyMessages())
-			require.Equal(t, 1, n.delayed.Len())
+			require.Equal(t, 1, n.state.delayed.Len())
 
 			// Release the message
-			releaseErr := n.release(tt.msg.MessageID())
+			releaseErr := n.state.reschedule(tt.msg.MessageID(), 0)
 			require.NoError(t, releaseErr)
 
 			// Check that a new message is ready
 			require.Len(t, n.ReleaseReadyMessages(), 1)
-			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 0, n.state.delayed.Len())
 		})
 	}
 }
@@ -598,9 +702,9 @@ func TestNotary_ReobservationDoesNotBypassDelay(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, Delay, verdict)
 			require.True(t, n.IsDelayed(msg))
-			require.Equal(t, 1, n.delayed.Len())
+			require.Equal(t, 1, n.state.delayed.Len())
 
-			releaseTime := n.delayed.Peek().ReleaseTime
+			releaseTime := n.state.delayed.Peek().ReleaseTime
 
 			// Reobservation republishes the message with the same message ID and has the transfer
 			// verifier evaluate it again from the default state.
@@ -618,8 +722,8 @@ func TestNotary_ReobservationDoesNotBypassDelay(t *testing.T) {
 			require.Equal(t, Delay, verdict, "reobservation must not release a delayed message early")
 
 			// The original delayed entry is untouched, so delay() was not called a second time.
-			require.Equal(t, 1, n.delayed.Len())
-			require.Equal(t, releaseTime, n.delayed.Peek().ReleaseTime)
+			require.Equal(t, 1, n.state.delayed.Len())
+			require.Equal(t, releaseTime, n.state.delayed.Peek().ReleaseTime)
 		})
 	}
 }

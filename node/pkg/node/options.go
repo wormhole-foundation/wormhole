@@ -283,7 +283,11 @@ func GuardianOptionNotary(notaryEnabled bool) *GuardianOption {
 		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if notaryEnabled {
-				g.notary = notary.NewNotary(ctx, logger, g.db, g.env)
+				var err error
+				g.notary, err = notary.NewNotary(ctx, logger, g.db, g.env)
+				if err != nil {
+					return fmt.Errorf("failed to create notary: %w", err)
+				}
 			} else {
 				logger.Info("notary is disabled")
 			}
