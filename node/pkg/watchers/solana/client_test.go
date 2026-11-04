@@ -1642,3 +1642,22 @@ func TestNewMessageAccountDataIsolation(t *testing.T) {
 	input[0] = 'x'                             // mutate original
 	assert.Equal(t, byte('m'), mad.Bytes()[0]) // must be unaffected
 }
+
+func TestBuildMessagePublicationFromAccountDataValidatesBytes(t *testing.T) {
+	s := newTestWatcher(t, vaa.ChainIDSolana, rpc.CommitmentFinalized, nil)
+	acc := solana.PublicKeyFromBytes(bytes.Repeat([]byte{0x03}, solana.PublicKeyLength))
+
+	// The builder must reject bytes that NewMessageAccountData would reject.
+	_, err := s.buildMessagePublicationFromAccountData(acc, []byte("msg"), solana.Signature{}, false, false)
+	require.Error(t, err, "too short")
+
+	valid := encodeMessagePublicationAccount(t, accountPrefixReliable, testMessagePublicationAccount([]byte("payload"), 32))
+	badPrefix := append([]byte("bad"), valid[3:]...)
+	_, err = s.buildMessagePublicationFromAccountData(acc, badPrefix, solana.Signature{}, false, false)
+	require.Error(t, err, "invalid prefix")
+
+	obs, err := s.buildMessagePublicationFromAccountData(acc, valid, solana.Signature{}, false, false)
+	require.NoError(t, err)
+	assert.False(t, obs.Unreliable)
+	assert.Equal(t, acc[:], obs.TxID)
+}

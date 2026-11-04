@@ -338,12 +338,6 @@ func accountConsistency(c Commitment) uint8 {
 	return finalizedAccountLevel
 }
 
-func toAddr(b [32]byte) vaa.Address {
-	var a vaa.Address
-	copy(a[:], b[:])
-	return a
-}
-
 func mustHex(s string) []byte {
 	out, err := hex.DecodeString(s)
 	if err != nil {
@@ -383,6 +377,8 @@ func (b *Builder) accountBlob(kind MessageKind, m WormholeFields, ac AccountCont
 	if ac.SubmissionTime != nil {
 		st = *ac.SubmissionTime
 	}
+	emitter, err := vaa.BytesToAddress(m.EmitterAddress[:])
+	b.fail(err)
 	body, err := bin.MarshalBorsh(solwatch.MessagePublicationAccount{
 		VaaVersion:          ac.VaaVersion,
 		ConsistencyLevel:    cons,
@@ -392,7 +388,7 @@ func (b *Builder) accountBlob(kind MessageKind, m WormholeFields, ac AccountCont
 		Nonce:               m.Nonce,
 		Sequence:            m.Sequence,
 		EmitterChain:        m.EmitterChain,
-		EmitterAddress:      toAddr(m.EmitterAddress),
+		EmitterAddress:      emitter,
 		Payload:             m.Payload,
 	})
 	b.fail(err)

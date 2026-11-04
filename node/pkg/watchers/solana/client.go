@@ -1075,7 +1075,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 
 // SECURITY: Ownership check on account key must be done BEFORE this function is called.
 func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccountData MessageAccountData, acc solana.PublicKey, isReobservation bool, signature solana.Signature, useSignatureAsTxID bool) (numObservations uint32) {
-	observation, err := s.buildMessagePublicationFromAccountData(acc, messageAccountData, signature, isReobservation, useSignatureAsTxID)
+	observation, err := s.buildMessagePublicationFromAccountData(acc, messageAccountData.Bytes(), signature, isReobservation, useSignatureAsTxID)
 	if err != nil {
 		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
 		logger.Error(
