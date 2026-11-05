@@ -47,8 +47,8 @@ func TestTronNileReobservation(t *testing.T) {
 
 	poll := connectors.NewPollConnector(ctx, logger, base, false, time.Second, connectors.DefaultMaxLogScanBlocks)
 
-	// MessageEventsForTransaction is the exact function used by
-	// handleReobservationRequest (reobserve.go).
+	// MessageEventsForTransaction shares its parsing implementation with
+	// the reobservation path in handleReobservationRequest (reobserve.go).
 	receipt, blockNum, msgs, err := MessageEventsForTransaction(
 		ctx, poll, coreAddr, vaa.ChainIDTron,
 		ethCommon.HexToHash(txHash),
