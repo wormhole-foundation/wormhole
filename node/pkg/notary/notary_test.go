@@ -23,8 +23,9 @@ import (
 )
 
 // MockNotaryDB is a mock implementation of the NotaryDB interface.
-// It returns nil for all operations, so it can be used to test the Notary's
-// core logic but certain DB-related operations are not covered.
+// It returns nil for all operations except LoadAll, which returns an empty result like the real
+// database. It can be used to test the Notary's core logic but certain DB-related operations are
+// not covered.
 // Where possible, these should be tested in the Notary database's own unit tests, not here.
 type MockNotaryDB struct{}
 
@@ -34,7 +35,9 @@ func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublicatio
 	return nil, nil
 }
 func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
-func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
+func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) {
+	return &db.NotaryLoadResult{}, nil
+}
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
@@ -48,6 +51,54 @@ func makeTestNotary(t *testing.T) *Notary {
 		blackholed: NewSet(),
 		env:        common.GoTest,
 	}
+}
+
+func TestNotary_NilInputsAndDependencies(t *testing.T) {
+	logger := zap.NewNop()
+
+	notary, err := NewNotary(context.Background(), logger, nil, common.GoTest)
+	require.Error(t, err)
+	require.Nil(t, notary)
+
+	guardianDB := db.OpenDb(logger, nil)
+	t.Cleanup(func() { _ = guardianDB.Close() })
+
+	notary, err = NewNotary(context.Background(), nil, guardianDB, common.GoTest)
+	require.Error(t, err)
+	require.Nil(t, notary)
+
+	notary, err = NewNotary(context.Background(), logger, guardianDB, common.GoTest)
+	require.NoError(t, err)
+	require.NotNil(t, notary)
+
+	verdict, err := notary.ProcessMsg(nil)
+	require.Error(t, err)
+	require.Equal(t, Unknown, verdict)
+	require.False(t, notary.IsDelayed(nil))
+}
+
+// TestNewNotary_LoadsPersistedState checks that NewNotary returns a Notary that already holds the
+// messages stored in the database, without a call to Run.
+func TestNewNotary_LoadsPersistedState(t *testing.T) {
+	logger := zap.NewNop()
+	guardianDB := db.OpenDb(logger, nil)
+	t.Cleanup(func() { _ = guardianDB.Close() })
+
+	delayedMsg := makeUniqueMessagePublication(t)
+	blackholedMsg := makeUniqueMessagePublication(t)
+
+	notaryDB := db.NewNotaryDB(guardianDB.Conn())
+	require.NoError(t, notaryDB.StoreDelayed(&common.PendingMessage{
+		ReleaseTime: time.Unix(time.Now().Add(time.Hour).Unix(), 0),
+		Msg:         *delayedMsg,
+	}))
+	require.NoError(t, notaryDB.StoreBlackholed(blackholedMsg))
+
+	n, err := NewNotary(context.Background(), logger, guardianDB, common.GoTest)
+	require.NoError(t, err)
+
+	require.True(t, n.IsDelayed(delayedMsg))
+	require.True(t, n.IsBlackholed(blackholedMsg.MessageID()))
 }
 
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
