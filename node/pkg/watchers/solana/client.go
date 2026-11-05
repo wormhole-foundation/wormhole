@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -452,6 +454,30 @@ func (s *SolanaWatcher) setupWebSocket(ctx context.Context) error {
 	return nil
 }
 
+// runDataPump is the websocket reader routine for account subscription data.
+// It owns no parsing logic; it only moves bytes from the websocket into the watcher channel.
+func (s *SolanaWatcher) runDataPump(ctx context.Context, logger *zap.Logger, ws *websocket.Conn) error {
+	defer ws.Close(websocket.StatusNormalClosure, "")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			if msg, err := s.readWebSocketWithTimeout(ctx, ws); err != nil {
+				logger.Error("failed to read from account web socket", zap.Error(err))
+				return err
+			} else {
+				select {
+				case s.pumpData <- msg: //nolint:channelcheck // Pauses on backpressure from consumer. Allows for shutdown if consumer no longer exists.
+				case <-ctx.Done():
+					return nil
+				}
+			}
+		}
+	}
+}
+
 func (s *SolanaWatcher) readWebSocketWithTimeout(ctx context.Context, ws *websocket.Conn) ([]byte, error) {
 	rCtx, cancel := context.WithTimeout(ctx, time.Second*300) // 5 minute
 	defer cancel()
@@ -536,6 +562,143 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	case err := <-s.errC:
 		return err
 	}
+}
+
+// runWatcher is the main Solana watcher routine.
+// It serves account subscription data, reobservation requests and the poll timer until the context is canceled.
+func (s *SolanaWatcher) runWatcher(ctx context.Context, logger *zap.Logger, pollInterval time.Duration, useWs bool, contractAddr string) error {
+	timer := time.NewTicker(pollInterval)
+	defer timer.Stop()
+	useStdPolling := (!s.pollForTx) && (!useWs)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case msg := <-s.pumpData:
+			err := s.processAccountSubscriptionData(ctx, msg, false)
+			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+				solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_subscription_data").Inc()
+				common.WriteToChannelWithoutBlocking(s.errC, err, "solana_errc")
+				return err
+			}
+		case m := <-s.obsvReqC:
+			chainId, err := vaa.KnownChainIDFromNumber[uint32](m.ChainId)
+			if err != nil {
+				logger.Error("invalid chain id for observation request",
+					zap.Uint32("chainID", m.ChainId),
+					zap.String("txID", hex.EncodeToString(m.TxHash)),
+					zap.Error(err),
+				)
+				continue
+			}
+
+			//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
+			numObservations, err := s.handleReobservationRequest(chainId, m.TxHash, s.rpcClient)
+			if err != nil {
+				logger.Error("failed to process observation request",
+					zap.Uint32("chainID", m.ChainId),
+					zap.String("identifier", base58.Encode(m.TxHash)),
+					zap.Error(err),
+				)
+			} else {
+				logger.Info("reobserved transactions",
+					zap.Uint32("chainID", m.ChainId),
+					zap.String("identifier", base58.Encode(m.TxHash)),
+					zap.Uint32("numObservations", numObservations),
+				)
+			}
+		case <-timer.C:
+			// Get current slot height
+			rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+			start := time.Now()
+			slot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
+			cancel()
+			queryLatency.WithLabelValues(s.networkName, "get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
+			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+				solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_slot_error").Inc()
+				common.WriteToChannelWithoutBlocking(s.errC, err, "solana_errc")
+				return err
+			}
+
+			currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
+			readiness.SetReady(s.readinessSync)
+			p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
+				Height:          int64(slot), // #nosec G115 -- This conversion is safe indefinitely
+				ContractAddress: contractAddr,
+			})
+
+			if logger.Level().Enabled(zapcore.DebugLevel) {
+				logger.Debug("fetched current Solana height", zap.Uint64("slot", slot))
+			}
+
+			if useStdPolling {
+				lastSlot := atomic.LoadUint64(&s.lastSlot)
+				if lastSlot == 0 {
+					lastSlot = slot - 1
+				}
+
+				rangeStart := lastSlot + 1
+				rangeEnd := slot
+
+				// Requesting each slot
+				for slotIdx := rangeStart; slotIdx <= rangeEnd; slotIdx++ {
+					_slot := slotIdx
+					common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
+						return s.runSlotFetcher(ctx, logger, _slot)
+					})
+				}
+			}
+
+			atomic.StoreUint64(&s.lastSlot, slot)
+		}
+	}
+}
+
+// runSlotFetcher fetches one block, with retries, for the standard polling path.
+func (s *SolanaWatcher) runSlotFetcher(ctx context.Context, logger *zap.Logger, slot uint64) error {
+	s.retryFetchBlock(ctx, logger, slot, 0, false)
+	return nil
+}
+
+func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint, isReobservation bool) {
+	ok := s.fetchBlock(ctx, logger, slot, 0, isReobservation)
+
+	if !ok {
+		if retry >= maxRetries {
+			logger.Error("max retries for block",
+				zap.Uint64("slot", slot),
+				zap.Uint("retry", retry))
+			return
+		}
+
+		time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
+
+		if logger.Level().Enabled(zapcore.DebugLevel) {
+			logger.Debug("retrying block",
+				zap.Uint64("slot", slot),
+				zap.Uint("retry", retry))
+		}
+
+		common.RunWithScissors(ctx, s.errC, "retryFetchBlock", func(ctx context.Context) error {
+			return s.runRetryFetchBlock(ctx, logger, slot, retry, isReobservation)
+		})
+	}
+}
+
+// runRetryFetchBlock is the body of a block fetch retry routine.
+func (s *SolanaWatcher) runRetryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint, isReobservation bool) error {
+	s.retryFetchBlock(ctx, logger, slot, retry+1, isReobservation)
+	return nil
+}
+
+// runDelayedFetchBlock waits, then retries a block that the node reported as missing.
+func (s *SolanaWatcher) runDelayedFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint, isReobservation bool) error {
+	time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
+	s.fetchBlock(ctx, logger, slot, emptyRetry+1, isReobservation)
+	return nil
 }
 
 func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint, isReobservation bool) (ok bool) {
@@ -930,6 +1093,43 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient solana
 	return true, nil
 }
 
+// runInitialFetchMessageAccount is the body of the first message account fetch routine.
+func (s *SolanaWatcher) runInitialFetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) error {
+	s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, 0, isReobservation, signature)
+	return nil
+}
+
+func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) {
+	_, retryable := s.fetchMessageAccount(ctx, rpcClient, acc, slot, isReobservation, signature)
+
+	if retryable {
+		if retry >= maxRetries {
+			s.logger.Error("max retries for account",
+				zap.Uint64("slot", slot),
+				zap.Stringer("account", acc),
+				zap.Uint("retry", retry))
+			return
+		}
+
+		time.Sleep(retryDelay) //nolint:forbidigo // TODO: This code should be refactored to not use time.Sleep
+
+		s.logger.Info("retrying account",
+			zap.Uint64("slot", slot),
+			zap.Stringer("account", acc),
+			zap.Uint("retry", retry))
+
+		common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
+			return s.runRetryFetchMessageAccount(ctx, rpcClient, acc, slot, retry, isReobservation, signature)
+		})
+	}
+}
+
+// runRetryFetchMessageAccount is the body of a message account fetch retry routine.
+func (s *SolanaWatcher) runRetryFetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) error {
+	s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, retry+1, isReobservation, signature)
+	return nil
+}
+
 func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient solanaRPCClient, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) (numObservations uint32, retryable bool) {
 	// Fetching account
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
@@ -1054,7 +1254,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 		return decodeErr
 	}
 
-	// SECURITY: Parse the message account data to ensure it's valid before handing it to the static publication builder.
+	// SECURITY: Parse the message account data to ensure it's valid.
 	messageAccountData, dataErr := NewMessageAccountData(dataBase64Decoded)
 	if dataErr != nil {
 		s.logger.Debug("skipping non-message account", zap.String("account", value.Pubkey), zap.Error(dataErr))
@@ -1075,7 +1275,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 
 // SECURITY: Ownership check on account key must be done BEFORE this function is called.
 func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccountData MessageAccountData, acc solana.PublicKey, isReobservation bool, signature solana.Signature, useSignatureAsTxID bool) (numObservations uint32) {
-	observation, err := s.buildMessagePublicationFromAccountData(acc, messageAccountData.Bytes(), signature, isReobservation, useSignatureAsTxID)
+	proposal, err := ParseMessagePublicationAccount(messageAccountData)
 	if err != nil {
 		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
 		logger.Error(
@@ -1087,11 +1287,11 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 	}
 
 	// SECURITY: defense-in-depth, ensure the consistency level in the account matches the consistency level of the watcher
-	commitment, err := accountConsistencyLevelToCommitment(observation.ConsistencyLevel)
+	commitment, err := accountConsistencyLevelToCommitment(proposal.ConsistencyLevel)
 	if err != nil {
 		logger.Error(
 			"failed to parse proposal consistency level",
-			zap.Uint8("consistency_level", observation.ConsistencyLevel),
+			zap.Any("proposal", proposal),
 			zap.Error(err))
 		return
 	}
@@ -1107,9 +1307,32 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccount
 		return
 	}
 
+	var txID []byte
+	if useSignatureAsTxID && !signature.IsZero() {
+		// Close event path: use the Solana transaction signature as TxID,
+		// matching the shim convention.
+		txID = signature[:]
+	} else {
+		// Account-based path: use the message account pubkey as TxID.
+		txID = acc[:]
+	}
+
+	observation := &common.MessagePublication{
+		TxID:             txID,
+		Timestamp:        vaa.TimeFromUnixUint32(proposal.SubmissionTime),
+		Nonce:            proposal.Nonce,
+		Sequence:         proposal.Sequence,
+		EmitterChain:     s.chainID, // SECURITY: The message must be emitted from the chain this watcher is observing. This prevents mix-ups between different SVM chains.
+		EmitterAddress:   proposal.EmitterAddress,
+		Payload:          proposal.Payload,
+		ConsistencyLevel: proposal.ConsistencyLevel,
+		IsReobservation:  isReobservation,
+		Unreliable:       !messageAccountData.IsReliable(),
+	}
+
 	// SECURITY: An unreliable message with an empty payload is most like a PostMessage generated as part
 	// of a shim event where this guardian is not watching the shim contract. Those events should be ignored.
-	if observation.Unreliable && len(observation.Payload) == 0 {
+	if !messageAccountData.IsReliable() && len(observation.Payload) == 0 {
 		logger.Debug("ignoring an observation because it is marked unreliable and has a zero length payload, probably from the shim",
 			zap.Stringer("account", acc),
 			zap.Time("timestamp", observation.Timestamp),
