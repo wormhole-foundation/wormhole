@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/certusone/wormhole/node/hack/devkey"
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
@@ -24,9 +25,21 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 
 	wormchainURL := string("localhost:9090")
-	wormchainKeyPath := string("./dev.wormchain.key")
 	contract := "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
-	guardianSignerUri := string("file://dev.guardian.key")
+
+	// Git stores the committed devnet keys as world-readable (0644), but the key
+	// loaders reject group- or world-readable key files. Stage 0600 copies so
+	// this test tool keeps working out of the box after a fresh checkout.
+	wormchainKeyPath, err := devkey.Stage("./dev.wormchain.key")
+	if err != nil {
+		logger.Fatal("failed to stage wormchain key", zap.Error(err))
+	}
+
+	guardianKeyPath, err := devkey.Stage("./dev.guardian.key")
+	if err != nil {
+		logger.Fatal("failed to stage guardian key", zap.Error(err))
+	}
+	guardianSignerUri := string("file://" + guardianKeyPath)
 
 	wormchainKey, err := wormconn.LoadWormchainPrivKey(wormchainKeyPath, "test0000")
 	if err != nil {

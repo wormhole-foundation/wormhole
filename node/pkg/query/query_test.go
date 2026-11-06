@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -417,7 +419,18 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	md := mockData{}
 	var err error
 
-	md.sk, err = common.LoadGuardianKey("dev.guardian.key", true)
+	devKey, err := os.ReadFile("dev.guardian.key")
+	require.NoError(t, err)
+	// Copy the key to a 0600 file, because the loader rejects the 0644 file from
+	// git. Write through os.Root, not os.WriteFile on a joined path: gosec flags
+	// the os.WriteFile version as path traversal (G703).
+	root, err := os.OpenRoot(t.TempDir())
+	require.NoError(t, err)
+	defer root.Close()
+	require.NoError(t, root.WriteFile("dev.guardian.key", devKey, 0600))
+	devKeyPath := filepath.Join(root.Name(), "dev.guardian.key")
+
+	md.sk, err = common.LoadGuardianKey(devKeyPath, true)
 	require.NoError(t, err)
 	require.NotNil(t, md.sk)
 
