@@ -210,6 +210,8 @@ This command will ask for a passphrase to be created for it. Both `wormchain.key
 - `--accountantKeyPath`
 - `--accountantKeyPassPhrase`
 
+guardiand refuses to load a wormchain key file that grants any permission to group or other users. A file created by redirecting the `wormchaind keys export` output usually gets mode `0644`, so set its permissions with `chmod 0600 wormchain.key` before you start the node.
+
 Feel free to run these directly on the `guardiand` node, having previously built the `wormchaind` binary.
 
 **NOTE**: Share the wormchain public key for your validator with the Wormhole Foundation. It should be in the format: `wormhole1xxx`.
@@ -457,7 +459,9 @@ Generate a new key using the `keygen` subcommand:
 
 The key file includes a human-readable part which includes the public key hashes and the description.
 
-guardiand refuses to load a guardian key or node key file that grants any permission to group or other users. The `keygen` command and the automatic node key generation write the file as `0600`, which meets this requirement. If you copy or restore a key, set its permissions with `chmod 0600 /path/to/your.key`.
+guardiand refuses to load a guardian key, node key, or wormchain key file (`--accountantKeyPath`, `--accountantNttKeyPath`, `--gatewayRelayerKeyPath`) that grants any permission to group or other users. The `keygen` command and the automatic node key generation write the file as `0600`, which meets this requirement. If you copy or restore a key, set its permissions with `chmod 0600 /path/to/your.key`.
+
+If you mount keys from a Kubernetes secret, set `defaultMode: 0600` on the secret volume. Also check the pod `securityContext`: when `fsGroup` is set, Kubernetes can add group permissions to the mounted files, and guardiand then refuses to load them.
 
 ## Deploying
 
