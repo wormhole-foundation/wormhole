@@ -85,7 +85,7 @@ func ValidatePrivateKeyFilePermissions(f *os.File) error {
 	// and pass. On macOS they report 0660 and are rejected.
 	mode := info.Mode()
 	if (mode.IsRegular() || mode&os.ModeNamedPipe != 0) && mode.Perm()&groupOtherPermMask != 0 {
-		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions", f.Name(), mode.Perm())
+		return fmt.Errorf("private key file %q has insecure permissions %o; expected no group or other permissions (run chmod 0600 %q)", f.Name(), mode.Perm(), f.Name())
 	}
 
 	return nil

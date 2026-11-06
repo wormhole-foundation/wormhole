@@ -421,6 +421,9 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 
 	devKey, err := os.ReadFile("dev.guardian.key")
 	require.NoError(t, err)
+	// Copy the key to a 0600 file, because the loader rejects the 0644 file from
+	// git. Write through os.Root, not os.WriteFile on a joined path: gosec flags
+	// the os.WriteFile version as path traversal (G703).
 	root, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
 	defer root.Close()

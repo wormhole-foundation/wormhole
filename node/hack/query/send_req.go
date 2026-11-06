@@ -8,15 +8,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"errors"
 	"fmt"
-	"io/fs"
 	"math/big"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/hack/devkey"
 	"github.com/certusone/wormhole/node/hack/query/utils"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -48,36 +45,6 @@ import (
 // [paste, ^x, y, enter]
 // go run send_req.go
 
-// stageDevKey copies a committed devnet key to a fixed 0600 path in the temp
-// directory and returns that path. The key loaders reject group- or
-// world-readable files, and git only stores the committed keys as 0644, so this
-// avoids a manual chmod after every checkout. Each run replaces the same file,
-// so runs that exit through logger.Fatal or Ctrl-C leave at most one copy.
-func stageDevKey(path string) (string, error) {
-	key, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	staged := filepath.Join(os.TempDir(), "wormhole-"+filepath.Base(path))
-	// Remove the copy from a previous run, then create the file with O_EXCL so
-	// that we never write through a symlink planted in a shared temp directory.
-	if err = os.Remove(staged); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return "", err
-	}
-	f, err := os.OpenFile(staged, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return "", err
-	}
-	if _, err = f.Write(key); err != nil {
-		_ = f.Close()
-		return "", err
-	}
-	if err = f.Close(); err != nil {
-		return "", err
-	}
-	return staged, nil
-}
-
 func main() {
 
 	//
@@ -97,7 +64,7 @@ func main() {
 	// Git stores the committed devnet key as world-readable (0644), but the key
 	// loader rejects group- or world-readable key files. Stage a 0600 copy so
 	// this test tool keeps working out of the box after a fresh checkout.
-	stagedKeyPath, err := stageDevKey(signingKeyPath)
+	stagedKeyPath, err := devkey.Stage(signingKeyPath)
 	if err != nil {
 		logger.Fatal("failed to stage guardian key", zap.Error(err))
 	}
@@ -111,7 +78,7 @@ func main() {
 
 	// Load p2p private key
 	var priv crypto.PrivKey
-	stagedNodeKeyPath, err := stageDevKey(nodeKeyPath)
+	stagedNodeKeyPath, err := devkey.Stage(nodeKeyPath)
 	if err != nil {
 		logger.Fatal("failed to stage node key", zap.Error(err))
 	}
