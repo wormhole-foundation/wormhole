@@ -113,35 +113,35 @@ VAA struct {
 	// Timestamp, in seconds, of the observed message.
 	// This timestamp is derived from the block, rather than the
 	// time the block was seen by the guardians.
-	Timestamp time.Time // uint32
+	Timestamp time.Time // semantically a uint32, though Go's Timestamp is int64
 
 	// Nonce (provided by the on-chain integrator).
-	Nonce uint32 // <-- NEW
+	Nonce uint32
 
 	// EmitterChain the VAA was emitted on. Set by the guardian node
 	// according to which chain it received the message from.
-	EmitterChain ChainID // <-- NEW
+	EmitterChain ChainID
 
 	// EmitterAddress of the contract that emitted the message. Set by
 	// the core contract and read by guardian node according to protocol
 	// metadata.
-	EmitterAddress Address // <-- NEW
+	EmitterAddress Address
 
 	// Sequence number of the message. Automatically set and
 	// and incremented by the core contract when called by
 	// an emitter contract.
 	//
 	// Tracked per (EmitterChain, EmitterAddress) tuple.
-	Sequence uint64 // <-- NEW
+	Sequence uint64
 
 	// Level of consistency requested by the emitter.
 	//
 	// The semantic meaning of this field is specific to the emitter
 	// chain. See Consistency Levels below.
-	ConsistencyLevel uint8 // <-- NEW
+	ConsistencyLevel uint8
 
 	// Payload of the message (provided by the on-chain integrator).
-	Payload []byte // <-- NEW
+	Payload []byte
 }
 
 // ChainID of a Wormhole chain. These are defined in the guardian node
