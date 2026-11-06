@@ -30,7 +30,6 @@ See [development.md](./development.md)
 - [Ignite Docs](https://docs.ignite.com/)
 - [Cosmos SDK documentation](https://docs.cosmos.network)
 - [Cosmos SDK Tutorials](https://tutorials.cosmos.network)
-- [Discord](https://discord.gg/cosmosnetwork)
 
 ## Allowlists
 
