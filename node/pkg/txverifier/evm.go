@@ -226,17 +226,11 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 	}
 
 	// For the other caches, just prune them if they're too big.
-	if len(tv.chainIdCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.chainIdCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: chainId() cache:", zap.Error(err))
-
-		} else {
-			tv.logger.Info("pruned cached calls to chainId()",
-				zap.Int("numDeleted", numDeleted),
-				zap.Int("cacheSize", len(tv.chainIdCache)),
-			)
-		}
+	if numDeleted := tv.chainIdCache.PruneIfFull(); numDeleted > 0 {
+		tv.logger.Info("pruned cached calls to chainId()",
+			zap.Int("numDeleted", numDeleted),
+			zap.Int("cacheSize", tv.chainIdCache.Len()),
+		)
 	}
 
 	if numDeleted := tv.decimalsCache.PruneIfFull(); numDeleted > 0 {
@@ -246,26 +240,17 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 		)
 	}
 
-	if len(tv.isWrappedCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.isWrappedCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: isWrapped() cache:", zap.Error(err))
-
-		} else {
-			tv.logger.Info("pruned cached calls to isWrapped()",
-				zap.Int("numDeleted", numDeleted),
-				zap.Int("cacheSize", len(tv.isWrappedCache)),
-			)
-		}
+	if numDeleted := tv.isWrappedCache.PruneIfFull(); numDeleted > 0 {
+		tv.logger.Info("pruned cached calls to isWrapped()",
+			zap.Int("numDeleted", numDeleted),
+			zap.Int("cacheSize", tv.isWrappedCache.Len()),
+		)
 	}
-	if len(tv.nativeContractCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.nativeContractCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: nativeContract() cache:", zap.Error(err))
-		}
+
+	if numDeleted := tv.nativeContractCache.PruneIfFull(); numDeleted > 0 {
 		tv.logger.Info("pruned cached calls to nativeContract()",
 			zap.Int("numDeleted", numDeleted),
-			zap.Int("cacheSize", len(tv.nativeContractCache)),
+			zap.Int("cacheSize", tv.nativeContractCache.Len()),
 		)
 	}
 }

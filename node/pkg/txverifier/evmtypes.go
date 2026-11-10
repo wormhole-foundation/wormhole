@@ -178,13 +178,13 @@ type TransferVerifier[E evmClient, C connector] struct {
 	pruneHeightDelta uint64
 
 	// Cached calls to `isWrapped()` on the token bridge.
-	isWrappedCache map[string]bool
+	isWrappedCache *lockedMap[string, bool]
 
 	// Cached calls to `chainId()` for wrapped asset contracts.
-	chainIdCache map[string]vaa.ChainID
+	chainIdCache *lockedMap[string, vaa.ChainID]
 
 	// Cached calls to `nativeContract()` for wrapped asset contracts.
-	nativeContractCache map[string]vaa.Address
+	nativeContractCache *lockedMap[string, vaa.Address]
 
 	// Cached calls to `decimals()` for token contracts (both wrapped and native).
 	decimalsCache *lockedMap[common.Address, uint8]
@@ -221,9 +221,9 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		evaluations:         make(map[common.Hash]*receiptEvaluation),
 		lastBlockNumber:     0,
 		pruneHeightDelta:    pruneHeightDelta,
-		isWrappedCache:      make(map[string]bool),
-		chainIdCache:        make(map[string]vaa.ChainID),
-		nativeContractCache: make(map[string]vaa.Address),
+		isWrappedCache:      NewLockedMap[string, bool](),
+		chainIdCache:        NewLockedMap[string, vaa.ChainID](),
+		nativeContractCache: NewLockedMap[string, vaa.Address](),
 		decimalsCache:       NewLockedMap[common.Address, uint8](),
 	}, nil
 }
@@ -822,7 +822,7 @@ func (tv *TransferVerifier[ethClient, Connector]) chainId(
 
 	// If the token address already exists in the wrappedCache mapping the
 	// cached value can be returned.
-	if chainId, exists := tv.chainIdCache[tokenAddressAsKey]; exists {
+	if chainId, exists := tv.chainIdCache.Get(tokenAddressAsKey); exists {
 		tv.logger.Debug("using cached chain ID", zap.String("tokenAddress", wrappedAddr.String()), zap.String("chainID", chainId.String()))
 		return chainId, nil
 	}
@@ -856,7 +856,7 @@ func (tv *TransferVerifier[ethClient, Connector]) chainId(
 		return vaa.ChainIDUnset, parseErr
 	}
 
-	tv.chainIdCache[tokenAddressAsKey] = chainID
+	tv.chainIdCache.Set(tokenAddressAsKey, chainID)
 
 	return chainID, nil
 }
@@ -878,7 +878,7 @@ func (tv *TransferVerifier[ethClient, Connector]) nativeContract(
 
 	// If the token address already exists in the wrappedCache mapping the
 	// cached value can be returned.
-	if originAddr, exists := tv.nativeContractCache[tokenAddressAsKey]; exists {
+	if originAddr, exists := tv.nativeContractCache.Get(tokenAddressAsKey); exists {
 		tv.logger.Debug("using cached origin address", zap.String("tokenAddress", wrappedAddr.String()), zap.String("originAddr", originAddr.String()))
 		return originAddr, nil
 	}
@@ -923,7 +923,7 @@ func (tv *TransferVerifier[ethClient, Connector]) nativeContract(
 	}
 
 	// Insert into cache.
-	tv.nativeContractCache[tokenAddressAsKey] = originAddr
+	tv.nativeContractCache.Set(tokenAddressAsKey, originAddr)
 
 	return originAddr, nil
 }
@@ -939,7 +939,7 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 
 	// If the token address already exists in the isWrappedCache mapping the
 	// cached value can be returned.
-	if wrapped, exists := tv.isWrappedCache[tokenAddressAsKey]; exists {
+	if wrapped, exists := tv.isWrappedCache.Get(tokenAddressAsKey); exists {
 		tv.logger.Debug("asset found in isWrapped cache, returning")
 		return wrapped, nil
 	}
@@ -971,7 +971,7 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 	// equal to EVM_WORD_LENGTH. Grab the last byte.
 	wrapped := result[EVM_WORD_LENGTH-1] == 1
 
-	tv.isWrappedCache[tokenAddressAsKey] = wrapped
+	tv.isWrappedCache.Set(tokenAddressAsKey, wrapped)
 	tv.logger.Debug("isWrappedAsset result", zap.Bool("isWrapped", wrapped), zap.String("result bytes", fmt.Sprintf("%x", result)))
 
 	return wrapped, nil
