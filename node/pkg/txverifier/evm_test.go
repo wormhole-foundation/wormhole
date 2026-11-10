@@ -351,6 +351,88 @@ func TestUpdateReceiptDetailsIgnoresIrrelevantTokenErrors(t *testing.T) {
 	})
 }
 
+// TestTransferIsValidKeysCacheByReceiptProvenance covers the evaluation cache keying: the
+// same transaction re-mined in a different block (same tx hash, different block hash) must
+// be reparsed instead of reusing the first verdict, while the same provenance must be
+// served from the cache.
+func TestTransferIsValidKeysCacheByReceiptProvenance(t *testing.T) {
+	logger := ipfslog.Logger("wormhole-transfer-verifier-tests").Desugar()
+
+	newVerifier := func() *TransferVerifier[*mockClient, *mockConnector] {
+		return &TransferVerifier[*mockClient, *mockConnector]{
+			Addresses: &TVAddresses{
+				CoreBridgeAddr:    coreBridgeAddr,
+				TokenBridgeAddr:   tokenBridgeAddr,
+				WrappedNativeAddr: nativeAddrGeth,
+			},
+			chainIds:            &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
+			evmConnector:        &mockConnector{},
+			evaluations:         NewEvaluationsLockedMap(),
+			isWrappedCache:      NewLockedMap[string, bool](),
+			chainIdCache:        NewLockedMap[string, vaa.ChainID](),
+			nativeContractCache: NewLockedMap[string, vaa.Address](),
+			decimalsCache:       NewLockedMap[common.Address, uint8](),
+			client:              &mockClient{},
+			logger:              *logger,
+		}
+	}
+
+	txHash := common.HexToHash("0xabc123")
+	// Backed by an ERC20 transfer into the token bridge: solvent.
+	solventReceipt := &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		TxHash:      txHash,
+		BlockNumber: big.NewInt(10),
+		BlockHash:   common.HexToHash("0xaaa"),
+		Logs:        []*types.Log{transferLog, validLogMessagedPublishedLog},
+	}
+	// Same transaction re-mined one block later, but this execution is not backed by a
+	// deposit: the re-mined receipt must not inherit the solvent verdict.
+	reminedReceipt := &types.Receipt{
+		Status:      types.ReceiptStatusSuccessful,
+		TxHash:      txHash,
+		BlockNumber: big.NewInt(11),
+		BlockHash:   common.HexToHash("0xbbb"),
+		Logs:        []*types.Log{validLogMessagedPublishedLog},
+	}
+
+	t.Run("same provenance is served from the cache", func(t *testing.T) {
+		tv := newVerifier()
+
+		// An empty msgIDStr checks the whole receipt (a testing-only mode).
+		valid, err := tv.TransferIsValid(context.Background(), "", txHash, solventReceipt)
+		require.NoError(t, err)
+		assert.True(t, valid)
+
+		valid, err = tv.TransferIsValid(context.Background(), "", txHash, solventReceipt)
+		require.NoError(t, err)
+		assert.True(t, valid)
+		assert.Equal(t, 1, tv.evaluations.Len(), "the same receipt provenance must produce a single cache entry")
+	})
+
+	t.Run("re-mined transaction is reparsed", func(t *testing.T) {
+		tv := newVerifier()
+
+		valid, err := tv.TransferIsValid(context.Background(), "", txHash, solventReceipt)
+		require.NoError(t, err)
+		assert.True(t, valid)
+
+		valid, err = tv.TransferIsValid(context.Background(), "", txHash, reminedReceipt)
+		require.NoError(t, err)
+		assert.False(t, valid, "a receipt from a different block must not reuse the cached verdict")
+		assert.Equal(t, 2, tv.evaluations.Len(), "each provenance must be cached separately")
+	})
+
+	t.Run("receipt without a block hash is rejected", func(t *testing.T) {
+		tv := newVerifier()
+		noBlockHash := *solventReceipt
+		noBlockHash.BlockHash = common.Hash{}
+
+		_, err := tv.TransferIsValid(context.Background(), "", txHash, &noBlockHash)
+		require.ErrorIs(t, err, ErrReceiptHasNoBlockHash)
+	})
+}
+
 func TestParseReceiptHappyPath(t *testing.T) {
 	mocks := setup()
 	defer mocks.ctxCancel()

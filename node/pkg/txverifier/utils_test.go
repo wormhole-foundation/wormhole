@@ -412,11 +412,11 @@ func Test_evaluationsLockedMap_PruneOlderThan(t *testing.T) {
 			elm := NewEvaluationsLockedMap()
 			nextKey := 0
 			for _, block := range tt.blocks {
-				elm.Set(common.HexToHash(fmt.Sprintf("%064x", nextKey)), &receiptEvaluation{blockNumber: block})
+				elm.Set(TxBlockHashKey{TxHash: common.HexToHash(fmt.Sprintf("%064x", nextKey))}, &receiptEvaluation{blockNumber: block})
 				nextKey++
 			}
 			for i := 0; i < tt.nils; i++ {
-				elm.Set(common.HexToHash(fmt.Sprintf("%064x", nextKey)), nil)
+				elm.Set(TxBlockHashKey{TxHash: common.HexToHash(fmt.Sprintf("%064x", nextKey))}, nil)
 				nextKey++
 			}
 
@@ -432,7 +432,7 @@ func Test_evaluationsLockedMap_PruneOlderThan(t *testing.T) {
 
 func Test_evaluationsLockedMap_SetIfAbsent(t *testing.T) {
 	elm := NewEvaluationsLockedMap()
-	key := common.HexToHash("0x1")
+	key := TxBlockHashKey{TxHash: common.HexToHash("0x1")}
 	first := &receiptEvaluation{blockNumber: 10}
 	second := &receiptEvaluation{blockNumber: 20}
 
@@ -466,7 +466,7 @@ func Test_evaluationsLockedMap_ConcurrentAccess(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < iterations; i++ {
-				key := common.HexToHash(fmt.Sprintf("%064x", (g*i)%32))
+				key := TxBlockHashKey{TxHash: common.HexToHash(fmt.Sprintf("%064x", (g*i)%32))}
 				elm.Set(key, &receiptEvaluation{blockNumber: uint64(i)})
 				elm.SetIfAbsent(key, &receiptEvaluation{blockNumber: 0})
 				elm.Get(key)
