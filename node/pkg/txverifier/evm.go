@@ -127,9 +127,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	// This is important to prevent the Transfer Verifier from recording a block number that is older
 	// than the one being processed, as this would result in the verifier not being able to
 	// correctly prune the cache.
-	if receipt.BlockNumber.Uint64() > tv.lastBlockNumber {
-		tv.lastBlockNumber = receipt.BlockNumber.Uint64()
-	}
+	tv.updateLastBlockNumber(receipt.BlockNumber.Uint64())
 
 	// Parse raw transaction receipt into high-level struct containing transfer details.
 	transferReceipt, parseErr := tv.parseReceipt(receipt)
@@ -203,7 +201,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 
 	// Iterate over recorded transaction hashes and prune evaluations older than pruneHeightDelta relative to the last block number.
-	if numPrunedEvals := tv.evaluations.PruneOlderThan(tv.lastBlockNumber - tv.pruneHeightDelta); numPrunedEvals > 0 {
+	if numPrunedEvals := tv.evaluations.PruneOlderThan(tv.lastBlockNumber.Load() - tv.pruneHeightDelta); numPrunedEvals > 0 {
 		tv.logger.Info("pruned receipt evaluations cache",
 			zap.Int("numPruned", numPrunedEvals),
 			zap.Int("cacheSize", tv.evaluations.Len()),
@@ -901,4 +899,25 @@ func (tv *TransferVerifier[ethClient, Connector]) addToCache(
 	evaluation *receiptEvaluation,
 ) {
 	tv.evaluations.SetIfAbsent(txHash, evaluation)
+}
+
+// updateLastBlockNumber updates the last processed block number if the provided block number is greater
+// than the current one. The function guarantees that the lastBlockNumber will only ever increase monotonically.
+// In the off chance that a different goroutine updates the lastBlockNumber concurrently, the function will retry
+// until the update succeeds or becomes unnecessary.
+func (tv *TransferVerifier[ethClient, Connector]) updateLastBlockNumber(blockNumber uint64) {
+	for {
+		// Get the current last block number.
+		cur := tv.lastBlockNumber.Load()
+
+		// If the provided block number is not greater than the current one, no update is needed.
+		if blockNumber <= cur {
+			return
+		}
+
+		// Attempt to update the last block number atomically. If another goroutine has updated it in the meantime, retry.
+		if tv.lastBlockNumber.CompareAndSwap(cur, blockNumber) {
+			return
+		}
+	}
 }

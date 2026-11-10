@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -183,6 +184,65 @@ var (
 	// 	Logs: []*types.Log{logMessagedPublishedLog},
 	// }
 )
+
+func TestUpdateLastBlockNumber(t *testing.T) {
+	tv := &TransferVerifier[*mockClient, *mockConnector]{}
+
+	assert.EqualValues(t, uint64(0), tv.lastBlockNumber.Load(), "a new verifier should start at block 0")
+
+	tv.updateLastBlockNumber(10)
+	assert.EqualValues(t, uint64(10), tv.lastBlockNumber.Load(), "a higher block number should be recorded")
+
+	tv.updateLastBlockNumber(5)
+	assert.EqualValues(t, uint64(10), tv.lastBlockNumber.Load(), "a lower block number must not regress the value")
+
+	tv.updateLastBlockNumber(10)
+	assert.EqualValues(t, uint64(10), tv.lastBlockNumber.Load(), "an equal block number must not change the value")
+
+	tv.updateLastBlockNumber(20)
+	assert.EqualValues(t, uint64(20), tv.lastBlockNumber.Load(), "a higher block number should be recorded")
+}
+
+// TestUpdateLastBlockNumberConcurrent verifies the postcondition that makes the CAS
+// loop correct: once every concurrent caller has returned, the field equals the maximum
+// height anyone attempted. It can never exceed that maximum (only attempted heights are
+// ever stored) and never miss it (each caller retries until it wins or is superseded).
+// The result is deterministic despite the racy execution; its value is running under -race.
+func TestUpdateLastBlockNumberConcurrent(t *testing.T) {
+	const goroutines = 8
+	const iterations = 500
+
+	// Deterministic mixed heights per goroutine and iteration, including decreases.
+	height := func(g, i int) uint64 {
+		return uint64((g*131 + i*17) % 1000) //nolint:gosec // G115: Simply generates deterministic heights for testing.
+	}
+
+	var maxAttempted uint64
+	for g := 0; g < goroutines; g++ {
+		for i := 0; i < iterations; i++ {
+			if h := height(g, i); h > maxAttempted {
+				maxAttempted = h
+			}
+		}
+	}
+
+	tv := &TransferVerifier[*mockClient, *mockConnector]{}
+
+	var wg sync.WaitGroup
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				tv.updateLastBlockNumber(height(g, i))
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.EqualValues(t, maxAttempted, tv.lastBlockNumber.Load(),
+		"after concurrent updates, the field must equal the maximum attempted height")
+}
 
 func TestParseReceiptHappyPath(t *testing.T) {
 	mocks := setup()
