@@ -30,6 +30,7 @@ var (
 	ErrNotTransfer                      = errors.New("payload is not a token transfer")
 	ErrParsedReceiptIsNil               = errors.New("nil receipt after parsing")
 	ErrTxHashIsZeroAddr                 = errors.New("txHash is the zero address")
+	ErrReceiptHasNoBlockNumber          = errors.New("receipt has no block number")
 )
 
 // TransferIsValid processes a Message Publication representing a token transfer.
@@ -117,11 +118,16 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		}
 	}
 
+	// Receipts must have a block number to be considered well-formed.
+	if receipt.BlockNumber == nil {
+		return false, ErrReceiptHasNoBlockNumber
+	}
+
 	// Caching: if the new receipt is newer than the last one, update the last block number.
 	// This is important to prevent the Transfer Verifier from recording a block number that is older
 	// than the one being processed, as this would result in the verifier not being able to
 	// correctly prune the cache.
-	if receipt.BlockNumber != nil && receipt.BlockNumber.Uint64() > tv.lastBlockNumber {
+	if receipt.BlockNumber.Uint64() > tv.lastBlockNumber {
 		tv.lastBlockNumber = receipt.BlockNumber.Uint64()
 	}
 
@@ -155,12 +161,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	// If a receipt is valid, then all of its messages are valid and the receipt is safe.
 	// If a receipt is invalid, then some of its messages are invalid and the receipt is not safe.
 	summary, validateReceiptErr := tv.validateReceipt(transferReceipt)
-	tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
-
-	if summary == nil {
-		tv.logger.Warn("receipt summary is nil", zap.String("txHash", txHash.String()))
-		return false, validateReceiptErr
-	}
 
 	// Check for parsing errors, which are bugs in the code.
 	if validateReceiptErr != nil {
@@ -169,6 +169,13 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		// Results are not cached, as the parsing error may be transient.
 		return false, validateReceiptErr
 	}
+
+	if summary == nil {
+		tv.logger.Warn("receipt summary is nil", zap.String("txHash", txHash.String()))
+		return false, validateReceiptErr
+	}
+
+	tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
 
 	if !summary.isSafe() {
 		// This represents an invariant violation, either in the receipt as a whole or in a single message.
