@@ -31,6 +31,7 @@ var (
 	ErrParsedReceiptIsNil               = errors.New("nil receipt after parsing")
 	ErrTxHashIsZeroAddr                 = errors.New("txHash is the zero address")
 	ErrReceiptHasNoBlockNumber          = errors.New("receipt has no block number")
+	ErrReceiptHasNoBlockHash            = errors.New("receipt has no block hash")
 )
 
 // TransferIsValid processes a Message Publication representing a token transfer.
@@ -85,8 +86,37 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		msgID = validMsgID
 	}
 
-	// Check to see if the receipt is cached.
-	if evaluation, exists := tv.evaluations.Get(txHash); exists {
+	// Get the full transaction receipt for this txHash if it was not provided as an argument.
+	if receipt == nil {
+		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
+		var txReceiptErr error
+		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
+
+		if txReceiptErr != nil {
+			return false, txReceiptErr
+		}
+	}
+
+	// Receipts must have a block number to be considered well-formed.
+	if receipt.BlockNumber == nil {
+		return false, ErrReceiptHasNoBlockNumber
+	}
+
+	// Receipts must have a block hash to be considered well-formed. The block hash is part
+	// of the evaluation cache key: the same signed transaction can be re-mined in a
+	// different block after a reorg, producing a different receipt, so verdicts must be
+	// bound to the block that included the transaction.
+	if receipt.BlockHash == (common.Hash{}) {
+		return false, ErrReceiptHasNoBlockHash
+	}
+
+	key := TxBlockHashKey{TxHash: txHash, BlockHash: receipt.BlockHash}
+
+	// Check to see if the evaluation for this exact receipt is cached. The key includes
+	// the block hash, so a re-mined transaction misses the cache and is reparsed. This
+	// check intentionally happens after the receipt is obtained: the receipt's provenance
+	// is what identifies the cache entry.
+	if evaluation, exists := tv.evaluations.Get(key); exists {
 
 		// Check if the message has already been verified, and if so, return the cached result.
 		if !checkWholeReceipt && !evaluation.msgInCache(msgID) {
@@ -105,22 +135,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 
 		//  Return true if the message is safe.
 		return evaluation.ReceiptSummary.isMsgSafe(msgID), nil
-	}
-
-	// Get the full transaction receipt for this txHash if it was not provided as an argument.
-	if receipt == nil {
-		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
-		var txReceiptErr error
-		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
-
-		if txReceiptErr != nil {
-			return false, txReceiptErr
-		}
-	}
-
-	// Receipts must have a block number to be considered well-formed.
-	if receipt.BlockNumber == nil {
-		return false, ErrReceiptHasNoBlockNumber
 	}
 
 	// Caching: if the new receipt is newer than the last one, update the last block number.
@@ -186,7 +200,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 
 	// Cache receipt/message validations results (except for parsing errors, as they may be transient).
 	cacheEvaluation := NewReceiptEvaluation(summary, receipt.BlockNumber.Uint64())
-	tv.addToCache(txHash, &cacheEvaluation)
+	tv.addToCache(key, &cacheEvaluation)
 
 	if checkWholeReceipt {
 		// Should only be done for testing.
@@ -932,10 +946,10 @@ func parseLogMessagePublishedPayload(
 }
 
 func (tv *TransferVerifier[ethClient, Connector]) addToCache(
-	txHash common.Hash,
+	key TxBlockHashKey,
 	evaluation *receiptEvaluation,
 ) {
-	tv.evaluations.SetIfAbsent(txHash, evaluation)
+	tv.evaluations.SetIfAbsent(key, evaluation)
 }
 
 // updateLastBlockNumber updates the last processed block number if the provided block number is greater

@@ -33,6 +33,11 @@ const (
 	INVARIANT_INSUFFICIENT_DEPOSIT = "bridge transfer requested for more tokens than were deposited"
 )
 
+type TxBlockHashKey struct {
+	TxHash    common.Hash
+	BlockHash common.Hash
+}
+
 // msgID is a unique identifier the corresponds to a VAA's "message ID".
 // i.e.emitter_chain/emitter_address/sequence tuple. In this package, it is used
 // to identify a single LogMessagePublished event, which in turn maps onto a unique
@@ -320,7 +325,7 @@ func NewLockedMap[K comparable, V any]() *lockedMap[K, V] {
 
 // evaluationsLockedMap is a specialized lockedMap for receipt evaluations that supports pruning by block number.
 type evaluationsLockedMap struct {
-	lockedMap[common.Hash, *receiptEvaluation]
+	lockedMap[TxBlockHashKey, *receiptEvaluation]
 }
 
 // PruneOlderThan iterates over the cached receipt evaluations and removes those with a
@@ -344,7 +349,7 @@ func (elm *evaluationsLockedMap) PruneOlderThan(block uint64) int {
 
 func NewEvaluationsLockedMap() *evaluationsLockedMap {
 	return &evaluationsLockedMap{
-		lockedMap: *NewLockedMap[common.Hash, *receiptEvaluation](),
+		lockedMap: *NewLockedMap[TxBlockHashKey, *receiptEvaluation](),
 	}
 }
 
