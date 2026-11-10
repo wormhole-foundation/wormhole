@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"math/big"
+	"sync/atomic"
 	"time"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
@@ -172,7 +173,7 @@ type TransferVerifier[E evmClient, C connector] struct {
 	// The last block number that the program has processed.
 	// Used to determine the size of historic receipts to keep in memory.
 	// Must increase monotonically.
-	lastBlockNumber uint64
+	lastBlockNumber atomic.Uint64
 
 	// The block height difference between the latest block and the oldest block to keep in memory.
 	pruneHeightDelta uint64
@@ -219,7 +220,7 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		evmConnector:        connector,
 		client:              connector.Client(),
 		evaluations:         NewEvaluationsLockedMap(),
-		lastBlockNumber:     0,
+		lastBlockNumber:     atomic.Uint64{},
 		pruneHeightDelta:    pruneHeightDelta,
 		isWrappedCache:      NewLockedMap[string, bool](),
 		chainIdCache:        NewLockedMap[string, vaa.ChainID](),
