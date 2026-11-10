@@ -167,7 +167,7 @@ type TransferVerifier[E evmClient, C connector] struct {
 	client E
 	// Mapping to track the transactions that have been processed. Indexed by a log's txHash.
 	// An evaluation may contain multiple results, one for each relevant LogMessagePublished event.
-	evaluations map[common.Hash]*receiptEvaluation
+	evaluations *evaluationsLockedMap
 
 	// The last block number that the program has processed.
 	// Used to determine the size of historic receipts to keep in memory.
@@ -218,7 +218,7 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		logger:              *logger,
 		evmConnector:        connector,
 		client:              connector.Client(),
-		evaluations:         make(map[common.Hash]*receiptEvaluation),
+		evaluations:         NewEvaluationsLockedMap(),
 		lastBlockNumber:     0,
 		pruneHeightDelta:    pruneHeightDelta,
 		isWrappedCache:      NewLockedMap[string, bool](),

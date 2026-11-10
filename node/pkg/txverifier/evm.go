@@ -86,7 +86,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	// Check to see if the receipt is cached.
-	if evaluation, exists := tv.evaluations[txHash]; exists {
+	if evaluation, exists := tv.evaluations.Get(txHash); exists {
 
 		// Check if the message has already been verified, and if so, return the cached result.
 		if !checkWholeReceipt && !evaluation.msgInCache(msgID) {
@@ -201,27 +201,12 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 // pruneCache removes cached evaluations and RPC calls.
 // TODO: This functionality should be replaced by an LRU cache library.
 func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
-	var numPrunedEvals int
 
-	// Iterate over recorded transaction hashes, and clear receipts older than `pruneDelta` blocks
-	for txHash, eval := range tv.evaluations {
-		if eval != nil {
-			if eval.blockNumber < tv.lastBlockNumber-tv.pruneHeightDelta {
-				numPrunedEvals++
-				delete(tv.evaluations, txHash)
-			}
-		} else {
-			// NOTE: Kind of sloppy to delete these right away, but we shouldn't be caching
-			// many nil receipts anyway.
-			numPrunedEvals++
-			delete(tv.evaluations, txHash)
-		}
-	}
-
-	if numPrunedEvals > 0 {
+	// Iterate over recorded transaction hashes and prune evaluations older than pruneHeightDelta relative to the last block number.
+	if numPrunedEvals := tv.evaluations.PruneOlderThan(tv.lastBlockNumber - tv.pruneHeightDelta); numPrunedEvals > 0 {
 		tv.logger.Info("pruned receipt evaluations cache",
 			zap.Int("numPruned", numPrunedEvals),
-			zap.Int("cacheSize", len(tv.evaluations)),
+			zap.Int("cacheSize", tv.evaluations.Len()),
 		)
 	}
 
@@ -915,7 +900,5 @@ func (tv *TransferVerifier[ethClient, Connector]) addToCache(
 	txHash common.Hash,
 	evaluation *receiptEvaluation,
 ) {
-	if _, exists := tv.evaluations[txHash]; !exists {
-		tv.evaluations[txHash] = evaluation
-	}
+	tv.evaluations.SetIfAbsent(txHash, evaluation)
 }
