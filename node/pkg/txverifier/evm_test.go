@@ -13,6 +13,7 @@ package txverifier
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -55,13 +56,22 @@ type mockConnections struct {
 }
 
 // Stub struct, only exist to implement the interfaces
-type mockClient struct{}
+type mockClient struct {
+	// errorOn, when set, makes CallContract return the mapped error instead of the
+	// default result for calls targeting the given contract address.
+	errorOn map[common.Address]error
+}
 
 // TODO add a helper method to actually populate the results of the mocked method
 // TODO this should maybe be mocked differently. CallContract is used for both 'get decimals' and 'unwrap'.
 // Depending on how much mocking we want to do, this might need edits. On the other hand, we don't really need to
 // test geth's functions and this functionality is better handled by integration testing anyway
 func (m *mockClient) CallContract(ctx context.Context, msg ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	if msg.To != nil {
+		if err, exists := m.errorOn[*msg.To]; exists {
+			return nil, err
+		}
+	}
 	// this is used by the calling code only to get decimal values
 	// always return 8
 	return common.LeftPadBytes([]byte{0x08}, 32), nil
@@ -242,6 +252,103 @@ func TestUpdateLastBlockNumberConcurrent(t *testing.T) {
 
 	assert.EqualValues(t, maxAttempted, tv.lastBlockNumber.Load(),
 		"after concurrent updates, the field must equal the maximum attempted height")
+}
+
+// TestFilterRelevant verifies that deposits and transfers that are not relevant to the
+// token bridge are removed before enrichment.
+func TestFilterRelevant(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+	tv := mocks.transferVerifier
+
+	otherToken := common.HexToAddress("0xdeadbeef")
+	deposits := []*NativeDeposit{
+		// Relevant: WETH deposit into the token bridge.
+		{TokenAddress: nativeAddrGeth, TokenChain: vaa.ChainIDEthereum, Receiver: tokenBridgeAddr, Amount: big.NewInt(1)},
+		// Irrelevant: same emitter, but the receiver is not the token bridge.
+		{TokenAddress: nativeAddrGeth, TokenChain: vaa.ChainIDEthereum, Receiver: eoaAddrGeth, Amount: big.NewInt(1)},
+	}
+	transfers := []*ERC20Transfer{
+		// Relevant: transfer to the token bridge.
+		{TokenAddress: usdcAddrGeth, From: eoaAddrGeth, To: tokenBridgeAddr, Amount: big.NewInt(1)},
+		// Irrelevant: transfer between third parties, not sent to the token bridge.
+		{TokenAddress: otherToken, From: eoaAddrGeth, To: eoaAddrGeth, Amount: big.NewInt(1)},
+	}
+	msgs := []*LogMessagePublished{{
+		EventEmitter:    coreBridgeAddr,
+		MsgSender:       tokenBridgeAddr,
+		Sequence:        1,
+		TransferDetails: &TransferDetails{PayloadType: TransferTokens, Amount: big.NewInt(1)},
+	}}
+	receipt := &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &msgs}
+
+	tv.filterRelevant(receipt)
+
+	assert.Len(t, *receipt.Deposits, 1, "only the deposit into the token bridge should remain")
+	assert.Equal(t, tokenBridgeAddr, (*receipt.Deposits)[0].Receiver)
+	assert.Len(t, *receipt.Transfers, 1, "only the transfer to the token bridge should remain")
+	assert.Equal(t, usdcAddrGeth, (*receipt.Transfers)[0].TokenAddress)
+}
+
+// TestUpdateReceiptDetailsIgnoresIrrelevantTokenErrors covers the finding that a single
+// irrelevant ERC20 Transfer whose token contract fails RPC calls used to abort enrichment
+// of the whole receipt: with filterRelevant applied, only relevant entries are enriched
+// and the receipt is processed successfully.
+func TestUpdateReceiptDetailsIgnoresIrrelevantTokenErrors(t *testing.T) {
+	logger := ipfslog.Logger("wormhole-transfer-verifier-tests").Desugar()
+
+	brokenToken := common.HexToAddress("0x00000000000000000000000000000000000bad70e")
+	newVerifier := func() *TransferVerifier[*mockClient, *mockConnector] {
+		return &TransferVerifier[*mockClient, *mockConnector]{
+			Addresses: &TVAddresses{
+				CoreBridgeAddr:    coreBridgeAddr,
+				TokenBridgeAddr:   tokenBridgeAddr,
+				WrappedNativeAddr: nativeAddrGeth,
+			},
+			chainIds:            &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
+			evmConnector:        &mockConnector{},
+			evaluations:         NewEvaluationsLockedMap(),
+			isWrappedCache:      NewLockedMap[string, bool](),
+			chainIdCache:        NewLockedMap[string, vaa.ChainID](),
+			nativeContractCache: NewLockedMap[string, vaa.Address](),
+			decimalsCache:       NewLockedMap[common.Address, uint8](),
+			client: &mockClient{errorOn: map[common.Address]error{
+				brokenToken: errors.New("rpc failure injected by test"),
+			}},
+			logger: *logger,
+		}
+	}
+
+	newReceipt := func() *TransferReceipt {
+		transfers := []*ERC20Transfer{
+			// Relevant and healthy: enriched normally.
+			{TokenAddress: usdcAddrGeth, From: eoaAddrGeth, To: tokenBridgeAddr, Amount: big.NewInt(1)},
+			// Irrelevant (not sent to the bridge), but its RPC calls fail.
+			{TokenAddress: brokenToken, From: eoaAddrGeth, To: eoaAddrGeth, Amount: big.NewInt(1)},
+		}
+		deposits := []*NativeDeposit{}
+		msgs := []*LogMessagePublished{{
+			EventEmitter:    coreBridgeAddr,
+			MsgSender:       tokenBridgeAddr,
+			Sequence:        1,
+			TransferDetails: &TransferDetails{PayloadType: TransferTokens, Amount: big.NewInt(1)},
+		}}
+		return &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &msgs}
+	}
+
+	t.Run("without filtering, the broken irrelevant token aborts enrichment", func(t *testing.T) {
+		err := newVerifier().updateReceiptDetails(newReceipt())
+		require.Error(t, err, "sanity check that the injected RPC failure actually fires")
+	})
+
+	t.Run("with filtering, the receipt is enriched successfully", func(t *testing.T) {
+		tv := newVerifier()
+		receipt := newReceipt()
+		tv.filterRelevant(receipt)
+
+		require.NoError(t, tv.updateReceiptDetails(receipt))
+		assert.Len(t, *receipt.Transfers, 1, "the irrelevant transfer should have been dropped before enrichment")
+	})
 }
 
 func TestParseReceiptHappyPath(t *testing.T) {
