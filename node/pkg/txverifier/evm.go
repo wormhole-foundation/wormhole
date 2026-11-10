@@ -238,18 +238,14 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 			)
 		}
 	}
-	if len(tv.decimalsCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.decimalsCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: decimals() cache:", zap.Error(err))
 
-		} else {
-			tv.logger.Info("pruned cached calls to decimals()",
-				zap.Int("numDeleted", numDeleted),
-				zap.Int("cacheSize", len(tv.decimalsCache)),
-			)
-		}
+	if numDeleted := tv.decimalsCache.PruneIfFull(); numDeleted > 0 {
+		tv.logger.Info("pruned cached calls to decimals()",
+			zap.Int("numDeleted", numDeleted),
+			zap.Int("cacheSize", tv.decimalsCache.Len()),
+		)
 	}
+
 	if len(tv.isWrappedCache) >= CacheMaxSize {
 		numDeleted, err := deleteEntries(&tv.isWrappedCache)
 		if err != nil {

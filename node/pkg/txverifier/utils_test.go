@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"reflect"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -288,6 +289,105 @@ func TestValidateChains(t *testing.T) {
 				t.Errorf("ValidateChains() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_lockedMap_GetSetLen(t *testing.T) {
+	lm := NewLockedMap[string, int]()
+
+	if got := lm.Len(); got != 0 {
+		t.Errorf("Len() on new lockedMap = %d, want 0", got)
+	}
+
+	// A missing key must return the zero value and exists=false.
+	if val, exists := lm.Get("missing"); exists || val != 0 {
+		t.Errorf("Get(missing) = (%d, %v), want (0, false)", val, exists)
+	}
+
+	// Set then Get returns the stored value.
+	lm.Set("key", 42)
+	if val, exists := lm.Get("key"); !exists || val != 42 {
+		t.Errorf("Get(key) = (%d, %v), want (42, true)", val, exists)
+	}
+
+	// Overwriting a key updates the value without changing the length.
+	lm.Set("key", 43)
+	if val, exists := lm.Get("key"); !exists || val != 43 {
+		t.Errorf("Get(key) after overwrite = (%d, %v), want (43, true)", val, exists)
+	}
+	if got := lm.Len(); got != 1 {
+		t.Errorf("Len() after overwrite = %d, want 1", got)
+	}
+
+	// A stored zero value must be distinguishable from a missing key.
+	lm.Set("zero", 0)
+	if _, exists := lm.Get("zero"); !exists {
+		t.Error("Get(zero) exists = false, want true for an explicitly stored zero value")
+	}
+}
+
+func Test_lockedMap_PruneIfFull(t *testing.T) {
+	tests := []struct {
+		name       string
+		numEntries int
+		wantGone   int
+	}{
+		{"empty map", 0, 0},
+		{"below the limit", CacheMaxSize - 1, 0},
+		{"exactly at the limit", CacheMaxSize, 0},
+		{"one over the limit", CacheMaxSize + 1, CacheDeleteCount},
+		{"overshoot beyond the limit", CacheMaxSize + 50, 50},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lm := NewLockedMap[string, int]()
+			for i := 0; i < tt.numEntries; i++ {
+				lm.Set(fmt.Sprintf("key-%04d", i), i)
+			}
+
+			// Which entries get deleted is not deterministic, only the count is.
+			if got := lm.PruneIfFull(); got != tt.wantGone {
+				t.Errorf("PruneIfFull() deleted %d entries, want %d", got, tt.wantGone)
+			}
+			if wantLen := tt.numEntries - tt.wantGone; lm.Len() != wantLen {
+				t.Errorf("Len() after prune = %d, want %d", lm.Len(), wantLen)
+			}
+		})
+	}
+}
+
+// Test_lockedMap_ConcurrentAccess exercises concurrent use of every method.
+// It has no meaningful sequential assertions; its value is running under
+// `go test -race`, where unsynchronized access inside lockedMap would fail.
+func Test_lockedMap_ConcurrentAccess(t *testing.T) {
+	// Keep the key space just above CacheMaxSize so PruneIfFull has work to do.
+	const numKeys = CacheMaxSize + CacheDeleteCount
+	const goroutines = 8
+	const iterations = 500
+
+	lm := NewLockedMap[string, int]()
+
+	var wg sync.WaitGroup
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				key := fmt.Sprintf("key-%04d", (g*i)%numKeys)
+				lm.Set(key, i)
+				lm.Get(key)
+				lm.Len()
+				if i%50 == 0 {
+					lm.PruneIfFull()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := lm.Len(); got < 0 || got > numKeys {
+		t.Errorf("Len() = %d after concurrent access, want within [0, %d]", got, numKeys)
 	}
 }
 
