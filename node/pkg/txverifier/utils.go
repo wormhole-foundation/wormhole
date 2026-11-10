@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -244,6 +245,65 @@ func ValidateChains(
 	}
 
 	return enabled, nil
+}
+
+// lockedMap is a thread-safe wrapper around a map. Given the number of caches used by
+// the Transfer Verifier, this wrapper avoids the need to manually lock and unlock
+// mutexes across all the different get/set call sites.
+type lockedMap[K comparable, V any] struct {
+	mu    sync.Mutex
+	inner map[K]V
+}
+
+// Wraps the inner map's read access in a mutex lock/unlock operation.
+func (lm *lockedMap[K, V]) Get(key K) (V, bool) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	val, exists := lm.inner[key]
+	return val, exists
+}
+
+// Wraps the inner map's write access in a mutex lock/unlock operation.
+func (lm *lockedMap[K, V]) Set(key K, value V) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	lm.inner[key] = value
+}
+
+// Get the length of the inner map.
+func (lm *lockedMap[K, V]) Len() int {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	return len(lm.inner)
+}
+
+// PruneIfFull deletes at least CacheDeleteCount entries at random from the
+// inner map, if the amount of entries exceeds CacheMaxSize.
+// Returns the number of entries deleted.
+func (lm *lockedMap[K, V]) PruneIfFull() int {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+
+	if len(lm.inner) <= CacheMaxSize {
+		return 0
+	}
+
+	deleteCount := max(CacheDeleteCount, len(lm.inner)-CacheMaxSize)
+	deleted := 0
+	for key := range lm.inner {
+		delete(lm.inner, key)
+		deleted++
+		if deleted >= deleteCount {
+			break
+		}
+	}
+	return deleted
+}
+
+func NewLockedMap[K comparable, V any]() *lockedMap[K, V] {
+	return &lockedMap[K, V]{
+		inner: make(map[K]V),
+	}
 }
 
 // deleteEntries deletes CacheDeleteCount entries at random from a pointer to a map.

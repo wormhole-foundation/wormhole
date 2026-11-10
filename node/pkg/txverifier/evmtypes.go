@@ -187,7 +187,7 @@ type TransferVerifier[E evmClient, C connector] struct {
 	nativeContractCache map[string]vaa.Address
 
 	// Cached calls to `decimals()` for token contracts (both wrapped and native).
-	decimalsCache map[common.Address]uint8
+	decimalsCache *lockedMap[common.Address, uint8]
 }
 
 func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
@@ -224,7 +224,7 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		isWrappedCache:      make(map[string]bool),
 		chainIdCache:        make(map[string]vaa.ChainID),
 		nativeContractCache: make(map[string]vaa.Address),
-		decimalsCache:       make(map[common.Address]uint8),
+		decimalsCache:       NewLockedMap[common.Address, uint8](),
 	}, nil
 }
 
@@ -1121,9 +1121,9 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	}
 
 	// First check if this token's decimals is stored in cache
-	if _, exists := tv.decimalsCache[tokenAddress]; exists {
+	if cachedValue, exists := tv.decimalsCache.Get(tokenAddress); exists {
 		tv.logger.Debug("asset decimals found in cache, returning")
-		return tv.decimalsCache[tokenAddress], nil
+		return cachedValue, nil
 	}
 
 	// If the decimals aren't cached, perform an eth_call lookup for the decimals
@@ -1155,7 +1155,7 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	decimals = result[EVM_WORD_LENGTH-1]
 
 	// Add the decimal value to the cache
-	tv.decimalsCache[tokenAddress] = decimals
+	tv.decimalsCache.Set(tokenAddress, decimals)
 	tv.logger.Debug("adding new token's decimals to cache",
 		zap.String("tokenAddress", tokenAddress.String()),
 		zap.Uint8("tokenDecimals", decimals))
