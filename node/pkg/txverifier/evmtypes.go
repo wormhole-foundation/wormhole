@@ -909,18 +909,20 @@ func (tv *TransferVerifier[ethClient, Connector]) nativeContract(
 		return ZERO_ADDRESS_VAA, errors.New(msg)
 	}
 
-	if bytes.Equal(result, ZERO_ADDRESS.Bytes()) {
+	originAddr, convertErr := vaa.BytesToAddress(result)
+	if convertErr != nil {
+		return ZERO_ADDRESS_VAA, convertErr
+	}
+
+	// The origin address may reference a contract on a chain with 32-byte addresses,
+	// so the zero check must cover the full word, not only the low 20 bytes.
+	if Cmp(originAddr, ZERO_ADDRESS_VAA) == 0 {
 		msg := "nativeContract() returned the zero address"
 		tv.logger.Warn(msg,
 			zap.Int("len", len(result)),
 			zap.String("result", fmt.Sprintf("%x", result)))
 
 		return ZERO_ADDRESS_VAA, errors.New(msg)
-	}
-
-	originAddr, convertErr := vaa.BytesToAddress(result)
-	if convertErr != nil {
-		return ZERO_ADDRESS_VAA, convertErr
 	}
 
 	// Insert into cache.
