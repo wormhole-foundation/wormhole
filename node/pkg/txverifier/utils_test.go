@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -387,6 +388,98 @@ func Test_lockedMap_ConcurrentAccess(t *testing.T) {
 
 	if got := lm.Len(); got < 0 || got > numKeys {
 		t.Errorf("Len() = %d after concurrent access, want within [0, %d]", got, numKeys)
+	}
+}
+
+func Test_evaluationsLockedMap_PruneOlderThan(t *testing.T) {
+	tests := []struct {
+		name       string
+		blocks     []uint64 // non-nil evaluations, one per block number
+		nils       int      // number of nil evaluations
+		threshold  uint64
+		wantPruned int
+	}{
+		{"empty map", nil, 0, 100, 0},
+		{"nothing older than the threshold", []uint64{100, 150, 200}, 0, 100, 0},
+		{"boundary: block numbers equal to the threshold are kept", []uint64{99, 100, 101}, 0, 100, 1},
+		{"all entries older than the threshold", []uint64{1, 50, 99}, 0, 100, 3},
+		{"nil entries are always pruned", []uint64{150, 200}, 2, 100, 2},
+		{"mixed nil and outdated entries", []uint64{40, 150}, 1, 100, 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elm := NewEvaluationsLockedMap()
+			nextKey := 0
+			for _, block := range tt.blocks {
+				elm.Set(common.HexToHash(fmt.Sprintf("%064x", nextKey)), &receiptEvaluation{blockNumber: block})
+				nextKey++
+			}
+			for i := 0; i < tt.nils; i++ {
+				elm.Set(common.HexToHash(fmt.Sprintf("%064x", nextKey)), nil)
+				nextKey++
+			}
+
+			if got := elm.PruneOlderThan(tt.threshold); got != tt.wantPruned {
+				t.Errorf("PruneOlderThan(%d) pruned %d entries, want %d", tt.threshold, got, tt.wantPruned)
+			}
+			if wantRemaining := nextKey - tt.wantPruned; elm.Len() != wantRemaining {
+				t.Errorf("Len() after prune = %d, want %d", elm.Len(), wantRemaining)
+			}
+		})
+	}
+}
+
+func Test_evaluationsLockedMap_SetIfAbsent(t *testing.T) {
+	elm := NewEvaluationsLockedMap()
+	key := common.HexToHash("0x1")
+	first := &receiptEvaluation{blockNumber: 10}
+	second := &receiptEvaluation{blockNumber: 20}
+
+	if !elm.SetIfAbsent(key, first) {
+		t.Error("SetIfAbsent on an empty key = false, want true")
+	}
+	if elm.SetIfAbsent(key, second) {
+		t.Error("SetIfAbsent on an occupied key = true, want false")
+	}
+	// The first writer must win: addToCache relies on cached entries never being replaced.
+	if got, exists := elm.Get(key); !exists || got != first {
+		t.Error("Get after competing SetIfAbsent calls returned the wrong evaluation, want the first writer's")
+	}
+	if got := elm.Len(); got != 1 {
+		t.Errorf("Len() = %d, want 1", got)
+	}
+}
+
+// Test_evaluationsLockedMap_ConcurrentAccess exercises the specialized map under
+// contention. Like Test_lockedMap_ConcurrentAccess, its value is running under
+// `go test -race`.
+func Test_evaluationsLockedMap_ConcurrentAccess(t *testing.T) {
+	const goroutines = 8
+	const iterations = 500
+
+	elm := NewEvaluationsLockedMap()
+
+	var wg sync.WaitGroup
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				key := common.HexToHash(fmt.Sprintf("%064x", (g*i)%32))
+				elm.Set(key, &receiptEvaluation{blockNumber: uint64(i)})
+				elm.SetIfAbsent(key, &receiptEvaluation{blockNumber: 0})
+				elm.Get(key)
+				if i%50 == 0 {
+					elm.PruneOlderThan(uint64(i))
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := elm.Len(); got < 0 || got > 32 {
+		t.Errorf("Len() = %d after concurrent access, want within [0, 32]", got)
 	}
 }
 

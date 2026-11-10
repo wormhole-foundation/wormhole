@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -300,9 +301,50 @@ func (lm *lockedMap[K, V]) PruneIfFull() int {
 	return deleted
 }
 
+// SetIfAbsent inserts a key and value into the map only if the key does not already exist.
+func (lm *lockedMap[K, V]) SetIfAbsent(key K, value V) bool {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	if _, exists := lm.inner[key]; exists {
+		return false
+	}
+	lm.inner[key] = value
+	return true
+}
+
 func NewLockedMap[K comparable, V any]() *lockedMap[K, V] {
 	return &lockedMap[K, V]{
 		inner: make(map[K]V),
+	}
+}
+
+// evaluationsLockedMap is a specialized lockedMap for receipt evaluations that supports pruning by block number.
+type evaluationsLockedMap struct {
+	lockedMap[common.Hash, *receiptEvaluation]
+}
+
+// PruneOlderThan iterates over the cached receipt evaluations and removes those with a
+// block number older than the specified block.
+// Returns the number of entries removed.
+func (elm *evaluationsLockedMap) PruneOlderThan(block uint64) int {
+	elm.mu.Lock()
+	defer elm.mu.Unlock()
+
+	deleteCount := 0
+	for key, evaluation := range elm.inner {
+		// evaluations should never be nil, but check it just in case.
+		// nil or old evaluations should be removed.
+		if evaluation == nil || evaluation.blockNumber < block {
+			delete(elm.inner, key)
+			deleteCount++
+		}
+	}
+	return deleteCount
+}
+
+func NewEvaluationsLockedMap() *evaluationsLockedMap {
+	return &evaluationsLockedMap{
+		lockedMap: *NewLockedMap[common.Hash, *receiptEvaluation](),
 	}
 }
 
