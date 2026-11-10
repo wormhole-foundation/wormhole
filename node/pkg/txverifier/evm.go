@@ -146,6 +146,10 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		return false, ErrNoMsgsFromTokenBridge
 	}
 
+	// Drop deposits and transfers that are not relevant to the token bridge before
+	// enrichment, so that RPC failures for irrelevant tokens cannot abort the receipt.
+	tv.filterRelevant(transferReceipt)
+
 	// Add wormhole-specific data to the receipt by making
 	// RPC calls for data that is not included in the logs,
 	// such as a token's native address and its decimals.
@@ -234,6 +238,39 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 		tv.logger.Info("pruned cached calls to nativeContract()",
 			zap.Int("numDeleted", numDeleted),
 			zap.Int("cacheSize", tv.nativeContractCache.Len()),
+		)
+	}
+}
+
+// filterRelevant removes deposits and ERC20 transfers that are not relevant to the token
+// bridge (see relevant). It must run before updateReceiptDetails so that RPC enrichment is
+// only performed on relevant entries: an irrelevant log in the same transaction must not be
+// able to abort verification of the whole receipt by failing an RPC call, e.g. a token
+// contract without a working decimals().
+// Message publications are not filtered here; parseReceipt has already restricted them to
+// token transfers published by the token bridge via the core bridge.
+func (tv *TransferVerifier[ethClient, Connector]) filterRelevant(receipt *TransferReceipt) {
+	numDeposits := len(*receipt.Deposits)
+	relevantDeposits := make([]*NativeDeposit, 0, numDeposits)
+	for _, deposit := range *receipt.Deposits {
+		if _, ok := relevant[*NativeDeposit](deposit, tv.Addresses); ok {
+			relevantDeposits = append(relevantDeposits, deposit)
+		}
+	}
+	receipt.Deposits = &relevantDeposits
+
+	numTransfers := len(*receipt.Transfers)
+	relevantTransfers := make([]*ERC20Transfer, 0, numTransfers)
+	for _, transfer := range *receipt.Transfers {
+		if _, ok := relevant[*ERC20Transfer](transfer, tv.Addresses); ok {
+			relevantTransfers = append(relevantTransfers, transfer)
+		}
+	}
+	receipt.Transfers = &relevantTransfers
+
+	if dropped := (numDeposits - len(relevantDeposits)) + (numTransfers - len(relevantTransfers)); dropped > 0 {
+		tv.logger.Debug("dropped irrelevant deposits/transfers before enrichment",
+			zap.Int("dropped", dropped),
 		)
 	}
 }
