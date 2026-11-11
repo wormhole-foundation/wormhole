@@ -922,3 +922,62 @@ func TestProcessDigestPublic(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, ok)
 }
+
+// TestProcessDigestNoRelevantEventsFailsClosed verifies that a transaction whose events yield
+// no token-bridge transfer request fails closed with an internal error instead of succeeding.
+// The watcher invokes the verifier only for messages it observed being published by the exact
+// digest being verified, so an empty extraction means the fetched transaction failed to
+// corroborate the observation (wrong or incomplete RPC response, non-canonical event type
+// rendering). That must surface as a retryable internal error, which the watcher maps to
+// CouldNotVerify and the Notary delays — never (true, nil), which previously marked such
+// messages Valid and let the Notary approve them without delay.
+func TestProcessDigestNoRelevantEventsFailsClosed(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.TODO()
+
+	// The production call shape: a non-empty message ID for the observed message. The message
+	// ID format is <chainID>/<emitter without 0x>/<sequence>.
+	msgId := fmt.Sprintf("%d/%s/%d", vaa.ChainIDSui, "ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5", 1)
+
+	// The correct event type, taken from a verifier instance so the cases stay in sync with
+	// NewSuiTransferVerifier's construction of it.
+	correctEventType := newTestSuiTransferVerifier(nil).suiEventType
+	emitter := "0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5"
+	wrongSender := "0x00000000000000000000000000000000000000000000000000000000000000ff"
+	payload := generatePayload(1, big.NewInt(990), SuiUsdcAddress, uint16(vaa.ChainIDSui))
+
+	cases := []struct {
+		name   string
+		events []suiclient.SuiEvent
+	}{
+		{name: "no events at all", events: nil},
+		{
+			name: "only a non-matching event type",
+			events: []suiclient.SuiEvent{
+				makeWormholeEvent("0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::other_module::OtherEvent", emitter, payload, 1),
+			},
+		},
+		{
+			name: "only a non-emitter sender",
+			events: []suiclient.SuiEvent{
+				makeWormholeEvent(correctEventType, wrongSender, payload, 1),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := newMockSuiClient()
+			mock.transaction = suiclient.SuiTransaction{Events: tc.events}
+			verifier := newTestSuiTransferVerifier(mock)
+
+			ok, err := verifier.ProcessDigest(ctx, "HASH", msgId, logger)
+
+			// The fetched transaction did not corroborate the observed message, so
+			// verification must fail closed with ErrNoRequestOutOfBridge (which the watcher
+			// maps to CouldNotVerify), never report the message as verified.
+			assert.False(t, ok)
+			assert.ErrorIs(t, err, ErrNoRequestOutOfBridge)
+		})
+	}
+}

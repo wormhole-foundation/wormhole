@@ -173,6 +173,14 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string, field
 		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction: transaction did not execute successfully (or its execution status is missing) for digest=%s", digest)
 	}
 
+	// Ensure the returned transaction digest matches the requested digest. Note that not all callsites are interested in this check,
+	// so it's only performed if the caller requested the digest field.
+	if slices.Contains(fields, TransactionFieldDigest) {
+		if resp.Transaction.Digest == nil || *resp.Transaction.Digest != digest {
+			return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction: returned transaction digest does not match requested digest for digest=%s", digest)
+		}
+	}
+
 	return grpcExecutedTransactionToSuiTransaction(resp.Transaction), nil
 }
 

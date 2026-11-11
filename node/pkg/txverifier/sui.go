@@ -17,6 +17,7 @@ import (
 var (
 	// Internal errors that can occur in the verifier.
 	ErrFailedToRetrieveTxBlock = errors.New("failed to retrieve transaction block")
+	ErrNoRequestOutOfBridge    = errors.New("no request out of bridge found")
 )
 
 // Global variables
@@ -260,6 +261,7 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 
 	// Get the transaction, including its events and the objects changed by its effects.
 	txn, err := s.client.GetTransaction(ctx, digest, []string{
+		suiclient.TransactionFieldDigest,
 		suiclient.TransactionFieldEvents,
 		suiclient.TransactionFieldChangedObjects,
 	})
@@ -277,8 +279,8 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 
 	if len(bridgeOutRequests) == 0 {
 		logger.Debug("No relevant events found in transaction block", zap.String("txDigest", digest))
-		// No valid events were identified, so the digest does not require further processing.
-		return true, nil
+		// No relevant bridge requests were found in the transaction events, so return an error.
+		return false, ErrNoRequestOutOfBridge
 	}
 
 	// Process all object changes, specifically looking for transfers into the token bridge
