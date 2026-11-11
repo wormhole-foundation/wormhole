@@ -1,0 +1,12 @@
+*
+
+!contracts
+!foundry.toml
+
+!contracts/delegated_guardians
+!contracts/libraries
+!contracts/interfaces
+
+!contracts/delegated_guardians/*
+!contracts/interfaces/IWormhole.sol
+!contracts/libraries/external/BytesLib.sol
