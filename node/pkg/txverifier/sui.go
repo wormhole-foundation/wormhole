@@ -16,8 +16,9 @@ import (
 // Errors
 var (
 	// Internal errors that can occur in the verifier.
-	ErrFailedToRetrieveTxBlock = errors.New("failed to retrieve transaction block")
-	ErrNoRequestOutOfBridge    = errors.New("no request out of bridge found")
+	ErrFailedToRetrieveTxBlock            = errors.New("failed to retrieve transaction block")
+	ErrNoRequestOutOfBridge               = errors.New("no request out of bridge found")
+	ErrFailedToExtractTransfersIntoBridge = errors.New("failed to extract transfers into bridge")
 )
 
 // Global variables
@@ -143,7 +144,7 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 // extractTransfersIntoBridgeFromObjectChanges iterates through all object changes, and tries to identify token transfers into the bridge.
 // These transfers are accumulated in an `AssetKeyToTransferIntoBridge` object, which is returned to the caller. The default behaviour
 // of this function is to fail-close, meaning that any errors that occur during processing result in the offending object change being ignored.
-func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []suiclient.SuiObjectChange, logger *zap.Logger) AssetKeyToTransferIntoBridge {
+func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []suiclient.SuiObjectChange, logger *zap.Logger) (AssetKeyToTransferIntoBridge, error) {
 	transfers := make(AssetKeyToTransferIntoBridge)
 
 	for _, objectChange := range objectChanges {
@@ -169,7 +170,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 				zap.String("objectId", *objectChange.ObjectID),
 				zap.Uint64("version", *objectChange.OutputVersion),
 				zap.Error(err))
-			continue
+			return nil, fmt.Errorf("error getting current object version for objectId=%s version=%d: %w", *objectChange.ObjectID, *objectChange.OutputVersion, err)
 		}
 
 		previousObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.InputVersion, []string{suiclient.ObjectFieldContents})
@@ -178,7 +179,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 				zap.String("objectId", *objectChange.ObjectID),
 				zap.Uint64("version", *objectChange.InputVersion),
 				zap.Error(err))
-			continue
+			return nil, fmt.Errorf("error getting object at previous version for objectId=%s version=%d: %w", *objectChange.ObjectID, *objectChange.InputVersion, err)
 		}
 
 		currentInfo, err := decodeSuiAssetObject(assetType, currentObject.ContentsBytes)
@@ -233,7 +234,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 		transfers[assetKey].Amount = new(big.Int).Add(transfers[assetKey].Amount, normalized)
 	}
 
-	return transfers
+	return transfers, nil
 }
 
 func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, msgIdStr string, logger *zap.Logger) (bool, error) {
@@ -278,13 +279,21 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 	bridgeOutRequests := s.extractBridgeRequestsFromEvents(txn.Events, logger)
 
 	if len(bridgeOutRequests) == 0 {
-		logger.Debug("No relevant events found in transaction block", zap.String("txDigest", digest))
+		logger.Error("No relevant events found in transaction block", zap.String("txDigest", digest))
 		// No relevant bridge requests were found in the transaction events, so return an error.
 		return false, ErrNoRequestOutOfBridge
 	}
 
 	// Process all object changes, specifically looking for transfers into the token bridge
-	transfersIntoBridge := s.extractTransfersIntoBridgeFromObjectChanges(ctx, txn.ObjectChanges, logger)
+	transfersIntoBridge, err := s.extractTransfersIntoBridgeFromObjectChanges(ctx, txn.ObjectChanges, logger)
+
+	if err != nil {
+		logger.Error("failed to extract transfers into bridge",
+			zap.String("txDigest", digest),
+			zap.Error(err),
+		)
+		return false, ErrFailedToExtractTransfersIntoBridge
+	}
 
 	// Validate solvency using the requests out of the bridge vs the transfers into the bridge.
 	resolved, err := validateSolvency(bridgeOutRequests, transfersIntoBridge)

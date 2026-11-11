@@ -379,11 +379,12 @@ func TestProcessObjectUpdates(t *testing.T) {
 
 	// Decimals, token chain, token address, wrapped or not, balance/custody
 	tests := []struct {
-		name           string
-		objectChanges  []ObjectChange
-		resultList     []ResultTestCase
-		expectedResult map[string]TransferIntoBridge
-		expectedCount  uint
+		name                string
+		objectChanges       []ObjectChange
+		resultList          []ResultTestCase
+		expectedResult      map[string]TransferIntoBridge
+		expectedCount       uint
+		expectedErrContains string
 	}{
 		{
 			name: "TestProcessObjectNativeBase",
@@ -588,15 +589,19 @@ func TestProcessObjectUpdates(t *testing.T) {
 			expectedCount: 1,
 		},
 		{
-			name: "TestProcessObjectMissingVersion",
+			// The object version is not registered on the mock, so the version lookups fail.
+			// A fetch failure for a relevant token-registry object must abort extraction with
+			// an error instead of silently omitting the transfer.
+			name: "TestProcessObjectFetchFailure",
 			objectChanges: []ObjectChange{
 				{ObjectType: normalObjectNativeType, Version: normalVersion, PreviousVersion: normalPreviousVersion, ObjectId: normalObjectNativeId},
 			},
 			resultList: []ResultTestCase{
 				{tokenChain: normalChainIdNative, tokenAddress: normalTokenAddressNative, wrapped: false, newBalance: "1000", oldBalance: "10", decimals: 8, drop: true},
 			},
-			expectedResult: map[string]TransferIntoBridge{},
-			expectedCount:  0,
+			expectedResult:      map[string]TransferIntoBridge{},
+			expectedCount:       0,
+			expectedErrContains: "error getting current object version",
 		},
 	}
 
@@ -613,7 +618,13 @@ func TestProcessObjectUpdates(t *testing.T) {
 			}
 
 			// Run function and check results
-			transfers := suiTxVerifier.extractTransfersIntoBridgeFromObjectChanges(ctx, toSuiObjectChanges(tt.objectChanges), logger)
+			transfers, extractErr := suiTxVerifier.extractTransfersIntoBridgeFromObjectChanges(ctx, toSuiObjectChanges(tt.objectChanges), logger)
+
+			if tt.expectedErrContains != "" {
+				assert.ErrorContains(t, extractErr, tt.expectedErrContains)
+				return
+			}
+			assert.NoError(t, extractErr)
 
 			// Check that expectedResult and transfers have same number of keys
 			assert.Equal(t, uint(len(tt.expectedResult)), uint(len(transfers)))
@@ -980,4 +991,44 @@ func TestProcessDigestNoRelevantEventsFailsClosed(t *testing.T) {
 			assert.ErrorIs(t, err, ErrNoRequestOutOfBridge)
 		})
 	}
+}
+
+// TestProcessDigestRelevantObjectFetchErrorFailsClosed verifies that a failure to fetch a
+// relevant token-registry object version surfaces as an internal error (which the watcher
+// maps to CouldNotVerify and the Notary delays), rather than being silently omitted and
+// treated as a missing deposit, which previously classified an honest transfer as Anomalous.
+// Decode failures of successfully fetched objects are deliberately different: chain state is
+// expected to produce well-formed objects, so those still flow through the missing-deposit
+// path to an anomalous verdict.
+func TestProcessDigestRelevantObjectFetchErrorFailsClosed(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.TODO()
+
+	normalObjectNativeType := "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x2::sui::SUI>>"
+	change := ObjectChange{
+		ObjectType:      normalObjectNativeType,
+		Version:         "6565",
+		PreviousVersion: "4040",
+		ObjectId:        "0x831c45a8d512c9cf46e7a8a947f7cbbb5e0a59829aa72450ff26fb1873fd0e94",
+	}
+
+	mock := newMockSuiClient()
+	verifier := newTestSuiTransferVerifier(mock)
+
+	// The object is intentionally NOT registered on the mock, so both version lookups fail,
+	// mirroring a transient RPC failure or an unavailable historical object version. The
+	// transaction otherwise contains a valid outbound transfer event.
+	mock.transaction = suiclient.SuiTransaction{
+		Events: []suiclient.SuiEvent{
+			makeWormholeEvent(verifier.suiEventType, verifier.suiTokenBridgeEmitter, generatePayload(1, big.NewInt(990), SuiUsdcAddress, uint16(vaa.ChainIDSui)), 1),
+		},
+		ObjectChanges: toSuiObjectChanges([]ObjectChange{change}),
+	}
+
+	ok, err := verifier.ProcessDigest(ctx, "HASH", "", logger)
+
+	// The fetch failure must be reported as a retryable internal error, never converted
+	// into an anomalous solvency verdict ((false, nil)).
+	assert.False(t, ok)
+	assert.ErrorIs(t, err, ErrFailedToExtractTransfersIntoBridge)
 }
