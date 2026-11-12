@@ -101,9 +101,11 @@ func (m *mockSuiClient) Close() error {
 	return nil
 }
 
-// registerObject registers the BCS-encoded contents for both the current (output) and previous
-// (input) versions of an object change, unless the result case is marked to be dropped (in which
-// case the object is left unregistered so lookups fail, mirroring a missing object).
+// registerObject registers the BCS-encoded contents for the current (output) and, when the
+// change has a previous version, the previous (input) versions of an object change. A change
+// with an empty PreviousVersion represents an object created in the same transaction, which has
+// no previous version to register. If the result case is marked to be dropped, the object is
+// left unregistered so lookups fail, mirroring a missing object.
 func (m *mockSuiClient) registerObject(change ObjectChange, result ResultTestCase) {
 	if result.drop {
 		return
@@ -122,7 +124,9 @@ func (m *mockSuiClient) registerObject(change ObjectChange, result ResultTestCas
 	}
 
 	m.objects[objKey(change.ObjectId, mustU64(change.Version))] = currentContents
-	m.objects[objKey(change.ObjectId, mustU64(change.PreviousVersion))] = previousContents
+	if change.PreviousVersion != "" {
+		m.objects[objKey(change.ObjectId, mustU64(change.PreviousVersion))] = previousContents
+	}
 }
 
 // --- test helpers ---
@@ -207,18 +211,23 @@ func makeWormholeEvent(eventType string, sender string, payload []byte, sequence
 	}
 }
 
-// toSuiObjectChange converts a test-local ObjectChange into a suiclient.SuiObjectChange.
+// toSuiObjectChange converts a test-local ObjectChange into a suiclient.SuiObjectChange. An
+// empty PreviousVersion produces a nil InputVersion, representing an object created in the
+// same transaction as the change.
 func toSuiObjectChange(change ObjectChange) suiclient.SuiObjectChange {
 	objectType := change.ObjectType
 	objectId := change.ObjectId
 	outputVersion := mustU64(change.Version)
-	inputVersion := mustU64(change.PreviousVersion)
-	return suiclient.SuiObjectChange{
+	suiChange := suiclient.SuiObjectChange{
 		ObjectID:      &objectId,
 		ObjectType:    &objectType,
 		OutputVersion: &outputVersion,
-		InputVersion:  &inputVersion,
 	}
+	if change.PreviousVersion != "" {
+		inputVersion := mustU64(change.PreviousVersion)
+		suiChange.InputVersion = &inputVersion
+	}
+	return suiChange
 }
 
 func toSuiObjectChanges(changes []ObjectChange) []suiclient.SuiObjectChange {
@@ -585,6 +594,22 @@ func TestProcessObjectUpdates(t *testing.T) {
 			},
 			expectedResult: map[string]TransferIntoBridge{
 				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(100000000)},
+			},
+			expectedCount: 1,
+		},
+		{
+			// The object was created in the same transaction (no input version). Its
+			// previous balance is definitionally zero, so the full current custody counts
+			// as the transfer into the bridge.
+			name: "TestProcessObjectCreatedNative",
+			objectChanges: []ObjectChange{
+				{ObjectType: normalObjectNativeType, Version: normalVersion, PreviousVersion: "", ObjectId: normalObjectNativeId},
+			},
+			resultList: []ResultTestCase{
+				{tokenChain: normalChainIdNative, tokenAddress: normalTokenAddressNative, wrapped: false, newBalance: "1000", oldBalance: "0", decimals: 8},
+			},
+			expectedResult: map[string]TransferIntoBridge{
+				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(1000)},
 			},
 			expectedCount: 1,
 		},
@@ -1031,4 +1056,51 @@ func TestProcessDigestRelevantObjectFetchErrorFailsClosed(t *testing.T) {
 	// into an anomalous solvency verdict ((false, nil)).
 	assert.False(t, ok)
 	assert.ErrorIs(t, err, ErrFailedToExtractTransfersIntoBridge)
+}
+
+// TestProcessDigestCreatedNativeAssetCountsDeposit verifies that a token-registry object
+// created in the same transaction as the outbound transfer (attest_token followed by
+// transfer_tokens in one programmable transaction block has no input version for the new
+// NativeAsset field) still counts as a deposit: the previous balance is definitionally zero,
+// so the full current custody backs the Wormhole message. Previously the created object was
+// skipped entirely, leaving the honest transfer with no deposit and an anomalous verdict.
+func TestProcessDigestCreatedNativeAssetCountsDeposit(t *testing.T) {
+	logger := zap.NewNop()
+	ctx := context.TODO()
+
+	normalObjectNativeType := "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x2::sui::SUI>>"
+	normalTokenAddressNative := "93,75,48,37,6,100,92,55,255,19,59,152,196,181,10,90,225,72,65,101,151,56,214,215,51,213,157,13,33,122,147,191"
+
+	// The registry object is created in this transaction: no previous version.
+	createdChange := ObjectChange{
+		ObjectType:      normalObjectNativeType,
+		Version:         "6565",
+		PreviousVersion: "",
+		ObjectId:        "0x831c45a8d512c9cf46e7a8a947f7cbbb5e0a59829aa72450ff26fb1873fd0e94",
+	}
+
+	build := func(custody string, amount *big.Int) *SuiTransferVerifier {
+		result := ResultTestCase{tokenChain: "21", tokenAddress: normalTokenAddressNative, wrapped: false, newBalance: custody, oldBalance: "0", decimals: 8}
+		mock := newMockSuiClient()
+		v := newTestSuiTransferVerifier(mock)
+		mock.transaction = suiclient.SuiTransaction{
+			Events:        []suiclient.SuiEvent{makeWormholeEvent(v.suiEventType, v.suiTokenBridgeEmitter, generatePayload(1, amount, SuiUsdcAddress, uint16(vaa.ChainIDSui)), 1)},
+			ObjectChanges: toSuiObjectChanges([]ObjectChange{createdChange}),
+		}
+		mock.registerObject(createdChange, result)
+		return v
+	}
+
+	// The registry object was created with custody exactly covering the outbound amount:
+	// the transfer is solvent and must verify as valid.
+	ok, err := build("990", big.NewInt(990)).ProcessDigest(ctx, "HASH", "", logger)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	// The registry object was created with custody below the outbound amount: the zero
+	// previous balance participates in the solvency check, so the transfer is anomalous
+	// ((false, nil)), not an internal error.
+	ok, err = build("100", big.NewInt(990)).ProcessDigest(ctx, "HASH", "", logger)
+	assert.NoError(t, err)
+	assert.False(t, ok)
 }

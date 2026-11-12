@@ -149,7 +149,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 
 	for _, objectChange := range objectChanges {
 		// All of these fields are required to look up and decode the object at both versions.
-		if objectChange.ObjectID == nil || objectChange.ObjectType == nil || objectChange.InputVersion == nil || objectChange.OutputVersion == nil {
+		if objectChange.ObjectID == nil || objectChange.ObjectType == nil || objectChange.OutputVersion == nil {
 			continue
 		}
 
@@ -173,25 +173,39 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 			return nil, fmt.Errorf("error getting current object version for objectId=%s version=%d: %w", *objectChange.ObjectID, *objectChange.OutputVersion, err)
 		}
 
-		previousObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.InputVersion, []string{suiclient.ObjectFieldContents})
-		if err != nil {
-			logger.Error("Error getting object at previous version",
-				zap.String("objectId", *objectChange.ObjectID),
-				zap.Uint64("version", *objectChange.InputVersion),
-				zap.Error(err))
-			return nil, fmt.Errorf("error getting object at previous version for objectId=%s version=%d: %w", *objectChange.ObjectID, *objectChange.InputVersion, err)
-		}
-
 		currentInfo, err := decodeSuiAssetObject(assetType, currentObject.ContentsBytes)
 		if err != nil {
 			logger.Error("Error decoding current asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
 			continue
 		}
 
-		previousInfo, err := decodeSuiAssetObject(assetType, previousObject.ContentsBytes)
-		if err != nil {
-			logger.Error("Error decoding previous asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
-			continue
+		var previousInfo *suiAssetInfo
+		// If the InputVersion is nil, it means that the object did not exist before this transaction. For that reason,
+		// initialize the previousInfo with zero balance and the same asset properties as the current version.
+		if objectChange.InputVersion == nil {
+			previousInfo = &suiAssetInfo{
+				isWrapped:    currentInfo.isWrapped,
+				decimals:     currentInfo.decimals,
+				tokenAddress: currentInfo.tokenAddress,
+				tokenChain:   currentInfo.tokenChain,
+				balance:      big.NewInt(0),
+			}
+		} else {
+			previousObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.InputVersion, []string{suiclient.ObjectFieldContents})
+			if err != nil {
+				logger.Error("Error getting object at previous version",
+					zap.String("objectId", *objectChange.ObjectID),
+					zap.Uint64("version", *objectChange.InputVersion),
+					zap.Error(err))
+				return nil, fmt.Errorf("error getting object at previous version for objectId=%s version=%d: %w", *objectChange.ObjectID, *objectChange.InputVersion, err)
+			}
+
+			previousInfo, err = decodeSuiAssetObject(assetType, previousObject.ContentsBytes)
+
+			if err != nil {
+				logger.Error("Error decoding previous asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
+				continue
+			}
 		}
 
 		// The decimals, token address, and token chain are immutable properties of an asset and
