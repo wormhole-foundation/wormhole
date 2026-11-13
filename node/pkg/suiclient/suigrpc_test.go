@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	pb "github.com/blockvisionhq/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"

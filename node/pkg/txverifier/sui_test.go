@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	mystenbcs "github.com/block-vision/sui-go-sdk/mystenbcs"
+	mystenbcs "github.com/blockvisionhq/sui-go-sdk/mystenbcs"
 	"github.com/certusone/wormhole/node/pkg/suiclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -841,6 +841,22 @@ func TestDecodeSuiAssetObject(t *testing.T) {
 	assert.False(t, info.isWrapped)
 	assert.Equal(t, uint64(990), info.balance.Uint64())
 	assert.Equal(t, vaa.ChainIDSui, info.tokenChain)
+}
+
+// TestDecodeSuiAssetObjectHostileVectorLengthIsBounded pins the sui-go-sdk >= v1.3.1 BCS
+// decoder hardening: a decoded collection length must never be trusted for a direct
+// allocation. The crafted input is a 75-byte native-asset object whose custody is all
+// 0xff bytes; read under the wrapped-asset layout, the custody bytes are consumed as a
+// ULEB128 vector length on the order of terabytes. The vulnerable decoder (sui-go-sdk
+// v1.2.1) called make([]byte, size) on that length and terminated the process with an
+// unrecoverable out-of-memory throw; the hardened decoder's bounded preallocation must
+// turn it into an ordinary decode error.
+func TestDecodeSuiAssetObjectHostileVectorLengthIsBounded(t *testing.T) {
+	addr := parseByteCSV("0,0,0,0,0,0,0,0,0,0,0,0,160,184,105,145,198,33,139,54,193,209,157,74,46,158,176,206,54,6,235,72")
+
+	_, err := decodeSuiAssetObject(suiWrappedAssetType, bcsNativeObject(0xFFFFFFFFFFFFFFFF, addr, 9))
+
+	assert.Error(t, err)
 }
 
 func TestParseSuiAssetTypeConfusion(t *testing.T) {

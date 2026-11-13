@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"slices"
 
-	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	pb "github.com/blockvisionhq/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
