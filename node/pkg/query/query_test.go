@@ -421,14 +421,11 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 
 	devKey, err := os.ReadFile("dev.guardian.key")
 	require.NoError(t, err)
-	// Copy the key to a 0600 file, because the loader rejects the 0644 file from
-	// git. Write through os.Root, not os.WriteFile on a joined path: gosec flags
-	// the os.WriteFile version as path traversal (G703).
-	root, err := os.OpenRoot(t.TempDir())
-	require.NoError(t, err)
-	defer root.Close()
-	require.NoError(t, root.WriteFile("dev.guardian.key", devKey, 0600))
-	devKeyPath := filepath.Join(root.Name(), "dev.guardian.key")
+
+	// Copy the key to a 0600 file, because the loader rejects the 0644 file from git.
+	tmpDir := t.TempDir()
+	devKeyPath := filepath.Join(tmpDir, "dev.guardian.key")
+	require.NoError(t, os.WriteFile(devKeyPath, devKey, 0600)) // #nosec G703 -- Test copies a committed devnet key to a temp file.
 
 	md.sk, err = common.LoadGuardianKey(devKeyPath, true)
 	require.NoError(t, err)

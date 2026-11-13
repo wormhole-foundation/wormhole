@@ -94,10 +94,6 @@ func ValidatePrivateKeyFilePermissions(f *os.File) error {
 // WriteArmoredKey serializes a key and writes it to disk. The function creates a new file with read/write permissions
 // for owner only.
 func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string, blockType string, unsafe bool) error {
-	if _, err := os.Stat(filename); !os.IsNotExist(err) {
-		return errors.New("refusing to override existing key")
-	}
-
 	m := &nodev1.GuardianKey{
 		Data:                   ethcrypto.FromECDSA(key),
 		UnsafeDeterministicKey: unsafe,
@@ -110,7 +106,7 @@ func WriteArmoredKey(key *ecdsa.PrivateKey, description string, filename string,
 		panic(err)
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, ownerOnlyKeyFileMode)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, ownerOnlyKeyFileMode)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
