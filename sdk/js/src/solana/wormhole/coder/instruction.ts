@@ -8,7 +8,7 @@ import { IdlCoder } from "./idl";
 
 // Inspired by  coral-xyz/anchor
 //
-// https://github.com/coral-xyz/anchor/blob/master/ts/packages/anchor/src/coder/borsh/instruction.ts
+// https://github.com/otter-sec/anchor/blob/master/ts/packages/anchor/src/coder/borsh/instruction.ts
 export class WormholeInstructionCoder implements InstructionCoder {
   private ixLayout: Map<string, Layout>;
 
@@ -87,7 +87,7 @@ export class WormholeInstructionCoder implements InstructionCoder {
 
 /** Solitaire enum of existing the Core Bridge's instructions.
  *
- * https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/lib.rs#L92
+ * https://github.com/wormhole-foundation/wormhole/blob/main/solana/bridge/program/src/lib.rs#L92
  */
 export enum WormholeInstruction {
   Initialize,
