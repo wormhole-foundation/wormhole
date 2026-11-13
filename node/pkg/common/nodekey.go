@@ -11,7 +11,7 @@ import (
 
 func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error) {
 	// #nosec G703 -- Path comes from operator configuration, not user input
-	b, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Info("No node key found, generating a new one...", zap.String("path", path))
@@ -36,6 +36,18 @@ func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error)
 		} else {
 			return nil, fmt.Errorf("failed to read node key: %w", err)
 		}
+	}
+	defer f.Close()
+
+	// Validate the permissions on the open handle so we check the same file we
+	// read, closing the gap between a separate stat and open.
+	if err = ValidatePrivateKeyFilePermissions(f); err != nil {
+		return nil, err
+	}
+
+	b, err := SafeRead(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read node key: %w", err)
 	}
 
 	priv, err := crypto.UnmarshalPrivateKey(b)
