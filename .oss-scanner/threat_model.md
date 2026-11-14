@@ -6,7 +6,7 @@ This file steers the Anthropic OSS Scanner (https://github.com/anthropics/oss-sc
   matching an entry there is closed as informational, so check it before reporting.
 - `SAFETY_CRITICAL_CODE.md`: the coding standard. Deviations from it are hints about where bugs hide, but a
   style deviation on its own is not a finding.
-- `SECURITY.md`: the security policy, including the Immunefi bug bounty program.
+- `SECURITY.md`: the security policy, including the bug bounty program (https://bounty.wormhole.foundation/).
 - `docs/`: protocol documentation, including the VAA and governance message formats.
 
 ## What this project does and where untrusted input enters
@@ -95,7 +95,7 @@ The image has Go 1.25 with every module already fetched and every package and te
 
 ## How you rate severity
 
-Rate findings as the Immunefi bug bounty program would (see `SECURITY.md`):
+Rate findings as the Wormhole bug bounty program would (see `SECURITY.md`):
 
 - **Critical**: creating, accepting or executing a VAA (including a governance VAA) that a quorum of the
   current guardian set did not sign; minting, unlocking or stealing bridged assets; replaying a VAA on a
