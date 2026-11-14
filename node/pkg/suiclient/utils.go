@@ -3,7 +3,7 @@ package suiclient
 import (
 	"fmt"
 
-	mystenbcs "github.com/block-vision/sui-go-sdk/mystenbcs"
+	mystenbcs "github.com/blockvisionhq/sui-go-sdk/mystenbcs"
 )
 
 // DecodeBcs wraps the Bcs decoding, and returns nil if the unmarshalling failed. This is

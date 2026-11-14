@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"slices"
 
-	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	pb "github.com/blockvisionhq/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
@@ -171,6 +171,14 @@ func (s *SuiGrpcClient) GetTransaction(ctx context.Context, digest string, field
 
 	if !transactionSucceeded(resp.Transaction) {
 		return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction: transaction did not execute successfully (or its execution status is missing) for digest=%s", digest)
+	}
+
+	// Ensure the returned transaction digest matches the requested digest. Note that not all callsites are interested in this check,
+	// so it's only performed if the caller requested the digest field.
+	if slices.Contains(fields, TransactionFieldDigest) {
+		if resp.Transaction.Digest == nil || *resp.Transaction.Digest != digest {
+			return SuiTransaction{}, fmt.Errorf("sui gRPC GetTransaction: returned transaction digest does not match requested digest for digest=%s", digest)
+		}
 	}
 
 	return grpcExecutedTransactionToSuiTransaction(resp.Transaction), nil
