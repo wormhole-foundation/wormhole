@@ -161,3 +161,67 @@ func negativeHelperParameterParseAfterStatus(w *Watcher, ctx context.Context, tx
 	}
 	return nil
 }
+
+func negativeValidateHelperGuardBeforePublish(w *Watcher, ctx context.Context, msg *common.MessagePublication, tx gethtypes.Hash) error {
+	receipt, err := w.ethConn.TransactionReceipt(ctx, tx)
+	if valErr := validateTransactionReceipt(receipt, err); valErr != nil {
+		return valErr
+	}
+	return w.verifyAndPublish(msg, ctx, tx, receipt)
+}
+
+func negativeValidateHelperSeparateGuardBeforePublish(w *Watcher, ctx context.Context, msg *common.MessagePublication, tx gethtypes.Hash) error {
+	receipt, err := w.ethConn.TransactionReceipt(ctx, tx)
+	valErr := validateTransactionReceipt(receipt, err)
+	if valErr != nil {
+		return valErr
+	}
+	return w.verifyAndPublish(msg, ctx, tx, receipt)
+}
+
+func negativeValidateHelperGuardBeforeParse(w *Watcher, ctx context.Context, tx gethtypes.Hash) error {
+	receipt, err := w.ethConn.TransactionReceipt(ctx, tx)
+	if valErr := validateTransactionReceipt(receipt, err); valErr != nil {
+		return valErr
+	}
+	for _, log := range receipt.Logs {
+		if log == nil {
+			continue
+		}
+		_, err := w.ethConn.ParseLogMessagePublished(*log)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func negativeReobservationWrapperTuple(w *Watcher, ctx context.Context, tx gethtypes.Hash) error {
+	receipt, _, msgs, err := MessageEventsForTransactionReobservation(ctx, w.ethConn, w.contract, tx)
+	if err != nil {
+		return err
+	}
+	for _, msg := range msgs {
+		if err := w.verifyAndPublish(msg, ctx, tx, receipt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func negativeReobservationWrapperPredeclaredTuple(w *Watcher, ctx context.Context, tx gethtypes.Hash) error {
+	var receipt *gethtypes.Receipt
+	var msgs []*common.MessagePublication
+	var helperErr error
+
+	receipt, _, msgs, helperErr = MessageEventsForTransactionReobservation(ctx, w.ethConn, w.contract, tx)
+	if helperErr != nil {
+		return helperErr
+	}
+	for _, msg := range msgs {
+		if err := w.verifyAndPublish(msg, ctx, tx, receipt); err != nil {
+			return err
+		}
+	}
+	return nil
+}

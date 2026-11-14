@@ -305,3 +305,40 @@ func positiveMessageEventsSliceElementReassigned(w *Watcher, ctx context.Context
 	}
 	return nil
 }
+
+func positiveValidateHelperIgnored(w *Watcher, ctx context.Context, msg *common.MessagePublication, tx gethtypes.Hash) error {
+	receipt, err := w.ethConn.TransactionReceipt(ctx, tx)
+	if err != nil {
+		return err
+	}
+	_ = validateTransactionReceipt(receipt, err)
+	return w.verifyAndPublish(msg, ctx, tx, receipt)
+}
+
+func positiveValidateHelperGuardWithoutBail(w *Watcher, ctx context.Context, msg *common.MessagePublication, tx gethtypes.Hash) error {
+	receipt, err := w.ethConn.TransactionReceipt(ctx, tx)
+	if valErr := validateTransactionReceipt(receipt, err); valErr != nil {
+		// Logged but not bailed: the publication below stays reachable with a failed receipt.
+		_ = valErr
+	}
+	return w.verifyAndPublish(msg, ctx, tx, receipt)
+}
+
+func positiveValidateHelperReceiptReassigned(w *Watcher, ctx context.Context, msg *common.MessagePublication, tx gethtypes.Hash, other *gethtypes.Receipt) error {
+	receipt, err := w.ethConn.TransactionReceipt(ctx, tx)
+	if valErr := validateTransactionReceipt(receipt, err); valErr != nil {
+		return valErr
+	}
+	receipt = other
+	return w.verifyAndPublish(msg, ctx, tx, receipt)
+}
+
+func positiveReobservationWrapperUncheckedError(w *Watcher, ctx context.Context, tx gethtypes.Hash) error {
+	receipt, _, msgs, _ := MessageEventsForTransactionReobservation(ctx, w.ethConn, w.contract, tx)
+	for _, msg := range msgs {
+		if err := w.verifyAndPublish(msg, ctx, tx, receipt); err != nil {
+			return err
+		}
+	}
+	return nil
+}

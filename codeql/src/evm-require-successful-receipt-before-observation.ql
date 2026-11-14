@@ -119,6 +119,66 @@ predicate isParseLogMessagePublishedCall(CallExpr call) {
 
 predicate receiptBackedBySuccessfulStatus(Expr receipt, AstNode observationOrigin, AstNode use) {
   receiptExplicitlyProvenSuccessfulBefore(receipt, observationOrigin, use)
+  or
+  validateHelperCallProvesSuccess(receipt, use)
+}
+
+bindingset[f, ret]
+pragma[inline]
+predicate statusCheckDominatesReturnOnParam(ReturnStmt ret, FuncDecl f) {
+  exists(
+    Expr pRead, Expr condition, boolean outcome, ControlFlow::ConditionGuardNode guard,
+    ControlFlow::Node retNode
+  |
+    pRead.(Ident).refersTo(f.getParameter(0)) and
+    conditionComparesReceiptStatusToSuccess(condition, pRead, outcome) and
+    condition.getEnclosingFunction() = f and
+    retNode.isFirstNodeOf(ret) and
+    guard.ensures(DataFlow::exprNode(condition), outcome) and
+    guard.dominates(retNode.getBasicBlock())
+  )
+}
+
+// validateTransactionReceipt in by_transaction.go returns a nil error only for a
+// non-nil receipt whose status is ReceiptStatusSuccessful. The body is verified the
+// same way as the MessageEventsForTransaction summary: the name and file alone are
+// not trusted, and every nil-error return must remain dominated by an explicit
+// status check on the receipt parameter.
+bindingset[f]
+pragma[inline]
+predicate isReceiptValidatingHelper(FuncDecl f) {
+  f.getName() = "validateTransactionReceipt" and
+  f.getFile().getRelativePath() = "node/pkg/watchers/evm/by_transaction.go" and
+  exists(ReturnStmt ret |
+    ret.getEnclosingFunction() = f and
+    returnsNilErrorAt(ret, 0) and
+    statusCheckDominatesReturnOnParam(ret, f)
+  ) and
+  not exists(ReturnStmt ret |
+    ret.getEnclosingFunction() = f and
+    returnsNilErrorAt(ret, 0) and
+    not statusCheckDominatesReturnOnParam(ret, f)
+  )
+}
+
+// A validateTransactionReceipt(receipt, err) call whose returned error is proven nil
+// at the use proves the receipt succeeded at the call, as long as the same receipt
+// variable is not reassigned in between. The check must bail on error; merely
+// logging the validation error leaves the use reachable with a failed receipt.
+bindingset[receipt, use]
+pragma[inline]
+predicate validateHelperCallProvesSuccess(Expr receipt, AstNode use) {
+  exists(CallExpr call, Assignment assign, Expr valErr |
+    isReceiptValidatingHelper(call.getTarget().getFuncDecl()) and
+    call.getEnclosingFunction() = use.getEnclosingFunction() and
+    assign.getRhs(0) = call and
+    valErr = assign.getLhs(0) and
+    not valErr.stripParens().(Ident).getName() = "_" and
+    sameVariable(call.getArgument(0), receipt) and
+    occursBefore(call, use) and
+    not receiptReassignedBetween(receipt, call, use) and
+    guardProvesNilBefore(valErr, use)
+  )
 }
 
 predicate assignmentReceivesTupleElement(Assignment assign, CallExpr call, int index, Expr lhs) {
@@ -150,27 +210,70 @@ predicate successfulReturnProvesReceiptStatus(ReturnStmt ret, int errorIndex) {
   )
 }
 
+bindingset[ret, impl]
+pragma[inline]
+predicate returnDelegatesToImpl(ReturnStmt ret, FuncDecl impl) {
+  ret.getNumExpr() = 1 and
+  ret.getExpr(0) instanceof CallExpr and
+  ret.getExpr(0).(CallExpr).getTarget().getFuncDecl() = impl
+}
+
 bindingset[f]
 pragma[inline]
 predicate isSafeMessageEventsFunction(FuncDecl f, int messagesIndex, int errorIndex) {
   isProductionEvmWatcherFile(f.getFile()) and
-  f.getName() = "MessageEventsForTransaction" and
   f.getFile().getRelativePath() in [
       "node/pkg/watchers/evm/by_transaction.go", "node/pkg/watchers/evm/stubs.go"
     ] and
   (
-    messagesIndex = 1 and errorIndex = 2
+    // Direct shape: the function itself checks receipt.Status inline and only
+    // returns a nil error under that check.
+    f.getName() = "MessageEventsForTransaction" and
+    (
+      messagesIndex = 1 and errorIndex = 2
+      or
+      messagesIndex = 2 and errorIndex = 3
+    ) and
+    exists(ReturnStmt ret |
+      ret.getEnclosingFunction() = f and
+      returnsNilErrorAt(ret, errorIndex)
+    ) and
+    not exists(ReturnStmt ret |
+      ret.getEnclosingFunction() = f and
+      returnsNilErrorAt(ret, errorIndex) and
+      not successfulReturnProvesReceiptStatus(ret, errorIndex)
+    )
     or
-    messagesIndex = 2 and errorIndex = 3
-  ) and
-  exists(ReturnStmt ret |
-    ret.getEnclosingFunction() = f and
-    returnsNilErrorAt(ret, errorIndex)
-  ) and
-  not exists(ReturnStmt ret |
-    ret.getEnclosingFunction() = f and
-    returnsNilErrorAt(ret, errorIndex) and
-    not successfulReturnProvesReceiptStatus(ret, errorIndex)
+    // Delegation shape: MessageEventsForTransaction{,Reobservation} are thin wrappers
+    // whose every return delegates to the shared messageEventsForTransaction
+    // implementation, whose nil-error returns are each backed by a guarded
+    // validateTransactionReceipt call on the receipt they hand back.
+    f.getName() in ["MessageEventsForTransaction", "MessageEventsForTransactionReobservation"] and
+    f.getFile().getRelativePath() = "node/pkg/watchers/evm/by_transaction.go" and
+    messagesIndex = 2 and
+    errorIndex = 3 and
+    exists(FuncDecl impl |
+      impl.getName() = "messageEventsForTransaction" and
+      impl.getFile().getRelativePath() = "node/pkg/watchers/evm/by_transaction.go" and
+      exists(ReturnStmt implRet |
+        implRet.getEnclosingFunction() = impl and
+        returnsNilErrorAt(implRet, errorIndex) and
+        validateHelperCallProvesSuccess(implRet.getExpr(0), implRet)
+      ) and
+      not exists(ReturnStmt implRet |
+        implRet.getEnclosingFunction() = impl and
+        returnsNilErrorAt(implRet, errorIndex) and
+        not validateHelperCallProvesSuccess(implRet.getExpr(0), implRet)
+      ) and
+      exists(ReturnStmt ret |
+        ret.getEnclosingFunction() = f and
+        returnDelegatesToImpl(ret, impl)
+      ) and
+      not exists(ReturnStmt ret |
+        ret.getEnclosingFunction() = f and
+        not returnDelegatesToImpl(ret, impl)
+      )
+    )
   )
 }
 
