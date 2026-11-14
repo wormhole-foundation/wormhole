@@ -30,6 +30,8 @@ var (
 	ErrNotTransfer                      = errors.New("payload is not a token transfer")
 	ErrParsedReceiptIsNil               = errors.New("nil receipt after parsing")
 	ErrTxHashIsZeroAddr                 = errors.New("txHash is the zero address")
+	ErrReceiptHasNoBlockNumber          = errors.New("receipt has no block number")
+	ErrReceiptHasNoBlockHash            = errors.New("receipt has no block hash")
 )
 
 // TransferIsValid processes a Message Publication representing a token transfer.
@@ -84,8 +86,37 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		msgID = validMsgID
 	}
 
-	// Check to see if the receipt is cached.
-	if evaluation, exists := tv.evaluations[txHash]; exists {
+	// Get the full transaction receipt for this txHash if it was not provided as an argument.
+	if receipt == nil {
+		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
+		var txReceiptErr error
+		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
+
+		if txReceiptErr != nil {
+			return false, txReceiptErr
+		}
+	}
+
+	// Receipts must have a block number to be considered well-formed.
+	if receipt.BlockNumber == nil {
+		return false, ErrReceiptHasNoBlockNumber
+	}
+
+	// Receipts must have a block hash to be considered well-formed. The block hash is part
+	// of the evaluation cache key: the same signed transaction can be re-mined in a
+	// different block after a reorg, producing a different receipt, so verdicts must be
+	// bound to the block that included the transaction.
+	if receipt.BlockHash == (common.Hash{}) {
+		return false, ErrReceiptHasNoBlockHash
+	}
+
+	key := TxBlockHashKey{TxHash: txHash, BlockHash: receipt.BlockHash}
+
+	// Check to see if the evaluation for this exact receipt is cached. The key includes
+	// the block hash, so a re-mined transaction misses the cache and is reparsed. This
+	// check intentionally happens after the receipt is obtained: the receipt's provenance
+	// is what identifies the cache entry.
+	if evaluation, exists := tv.evaluations.Get(key); exists {
 
 		// Check if the message has already been verified, and if so, return the cached result.
 		if !checkWholeReceipt && !evaluation.msgInCache(msgID) {
@@ -106,24 +137,11 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		return evaluation.ReceiptSummary.isMsgSafe(msgID), nil
 	}
 
-	// Get the full transaction receipt for this txHash if it was not provided as an argument.
-	if receipt == nil {
-		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
-		var txReceiptErr error
-		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
-
-		if txReceiptErr != nil {
-			return false, txReceiptErr
-		}
-	}
-
 	// Caching: if the new receipt is newer than the last one, update the last block number.
 	// This is important to prevent the Transfer Verifier from recording a block number that is older
 	// than the one being processed, as this would result in the verifier not being able to
 	// correctly prune the cache.
-	if receipt.BlockNumber != nil && receipt.BlockNumber.Uint64() > tv.lastBlockNumber {
-		tv.lastBlockNumber = receipt.BlockNumber.Uint64()
-	}
+	tv.updateLastBlockNumber(receipt.BlockNumber.Uint64())
 
 	// Parse raw transaction receipt into high-level struct containing transfer details.
 	transferReceipt, parseErr := tv.parseReceipt(receipt)
@@ -142,6 +160,10 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		return false, ErrNoMsgsFromTokenBridge
 	}
 
+	// Drop deposits and transfers that are not relevant to the token bridge before
+	// enrichment, so that RPC failures for irrelevant tokens cannot abort the receipt.
+	tv.filterRelevant(transferReceipt)
+
 	// Add wormhole-specific data to the receipt by making
 	// RPC calls for data that is not included in the logs,
 	// such as a token's native address and its decimals.
@@ -155,12 +177,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	// If a receipt is valid, then all of its messages are valid and the receipt is safe.
 	// If a receipt is invalid, then some of its messages are invalid and the receipt is not safe.
 	summary, validateReceiptErr := tv.validateReceipt(transferReceipt)
-	tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
-
-	if summary == nil {
-		tv.logger.Warn("receipt summary is nil", zap.String("txHash", txHash.String()))
-		return false, validateReceiptErr
-	}
 
 	// Check for parsing errors, which are bugs in the code.
 	if validateReceiptErr != nil {
@@ -170,6 +186,13 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		return false, validateReceiptErr
 	}
 
+	if summary == nil {
+		tv.logger.Warn("receipt summary is nil", zap.String("txHash", txHash.String()))
+		return false, validateReceiptErr
+	}
+
+	tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
+
 	if !summary.isSafe() {
 		// This represents an invariant violation, either in the receipt as a whole or in a single message.
 		tv.logger.Error("receipt is not solvent", zap.String("txHash", txHash.String()), zap.Int("invalidMsgCount", summary.invalidMessageCount()), zap.String("insolventAssets", strings.Join(summary.insolventAssets(), ",")))
@@ -177,7 +200,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 
 	// Cache receipt/message validations results (except for parsing errors, as they may be transient).
 	cacheEvaluation := NewReceiptEvaluation(summary, receipt.BlockNumber.Uint64())
-	tv.addToCache(txHash, &cacheEvaluation)
+	tv.addToCache(key, &cacheEvaluation)
 
 	if checkWholeReceipt {
 		// Should only be done for testing.
@@ -194,75 +217,74 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 // pruneCache removes cached evaluations and RPC calls.
 // TODO: This functionality should be replaced by an LRU cache library.
 func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
-	var numPrunedEvals int
 
-	// Iterate over recorded transaction hashes, and clear receipts older than `pruneDelta` blocks
-	for txHash, eval := range tv.evaluations {
-		if eval != nil {
-			if eval.blockNumber < tv.lastBlockNumber-tv.pruneHeightDelta {
-				numPrunedEvals++
-				delete(tv.evaluations, txHash)
-			}
-		} else {
-			// NOTE: Kind of sloppy to delete these right away, but we shouldn't be caching
-			// many nil receipts anyway.
-			numPrunedEvals++
-			delete(tv.evaluations, txHash)
-		}
-	}
-
-	if numPrunedEvals > 0 {
+	// Iterate over recorded transaction hashes and prune evaluations older than pruneHeightDelta relative to the last block number.
+	if numPrunedEvals := tv.evaluations.PruneOlderThan(tv.lastBlockNumber.Load() - tv.pruneHeightDelta); numPrunedEvals > 0 {
 		tv.logger.Info("pruned receipt evaluations cache",
 			zap.Int("numPruned", numPrunedEvals),
-			zap.Int("cacheSize", len(tv.evaluations)),
+			zap.Int("cacheSize", tv.evaluations.Len()),
 		)
 	}
 
 	// For the other caches, just prune them if they're too big.
-	if len(tv.chainIdCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.chainIdCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: chainId() cache:", zap.Error(err))
-
-		} else {
-			tv.logger.Info("pruned cached calls to chainId()",
-				zap.Int("numDeleted", numDeleted),
-				zap.Int("cacheSize", len(tv.chainIdCache)),
-			)
-		}
+	if numDeleted := tv.chainIdCache.PruneIfFull(); numDeleted > 0 {
+		tv.logger.Info("pruned cached calls to chainId()",
+			zap.Int("numDeleted", numDeleted),
+			zap.Int("cacheSize", tv.chainIdCache.Len()),
+		)
 	}
-	if len(tv.decimalsCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.decimalsCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: decimals() cache:", zap.Error(err))
 
-		} else {
-			tv.logger.Info("pruned cached calls to decimals()",
-				zap.Int("numDeleted", numDeleted),
-				zap.Int("cacheSize", len(tv.decimalsCache)),
-			)
-		}
+	if numDeleted := tv.decimalsCache.PruneIfFull(); numDeleted > 0 {
+		tv.logger.Info("pruned cached calls to decimals()",
+			zap.Int("numDeleted", numDeleted),
+			zap.Int("cacheSize", tv.decimalsCache.Len()),
+		)
 	}
-	if len(tv.isWrappedCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.isWrappedCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: isWrapped() cache:", zap.Error(err))
 
-		} else {
-			tv.logger.Info("pruned cached calls to isWrapped()",
-				zap.Int("numDeleted", numDeleted),
-				zap.Int("cacheSize", len(tv.isWrappedCache)),
-			)
-		}
+	if numDeleted := tv.isWrappedCache.PruneIfFull(); numDeleted > 0 {
+		tv.logger.Info("pruned cached calls to isWrapped()",
+			zap.Int("numDeleted", numDeleted),
+			zap.Int("cacheSize", tv.isWrappedCache.Len()),
+		)
 	}
-	if len(tv.nativeContractCache) >= CacheMaxSize {
-		numDeleted, err := deleteEntries(&tv.nativeContractCache)
-		if err != nil {
-			tv.logger.Warn("pruneCache: nativeContract() cache:", zap.Error(err))
-		}
+
+	if numDeleted := tv.nativeContractCache.PruneIfFull(); numDeleted > 0 {
 		tv.logger.Info("pruned cached calls to nativeContract()",
 			zap.Int("numDeleted", numDeleted),
-			zap.Int("cacheSize", len(tv.nativeContractCache)),
+			zap.Int("cacheSize", tv.nativeContractCache.Len()),
+		)
+	}
+}
+
+// filterRelevant removes deposits and ERC20 transfers that are not relevant to the token
+// bridge (see relevant). It must run before updateReceiptDetails so that RPC enrichment is
+// only performed on relevant entries: an irrelevant log in the same transaction must not be
+// able to abort verification of the whole receipt by failing an RPC call, e.g. a token
+// contract without a working decimals().
+// Message publications are not filtered here; parseReceipt has already restricted them to
+// token transfers published by the token bridge via the core bridge.
+func (tv *TransferVerifier[ethClient, Connector]) filterRelevant(receipt *TransferReceipt) {
+	numDeposits := len(*receipt.Deposits)
+	relevantDeposits := make([]*NativeDeposit, 0, numDeposits)
+	for _, deposit := range *receipt.Deposits {
+		if _, ok := relevant[*NativeDeposit](deposit, tv.Addresses); ok {
+			relevantDeposits = append(relevantDeposits, deposit)
+		}
+	}
+	receipt.Deposits = &relevantDeposits
+
+	numTransfers := len(*receipt.Transfers)
+	relevantTransfers := make([]*ERC20Transfer, 0, numTransfers)
+	for _, transfer := range *receipt.Transfers {
+		if _, ok := relevant[*ERC20Transfer](transfer, tv.Addresses); ok {
+			relevantTransfers = append(relevantTransfers, transfer)
+		}
+	}
+	receipt.Transfers = &relevantTransfers
+
+	if dropped := (numDeposits - len(relevantDeposits)) + (numTransfers - len(relevantTransfers)); dropped > 0 {
+		tv.logger.Debug("dropped irrelevant deposits/transfers before enrichment",
+			zap.Int("dropped", dropped),
 		)
 	}
 }
@@ -924,10 +946,29 @@ func parseLogMessagePublishedPayload(
 }
 
 func (tv *TransferVerifier[ethClient, Connector]) addToCache(
-	txHash common.Hash,
+	key TxBlockHashKey,
 	evaluation *receiptEvaluation,
 ) {
-	if _, exists := tv.evaluations[txHash]; !exists {
-		tv.evaluations[txHash] = evaluation
+	tv.evaluations.SetIfAbsent(key, evaluation)
+}
+
+// updateLastBlockNumber updates the last processed block number if the provided block number is greater
+// than the current one. The function guarantees that the lastBlockNumber will only ever increase monotonically.
+// In the off chance that a different goroutine updates the lastBlockNumber concurrently, the function will retry
+// until the update succeeds or becomes unnecessary.
+func (tv *TransferVerifier[ethClient, Connector]) updateLastBlockNumber(blockNumber uint64) {
+	for {
+		// Get the current last block number.
+		cur := tv.lastBlockNumber.Load()
+
+		// If the provided block number is not greater than the current one, no update is needed.
+		if blockNumber <= cur {
+			return
+		}
+
+		// Attempt to update the last block number atomically. If another goroutine has updated it in the meantime, retry.
+		if tv.lastBlockNumber.CompareAndSwap(cur, blockNumber) {
+			return
+		}
 	}
 }
