@@ -1306,7 +1306,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *disableTelemetry && usingPromRemoteWrite {
 			logger.Warn("--disableTelemetry does not disable metrics yet, so metrics are still pushed to --promRemoteURL. A future release will stop pushing metrics when --disableTelemetry is set.")
 		}
+		if *disableTelemetry && usingLoki {
+			logger.Warn("--telemetryLokiURL is ignored because --disableTelemetry is set, so no logs are sent")
+		}
 	}
+	// Publish which telemetry is configured (never the URLs, which carry credentials).
+	featureFlags = append(featureFlags, telemetryFeature(!*disableTelemetry && usingLoki, usingPromRemoteWrite))
 	if usingPromRemoteWrite {
 		if *promRemoteInterval < minPromRemoteInterval {
 			logger.Fatal("--promRemoteInterval must be at least 15s", zap.Duration("promRemoteInterval", *promRemoteInterval))
@@ -2234,4 +2239,19 @@ func argsConsistent(args []string) bool {
 	}
 
 	return true
+}
+
+// telemetryFeature is the heartbeat feature flag naming the telemetry this node sends:
+// "telemetry:logs|metrics", "telemetry:logs", "telemetry:metrics" or "telemetry:none".
+func telemetryFeature(logs, metrics bool) string {
+	switch {
+	case logs && metrics:
+		return "telemetry:logs|metrics"
+	case logs:
+		return "telemetry:logs"
+	case metrics:
+		return "telemetry:metrics"
+	default:
+		return "telemetry:none"
+	}
 }
