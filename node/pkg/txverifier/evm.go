@@ -679,12 +679,23 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 		nil
 }
 
-// validateReceipt verifies that a receipt for a LogMessagedPublished event does
-// not verify a fundamental invariant of Wormhole token transfers: when the
-// core bridge reports a transfer has occurred, there must be a corresponding
-// transfer in the token bridge. This is determined by iterating through the
-// logs of the receipt and ensuring that the sum transferred into the token
-// bridge does not exceed the sum emitted by the core bridge.
+// validateReceipt checks a fundamental invariant of Wormhole token transfers: when the
+// core bridge reports that a transfer has occurred, there must be a corresponding
+// transfer into the token bridge. This is determined by iterating through the logs of
+// the receipt and ensuring that, for each token, the sum requested out via the core
+// bridge does not exceed the sum transferred into the token bridge.
+//
+// Inbound amounts are counted gross: transfers whose source is the token bridge are not
+// subtracted. Tokens that leave the token bridge and return to it in the same transaction
+// therefore count as backing for an outbound message. This is intentional:
+//   - Netting would flag legitimate transactions: a redeem followed by a new transfer in
+//     the same transaction, and every transfer of a wrapped asset, which the token bridge
+//     receives and then burns (a Transfer from the token bridge to the zero address).
+//   - Moving tokens out of the token bridge without a valid redemption requires a different
+//     compromise of the token bridge, one which is a non-goal of the Transfer Verifier (see
+//     whitepapers/0014_transfer_verifier.md). The same tokens could also be removed in one
+//     transaction and deposited in the next, which no per-receipt check can detect. The
+//     Governor limits outflow in that scenario.
 //
 // This function makes use of [InvariantError] to report invalid token transfers. Callers
 // can match on this error type to determine whether the transfer was safe or not.
