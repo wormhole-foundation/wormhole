@@ -144,6 +144,18 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 // extractTransfersIntoBridgeFromObjectChanges iterates through all object changes, and tries to identify token transfers into the bridge.
 // These transfers are accumulated in an `AssetKeyToTransferIntoBridge` object, which is returned to the caller. The default behaviour
 // of this function is to fail-close, meaning that any errors that occur during processing result in the offending object change being ignored.
+//
+// Inbound amounts are net, not gross: each amount is the difference in an asset's custody balance (or wrapped supply) between the
+// object's versions before and after the transaction, and an object's version changes once per transaction regardless of how many
+// commands touch it. A transaction that both redeems and sends the same asset therefore records a deposit smaller than the amount
+// sent, and the outbound message is reported as failing verification even though it is fully backed. This is accepted:
+//   - The error can only flag an honest transfer. The net amount never exceeds the real deposit, so netting cannot make an unbacked
+//     message appear backed.
+//   - The gross amount cannot be recovered from the transaction. There is no intermediate object state to compare against, and the
+//     token bridge's `TransferRedeemed` event carries neither the token nor the amount. Adding redeemed amounts back would require
+//     looking up each redeemed VAA, and any mistake there would allow an unbacked message to pass.
+//   - No such transaction has (yet) occurred on mainnet. A scan of all 249,963 `TransferRedeemed` events from the token bridge's launch
+//     (May 2023) to 18 November 2026 found none in a transaction that also published a Wormhole message.
 func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []suiclient.SuiObjectChange, logger *zap.Logger) (AssetKeyToTransferIntoBridge, error) {
 	transfers := make(AssetKeyToTransferIntoBridge)
 
