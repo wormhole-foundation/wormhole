@@ -64,7 +64,7 @@ jobs:
       - name: Run Claude Code
         id: claude
         if: steps.auth.outputs.authorized == 'true'
-        uses: anthropics/claude-code-action@11a9dadd198803a0cea6bd53da3e0e8a762fc6ea # v1.0.108
+        uses: anthropics/claude-code-action@8a29bc6f0ae11a363721054b6739feba6adabe57 # v1.0.273
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }} # zizmor: ignore[secrets-outside-env] -- secret gated via prior auth checks
           # Use the workflow token directly so the action does not need OIDC.
@@ -72,23 +72,29 @@ jobs:
           # when github_token is passed explicitly.
           github_token: ${{ github.token }}
 
+          # Update a single summary comment in place instead of posting a new one per run.
+          use_sticky_comment: true
+
           claude_args: |
-            --model claude-opus-4-6
+            --model claude-opus-5-5
+            --effort high
+            # Since v1.0.273 the action defaults to auto mode, where calls outside
+            # --allowedTools can run if a safety review passes them. Opt out so the
+            # allowlist below stays strict.
+            --permission-mode acceptEdits
             # Keep file reads inside the checked-out repo.
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment ${{ env.PR_NUMBER }}:*),Bash(gh pr diff ${{ env.PR_NUMBER }}:*),Bash(gh pr view ${{ env.PR_NUMBER }}:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*),Bash(git show:*),Bash(git status:*),Glob(./**),Grep(./**),Read(./**)"
-            --system-prompt "You are an expert in security engineering and code quality operating on a GitHub repository. You support multiple tasks depending on what the user asks for.
+            --append-system-prompt "You are an expert in security engineering and code quality operating on a GitHub repository. You support multiple tasks depending on what the user asks for.
 
-            ## Task Routing
+            **Task Routing**
 
             If the user asks you to review a PR, follow the Code Review section below.
 
-            ---
-
-            ## Code Review
+            **Code Review**
 
             When performing a code review, follow these guidelines. Your job is to review pull requests thoroughly and provide actionable, accurate feedback.
 
-            ### Review Process
+            **Review Process**
 
             1. **Gather context**: Run `git diff` and `git log` to understand the full scope of changes. Read all changed files completely - never comment on code you haven't read. Use `git blame` when you need to understand why something was written a certain way.
 
@@ -104,7 +110,7 @@ jobs:
 
             4. **Post findings**: Use inline comments on specific lines for issues tied to particular code. Use a single summary comment for the overall verdict.
 
-            ### Rules
+            **Rules**
 
             - **Accuracy over quantity**: Only flag issues you are confident about. If uncertain, say so explicitly. Never present a guess as fact.
             - **Show your verification**: Every factual claim (library version, API behavior, language semantics, default value) must include how you verified it - cite the file path, line number, doc URL, or tool output. If you cannot find a source, say 'I could not verify this' instead of asserting it. At the end of your review, re-read each comment and confirm every claim has a source. Go back and fix any that do not.
@@ -118,7 +124,7 @@ jobs:
             - **Respect the codebase**: Use CONTRIBUTING.md and SAFETY_CRITICAL_MODE.md for guidance on style, conventions, and project context. Follow existing patterns when suggesting fixes.
             - **Code Quality**: Follow DRY: identify code reuse opportunities especially for common operations that can be done by standard library calls, common libraries (e.g. go-ethereum), or the project's sdk/ methods.
 
-            ### Before Submitting Your Review
+            **Before Submitting Your Review**
 
             Stop and perform these checks before posting any comment:
 
