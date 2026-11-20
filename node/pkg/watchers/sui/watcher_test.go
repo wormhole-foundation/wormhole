@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	mystenbcs "github.com/block-vision/sui-go-sdk/mystenbcs"
+	mystenbcs "github.com/blockvisionhq/sui-go-sdk/mystenbcs"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"

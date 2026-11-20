@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	pb "github.com/blockvisionhq/sui-go-sdk/pb/sui/rpc/v2"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
@@ -587,6 +587,56 @@ func TestGetTransactionEnforcesExecutionStatus(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, tx.TxDigest)
+			}
+		})
+	}
+}
+
+// TestGetTransactionBindsResponseDigest verifies that GetTransaction binds the returned
+// transaction to the requested digest: a nonconforming or caching RPC that returns
+// transaction B for a lookup of digest A must be rejected, since callers treat the result as
+// evidence about the requested transaction. The check is opt-in — it only runs when the caller
+// includes TransactionFieldDigest in the requested fields, because a conforming server may
+// legitimately omit the digest when it was not requested.
+func TestGetTransactionBindsResponseDigest(t *testing.T) {
+	requestedDigest := "0xRequested"
+	returnedDigest := "0xReturned"
+
+	cases := []struct {
+		name           string
+		returnedDigest *string
+		requestDigest  bool
+		wantErr        bool
+	}{
+		{name: "matching digest", returnedDigest: &requestedDigest, requestDigest: true, wantErr: false},
+		{name: "different transaction returned for requested digest", returnedDigest: &returnedDigest, requestDigest: true, wantErr: true},
+		{name: "digest omitted from response", returnedDigest: nil, requestDigest: true, wantErr: true},
+		{name: "digest not requested, no identity check", returnedDigest: &returnedDigest, requestDigest: false, wantErr: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ledgerService := &MockLedgerServiceClient{}
+			grpcClient := newSuiGrpcClientWithServices(zap.NewNop(), nil, ledgerService, nil)
+
+			ledgerService.SetNextGetTransactionResponse(&pb.GetTransactionResponse{
+				Transaction: &pb.ExecutedTransaction{
+					Digest:  tc.returnedDigest,
+					Effects: successfulEffects(),
+				},
+			})
+
+			fields := []string{TransactionFieldEvents}
+			if tc.requestDigest {
+				fields = append(fields, TransactionFieldDigest)
+			}
+
+			_, err := grpcClient.GetTransaction(context.Background(), requestedDigest, fields)
+
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
