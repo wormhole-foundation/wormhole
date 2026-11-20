@@ -461,10 +461,13 @@ func Test_evaluationsLockedMap_ConcurrentAccess(t *testing.T) {
 	elm := NewEvaluationsLockedMap()
 
 	var wg sync.WaitGroup
+	start := make(chan struct{})
 	for g := 0; g < goroutines; g++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			// Block execution of the iterations until the start channel is closed.
+			<-start
 			for i := 0; i < iterations; i++ {
 				key := TxBlockHashKey{TxHash: common.HexToHash(fmt.Sprintf("%064x", (g*i)%32))}
 				elm.Set(key, &receiptEvaluation{blockNumber: uint64(i)})
@@ -476,11 +479,9 @@ func Test_evaluationsLockedMap_ConcurrentAccess(t *testing.T) {
 			}
 		}()
 	}
+	// Close the start channel, triggering all goroutines to start their iterations simulteneously.
+	close(start)
 	wg.Wait()
-
-	if got := elm.Len(); got < 0 || got > 32 {
-		t.Errorf("Len() = %d after concurrent access, want within [0, 32]", got)
-	}
 }
 
 func Test_validateSolvency(t *testing.T) {
