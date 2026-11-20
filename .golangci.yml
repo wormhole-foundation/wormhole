@@ -15,6 +15,7 @@ linters:
     - dupword
     - durationcheck
     - errcheck
+    # Ignored json.Marshal/Encode errors and types that can never be JSON-encoded. https://github.com/breml/errchkjson
     - errchkjson
     # Type assertion and comparison validation on errors. https://github.com/polyfloyd/go-errorlint
     - errorlint
@@ -106,17 +107,6 @@ linters:
 
             - pkg: "github.com/pkg/errors"
               desc: Should be replaced by standard lib errors package
-
-    # errcheck:
-    #   # Report unchecked type assertion failures, such as `value := raw.(string)`.
-    #   check-type-assertions: true
-    #   # Report errors deliberately assigned to `_`, such as `b, _ := json.Marshal(v)`.
-    #   check-blank: true
-    #   # Consider enabling after auditing current exclusions. The default excludes
-    #   # common cases such as fmt.Print* and io.Copy to stdout/stderr.
-    #   disable-default-exclusions: true
-    #   # exclude-functions:
-    #   #   - io.Copy(os.Stdout)
 
     errorlint:
       errorf: false
