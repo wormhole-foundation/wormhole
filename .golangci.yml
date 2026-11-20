@@ -39,8 +39,9 @@ linters:
     - prealloc
     # Overwriting predeclared Golang names such as 'len' and 'min'.
     - predeclared
-    # Validate common mistakes in Golang, such as invalid time.Parse format, invalid regular expression, etc.
+    # Types whose methods mix value and pointer receivers. https://github.com/raeperd/recvcheck
     - recvcheck
+    # Validate common mistakes in Golang, such as invalid time.Parse format, invalid regular expression, etc.
     - staticcheck
     - unparam
     # Unused constants, variables, functions and types
@@ -200,14 +201,12 @@ linters:
       # A wildcard `*` can use as a struct name (ex: `*.MethodName`).
       # Default: []
       exclusions:
-        - "BodyGatewayScheduleUpgrade.Serialize"
         - "BodyGatewayScheduleUpgrade.Deserialize"
-        - "BodyWormchainWasmAllowlistInstantiate.Serialize"
-        - "BodyWormchainWasmAllowlistInstantiate.Serialize"
-        - "BodyGatewaySlashingParamsUpdate.Serialize"
+        - "BodyWormchainWasmAllowlistInstantiate.Deserialize"
         - "BodyGatewaySlashingParamsUpdate.Deserialize"
-        - "BodyGatewayIbcComposabilityMwContract.Serialize"
         - "BodyGatewayIbcComposabilityMwContract.Deserialize"
+        - "BodyManagerSetUpdate.Deserialize"
+        - "Secp256k1MultisigManagerSet.Deserialize"
     staticcheck:
       checks:
         # All of these lints should eventually be added.

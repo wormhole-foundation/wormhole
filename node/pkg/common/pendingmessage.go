@@ -27,7 +27,7 @@ type PendingMessage struct {
 	Msg         MessagePublication
 }
 
-func (p PendingMessage) Compare(other PendingMessage) int {
+func (p *PendingMessage) Compare(other *PendingMessage) int {
 	return cmp.Compare(p.ReleaseTime.Unix(), other.ReleaseTime.Unix())
 }
 
@@ -81,6 +81,8 @@ func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 // takes logarithmic time.
 //
 // See: https://pkg.go.dev/container/heap#Interface
+//
+//nolint:recvcheck // container/heap idiom: Push and Pop need pointer receivers, Len/Less/Swap do not.
 type pendingMessageHeap []*PendingMessage
 
 func (h pendingMessageHeap) Len() int {
