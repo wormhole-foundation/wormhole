@@ -32,6 +32,7 @@ var (
 	ErrTxHashIsZeroAddr                 = errors.New("txHash is the zero address")
 	ErrReceiptHasNoBlockNumber          = errors.New("receipt has no block number")
 	ErrReceiptHasNoBlockHash            = errors.New("receipt has no block hash")
+	ErrReceiptTxHashMismatch            = errors.New("receipt txHash does not match the expected txHash")
 )
 
 // TransferIsValid processes a Message Publication representing a token transfer.
@@ -95,6 +96,12 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		if txReceiptErr != nil {
 			return false, txReceiptErr
 		}
+
+		// Defense-in-depth check to ensure the receipt's transaction hash matches the expected txHash.
+		if receipt.TxHash != txHash {
+			return false, ErrReceiptTxHashMismatch
+		}
+
 	}
 
 	// Receipts must have a block number to be considered well-formed.
