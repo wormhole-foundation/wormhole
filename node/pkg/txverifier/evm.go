@@ -91,7 +91,12 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	if receipt == nil {
 		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
 		var txReceiptErr error
-		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
+
+		// Include a timeout context to avoid hanging indefinitely while fetching the transaction receipt.
+		ctxTimeout, cancel := context.WithTimeout(ctx, RPC_TIMEOUT)
+		defer cancel()
+
+		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctxTimeout, txHash)
 
 		if txReceiptErr != nil {
 			return false, txReceiptErr
