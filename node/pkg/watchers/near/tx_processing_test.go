@@ -122,7 +122,7 @@ func TestProcessWormholeLog(t *testing.T) {
 			w := NewWatcher("", WORMHOLE_CONTRACT, msgC, nil, false)
 			job := newTransactionProcessingJob(tc.txHash, "sender.near", false)
 
-			err := w.processWormholeLog(zaptest.NewLogger(t), context.Background(), job, tc.header, tc.successValue, gjson.Parse(strconvQuote(tc.log)))
+			err := w.processWormholeLog(zaptest.NewLogger(t), context.Background(), job, tc.header, tc.successValue, gjson.Parse(strconvQuote(t, tc.log)))
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -149,7 +149,9 @@ func TestProcessWormholeLog(t *testing.T) {
 }
 
 // strconvQuote wraps a log line as a JSON string, as it appears in receipts_outcome.outcome.logs.
-func strconvQuote(s string) string {
-	b, _ := json.Marshal(s)
+func strconvQuote(t *testing.T, s string) string {
+	t.Helper()
+	b, err := json.Marshal(s)
+	require.NoError(t, err)
 	return string(b)
 }
