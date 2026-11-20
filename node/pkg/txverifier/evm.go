@@ -489,6 +489,15 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 		receiptErr error
 	)
 	for _, log := range receipt.Logs {
+		// Nil check.
+		if log == nil {
+			tv.logger.Debug(
+				"skipping log: nil log",
+				zap.String("txHash", receipt.TxHash.String()),
+			)
+			continue
+		}
+
 		// Bounds check.
 		if len(log.Topics) == 0 {
 			tv.logger.Debug(
