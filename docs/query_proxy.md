@@ -50,6 +50,9 @@ wormhole $build/bin/guardiand query-server \
 - The `signerKey` should point to an armored file containing a key that will be used to sign requests received
   from integrators who are configured to support auto signing and opt not to sign a request. Please see below
   for how to generate this file.
+- The proxy refuses to load a `nodeKey` or `signerKey` file that grants any permission to group or other users.
+  The `keygen` command and the automatic node key generation write the file as `0600`. If you copy or restore
+  a key file, set its permissions with `chmod 0600 <file>`.
 - The `listenAddr` specifies the port on which the proxy listens for REST requests.
 - The `ethRPC` and `ethContract` are used to read the wormhole guardian set on start up. The address
   above is for mainnet. If you are running in testnet, you should point to Holesky and use `0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a`.
