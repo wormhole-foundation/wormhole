@@ -6,7 +6,7 @@
 > as informational. If your finding is a novel variant not covered by the
 > explanation, please submit it.
 >
-> **Bug bounty program:** https://immunefi.com/bug-bounty/wormhole/information/
+> **Bug bounty program:** https://bounty.wormhole.foundation/
 >
 > **Full security policy:** [SECURITY.md](./SECURITY.md)
 

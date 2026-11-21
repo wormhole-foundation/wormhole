@@ -24,7 +24,7 @@ Project-specific audit reports can also be found in the `audits/` directory in t
 
 The Wormhole project operates a bug bounty program to financially incentivize independent researchers for finding and responsibly disclosing security issues.
 
-[Immunefi-Hosted Program](https://immunefi.com/bug-bounty/wormhole/information/)
+[Wormhole Bug Bounty Program](https://bounty.wormhole.foundation/)
 
 If you find a security issue in Wormhole, please report the issue immediately using the bug bounty program above.
 
