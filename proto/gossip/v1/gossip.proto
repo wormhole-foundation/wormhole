@@ -161,7 +161,7 @@ message ChainGovernorStatus {
   message Emitter {
     string emitter_address = 1; // human-readable hex-encoded (leading 0x)
     uint64 total_enqueued_vaas = 2;
-    repeated EnqueuedVAA enqueued_vaas = 3; // Only the first 20 will be included.
+    repeated EnqueuedVAA enqueued_vaas = 3; // May be truncated to keep the signed status message within the size limit.
   }
 
   message Chain {

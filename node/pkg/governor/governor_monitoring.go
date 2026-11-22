@@ -70,7 +70,7 @@
 //   - Published once a minute.
 //   - Contains a list of configured chains along with their remaining available notional value, the number of enqueued VAAs
 //     and information on zero or more enqueued VAAs.
-//   - Only the first 20 enqueued VAAs are include, to constrain the message size.
+//   - Enqueued VAAs are included round-robin across chains up to MaxGovernorStatusMessageSize to constrain the message size.
 
 package governor
 
@@ -95,6 +95,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -646,22 +647,114 @@ func (gov *ChainGovernor) publishConfig(ctx context.Context, hb *gossipv1.Heartb
 	common.WriteToChannelWithoutBlocking(sendC, b, "gov_config_gossip_out")
 }
 
-func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
-	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0, len(gov.chains))
-	numEnqueued := 0
-	for chainId, ce := range gov.chains {
+const (
+	// MaxGovernorStatusMessageSize is the maximum serialized size in bytes of a
+	// SignedChainGovernorStatus GossipMessage published to the gossip network.
+	//
+	// All configured chains and their summary fields (including TotalEnqueuedVaas)
+	// are always included; EnqueuedVAA entries are appended round-robin across chains
+	// until adding another entry would exceed this limit.
+	MaxGovernorStatusMessageSize = 256 * 1024
+
+	// Protobuf field numbers from proto/gossip/v1/gossip.proto used for exact
+	// incremental wire-size accounting while building ChainGovernorStatus.
+	gossipFieldSignedChainGovernorStatus protowire.Number = 9
+	signedStatusFieldStatus              protowire.Number = 1
+	signedStatusFieldSignature           protowire.Number = 2
+	signedStatusFieldGuardianAddr        protowire.Number = 3
+	emitterFieldEnqueuedVaas             protowire.Number = 3
+)
+
+// signedStatusGossipSize returns the exact marshaled byte size of a GossipMessage
+// containing a SignedChainGovernorStatus wrapping a ChainGovernorStatus payload of
+// payloadSize bytes.
+func signedStatusGossipSize(payloadSize int, addrLen int) int {
+	signedSize := protowire.SizeTag(signedStatusFieldSignature) + protowire.SizeBytes(ethCrypto.SignatureLength)
+	if payloadSize > 0 {
+		signedSize += protowire.SizeTag(signedStatusFieldStatus) + protowire.SizeBytes(payloadSize)
+	}
+	if addrLen > 0 {
+		signedSize += protowire.SizeTag(signedStatusFieldGuardianAddr) + protowire.SizeBytes(addrLen)
+	}
+	return protowire.SizeTag(gossipFieldSignedChainGovernorStatus) + protowire.SizeBytes(signedSize)
+}
+
+type statusChainState struct {
+	entry       *chainEntry
+	emitter     *gossipv1.ChainGovernorStatus_Emitter
+	emitterSize int
+	chainSize   int
+	nextIdx     int
+	done        bool
+}
+
+func (gov *ChainGovernor) buildStatusPayload(hb *gossipv1.Heartbeat, startTime time.Time, counter int64, addrLen int, maxMessageSize int) *gossipv1.ChainGovernorStatus {
+	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0, len(gov.chainIds))
+	states := make([]statusChainState, 0, len(gov.chainIds))
+
+	// First pass: populate every governed chain's summary fields (including the exact
+	// uncapped TotalEnqueuedVaas count) in deterministic chain-ID order.
+	for _, chainId := range gov.chainIds {
+		ce, ok := gov.chains[chainId]
+		if !ok {
+			gov.logger.Error("publishStatus: chainId not found in gov.chains", zap.Stringer("chainId", chainId))
+			continue
+		}
+
 		// The capacity for the chain to emit further messages, denoted as USD value.
 		remaining := uint64(0)
 		netUsage, smallTxNotional, flowCancelNotional, err := sumValue(ce.transfers, startTime)
-
 		if err != nil {
 			gov.logger.Error("publishStatus: failed to compute sum of transfers for chain entry", zap.String("chain", chainId.String()), zap.Error(err))
 		} else {
 			remaining = gov.availableNotionalValue(chainId, netUsage)
 		}
 
-		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
-		for _, pe := range ce.pending {
+		emitter := &gossipv1.ChainGovernorStatus_Emitter{
+			EmitterAddress:    "0x" + ce.emitterAddr.String(),
+			TotalEnqueuedVaas: uint64(len(ce.pending)),
+			EnqueuedVaas:      make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0),
+		}
+
+		chain := &gossipv1.ChainGovernorStatus_Chain{
+			ChainId:                      uint32(ce.emitterChainId),
+			RemainingAvailableNotional:   remaining,
+			Emitters:                     []*gossipv1.ChainGovernorStatus_Emitter{emitter},
+			SmallTxNetNotionalValue:      netUsage,
+			SmallTxOutgoingNotionalValue: smallTxNotional,
+			FlowCancelNotionalValue:      flowCancelNotional,
+		}
+
+		chains = append(chains, chain)
+		states = append(states, statusChainState{
+			entry:       ce,
+			emitter:     emitter,
+			emitterSize: proto.Size(emitter),
+			chainSize:   proto.Size(chain),
+			nextIdx:     0,
+			done:        len(ce.pending) == 0,
+		})
+	}
+
+	payload := &gossipv1.ChainGovernorStatus{
+		NodeName:  hb.NodeName,
+		Counter:   counter,
+		Timestamp: hb.Timestamp,
+		Chains:    chains,
+	}
+
+	// Second pass: append EnqueuedVAA entries round-robin across chains until no more
+	// entries fit within maxMessageSize, so one saturated chain cannot starve others.
+	payloadSize := proto.Size(payload)
+	for {
+		addedAny := false
+		for i := range states {
+			st := &states[i]
+			if st.done {
+				continue
+			}
+
+			pe := st.entry.pending[st.nextIdx]
 			var value uint64
 			scaledValue, err := scaledUsdValue(pe.amount, pe.token)
 			if err != nil {
@@ -670,40 +763,45 @@ func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartb
 				value = scaleDownUsdValue(scaledValue)
 			}
 
-			if numEnqueued < 20 {
-				numEnqueued = numEnqueued + 1
-				enqueuedVaas = append(enqueuedVaas, &gossipv1.ChainGovernorStatus_EnqueuedVAA{
-					Sequence:      pe.dbData.Msg.Sequence,
-					ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()), // #nosec G115 -- This conversion is safe until year 2106
-					NotionalValue: value,
-					TxHash:        pe.dbData.Msg.TxIDString(),
-				})
+			enqueued := &gossipv1.ChainGovernorStatus_EnqueuedVAA{
+				Sequence:      pe.dbData.Msg.Sequence,
+				ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()), // #nosec G115 -- This conversion is safe until year 2106
+				NotionalValue: value,
+				TxHash:        pe.dbData.Msg.TxIDString(),
 			}
+
+			entryWireSize := protowire.SizeTag(emitterFieldEnqueuedVaas) + protowire.SizeBytes(proto.Size(enqueued))
+			newEmitterSize := st.emitterSize + entryWireSize
+			newChainSize := st.chainSize + (protowire.SizeBytes(newEmitterSize) - protowire.SizeBytes(st.emitterSize))
+			newPayloadSize := payloadSize + (protowire.SizeBytes(newChainSize) - protowire.SizeBytes(st.chainSize))
+
+			if signedStatusGossipSize(newPayloadSize, addrLen) > maxMessageSize {
+				st.done = true
+				continue
+			}
+
+			st.emitter.EnqueuedVaas = append(st.emitter.EnqueuedVaas, enqueued)
+			st.emitterSize = newEmitterSize
+			st.chainSize = newChainSize
+			payloadSize = newPayloadSize
+			st.nextIdx++
+			if st.nextIdx >= len(st.entry.pending) {
+				st.done = true
+			}
+			addedAny = true
 		}
 
-		emitter := gossipv1.ChainGovernorStatus_Emitter{
-			EmitterAddress:    "0x" + ce.emitterAddr.String(),
-			TotalEnqueuedVaas: uint64(len(ce.pending)),
-			EnqueuedVaas:      enqueuedVaas,
+		if !addedAny {
+			break
 		}
-
-		chains = append(chains, &gossipv1.ChainGovernorStatus_Chain{
-			ChainId:                      uint32(ce.emitterChainId),
-			RemainingAvailableNotional:   remaining,
-			Emitters:                     []*gossipv1.ChainGovernorStatus_Emitter{&emitter},
-			SmallTxNetNotionalValue:      netUsage,
-			SmallTxOutgoingNotionalValue: smallTxNotional,
-			FlowCancelNotionalValue:      flowCancelNotional,
-		})
 	}
 
+	return payload
+}
+
+func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
 	gov.statusPublishCounter += 1
-	payload := &gossipv1.ChainGovernorStatus{
-		NodeName:  hb.NodeName,
-		Counter:   gov.statusPublishCounter,
-		Timestamp: hb.Timestamp,
-		Chains:    chains,
-	}
+	payload := gov.buildStatusPayload(hb, startTime, gov.statusPublishCounter, len(ourAddr.Bytes()), MaxGovernorStatusMessageSize)
 
 	b, err := proto.Marshal(payload)
 	if err != nil {
