@@ -11,8 +11,8 @@
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor 
 /sui/ @kcsongor @evan-gray @douglasgalico @pleasew8t @mdulin2
-/svm/ @evan-gray @kcsongor @johnsaigle @mdulin2
-/wormchain/ @johnsaigle @mdulin2
+/svm/ @evan-gray @kcsongor @mdulin2
+/wormchain/ @mdulin2
 
 # Utilities
 
@@ -20,12 +20,12 @@
 /deployments @evan-gray @kev1n-peters @panoel
 /lp_ui/ @evan-gray @kev1n-peters
 /scripts/ @evan-gray @kcsongor @djb15
-/scripts/clippy.sh @evan-gray @kcsongor @djb15 @johnsaigle
-/scripts/lint.sh @evan-gray @kcsongor @djb15 @johnsaigle
-/scripts/test-notary-admin-commands.sh @djb15 @johnsaigle @pleasew8t
-/scripts/transfer-verifier-localnet.sh @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/scripts/sui-transfer-verifier.sh @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/sdk/ @evan-gray @kev1n-peters @panoel @SEJeff @johnsaigle @djb15
+/scripts/clippy.sh @evan-gray @kcsongor @djb15
+/scripts/lint.sh @evan-gray @kcsongor @djb15
+/scripts/test-notary-admin-commands.sh @djb15 @pleasew8t
+/scripts/transfer-verifier-localnet.sh @djb15 @mdulin2 @pleasew8t @bemic
+/scripts/sui-transfer-verifier.sh @djb15 @mdulin2 @pleasew8t @bemic
+/sdk/ @evan-gray @kev1n-peters @panoel @SEJeff @djb15
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
 /sdk/js-query/ @evan-gray @kev1n-peters
@@ -35,12 +35,12 @@
 /sdk/vaa/ @evan-gray @panoel @SEJeff
 /spydk/ @evan-gray
 /testing/ @evan-gray
-/tools @evan-gray @panoel @djb15 @johnsaigle
+/tools @evan-gray @panoel @djb15
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 /wormchain/devnet/ @evan-gray
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
-/linters/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/codeql/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/linters/ @djb15 @mdulin2 @pleasew8t @bemic
+/codeql/ @djb15 @mdulin2 @pleasew8t @bemic
 
 # Protobuf for node
 
@@ -49,7 +49,7 @@
 
 # Makefile
 
-/Makefile* @evan-gray @panoel @SEJeff @djb15 @johnsaigle
+/Makefile* @evan-gray @panoel @SEJeff @djb15
 
 # Guardiand node
 
@@ -59,19 +59,19 @@
 
 ## Entrypoint / RPC
 
-/node/cmd/ @panoel @evan-gray @johnsaigle @djb15
+/node/cmd/ @panoel @evan-gray @djb15
 
 ## Admin Client
 
-/node/pkg/adminrpc/ @evan-gray @panoel @johnsaigle @pleasew8t @djb15 @mdulin2
+/node/pkg/adminrpc/ @evan-gray @panoel @pleasew8t @djb15 @mdulin2
 
 ## Common
-/node/pkg/common/ @panoel @evan-gray @johnsaigle @pleasew8t @mdulin2
+/node/pkg/common/ @panoel @evan-gray @pleasew8t @mdulin2
 
 ## DB
 
 /node/pkg/db/ @evan-gray @panoel @jmgilman
-/node/pkg/db/notary* @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/db/notary* @djb15 @mdulin2 @pleasew8t
 
 ## Accountant
 
@@ -83,7 +83,7 @@
 
 ## Governor
 
-/node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/pkg/governor/ @SEJeff @djb15 @mdulin2 @pleasew8t @bemic
 
 ## Guardian Signer
 
@@ -95,18 +95,18 @@
 
 ## P2P
 
-/node/pkg/p2p/ @evan-gray @panoel @johnsaigle
+/node/pkg/p2p/ @evan-gray @panoel
 
 ## Consensus / Processor
 
 /node/pkg/processor/ @evan-gray @panoel
-/node/pkg/processor/processor.go @evan-gray @panoel @johnsaigle @mdulin2
+/node/pkg/processor/processor.go @evan-gray @panoel @mdulin2
 
 ### Delegated Guardian Set
-/node/pkg/processor/batch_obs.go @evan-gray @johnsaigle @mdulin2
-/node/pkg/processor/delegate_obs.go @evan-gray @johnsaigle @mdulin2
-/node/pkg/processor/observation.go @evan-gray @johnsaigle @mdulin2
-/node/pkg/processor/delegated_guardian_config.go @evan-gray @johnsaigle @mdulin2
+/node/pkg/processor/batch_obs.go @evan-gray @mdulin2
+/node/pkg/processor/delegate_obs.go @evan-gray @mdulin2
+/node/pkg/processor/observation.go @evan-gray @mdulin2
+/node/pkg/processor/delegated_guardian_config.go @evan-gray @mdulin2
 
 ## Proto
 
@@ -126,37 +126,37 @@
 
 ## Transfer Verifier
 
-/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/devnet/tx-verifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/devnet/tx-verifier-evm.yaml @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/devnet/tx-verifier-sui.yaml @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/pkg/txverifier/ @djb15 @mdulin2 @pleasew8t @bemic
+/node/cmd/txverifier/ @djb15 @mdulin2 @pleasew8t @bemic
+/devnet/tx-verifier/ @djb15 @mdulin2 @pleasew8t @bemic
+/devnet/tx-verifier-evm.yaml @djb15 @mdulin2 @pleasew8t @bemic
+/devnet/tx-verifier-sui.yaml @djb15 @mdulin2 @pleasew8t @bemic
 
 ## Watchers
 
-/node/pkg/watchers @evan-gray @panoel @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/watchers @evan-gray @panoel @djb15 @mdulin2 @pleasew8t
 
 ## Suiclient
 
 /node/pkg/suiclient @djb15 @mdulin2 @pleasew8t
 
 ## Guardian Dependency Upgrades (go.mod + go.sum)
-/node/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/node/go.sum @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/sdk/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/sdk/go.sum @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/go.mod @djb15 @mdulin2 @pleasew8t @bemic
+/node/go.sum @djb15 @mdulin2 @pleasew8t @bemic
+/sdk/go.mod @djb15 @mdulin2 @pleasew8t @bemic
+/sdk/go.sum @djb15 @mdulin2 @pleasew8t @bemic
 
 ## Node (package)
 
-/node/pkg/node/ @evan-gray @panoel @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/node/ @evan-gray @panoel @djb15 @mdulin2 @pleasew8t
 
 ## Notary
 
-/node/pkg/notary/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/notary/ @djb15 @mdulin2 @pleasew8t
 
 ## Random
 
-/node/pkg/random/ @evan-gray @djb15 @panoel @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/pkg/random/ @evan-gray @djb15 @panoel @SEJeff @mdulin2 @pleasew8t @bemic
 
 ## Wormconn
 
@@ -164,41 +164,41 @@
 
 ## Hacks / Tools
 
-/node/hack/ @evan-gray @panoel @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic @SEJeff
+/node/hack/ @evan-gray @panoel @djb15 @mdulin2 @pleasew8t @bemic @SEJeff
 
 ## Documentation
 
-/docs @evan-gray @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/docs/transfer-verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-/docs/notary.md @djb15 @johnsaigle @mdulin2 @pleasew8t
+/docs @evan-gray @SEJeff @djb15 @mdulin2 @pleasew8t @bemic
+/docs/transfer-verifier.md @djb15 @mdulin2 @pleasew8t @bemic
+/docs/notary.md @djb15 @mdulin2 @pleasew8t
 
-CONTRIBUTING.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-DEVELOP.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
-SECURITY.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic @SEJeff 
-SECURITY_CONTEXT.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic @SEJeff 
-SAFETY_CRITICAL_CODE.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+CONTRIBUTING.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @mdulin2 @pleasew8t @bemic
+DEVELOP.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @mdulin2 @pleasew8t @bemic
+SECURITY.md @djb15 @mdulin2 @pleasew8t @bemic @SEJeff 
+SECURITY_CONTEXT.md @djb15 @mdulin2 @pleasew8t @bemic @SEJeff 
+SAFETY_CRITICAL_CODE.md @evan-gray @SEJeff @panoel @kcsongor @djb15 @mdulin2 @pleasew8t @bemic
 
 ## Audit Reports
 
-/audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+/audits @djb15 @SEJeff @mdulin2 @pleasew8t @bemic
 
 ## Code coverage tools
-scripts/coverage-check @evan-gray @kcsongor @johnsaigle @mdulin2 @pleasew8t @bemic
-.coverage-baseline @evan-gray @kcsongor @panoel @johnsaigle @mdulin2 @pleasew8t @bemic
+scripts/coverage-check @evan-gray @kcsongor @mdulin2 @pleasew8t @bemic
+.coverage-baseline @evan-gray @kcsongor @panoel @mdulin2 @pleasew8t @bemic
 
 ## Whitepapers
 
-/whitepapers/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
-/whitepapers/0014_transfer_verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/whitepapers/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @mdulin2 @pleasew8t @bemic
+/whitepapers/0014_transfer_verifier.md @djb15 @mdulin2 @pleasew8t @bemic
 
 ## Tests
-/node/pkg/testutils/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
-*_test.go @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
-/node/pkg/txverifier/*_test.go @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/pkg/testutils/ @evan-gray @kcsongor @panoel @djb15 @SEJeff @mdulin2 @pleasew8t @bemic
+*_test.go @evan-gray @kcsongor @panoel @djb15 @SEJeff @mdulin2 @pleasew8t @bemic
+/node/pkg/txverifier/*_test.go @djb15 @mdulin2 @pleasew8t @bemic
 
 ## CI
-.golangci.yml @evan-gray @djb15 @johnsaigle @mdulin2
-cspell* @evan-gray @kcsongor @panoel @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
+.golangci.yml @evan-gray @djb15 @mdulin2
+cspell* @evan-gray @kcsongor @panoel @djb15 @SEJeff @mdulin2 @pleasew8t @bemic
 
 ## OSS Scanner
-.oss-scanner/ @djb15 @bemic @pleasew8t @johnsaigle @mdulin2
+.oss-scanner/ @djb15 @bemic @pleasew8t @mdulin2
