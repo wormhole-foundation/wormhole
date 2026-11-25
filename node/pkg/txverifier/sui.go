@@ -95,6 +95,18 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 			continue
 		}
 
+		// DecodeTransferPayloadHdr does check if this is a transfer, but it returns an error if that
+		// is the case. The token bridge can emit attestations for tokens, which need to be skipped,
+		// rather than cause an error.
+		if !vaa.IsTransfer(wormholeMessage.Payload) {
+			logger.Debug("Skipping non-transfer WormholeMessage event",
+				zap.String("event type", event.EventType),
+				zap.String("event sender", hex.EncodeToString(wormholeMessage.Sender[:])),
+				zap.String("sequence", fmt.Sprintf("%d", wormholeMessage.Sequence)),
+			)
+			continue
+		}
+
 		// The on-chain sender is a 32-byte address. The message ID format and the configured
 		// token bridge emitter both use a hex encoding with a "0x" prefix.
 		sender := hex.EncodeToString(wormholeMessage.Sender[:])
@@ -111,8 +123,6 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 			continue
 		}
 
-		// Parse the wormhole message. vaa.IsTransfer can be omitted, since this is done
-		// inside `DecodeTransferPayloadHdr` already.
 		hdr, err := vaa.DecodeTransferPayloadHdr(wormholeMessage.Payload)
 
 		// If there is an error decoding the payload, skip the event. One reason for a potential
