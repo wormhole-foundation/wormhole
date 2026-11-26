@@ -174,7 +174,11 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 
 	// Drop deposits and transfers that are not relevant to the token bridge before
 	// enrichment, so that RPC failures for irrelevant tokens cannot abort the receipt.
-	tv.filterRelevant(transferReceipt)
+	rpcFetchErr := tv.filterRelevant(transferReceipt)
+
+	if rpcFetchErr != nil {
+		return false, rpcFetchErr
+	}
 
 	// Add wormhole-specific data to the receipt by making
 	// RPC calls for data that is not included in the logs,
@@ -275,7 +279,15 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 // contract without a working decimals().
 // Message publications are not filtered here; parseReceipt has already restricted them to
 // token transfers published by the token bridge via the core bridge.
-func (tv *TransferVerifier[ethClient, Connector]) filterRelevant(receipt *TransferReceipt) {
+func (tv *TransferVerifier[ethClient, Connector]) filterRelevant(receipt *TransferReceipt) (err error) {
+
+	// Collect the origin addresses from the message publications
+	originAddresses := make([]vaa.Address, len(*receipt.MessagePublications))
+	for i, messagePublication := range *receipt.MessagePublications {
+		originTokenAddress := messagePublication.TransferDetails.OriginAddress
+		originAddresses[i] = originTokenAddress
+	}
+
 	numDeposits := len(*receipt.Deposits)
 	relevantDeposits := make([]*NativeDeposit, 0, numDeposits)
 	for _, deposit := range *receipt.Deposits {
@@ -285,12 +297,46 @@ func (tv *TransferVerifier[ethClient, Connector]) filterRelevant(receipt *Transf
 	}
 	receipt.Deposits = &relevantDeposits
 
+	// SECURITY: Only include transfers whose metadata can be used to enrich the receipt.
 	numTransfers := len(*receipt.Transfers)
 	relevantTransfers := make([]*ERC20Transfer, 0, numTransfers)
 	for _, transfer := range *receipt.Transfers {
-		if _, ok := relevant[*ERC20Transfer](transfer, tv.Addresses); ok {
-			relevantTransfers = append(relevantTransfers, transfer)
+
+		// If the transfer does not target the token bridge, ignore it.
+		if _, ok := relevant[*ERC20Transfer](transfer, tv.Addresses); !ok {
+			continue
 		}
+
+		// If the token is wrapped on the source chain, retrieve the native contract address.
+		isWrapped, fetchErr := tv.isWrappedAsset(transfer.TokenAddress)
+		if fetchErr != nil {
+			return fetchErr
+		}
+
+		originAddr := VAAAddrFrom(transfer.TokenAddress)
+		if isWrapped {
+			originAddr, fetchErr = tv.nativeContract(transfer.TokenAddress)
+			if fetchErr != nil {
+				return fetchErr
+			}
+		}
+
+		// Filter out ERC20 transfers for tokens that don't appear in the message publications.
+		if !slices.Contains(originAddresses, originAddr) {
+			continue
+		}
+
+		// Attempt to retrieve the token's decimals. If the call fails, the transfer is skipped:
+		// only messages for this token become insolvent. This deliberately treats RPC failures
+		// the same as reverts rather than trying to classify the error source. The call uses the
+		// RPC node's default (latest) state, so a token that changed behavior after publication
+		// is an accepted edge case.
+		_, fetchErr = tv.getDecimals(transfer.TokenAddress)
+		if fetchErr != nil {
+			continue
+		}
+
+		relevantTransfers = append(relevantTransfers, transfer)
 	}
 	receipt.Transfers = &relevantTransfers
 
@@ -299,6 +345,8 @@ func (tv *TransferVerifier[ethClient, Connector]) filterRelevant(receipt *Transf
 			zap.Int("dropped", dropped),
 		)
 	}
+
+	return nil
 }
 
 // updateReceiptDetails performs additional processing on the raw data that has been parsed. This

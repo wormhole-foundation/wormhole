@@ -960,7 +960,6 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 	tv.logger.Debug("calling isWrappedAsset()", zap.String("tokenAddress", addr.String()))
 
 	result, err := tv.client.CallContract(ctx, evmCallMsg, nil)
-
 	if err != nil {
 		tv.logger.Warn("isWrappedAsset() call error", zap.Error(err))
 		return false, err
@@ -1113,6 +1112,8 @@ func validate[L TransferLog](tLog TransferLog) error {
 }
 
 // getDecimals() is equivalent to calling decimals() on a contract that follows the ERC20 standard.
+// Returns the number of decimals for the given ERC20 token. The eth_call is made at the RPC
+// node's default block (latest).
 func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	tokenAddress common.Address,
 ) (decimals uint8, err error) {
@@ -1137,6 +1138,7 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	}
 
 	result, err := tv.client.CallContract(ctx, evmCallMsg, nil)
+
 	if err != nil {
 		tv.logger.Warn("error from getDecimals() for token",
 			zap.String("tokenAddress", tokenAddress.String()),

@@ -482,6 +482,19 @@ func Test_evaluationsLockedMap_ConcurrentAccess(t *testing.T) {
 	// Close the start channel, triggering all goroutines to start their iterations simulteneously.
 	close(start)
 	wg.Wait()
+
+	// Keys are derived from (g*i)%32, so at most 32 distinct entries can exist, and every entry that
+	// survived pruning must hold a value that was actually stored.
+	const maxDistinctKeys = 32
+	if n := elm.Len(); n > maxDistinctKeys {
+		t.Fatalf("map holds %d entries, more than the %d distinct keys", n, maxDistinctKeys)
+	}
+	for k := 0; k < maxDistinctKeys; k++ {
+		key := TxBlockHashKey{TxHash: common.HexToHash(fmt.Sprintf("%064x", k))}
+		if evaluation, exists := elm.Get(key); exists && evaluation == nil {
+			t.Errorf("stored evaluation for key %d is nil", k)
+		}
+	}
 }
 
 func Test_validateSolvency(t *testing.T) {

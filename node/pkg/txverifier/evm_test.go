@@ -116,10 +116,15 @@ func setup() *mockConnections {
 			TokenBridgeAddr:   tokenBridgeAddr,
 			WrappedNativeAddr: nativeAddrGeth,
 		},
-		chainIds:     &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
-		evmConnector: &mockConnector{},
-		client:       &mockClient{},
-		logger:       *logger,
+		chainIds:            &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
+		evmConnector:        &mockConnector{},
+		client:              &mockClient{},
+		evaluations:         NewEvaluationsLockedMap(),
+		isWrappedCache:      NewLockedMap[string, bool](),
+		chainIdCache:        NewLockedMap[string, vaa.ChainID](),
+		nativeContractCache: NewLockedMap[string, vaa.Address](),
+		decimalsCache:       NewLockedMap[common.Address, uint8](),
+		logger:              *logger,
 	}
 	ctx, ctxCancel := context.WithCancel(context.Background()) // #nosec G118 -- Cancel is owned by the test via mocks.ctxCancel().
 
@@ -273,21 +278,49 @@ func TestFilterRelevant(t *testing.T) {
 		{TokenAddress: usdcAddrGeth, From: eoaAddrGeth, To: tokenBridgeAddr, Amount: big.NewInt(1)},
 		// Irrelevant: transfer between third parties, not sent to the token bridge.
 		{TokenAddress: otherToken, From: eoaAddrGeth, To: eoaAddrGeth, Amount: big.NewInt(1)},
+		// Irrelevant: sent to the token bridge, but the token is not referenced by any message publication.
+		{TokenAddress: otherToken, From: eoaAddrGeth, To: tokenBridgeAddr, Amount: big.NewInt(1)},
 	}
 	msgs := []*LogMessagePublished{{
 		EventEmitter:    coreBridgeAddr,
 		MsgSender:       tokenBridgeAddr,
 		Sequence:        1,
-		TransferDetails: &TransferDetails{PayloadType: TransferTokens, Amount: big.NewInt(1)},
+		TransferDetails: &TransferDetails{PayloadType: TransferTokens, OriginAddress: usdcAddrVAA, Amount: big.NewInt(1)},
 	}}
 	receipt := &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &msgs}
 
-	tv.filterRelevant(receipt)
+	require.NoError(t, tv.filterRelevant(receipt))
 
 	assert.Len(t, *receipt.Deposits, 1, "only the deposit into the token bridge should remain")
 	assert.Equal(t, tokenBridgeAddr, (*receipt.Deposits)[0].Receiver)
-	assert.Len(t, *receipt.Transfers, 1, "only the transfer to the token bridge should remain")
+	assert.Len(t, *receipt.Transfers, 1, "only the transfer to the token bridge for a published token should remain")
 	assert.Equal(t, usdcAddrGeth, (*receipt.Transfers)[0].TokenAddress)
+}
+
+// TestFilterRelevantDropsDecimalsErrors verifies that a getDecimals() failure causes the transfer
+// to be dropped. RPC failures are deliberately treated the same as token reverts.
+func TestFilterRelevantDropsDecimalsErrors(t *testing.T) {
+	mocks := setup()
+	defer mocks.ctxCancel()
+	tv := mocks.transferVerifier
+	rpcErr := errors.New("rpc failure injected by test")
+	tv.client = &mockClient{errorOn: map[common.Address]error{usdcAddrGeth: rpcErr}}
+	tv.isWrappedCache.Set(usdcAddrGeth.Hex(), false)
+
+	transfers := []*ERC20Transfer{
+		{TokenAddress: usdcAddrGeth, From: eoaAddrGeth, To: tokenBridgeAddr, Amount: big.NewInt(1)},
+	}
+	deposits := []*NativeDeposit{}
+	msgs := []*LogMessagePublished{{
+		EventEmitter:    coreBridgeAddr,
+		MsgSender:       tokenBridgeAddr,
+		Sequence:        1,
+		TransferDetails: &TransferDetails{PayloadType: TransferTokens, OriginAddress: usdcAddrVAA, Amount: big.NewInt(1)},
+	}}
+	receipt := &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &msgs}
+
+	require.NoError(t, tv.filterRelevant(receipt))
+	assert.Empty(t, *receipt.Transfers, "the transfer should be dropped when decimals() cannot be queried")
 }
 
 // TestUpdateReceiptDetailsIgnoresIrrelevantTokenErrors covers the finding that a single
@@ -331,7 +364,7 @@ func TestUpdateReceiptDetailsIgnoresIrrelevantTokenErrors(t *testing.T) {
 			EventEmitter:    coreBridgeAddr,
 			MsgSender:       tokenBridgeAddr,
 			Sequence:        1,
-			TransferDetails: &TransferDetails{PayloadType: TransferTokens, Amount: big.NewInt(1)},
+			TransferDetails: &TransferDetails{PayloadType: TransferTokens, OriginAddress: usdcAddrVAA, Amount: big.NewInt(1)},
 		}}
 		return &TransferReceipt{Deposits: &deposits, Transfers: &transfers, MessagePublications: &msgs}
 	}
@@ -344,7 +377,7 @@ func TestUpdateReceiptDetailsIgnoresIrrelevantTokenErrors(t *testing.T) {
 	t.Run("with filtering, the receipt is enriched successfully", func(t *testing.T) {
 		tv := newVerifier()
 		receipt := newReceipt()
-		tv.filterRelevant(receipt)
+		require.NoError(t, tv.filterRelevant(receipt))
 
 		require.NoError(t, tv.updateReceiptDetails(receipt))
 		assert.Len(t, *receipt.Transfers, 1, "the irrelevant transfer should have been dropped before enrichment")
