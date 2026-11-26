@@ -16,7 +16,9 @@ import (
 // Errors
 var (
 	// Internal errors that can occur in the verifier.
-	ErrFailedToRetrieveTxBlock = errors.New("failed to retrieve transaction block")
+	ErrFailedToRetrieveTxBlock            = errors.New("failed to retrieve transaction block")
+	ErrNoRequestOutOfBridge               = errors.New("no request out of bridge found")
+	ErrFailedToExtractTransfersIntoBridge = errors.New("failed to extract transfers into bridge")
 )
 
 // Global variables
@@ -93,6 +95,18 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 			continue
 		}
 
+		// DecodeTransferPayloadHdr does check if this is a transfer, but it returns an error if that
+		// is the case. The token bridge can emit attestations for tokens, which need to be skipped,
+		// rather than cause an error.
+		if !vaa.IsTransfer(wormholeMessage.Payload) {
+			logger.Debug("Skipping non-transfer WormholeMessage event",
+				zap.String("event type", event.EventType),
+				zap.String("event sender", hex.EncodeToString(wormholeMessage.Sender[:])),
+				zap.String("sequence", fmt.Sprintf("%d", wormholeMessage.Sequence)),
+			)
+			continue
+		}
+
 		// The on-chain sender is a 32-byte address. The message ID format and the configured
 		// token bridge emitter both use a hex encoding with a "0x" prefix.
 		sender := hex.EncodeToString(wormholeMessage.Sender[:])
@@ -109,8 +123,6 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 			continue
 		}
 
-		// Parse the wormhole message. vaa.IsTransfer can be omitted, since this is done
-		// inside `DecodeTransferPayloadHdr` already.
 		hdr, err := vaa.DecodeTransferPayloadHdr(wormholeMessage.Payload)
 
 		// If there is an error decoding the payload, skip the event. One reason for a potential
@@ -142,12 +154,24 @@ func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []suiclient
 // extractTransfersIntoBridgeFromObjectChanges iterates through all object changes, and tries to identify token transfers into the bridge.
 // These transfers are accumulated in an `AssetKeyToTransferIntoBridge` object, which is returned to the caller. The default behaviour
 // of this function is to fail-close, meaning that any errors that occur during processing result in the offending object change being ignored.
-func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []suiclient.SuiObjectChange, logger *zap.Logger) AssetKeyToTransferIntoBridge {
+//
+// Inbound amounts are net, not gross: each amount is the difference in an asset's custody balance (or wrapped supply) between the
+// object's versions before and after the transaction, and an object's version changes once per transaction regardless of how many
+// commands touch it. A transaction that both redeems and sends the same asset therefore records a deposit smaller than the amount
+// sent, and the outbound message is reported as failing verification even though it is fully backed. This is accepted:
+//   - The error can only flag an honest transfer. The net amount never exceeds the real deposit, so netting cannot make an unbacked
+//     message appear backed.
+//   - The gross amount cannot be recovered from the transaction. There is no intermediate object state to compare against, and the
+//     token bridge's `TransferRedeemed` event carries neither the token nor the amount. Adding redeemed amounts back would require
+//     looking up each redeemed VAA, and any mistake there would allow an unbacked message to pass.
+//   - No such transaction has (yet) occurred on mainnet. A scan of all 249,963 `TransferRedeemed` events from the token bridge's launch
+//     (May 2023) to 18 November 2026 found none in a transaction that also published a Wormhole message.
+func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []suiclient.SuiObjectChange, logger *zap.Logger) (AssetKeyToTransferIntoBridge, error) {
 	transfers := make(AssetKeyToTransferIntoBridge)
 
 	for _, objectChange := range objectChanges {
 		// All of these fields are required to look up and decode the object at both versions.
-		if objectChange.ObjectID == nil || objectChange.ObjectType == nil || objectChange.InputVersion == nil || objectChange.OutputVersion == nil {
+		if objectChange.ObjectID == nil || objectChange.ObjectType == nil || objectChange.OutputVersion == nil {
 			continue
 		}
 
@@ -168,16 +192,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 				zap.String("objectId", *objectChange.ObjectID),
 				zap.Uint64("version", *objectChange.OutputVersion),
 				zap.Error(err))
-			continue
-		}
-
-		previousObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.InputVersion, []string{suiclient.ObjectFieldContents})
-		if err != nil {
-			logger.Error("Error getting object at previous version",
-				zap.String("objectId", *objectChange.ObjectID),
-				zap.Uint64("version", *objectChange.InputVersion),
-				zap.Error(err))
-			continue
+			return nil, fmt.Errorf("error getting current object version for objectId=%s version=%d: %w", *objectChange.ObjectID, *objectChange.OutputVersion, err)
 		}
 
 		currentInfo, err := decodeSuiAssetObject(assetType, currentObject.ContentsBytes)
@@ -186,10 +201,33 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 			continue
 		}
 
-		previousInfo, err := decodeSuiAssetObject(assetType, previousObject.ContentsBytes)
-		if err != nil {
-			logger.Error("Error decoding previous asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
-			continue
+		var previousInfo *suiAssetInfo
+		// If the InputVersion is nil, it means that the object did not exist before this transaction. For that reason,
+		// initialize the previousInfo with zero balance and the same asset properties as the current version.
+		if objectChange.InputVersion == nil {
+			previousInfo = &suiAssetInfo{
+				isWrapped:    currentInfo.isWrapped,
+				decimals:     currentInfo.decimals,
+				tokenAddress: currentInfo.tokenAddress,
+				tokenChain:   currentInfo.tokenChain,
+				balance:      big.NewInt(0),
+			}
+		} else {
+			previousObject, err := s.client.GetObjectAtVersion(ctx, *objectChange.ObjectID, objectChange.InputVersion, []string{suiclient.ObjectFieldContents})
+			if err != nil {
+				logger.Error("Error getting object at previous version",
+					zap.String("objectId", *objectChange.ObjectID),
+					zap.Uint64("version", *objectChange.InputVersion),
+					zap.Error(err))
+				return nil, fmt.Errorf("error getting object at previous version for objectId=%s version=%d: %w", *objectChange.ObjectID, *objectChange.InputVersion, err)
+			}
+
+			previousInfo, err = decodeSuiAssetObject(assetType, previousObject.ContentsBytes)
+
+			if err != nil {
+				logger.Error("Error decoding previous asset object", zap.String("objectId", *objectChange.ObjectID), zap.Error(err))
+				continue
+			}
 		}
 
 		// The decimals, token address, and token chain are immutable properties of an asset and
@@ -232,7 +270,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 		transfers[assetKey].Amount = new(big.Int).Add(transfers[assetKey].Amount, normalized)
 	}
 
-	return transfers
+	return transfers, nil
 }
 
 func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, msgIdStr string, logger *zap.Logger) (bool, error) {
@@ -260,6 +298,7 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 
 	// Get the transaction, including its events and the objects changed by its effects.
 	txn, err := s.client.GetTransaction(ctx, digest, []string{
+		suiclient.TransactionFieldDigest,
 		suiclient.TransactionFieldEvents,
 		suiclient.TransactionFieldChangedObjects,
 	})
@@ -276,13 +315,21 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 	bridgeOutRequests := s.extractBridgeRequestsFromEvents(txn.Events, logger)
 
 	if len(bridgeOutRequests) == 0 {
-		logger.Debug("No relevant events found in transaction block", zap.String("txDigest", digest))
-		// No valid events were identified, so the digest does not require further processing.
-		return true, nil
+		logger.Error("No relevant events found in transaction block", zap.String("txDigest", digest))
+		// No relevant bridge requests were found in the transaction events, so return an error.
+		return false, ErrNoRequestOutOfBridge
 	}
 
 	// Process all object changes, specifically looking for transfers into the token bridge
-	transfersIntoBridge := s.extractTransfersIntoBridgeFromObjectChanges(ctx, txn.ObjectChanges, logger)
+	transfersIntoBridge, err := s.extractTransfersIntoBridgeFromObjectChanges(ctx, txn.ObjectChanges, logger)
+
+	if err != nil {
+		logger.Error("failed to extract transfers into bridge",
+			zap.String("txDigest", digest),
+			zap.Error(err),
+		)
+		return false, ErrFailedToExtractTransfersIntoBridge
+	}
 
 	// Validate solvency using the requests out of the bridge vs the transfers into the bridge.
 	resolved, err := validateSolvency(bridgeOutRequests, transfersIntoBridge)

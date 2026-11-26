@@ -3,7 +3,7 @@ package suiclient
 import (
 	"context"
 
-	pb "github.com/block-vision/sui-go-sdk/pb/sui/rpc/v2"
+	pb "github.com/blockvisionhq/sui-go-sdk/pb/sui/rpc/v2"
 )
 
 // Production implementation of GrpcLedgerServiceClient
