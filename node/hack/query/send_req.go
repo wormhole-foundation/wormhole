@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/hack/devkey"
 	"github.com/certusone/wormhole/node/hack/query/utils"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -60,8 +61,16 @@ func main() {
 
 	signingKeyPath := string("./dev.guardian.key")
 
+	// Git stores the committed devnet key as world-readable (0644), but the key
+	// loader rejects group- or world-readable key files. Stage a 0600 copy so
+	// this test tool keeps working out of the box after a fresh checkout.
+	stagedKeyPath, err := devkey.Stage(signingKeyPath)
+	if err != nil {
+		logger.Fatal("failed to stage guardian key", zap.Error(err))
+	}
+
 	logger.Info("Loading signing key", zap.String("signingKeyPath", signingKeyPath))
-	sk, err := common.LoadGuardianKey(signingKeyPath, true)
+	sk, err := common.LoadGuardianKey(stagedKeyPath, true)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
@@ -69,7 +78,11 @@ func main() {
 
 	// Load p2p private key
 	var priv crypto.PrivKey
-	priv, err = common.GetOrCreateNodeKey(logger, nodeKeyPath)
+	stagedNodeKeyPath, err := devkey.Stage(nodeKeyPath)
+	if err != nil {
+		logger.Fatal("failed to stage node key", zap.Error(err))
+	}
+	priv, err = common.GetOrCreateNodeKey(logger, stagedNodeKeyPath)
 	if err != nil {
 		logger.Fatal("Failed to load node key", zap.Error(err))
 	}
