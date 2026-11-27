@@ -113,7 +113,7 @@ class AlgoTest(PortalCore):
 
         if (self.INDEXER_ROUND > 512 and not self.args.testnet):  # until they fix it
             print("indexer is broken in local net... stop/clean/restart the sandbox")
-            sys.exit(0)
+            sys.exit(1)
 
         txns = []
 
@@ -685,7 +685,6 @@ class AlgoTest(PortalCore):
 
             assert result, f"!!! ERR: sending same VAA twice worked. offending vaa hex:\n{vaa.hex()}"
             seq+=1
-        return
 
         def sending_vaa_version_not_one_fails(seq, version):
             vaa = bytearray.fromhex(gt.genRandomValidTransfer(
@@ -704,8 +703,8 @@ class AlgoTest(PortalCore):
             try:
                 self.submitVAA(vaa, client, player, self.tokenid)
             except algosdk.error.AlgodHTTPError as e:
-                # right at the beginning of checkForDuplicate()
-                if "opcodes=pushint 919" in str(e):
+                # right at the beginning of checkForDuplicate() (token_bridge.py version check)
+                if "opcodes=pushint 946" in str(e):
                     return True, vaa, None
                 return False, vaa, e
 
