@@ -703,8 +703,8 @@ class AlgoTest(PortalCore):
             try:
                 self.submitVAA(vaa, client, player, self.tokenid)
             except algosdk.error.AlgodHTTPError as e:
-                # right at the beginning of checkForDuplicate()
-                if "opcodes=pushint 919" in str(e):
+                # right at the beginning of checkForDuplicate() (token_bridge.py version check)
+                if "opcodes=pushint 946" in str(e):
                     return True, vaa, None
                 return False, vaa, e
 
