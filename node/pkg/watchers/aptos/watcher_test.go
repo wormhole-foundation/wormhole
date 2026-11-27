@@ -46,22 +46,22 @@ func marshalJSON(t *testing.T, v any) string {
 }
 
 // validEvent returns a well-formed Aptos WormholeMessage JSON.
-func validEvent() string {
-	b, _ := json.Marshal(eventData())
-	return string(b)
+func validEvent(t *testing.T) string {
+	t.Helper()
+	return marshalJSON(t, eventData())
 }
 
 // eventWith replaces or removes a single field in validEvent.
 // Pass value "" with remove=true to delete the field.
-func eventWith(field, value string, remove bool) string {
+func eventWith(t *testing.T, field, value string, remove bool) string {
+	t.Helper()
 	d := eventData()
 	if remove {
 		delete(d, field)
 	} else {
 		d[field] = value
 	}
-	b, _ := json.Marshal(d)
-	return string(b)
+	return marshalJSON(t, d)
 }
 
 func TestObserveData(t *testing.T) {
@@ -75,7 +75,7 @@ func TestObserveData(t *testing.T) {
 		// Happy path
 		{
 			name:      "valid event",
-			json:      validEvent(),
+			json:      validEvent(t),
 			nativeSeq: 1,
 			expectMsg: true,
 		},
@@ -83,76 +83,76 @@ func TestObserveData(t *testing.T) {
 		// Missing fields
 		{
 			name:        "missing sender",
-			json:        eventWith("sender", "", true),
+			json:        eventWith(t, "sender", "", true),
 			expectError: "sender field missing",
 		},
 		{
 			name:        "missing payload",
-			json:        eventWith("payload", "", true),
+			json:        eventWith(t, "payload", "", true),
 			expectError: "payload field missing",
 		},
 		{
 			name:        "missing timestamp",
-			json:        eventWith("timestamp", "", true),
+			json:        eventWith(t, "timestamp", "", true),
 			expectError: "timestamp field missing",
 		},
 		{
 			name:        "missing nonce",
-			json:        eventWith("nonce", "", true),
+			json:        eventWith(t, "nonce", "", true),
 			expectError: "nonce field missing",
 		},
 		{
 			name:        "missing sequence",
-			json:        eventWith("sequence", "", true),
+			json:        eventWith(t, "sequence", "", true),
 			expectError: "sequence field missing",
 		},
 		{
 			name:        "missing consistency_level",
-			json:        eventWith("consistency_level", "", true),
+			json:        eventWith(t, "consistency_level", "", true),
 			expectError: "consistencyLevel field missing",
 		},
 
 		// Payload validation
 		{
 			name:        "payload empty string",
-			json:        eventWith("payload", "", false),
+			json:        eventWith(t, "payload", "", false),
 			expectError: "payload missing 0x prefix",
 		},
 		{
 			name:        "payload no 0x prefix",
-			json:        eventWith("payload", "deadbeef", false),
+			json:        eventWith(t, "payload", "deadbeef", false),
 			expectError: "payload missing 0x prefix",
 		},
 		{
 			name:        "payload single char",
-			json:        eventWith("payload", "0", false),
+			json:        eventWith(t, "payload", "0", false),
 			expectError: "payload missing 0x prefix",
 		},
 		{
 			name:      "payload 0x only",
-			json:      eventWith("payload", "0x", false),
+			json:      eventWith(t, "payload", "0x", false),
 			expectMsg: true, // empty payload is valid
 		},
 		{
 			name:        "payload invalid hex",
-			json:        eventWith("payload", "0xZZZZ", false),
+			json:        eventWith(t, "payload", "0xZZZZ", false),
 			expectError: "payload decode",
 		},
 		{
 			name:        "payload odd length hex",
-			json:        eventWith("payload", "0xabc", false),
+			json:        eventWith(t, "payload", "0xabc", false),
 			expectError: "payload decode",
 		},
 
 		// Range validation
 		{
 			name:        "nonce exceeds uint32",
-			json:        eventWith("nonce", "4294967296", false), // MaxUint32 + 1
+			json:        eventWith(t, "nonce", "4294967296", false), // MaxUint32 + 1
 			expectError: "nonce is larger than expected MaxUint32",
 		},
 		{
 			name:        "consistency_level exceeds uint8",
-			json:        eventWith("consistency_level", "256", false), // MaxUint8 + 1
+			json:        eventWith(t, "consistency_level", "256", false), // MaxUint8 + 1
 			expectError: "consistency level is larger than expected MaxUint8",
 		},
 	}
