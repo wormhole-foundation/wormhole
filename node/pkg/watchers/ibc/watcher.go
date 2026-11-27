@@ -334,6 +334,12 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 				continue
 			}
 
+			// Defense-in-depth: skip failed transactions. See cosmwasm.CheckTxCode.
+			if err := cosmwasm.CheckTxCode(jsonStr, cosmwasm.WebsocketTxCodePath); err != nil {
+				w.logger.Error("tx did not succeed, skipping", zap.Stringer("tx_hash", txHash), zap.Error(err))
+				continue
+			}
+
 			events := gjson.Get(jsonStr, "result.data.value.TxResult.result.events")
 			if !events.Exists() {
 				w.logger.Warn("message has no events", zap.String("payload", jsonStr))
@@ -479,6 +485,16 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 			txHash, err := vaa.StringToHash(txHashStr)
 			if err != nil {
 				w.logger.Error("tx does not have tx hash", zap.String("chain", ce.chainName), zap.String("payload", txJSON))
+				continue
+			}
+
+			// Defense-in-depth: skip failed transactions. See cosmwasm.CheckTxCode.
+			if err := cosmwasm.CheckTxCode(txJSON, cosmwasm.LCDTxCodePath); err != nil {
+				w.logger.Error("reobserved tx did not succeed, skipping",
+					zap.String("chain", ce.chainName),
+					zap.String("tx_hash", txHashStr),
+					zap.Error(err),
+				)
 				continue
 			}
 

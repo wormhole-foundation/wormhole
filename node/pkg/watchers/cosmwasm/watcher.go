@@ -296,6 +296,16 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 				txHash := txHashRaw.String()
 
+				// Defense-in-depth: skip failed transactions. See CheckTxCode.
+				if err := CheckTxCode(txJSON, LCDTxCodePath); err != nil {
+					logger.Error("reobserved tx did not succeed, skipping",
+						zap.String("network", e.networkName),
+						zap.String("tx_hash", txHash),
+						zap.Error(err),
+					)
+					continue
+				}
+
 				events := gjson.Get(txJSON, "tx_response.events")
 				if !events.Exists() {
 					logger.Error("tx has no events", zap.String("network", e.networkName), zap.String("payload", txJSON))
@@ -339,6 +349,16 @@ func (e *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 				txHash := txHashRaw.String()
+
+				// Defense-in-depth: skip failed transactions. See CheckTxCode.
+				if err := CheckTxCode(json, WebsocketTxCodePath); err != nil {
+					logger.Error("tx did not succeed, skipping",
+						zap.String("network", e.networkName),
+						zap.String("tx_hash", txHash),
+						zap.Error(err),
+					)
+					continue
+				}
 
 				events := gjson.Get(json, "result.data.value.TxResult.result.events")
 				if !events.Exists() {
