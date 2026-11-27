@@ -92,19 +92,28 @@ lint(){
 
     # Lint node, sdk, and linters/ is the custom linter's own code; its
     # rules/<name>/ are separate modules (mirroring `make -C linters test`), so
-    # lint each one too. Run in a subshell so a failure still halts under
-    # `set -e` without leaking the working directory between modules.
+    # lint each one too. Each module runs in a subshell so the working directory
+    # doesn't leak between modules. Failures are collected rather than halting
+    # under `set -e`, so violations in every module show up in one run instead
+    # of only the first failing module's.
     # NOTE this does NOT lint the wormchain directory.
     lint_module() {
         ( cd "$1" && "$LINT_BIN" run --timeout=10m $GOLANGCI_LINT_ARGS ./... )
     }
 
-    lint_module "$ROOT/node"
-    lint_module "$ROOT/sdk"
-    lint_module "$ROOT/linters"
+    local failed=()
+    lint_module "$ROOT/node" || failed+=("node")
+    lint_module "$ROOT/sdk" || failed+=("sdk")
+    lint_module "$ROOT/linters" || failed+=("linters")
     while IFS= read -r gomod; do
-        lint_module "$(dirname "$gomod")"
+        lint_module "$(dirname "$gomod")" || failed+=("${gomod#"$ROOT/"}")
     done < <(find "$ROOT/linters/rules" -name go.mod)
+
+    # Exit if any module failed linting
+    if (( ${#failed[@]} > 0 )); then
+        printf 'golangci-lint failed in: %s\n' "${failed[*]}" >&2
+        exit 1
+    fi
 }
 
 DOCKER="false"
