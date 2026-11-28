@@ -2131,7 +2131,7 @@ type ChainGovernorStatus_Emitter struct {
 
 	EmitterAddress    string                             `protobuf:"bytes,1,opt,name=emitter_address,json=emitterAddress,proto3" json:"emitter_address,omitempty"` // human-readable hex-encoded (leading 0x)
 	TotalEnqueuedVaas uint64                             `protobuf:"varint,2,opt,name=total_enqueued_vaas,json=totalEnqueuedVaas,proto3" json:"total_enqueued_vaas,omitempty"`
-	EnqueuedVaas      []*ChainGovernorStatus_EnqueuedVAA `protobuf:"bytes,3,rep,name=enqueued_vaas,json=enqueuedVaas,proto3" json:"enqueued_vaas,omitempty"` // Only the first 20 will be included.
+	EnqueuedVaas      []*ChainGovernorStatus_EnqueuedVAA `protobuf:"bytes,3,rep,name=enqueued_vaas,json=enqueuedVaas,proto3" json:"enqueued_vaas,omitempty"` // May be truncated to keep the signed status message within the size limit.
 }
 
 func (x *ChainGovernorStatus_Emitter) Reset() {
