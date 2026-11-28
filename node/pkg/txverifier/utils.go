@@ -9,7 +9,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -30,6 +32,11 @@ const (
 	INVARIANT_NO_DEPOSIT           = "bridge transfer requested for tokens that were never deposited"
 	INVARIANT_INSUFFICIENT_DEPOSIT = "bridge transfer requested for more tokens than were deposited"
 )
+
+type TxBlockHashKey struct {
+	TxHash    common.Hash
+	BlockHash common.Hash
+}
 
 // msgID is a unique identifier the corresponds to a VAA's "message ID".
 // i.e.emitter_chain/emitter_address/sequence tuple. In this package, it is used
@@ -246,49 +253,104 @@ func ValidateChains(
 	return enabled, nil
 }
 
-// deleteEntries deletes CacheDeleteCount entries at random from a pointer to a map.
-// Only trims if the length of the cache is greater than CacheMaxSize.
-// Returns the number of keys deleted.
-func deleteEntries[K comparable, V any](cachePointer *map[K]V) (int, error) {
-	if cachePointer == nil {
-		return 0, errors.New("nil pointer to map passed to deleteEntries()")
+// lockedMap is a thread-safe wrapper around a map. Given the number of caches used by
+// the Transfer Verifier, this wrapper avoids the need to manually lock and unlock
+// mutexes across all the different get/set call sites.
+type lockedMap[K comparable, V any] struct {
+	mu    sync.Mutex
+	inner map[K]V
+}
+
+// Wraps the inner map's read access in a mutex lock/unlock operation.
+func (lm *lockedMap[K, V]) Get(key K) (V, bool) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	val, exists := lm.inner[key]
+	return val, exists
+}
+
+// Wraps the inner map's write access in a mutex lock/unlock operation.
+func (lm *lockedMap[K, V]) Set(key K, value V) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	lm.inner[key] = value
+}
+
+// Get the length of the inner map.
+func (lm *lockedMap[K, V]) Len() int {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	return len(lm.inner)
+}
+
+// PruneIfFull deletes at least CacheDeleteCount entries at random from the
+// inner map, if the amount of entries exceeds CacheMaxSize.
+// Returns the number of entries deleted.
+func (lm *lockedMap[K, V]) PruneIfFull() int {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+
+	if len(lm.inner) <= CacheMaxSize {
+		return 0
 	}
 
-	if *cachePointer == nil {
-		return 0, errors.New("nil map passed (pointer points to a nil map)")
-	}
-
-	cache := *cachePointer
-	currentLen := len(cache)
-	// Bounds check
-	// NOTE: cache length must be greater than or equal to CacheMaxSize.
-	if currentLen <= CacheMaxSize {
-		return 0, nil
-	}
-
-	// Delete either a fixed number of entries or else delete enough so that the cache
-	// will be at CacheMaxSize after the operation.
-	deleteCount := max(CacheDeleteCount, currentLen-CacheMaxSize)
-
-	// Allocate array that stores keys to delete.
-	keysToDelete := make([]K, deleteCount)
-
-	// Iterate over the map (non-deterministic) and pick some keys to delete.
-	var i int
-	for key := range cache {
-		keysToDelete[i] = key
-		i++
-		if i >= len(keysToDelete) {
+	deleteCount := max(CacheDeleteCount, len(lm.inner)-CacheMaxSize)
+	deleted := 0
+	for key := range lm.inner {
+		delete(lm.inner, key)
+		deleted++
+		if deleted >= deleteCount {
 			break
 		}
 	}
+	return deleted
+}
 
-	// Delete the keys from the map.
-	for _, key := range keysToDelete {
-		delete(cache, key)
+// SetIfAbsent inserts a key and value into the map only if the key does not already exist.
+func (lm *lockedMap[K, V]) SetIfAbsent(key K, value V) bool {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	if _, exists := lm.inner[key]; exists {
+		return false
 	}
+	lm.inner[key] = value
+	return true
+}
 
-	return i, nil
+func NewLockedMap[K comparable, V any]() *lockedMap[K, V] {
+	return &lockedMap[K, V]{
+		inner: make(map[K]V),
+	}
+}
+
+// evaluationsLockedMap is a specialized lockedMap for receipt evaluations that supports pruning by block number.
+type evaluationsLockedMap struct {
+	lockedMap[TxBlockHashKey, *receiptEvaluation]
+}
+
+// PruneOlderThan iterates over the cached receipt evaluations and removes those with a
+// block number older than the specified block.
+// Returns the number of entries removed.
+func (elm *evaluationsLockedMap) PruneOlderThan(block uint64) int {
+	elm.mu.Lock()
+	defer elm.mu.Unlock()
+
+	deleteCount := 0
+	for key, evaluation := range elm.inner {
+		// evaluations should never be nil, but check it just in case.
+		// nil or old evaluations should be removed.
+		if evaluation == nil || evaluation.blockNumber < block {
+			delete(elm.inner, key)
+			deleteCount++
+		}
+	}
+	return deleteCount
+}
+
+func NewEvaluationsLockedMap() *evaluationsLockedMap {
+	return &evaluationsLockedMap{
+		lockedMap: *NewLockedMap[TxBlockHashKey, *receiptEvaluation](),
+	}
 }
 
 // upsert inserts a new key and value into a map or update the value if the key already exists.
