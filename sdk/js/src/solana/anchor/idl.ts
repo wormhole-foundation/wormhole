@@ -1,6 +1,6 @@
 // Borrowed from coral-xyz/anchor
 //
-// https://github.com/coral-xyz/anchor/blob/master/ts/packages/anchor/src/idl.ts
+// https://github.com/otter-sec/anchor/blob/master/ts/packages/anchor/src/idl.ts
 
 import { Buffer } from "buffer";
 import { PublicKey } from "@solana/web3.js";

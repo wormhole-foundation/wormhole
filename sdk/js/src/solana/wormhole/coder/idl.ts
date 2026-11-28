@@ -1,6 +1,6 @@
 // Borrowed from coral-xyz/anchor
 //
-// https://github.com/coral-xyz/anchor/blob/master/ts/packages/anchor/src/coder/borsh/idl.ts
+// https://github.com/otter-sec/anchor/blob/master/ts/packages/anchor/src/coder/borsh/idl.ts
 
 import * as borsh from "@coral-xyz/borsh";
 import { Layout } from "buffer-layout";
